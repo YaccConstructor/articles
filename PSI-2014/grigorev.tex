@@ -8,7 +8,7 @@
 \usepackage{makeidx}  % allows for indexgeneration
 %\usepackage[T2A]{fontenc} 
 %\usepackage[utf8]{inputenc}
-%\usepackage[english]{babel}
+%\usepackage[english,russian]{babel}
 \usepackage{graphicx}
 \usepackage{indentfirst}
 \usepackage{hyperref}
@@ -59,40 +59,30 @@ St. Petersburg State University \\
 
 \begin{abstract}
 
-String-embedded language translation is one of the problems which can be faced during database application and information system migration. There are two approaches to solve this problem: static translation or translation at run time. Our research deals with the first one since solution for embedded language static translation problem do not still exists. There is an abstract parsing algorithm~\cite{AbstrParsing} for parsing of string-embedded language. Parsing is close problem and in this article we propose abstract parsing algorithm modification for application to string-embedded language translation. We describe modifications of the basic algorithm which allow to translate embedded languages. An algorithm of parsing forest minimization is also presented. We discuss some issues of real-world dynamic SQL queries static translation and provide possible solutions. Finally, we present results of implemented algorithm evaluation.
+String-embedded language translation is one of the problems which can be faced during 
+database application and information system migration. There are two approaches to 
+solve this problem: static translation or translation at run time. Our research deals 
+with the first one since solution for embedded language static translation problem do 
+not still exists. There is an abstract parsing algorithm~\cite{AbstrParsing} for parsing of 
+string-embedded language. Parsing is close problem and in this article we propose abstract 
+parsing algorithm modification for application to string-embedded language translation. 
+We describe modifications of the basic algorithm which allow to translate embedded languages. 
+An algorithm of parsing forest minimization is also presented. We discuss some issues of 
+real-world dynamic SQL queries static translation and provide possible solutions. Finally, 
+we present results of implemented algorithm evaluation.
 
-\keywords{Embedded languages, two-staged languages, string-embedded languages, abstract parsing,  abstract translation, LALR, dynamic SQL}
+\keywords{Embedded languages, two-staged languages, string-embedded languages, abstract 
+parsing,  abstract translation, LALR, dynamic SQL}
 \end{abstract}
 
-\section{Introduction}
+\input{introduction}
 
-Most programming languages allow to use string-embedded languages: dynamically build expressions in other languages as string values and evaluate them with intended processor (database, web browser, or interpreter). In the current work we use dynamic SQL as an example of string-embedded languages. The mechanism of dynamic SQL queries contraction and execution was specified in ISO SQL standard in 1992 ~\cite{ISO} and most DBMS support this. 
-
-Dynamically constructed expressions is a string expressions in any programming language and for compiler they are just string constants. If we want to change execution method or runtime of this expression (e.g. change target database from MySQL to Oracle) then we possibly should transform it. For classical case we have a translator from one language to another, and the process called "translation". Now we want to describe similar process for string-embedded languages and we call it "abstract translation".
-
-Dynamic queries translation is necessary for information systems reengineering and database applications migration from one database management system to another~\cite{NetDbTransform}. Translation of one dialect of SQL to another is often required during this process. If source code contains dynamic queries then we should guarantee that all string values which are used for dynamic queries building remain correct after translation. By correctness of resulting values we mean that queries formed from them are correct in the context of target DBMS.
- 
-Various objects modifications may be performed during information system reengineering for example renaming or dead code elimination . In this case we should guarantee not only syntax correctness of translation results but also semantic correctness in the context of performed environment modifications. 
-
-For practical usage it is very important that information systems can contain a big number of dynamic queries and each one of them can contains hundreds of branches~\cite{TiunovaUIInt}. The necessity of analyzing all possible values for each query can cause  performance problems and exponential growth of required resources.
-
-There are no tools for string-embedded languages translation. The existing production tools for database applications development, such as PL-SQL Developer ~\cite{PLSQL}, SwisSQL ~\cite{SwissSQL} or SQL Ways ~\cite{SQLWays}, allow to translate stored SQL code but do not support dynamic SQL translation. There is a set of tools for string-embedded languages processing, such as PHP String Analyzer ~\cite{PHPSA} or Alvor, but these tools also cannot be used for dynamically constructed expression translation.
-
-One of the possible approaches of dynamic expressions translation is a translation in run time with implementation of custom function for statements execution. It means that the final version of statement constructed during program execution will be executed with custom function which translate statement from old language to current before execution. This approach was successfully applied for information system migration~\cite{OpenSystemsDBMS}.
-
-The second possible approach is static translation. It means that it can be done statically as part of information system migration process by the similar way as classical translation. So,  we should generalize translation techniques for application to string embedded languages.  As a result of abstract translation we should calculate new values for all string variables to ensure   correctness of dynamically constructed expressions in the target system. As we have already mentioned, the problem of static string-embedded language translation is not solved yet.
-
-Contribution of this article is an adaptation and application of the abstract parsing algorithm ~\cite{AbstrParsing} to solve the problem of string-embedded language translation. We describe necessary modifications of basic abstract parsing algorithm to make it applicable to string-embedded language translation in the context of real-world information systems migration. 
-
-The paper is organized as follows: The next Section introduces and describe abstract parsing. Section~\ref{sec:AbstractTranslation} introduces abstract translation and describes basic ideas of string-embedded language translation algorithm. Section~\ref{sec:Optimizations} describes optimizations of abstract translation algorithm discussed in the previous Section. Section~\ref{sec:Evaluation} presents results of proposed algorithm application to real-world migration of the information system which contains more than 2 million lines of code and more than 3000 dynamic SQL queries from MS-SQL Server to Oracle and Section~\ref{sec:Conclusion} discuss some problems of abstract translation and possible ways to solve them.
-
-
-
-
-\section{Related work}
+\section{Abstract Parsing on DAGs}
 \label{sec:RelatedWork}
 
-One of the most popular examples of string-embedded languages is a dynamic SQL, and we will use it for all examples in this article. Let we try to process the some code presented below which construct and execute dynamic SQL query.  
+One of the most popular examples of string-embedded languages is a dynamic SQL, and we will use it for all 
+examples in this article. Let we try to process the some code presented below which construct and execute 
+dynamic SQL query.  
 
 \begin{verbatim} 
 (1) IF @X = @Y
@@ -103,7 +93,13 @@ One of the most popular examples of string-embedded languages is a dynamic SQL, 
 (6) EXECUTE (@S)
 \end{verbatim}
 
-Variable \verb @S \ contains dynamically generated query and has 2 possible values at the point of query execution. During approximation we can get a graph which presents the set of the possible values of the variable \verb @S \ at the line 6. Each edge of this graph contains string which represent a part of query. Note that real-world systems can communicate with other systems source of which may be inaccessible to analyze. These systems can contain parts of queries to process and we should use some approximations. For example, clients applications of information system can sent conditions for filters (conditions for \verb|where| clause of \verb|select| statement) as part of requests.  Graph for our code is presented in picture~\ref{pic1}.
+Variable \verb @S \ contains dynamically generated query and has 2 possible values at the point of query execution. 
+During approximation we can get a graph which presents the set of the possible values of the variable \verb @S \ at the 
+line 6. Each edge of this graph contains string which represent a part of query. Note that real-world systems can communicate
+ with other systems source of which may be inaccessible to analyze. These systems can contain parts of queries 
+to process and we should use some approximations. For example, clients applications of information system can 
+sent conditions for filters (conditions for \verb|where| clause of \verb|select| statement) as part of requests.  
+Graph for our code is presented in picture~\ref{pic1}.
 
 \begin{figure}
     \begin{center}
@@ -113,13 +109,32 @@ Variable \verb @S \ contains dynamically generated query and has 2 possible valu
     \end{center}
 \end{figure}
 
-We suppose that input data structure for abstract analysis is a graph which represents the result of constant propagation: every path in input graph corresponds with one of possible values of dynamic query. Let we define that this path produce corresponded value and we will say that query contains lexical or syntax error if at least one path which produce value with error exists in the corresponding graph. After that we define that input graph tokenization or lexical analysis is the process which convert input graph with string labels on edges (picture ~\ref{pic1}) to graph with tokens. The same way we define parsing or syntax analysis as the process which produce parsing forest by input graph with edges labeled with tokens.  As a result of parsing we have forest where each tree corresponds with query value produced by any path in the input graph. When we describe abstract parsing and translation we assume that input graph tokenization performed successfully.
+We suppose that input data structure for abstract analysis is a graph which represents the result of constant
+ propagation: every path in input graph corresponds with one of possible values of dynamic query. Let we define 
+that this path produce corresponded value and we will say that query contains lexical or syntax error if at least 
+one path which produce value with error exists in the corresponding graph. After that we define that input graph 
+tokenization or lexical analysis is the process which convert input graph with string labels on edges (picture~\ref{pic1}) 
+to graph with tokens. The same way we define parsing or syntax analysis as the process which produce parsing forest by 
+input graph with edges labeled with tokens. As a result of parsing we have forest where each tree corresponds with query 
+value produced by any path in the input graph. When we describe abstract parsing and translation we assume that input 
+graph tokenization performed successfully.
 
-In the general case input graph can be arbitrary graph with cycles~\cite{AbstrParsing}. Cycles in the input graph may be cause of infinite parsing. ut we have not found any practice implementations with problem of cycles processing fully solved. We have found only two known implementations of abstract parsing: Alvor
-\footnote{Alvor is an Eclipse IDE plug-in for statically checking of string-embedded SQL queries in Java programming language. This plug-in is based on LALR and GLR abstract parsing and can be used either for incremental analysis or for offline checking of full code base. Alvor project web site: \href{http://code.google.com/p/alvor/}{http://code.google.com/p/alvor/}}
- and the tool described in the Doh, Kim, and Schmid's article. Alvor use stack size limitation to avoid infinite processing of cycles. Doh, Kim, and Schmid's implementation of LALR(1)-based abstract parsing cannot be found and article does not contain practice solution of cycles processing problem. In sum, efficient arbitrary graph with cycles processing in abstract parsing is an open question.
+In the general case input graph can be arbitrary graph with cycles~\cite{AbstrParsing}. Cycles in the input graph may 
+be cause of infinite parsing. ut we have not found any practice implementations with problem of cycles processing fully 
+solved. We have found only two known implementations of abstract parsing: Alvor\footnote{Alvor is an Eclipse IDE plug-in 
+for statically checking of string-embedded SQL queries in Java programming language. This plug-in is based on LALR and GLR 
+abstract parsing and can be used either for incremental analysis or for offline checking of full code base. Alvor project 
+web site: \href{http://code.google.com/p/alvor/}{http://code.google.com/p/alvor/}} and the tool described in the Doh, Kim, 
+and Schmid's article. Alvor use stack size limitation to avoid infinite processing of cycles. Doh, Kim, and Schmid's 
+implementation of LALR(1)-based abstract parsing cannot be found and article does not contain practice solution of 
+cycles processing problem. In sum, efficient arbitrary graph with cycles processing in abstract parsing is an open question.
 	
-Abstract parsing is based on the idea of reusing of the control structures utilized in the classical parsing with the implementation of special mechanism of their interpretation. Control tables for the analyzer (action, goto) may be generated by the language specification by using some standard tool i.e. Yacc~\footnote{Yacc is a classical LALR-based parsers generator. Yacc web site: \href{http://dinosaur.compilertools.net/}{http://dinosaur.compilertools.net/}}. LR automaton~\cite{Grune} should be modified so that it is able to compute all possible parser states for each vertex of the graph~\cite{AbstrParsing}. So, the basic idea of the abstract parsing is a graph processing with fix-point calculation~\cite{ALVOR2}.
+Abstract parsing is based on the idea of reusing of the control structures utilized in the classical parsing with the 
+implementation of special mechanism of their interpretation. Control tables for the analyzer (action, goto) may be generated by
+ the language specification by using some standard tool i.e. Yacc~\footnote{Yacc is a classical LALR-based parsers generator. 
+Yacc web site: \href{http://dinosaur.compilertools.net/}{http://dinosaur.compilertools.net/}}. LR automaton~\cite{Grune} should
+ be modified so that it is able to compute all possible parser states for each vertex of the graph~\cite{AbstrParsing}. 
+So, the basic idea of the abstract parsing is a graph processing with fix-point calculation~\cite{ALVOR2}.
 
 Let we use the grammar presented below to generate syntax analyzer.
 
@@ -129,7 +144,8 @@ e -> BD
 e -> CD
 \end{verbatim}
 
-Input for generated analyzer is the graph presented in picture~\ref{pic2}. The set of parser states for each vertex for graph will be calculated during syntax analysis. Result of states calculation shown in the picture ~\ref{pic3}.
+Input for generated analyzer is the graph presented in picture~\ref{pic2}. The set of parser states for each vertex for 
+graph will be calculated during syntax analysis. Result of states calculation shown in the picture ~\ref{pic3}.
 
 \begin{figure}
     \begin{center}
@@ -147,7 +163,10 @@ Input for generated analyzer is the graph presented in picture~\ref{pic2}. The s
     \end{center}
 \end{figure}
 
-So, there is an algorithm for syntax analysis of string-embedded languages. Note, that the problem of static analysis if dynamically generated strings could not be solved in the common case~\cite{ALVOR2}. Also there are possible two implementation of abstract parsing algorithm except our one. Note that these tools do not solve the problem of string-embedded statements translation.
+So, there is an algorithm for syntax analysis of string-embedded languages. Note, that the problem of static 
+analysis if dynamically generated strings could not be solved in the common case~\cite{ALVOR2}. Also there are 
+possible two implementation of abstract parsing algorithm except our one. Note that these tools do not solve 
+the problem of string-embedded statements translation.
 
 
 \section{Abstract translation}
@@ -391,7 +410,7 @@ Annamaa A., Breslav A., Kabanov J. e.a. An interactive tool for analyzing embedd
 Annamaa A., Breslav A., Vene V. Using abstract lexical analysis and parsing to detect errors in string-embedded DSL statements // Proceedings of the 22nd Nordic Workshop on Programming Theory. Marina Walden and Luigia Petre, editors. 2010. P. 20-22.
 
 \bibitem{StringExpr}
-\emph{Aske Simon Christensen, Mller A., Michael I. Schwartzbach.} Precise analysis of string expressions // Proc. 10th International Static Analysis Symposium (SAS), Vol. 2694 of LNCS. Springer-Verlag: Berlin; Heidelberg, June, 2003. P. 1–18.
+Aske Simon Christensen, Mller A., Michael I. Schwartzbach. Precise analysis of string expressions // Proc. 10th International Static Analysis Symposium (SAS), Vol. 2694 of LNCS. Springer-Verlag: Berlin; Heidelberg, June, 2003. P. 1–18.
 
 \bibitem{Grune}
 Grune D., Ceriel J. H. Jacobs. Parsing techniques: a practical guide. Ellis Horwood, Upper Saddle River, NJ, USA, 1990. P. 322.
