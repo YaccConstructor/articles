@@ -1,0 +1,110 @@
+\section{Evaluation}
+\label{sec:Evaluation}
+
+The algorithm of abstract parsing with modifications described was applied in real-world project of 
+information system migration from MS-SQL Server 2005 to Oracle 11gR2. The source system consists of 
+850 stored procedures and contains more than 3000 dynamic queries. Total size of migrated system is 
+2,7 million lines of code. The number of operations to construct values of more than half of queries 
+is between 7 and 212 and average is 40.
+
+We have used the next PC configuration for tests: 
+\begin{itemize}
+    \item 16 GB of RAM
+    \item Intel Core i7 2.6 GHz
+\end{itemize}
+
+Our implementation of abstract translator is based on FsYacc tool. FsYacc is a generator of LALR(1)
+parsers for F\# programming language. Generator was fully reused and custom interpreter with stacks 
+copying mechanism was implemented. 
+
+First implementation was directly based on abstract parsing algorithm. This version was not adapted 
+to process complex queries and was turn system to active swapping. So, analysis could not be finished
+in acceptable time. Timeout (64 seconds) was added to limit one query processing time. Experiments 
+show that increasing of timeout do not increase the number of processed queries. The category for 
+queries terminated by tymeout was named "Dynamic SQL queries with exponential growth of parsing 
+forest".
+
+In the table below we present statistics for dynamic SQL query processing by two algorithms: original
+algorithm with timeout and algorithm with states merging.
+
+\begin{center}
+\begin{table}
+\caption{Comparison of the original algorithm with timeout and the algorithm with states merging.}
+\begin{tabular}[c c c]{| p{5.5cm} | p{3cm} | p{3cm} |}
+\hline
+Category description & Original algorithm with timeout & The algorithm with states merging
+\\
+\hline
+The total number of dynamic SQL queries & 3122 & 3122
+\\
+\hline
+The number of successfully processed dynamic SQL queries & 2181 & 2253
+\\
+\hline
+ & &
+\\
+\hline
+\bfseries{The number of partially processed dynamic SQL queries} & 408 & 522
+\\
+\hline
+
+ %\ \ \ \ 
+ Lexer errors & 283 & 289
+\\
+\hline
+
+ %\ \ \ \ 
+ Parser errors & 354 & 468
+\\
+\hline
+ & &
+\\
+\hline
+
+\bfseries{The number of not processed dynamic SQL queries} & 533 & 347
+\\
+\hline
+ %\ \ \ \
+  Lexer errors & 140 & 134
+\\
+\hline
+
+ %\ \ \ \
+ Parser errors & 280 & 305
+\\
+\hline
+
+ %\ \ \ \ 
+ Dynamic SQL queries with exponential growth of parsing forest. & 253 & 41
+
+\\
+\hline
+ & &
+\\
+\hline
+
+
+Percentage of successfully processed dynamic SQL queries & 69.86\% & 72.17\%
+\\
+\hline
+
+Percentage of partially processed dynamic SQL queries & 13.07\% & 16.72\%
+\\
+\hline
+
+Percentage of dynamic SQL queries with non-empty forest & 82.93\% & 88.89\%
+\\
+\hline
+ 
+\end{tabular}
+\end{table}
+\end{center}
+
+
+Partially processed queries is a set of queries with non-empty parsing forest but with parsing or lexing errors. 
+This category is the most difficult for processing because error may be a false alarm. Such situation may 
+occur if query value which produce errors cannot be generated in run time.
+
+Table shows that the number of queries with exponential growth of parsing forest size decreased
+from 253 to 42. So, application of proposed optimizations allows to improve big queries processing 
+more than 6 times.

@@ -63,7 +63,7 @@ database and information system migration. The conventional solution which
 is provided by a number of tools is based on run-time translation. We present a static 
 \emph{abstract translation} approach which orignates from the \emph{abstract parsing} 
 technique~\cite{AbstrParsing} initially developed for syntax analysis of string-embedded 
-languages. We present abstract translation algorithm, some optimization techniques and
+languages. We present abstract translation algorithm and some optimization techniques, and
 discuss the results of its evaluation on a real-world industrial application.
 
 %There are two approaches to 
@@ -82,22 +82,46 @@ parsing,  abstract translation, LALR, dynamic SQL}
 \end{abstract}
 
 \input{introduction}
-\input{abstract_parsing_dags}
+\input{dags}
 
 \section{Abstract translation}
 \label{sec:AbstractTranslation}
 
-To solve a problem of dynamic queries translation we should calculate new values for all variables used for queries construction. If we want to create static translator then result of translation should not require any changes after translation is finished. Basic idea is that we should try to apply classical translation techniques to each possible value of dynamic query. So we should build parsing forest and translate each of trees, and calculate new string values based on translation result.
+To solve a problem of dynamic queries translation we should calculate new values for all variables used 
+for queries construction. If we want to create static translator then result of translation should not 
+require any changes after translation is finished. Basic idea is that we should try to apply classical 
+translation techniques to each possible value of dynamic query. So we should build parsing forest and 
+translate each of trees, and calculate new string values based on translation result.
 
-Semantic equivalent constructions of source and target languages should have similar syntax in order to abstract translation could be applied. If this constraint is not satisfied then solution could not be reduced to new values calculation for existing variables. New variable creation may be required and this fact can significantly increase complexity of solution and corresponded analysis.
+Semantic equivalent constructions of source and target languages should have similar syntax in order to 
+abstract translation could be applied. If this constraint is not satisfied then solution could not be
+ reduced to new values calculation for existing variables. New variable creation may be required and 
+this fact can significantly increase complexity of solution and corresponded analysis.
 
-Also we suppose that input data structure for parser is direct acyclic graph (DAG) with one source and one sink vertices. Our experience of dynamic SQL translation for real information system shows that DAG is a good approximation of the dynamically constructed expressions set for practical use. We should replace all cycles with single repetition during approximation to get such graph. This way we can process all vertices in the topological order and avoid the problem with cycles processing previously discussed.
+Also we suppose that input data structure for parser is direct acyclic graph (DAG) with one source and 
+one sink vertices. Our experience of dynamic SQL translation for real information system shows that DAG 
+is a good approximation of the dynamically constructed expressions set for practical use. We should replace 
+all cycles with single repetition during approximation to get such graph. This way we can process all vertices 
+in the topological order and avoid the problem with cycles processing previously discussed.
 
-We propose to modify basic LALR-based algorithm of abstract parsing to solve the problem of abstract translation. The original parsing algorithm targeted to recognition, not translation, and it does not support semantics calculation. This fact allows to operate only with tokens type, not tokens values. It is possible to merge states like in GLR-algorithm\footnote{Generalized Left-to-right Rightmost derivation -- LR-based parsing algorithm for arbitrary (ambiguous) context-free grammars processing~\cite{Grune}.}. This way we can avoid problems with size of states set and parsing result. If we want to translate input expression to another language then we should keep all information about tokens values. 
+We propose to modify basic LALR-based algorithm of abstract parsing to solve the problem of abstract 
+translation. The original parsing algorithm targeted to recognition, not translation, and it does not 
+support semantics calculation. This fact allows to operate only with tokens type, not tokens values. 
+It is possible to merge states like in GLR-algorithm\footnote{Generalized Left-to-right Rightmost 
+derivation -- LR-based parsing algorithm for arbitrary (ambiguous) context-free grammars 
+processing~\cite{Grune}.}. This way we can avoid problems with size of states set and parsing result.
+ If we want to translate input expression to another language then we should keep all information 
+about tokens values. 
 
-One of the possible solution of translation is abstract parsing algorithm with mechanism of stack splitting for semantic calculation support. It disallow to merge states and we should create new copies of stack on each branch in input graph and get exponential memory usage in worst case. Note that there is a big number of dynamic expressions which require exponential resources to analyze in the real world information systems. 
+One of the possible solution of translation is abstract parsing algorithm with mechanism of stack 
+splitting for semantic calculation support. It disallow to merge states and we should create new 
+copies of stack on each branch in input graph and get exponential memory usage in worst case. 
+Note that there is a big number of dynamic expressions which require exponential resources to 
+analyze in the real world information systems. 
 
-For example parser states for vertex $V_3$ in picture~\ref{pic4} should be equal for 2 input edges but if we want to calculate semantics, then we get two different states because identifiers has different values.
+For example parser states for vertex $V_3$ in picture~\ref{pic4} should be equal for 2 input edges
+but if we want to calculate semantics, then we get two different states because identifiers has 
+different values.
 
 \begin{figure}
     \begin{center}
@@ -107,7 +131,12 @@ For example parser states for vertex $V_3$ in picture~\ref{pic4} should be equal
     \end{center}
 \end{figure}
 
-Queries which contains a huge number of branches is a big problem. The number of states is an exponential function of the Nnumber of branches because for each branch we should produce $n*k$ states where $n$ is a number of states in root of fork vertex and $k$ is a number of branches. One of the most frequent example of queries with big number of branches is \verb|select| query. Each of fields to select can be calculated with if-statement or case-statement. Example of such graph presented in picture~\ref{pic5}.
+Queries which contains a huge number of branches is a big problem. The number of states is an 
+exponential function of the Nnumber of branches because for each branch we should produce $n*k$ 
+states where $n$ is a number of states in root of fork vertex and $k$ is a number of branches. 
+One of the most frequent example of queries with big number of branches is \verb|select| query. 
+Each of fields to select can be calculated with if-statement or case-statement. Example of such 
+graph presented in picture~\ref{pic5}.
 
 \begin{figure}
     \begin{center}
@@ -117,13 +146,23 @@ Queries which contains a huge number of branches is a big problem. The number of
     \end{center}
 \end{figure}
 
-If we use only sequentially concatenated if-statements then the number of parsing trees is $2^n$ where $n$ is a number of if-statements (or number of branches). In the real-world systems we have faced the queries which contains more than 100 branches. Full forest calculation by naive adaptation of abstract parsing is impossible for such queries. The set of states to be processed minimization is an actual problem for real-world systems.
-
+If we use only sequentially concatenated if-statements then the number of parsing trees is $2^n$ 
+where $n$ is a number of if-statements (or number of branches). In the real-world systems we 
+have faced the queries which contains more than 100 branches. Full forest calculation by naive 
+adaptation of abstract parsing is impossible for such queries. The set of states to be processed
+ minimization is an actual problem for real-world systems.
 
 \subsection{Optimization of the abstract translation algorithm}
 \label{sec:Optimizations}
 
-We propose the following solution of forest size minimization problem. We have previously discussed that the result of translation is new values for all variables which were used for queries construction. It is sufficient to construct not the full forest but only the minimal set of trees such that after translation every variable gets new value.This way, we can process not all paths in the input graph but only minimal set which contains all edges. Note that we cannot calculate this set before parsing because we cannot be sure that every path produces syntax correct values. If some path contains error than the tree is not constructed and we lose information about variables. For example let we try to process the graph presented in picture~\ref{pic6}.
+We propose the following solution of forest size minimization problem. We have previously discussed 
+that the result of translation is new values for all variables which were used for queries construction. 
+It is sufficient to construct not the full forest but only the minimal set of trees such that after 
+translation every variable gets new value.This way, we can process not all paths in the input graph 
+but only minimal set which contains all edges. Note that we cannot calculate this set before parsing 
+because we cannot be sure that every path produces syntax correct values. If some path contains 
+error than the tree is not constructed and we lose information about variables. For example let
+we try to process the graph presented in picture~\ref{pic6}.
 
 \begin{figure}
     \begin{center}
@@ -133,7 +172,11 @@ We propose the following solution of forest size minimization problem. We have p
     \end{center}
 \end{figure}
 
-One possible set of paths which we can be calculated before syntax analysis is $\{(L_1; M_1); (L_2; M_2)\}$. But every path contains syntax errors and the result forest is empty instead of containing 2 trees. We should choose another set (for example $\{(L_1; M_2); (L_2; M_1)\}$) to get correct result. So, path calculation is iterative process. We should perform states filtering during syntax analysis for each vertex with multiple input edges. Let we describe steps of the process.
+One possible set of paths which we can be calculated before syntax analysis is $\{(L_1; M_1); (L_2; M_2)\}$. 
+But every path contains syntax errors and the result forest is empty instead of containing 2 trees. 
+We should choose another set (for example $\{(L_1; M_2); (L_2; M_1)\}$) to get correct result. So, 
+path calculation is iterative process. We should perform states filtering during syntax analysis 
+for each vertex with multiple input edges. Let we describe steps of the process.
 
 \begin{itemize}
     \item \textbf{Initial state.} Set of states for vertex is empty. 
@@ -182,121 +225,12 @@ for v in V do
 
 \end{verbatim}
 
-This way we can get states set which contains all parser states from input set but is not greater than it. Corresponded paths contains all possible edges in processed subgraph. Described algorithm of filtration allows to increase performance of parsing by decreasing a number of parsing trees.
+This way we can get states set which contains all parser states from input set but is not greater 
+than it. Corresponded paths contains all possible edges in processed subgraph. Described algorithm
+of filtration allows to increase performance of parsing by decreasing a number of parsing trees.
 
-\section{Evaluation}
-\label{sec:Evaluation}
-
-The algorithm of abstract parsing with modifications described was applied in real-world project of information system migration from MS-SQL Server 2005 to Oracle 11gR2. The source system consists of 850 stored procedures and contains more than 3000 dynamic queries. Total size of migrated system is 2,7 million lines of code. The number of operations to construct values of more than half of queries is between 7 and 212 and average is 40.
-
-We have used the next PC configuration for tests: 
-\begin{itemize}
-    \item 16 GB of RAM
-    \item Intel Core i7 2.6 GHz
-\end{itemize}
-
-Our implementation of abstract translator is based on FsYacc tool. FsYacc is a generator of LALR(1) parsers for F\# programming language. Generator was fully reused and custom interpreter with stacks copying mechanism was implemented. 
-
-First implementation was directly based on abstract parsing algorithm. This version was not adapted to process complex queries and was turn system to active swapping. So, analysis could not be finished in acceptable time. Timeout (64 seconds) was added to limit one query processing time. Experiments show that increasing of timeout do not increase the number of processed queries. The category for queries terminated by tymeout was named "Dynamic SQL queries with exponential growth of parsing forest".
-
-In the table below we present statistics for dynamic SQL query processing by two algorithms: original algorithm with timeout and algorithm with states merging.
-
-\begin{center}
-\begin{table}
-\caption{Comparison of the original algorithm with timeout and the algorithm with states merging.}
-\begin{tabular}[c c c]{| p{5.5cm} | p{3cm} | p{3cm} |}
-\hline
-Category description & Original algorithm with timeout & The algorithm with states merging
-\\
-\hline
-The total number of dynamic SQL queries & 3122 & 3122
-\\
-\hline
-The number of successfully processed dynamic SQL queries & 2181 & 2253
-\\
-\hline
- & &
-\\
-\hline
-\bfseries{The number of partially processed dynamic SQL queries} & 408 & 522
-\\
-\hline
-
- %\ \ \ \ 
- Lexer errors & 283 & 289
-\\
-\hline
-
- %\ \ \ \ 
- Parser errors & 354 & 468
-\\
-\hline
- & &
-\\
-\hline
-
-\bfseries{The number of not processed dynamic SQL queries} & 533 & 347
-\\
-\hline
- %\ \ \ \
-  Lexer errors & 140 & 134
-\\
-\hline
-
- %\ \ \ \
- Parser errors & 280 & 305
-\\
-\hline
-
- %\ \ \ \ 
- Dynamic SQL queries with exponential growth of parsing forest. & 253 & 41
-
-\\
-\hline
- & &
-\\
-\hline
-
-
-Percentage of successfully processed dynamic SQL queries & 69.86\% & 72.17\%
-\\
-\hline
-
-Percentage of partially processed dynamic SQL queries & 13.07\% & 16.72\%
-\\
-\hline
-
-Percentage of dynamic SQL queries with non-empty forest & 82.93\% & 88.89\%
-\\
-\hline
- 
-\end{tabular}
-\end{table}
-\end{center}
-
-
-Partially processed queries is a set of queries with non-empty parsing forest but with parsing or lexing errors. This category is the most difficult for processing because error may be a false alarm. Such situation may occur if query value which produce errors cannot be generated in run time.
-
-Table shows that the number of queries with exponential growth of parsing forest size decreased from 253 to 42. So, application of proposed optimizations allows to improve big queries processing more than 6 times.
-
-\section{Conclusion and future work}
-\label{sec:Conclusion}
-
-Partially processed queries are the most difficult for analysis because real set of values which can be generated for query at run time and the correctness of this set values often corresponds with some additional nontrivial knowledges about original system. We can suppose that all values of initial queries should be correct because the original system is production system with long time history. We should assume that behavior of the system is always correct. In this case any errors shows that our algorithm is incorrect. On the other hand, this assumption is not always correct. Firstly, developer can have some additional knowledges about semantics of code and he can guarantee that some values never be got for query and this values can be incorrect. But this values can be calculated during statical analysis. Moreover, the dead code contained in long-lived systems can be really incorrect and the amount of this code can be big. Database applications can contain legacy and test procedures which were correct some times ago but not now. Dead code elimination can be useful in some of these cases, but most of them should be manually investigated anyway. Detailed research of error correction and recovery algorithms application for abstract parsing is required ~\cite{RelaxedLALR}.
-
- 
-Semantics calculation for embedded languages is also the source of problems. The main problem is that we cannot guarantee semantics correctness during syntax analysis: we can get correct tree with incorrect semantic. Example of this situation is shown in picture ~\ref{pic7}. In presented graph we can choose 2 paths which contain all variables used for query value calculation. For example, let we choose the paths which produce the next queries: "\verb|Select fld1 from myTbl1|" \ and "\verb|Select fld2 from myTbl2|". Both chosen paths are syntactical correct but in the real system the table \verb|myTbl1| may not contains the field \verb|fld1|, and the table  \verb|myTbl2| may not contains the field \verb|fld2|.  
-
-\begin{figure}
-    \begin{center}
-        \includegraphics[width=11cm,height=1.3cm]{graphs/semantics_example.eps}
-        \caption{ All path in this graph are syntactical correct but semantics of some path may be incorrect.}
-        \label{pic7}
-    \end{center}
-\end{figure}
-
-
-Also we have problems which correspond with syntax of analyzes language and its specification in documentation and grammar. For example, such clauses of \verb|Select| statement as \verb|group by| or \verb|order by|. Any of these clauses can be omitted, but when the optional clauses are used, they must appear in the appropriate order and only one time per statement. But some simple approximation which allows to omit explicit enumeration of all variants of permutation is often used in the documentation and the grammar. Such approximation allows to accept input strings with arbitrary repetition of clauses (multiple repetition of one clause also possible). In the stored code such situation is not possible because this code should be correct but during graphs processing we can get \verb|Select| query with multiple \verb|group by| clause. This situation is not correct. The preferred solution of such problems is to use a special constructions in translation specification language. Also we can manually check correctness of parsing forest but this solution looks more difficult and less preferred.
+\input{evaluation}
+\input{conclusion}
 
 %
 % ---- Bibliography ----
