@@ -1,0 +1,1 @@
+for %%i in (stack*) do "C:\Program Files (x86)\Graphviz2.34\bin\dot.exe" %%i -O -Tpng
