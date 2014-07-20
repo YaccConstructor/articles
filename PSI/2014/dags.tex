@@ -24,10 +24,43 @@ graphs, labeled by tokens.
 %graph tokenization performed successfully.
 
 Since any cycle in the input graph generates infinite sequence of tokens which upon translation is turned 
-into infinite forest we simplify the graph even more. We replace each cycle with the single repetition. 
-Thus the graph becomes cicle-free and we can process all vertices in the topological order.
-While this drastic simplification is completely heuristic our experience of dynamic SQL translation 
-for real information systems showed that DAG is still a good approximation for practical use.
+into infinite forest we simplify the graph even more. We replace each cycle with the single repetition. For example in the order to get regular approximation of query value set from code presented below we should build the next regular expression:
+$$\text{"select * from "} \cdot (\text{\{tables.get(i)\}}|\varepsilon)^* \cdot \text{";"}$$
+and the corresponding finite automaton (see Fig.~\ref{cyclesOrig}). Note that we do not care about approximation for \textit{tables.get(i)} expression because it depends on a constant propagation algorithm. But we will get the graph where cycle replaced with only one repetition of its body. The result of such approximation is presented in Fig.~\ref{cyclesApproximation}.
+
+\begin{verbatim} 
+query = "select * from ";
+for(int i = 0; i < tables.size(); i++)
+{
+    if(i != 0) query += ", ";
+    query += tables.get(i);
+}
+query += ";";
+\end{verbatim}
+
+\begin{figure}[t]
+    \begin{center}
+        \includegraphics[width=8cm,height=1.8cm]{../../graphs/cyclesOrig.eps}
+        \caption{Correct finite automaton (graph representation)}
+        \label{cyclesOrig}        
+    \end{center}
+\end{figure}
+
+
+
+\begin{figure}[t]
+    \begin{center}
+        \includegraphics[width=8cm,height=0.8cm]{../../graphs/cyclesApproximation.eps}
+        \caption{Result of cycles approximation}
+        \label{cyclesApproximation}        
+    \end{center}
+\end{figure}
+
+
+As you can see, in our example we do not produce strings like \verb|select * from tbl1, tbl2;| or \verb|select * from ;|. So, we can not check it. We process only two strings and all of them are in original infinite set: \verb|select * from tbl1;| and \verb|select * from, tbl1;|. As a result, we do not process all possible values but we process all variables used for query construction and it is enough for such tasks as code highlighting or transformations because all parts of expression are processed. 
+
+Thus the graph becomes cycle-free and we can process all vertices in the topological order. While this drastic simplification is completely heuristic our experience of dynamic SQL translation for real information systems showed that DAG is still a good approximation for practical use.
+
 
 %In the general case input graph can be arbitrary graph with cycles~\cite{AbstrParsing}. Cycles in the input graph may 
 %be cause of infinite parsing. ut we have not found any practice implementations with problem of cycles processing fully 
@@ -63,16 +96,13 @@ line 6. Each edge of this graph is labeled by a token which represents a part of
 
 \begin{figure}
     \begin{center}
-        \includegraphics[width=11cm,height=1.1cm]{graphs/simple_sql.eps}
+        \includegraphics[width=8cm,height=0.8cm]{../../graphs/simple_sql.eps}
         \caption{Tokenized input graph}
         \label{pic1}        
     \end{center}
 \end{figure}
 
-%Note that real-world systems can 
-%communicate with other systems source of which may be inaccessible to analyze. These systems can contain parts of queries 
-%to process and we should use some approximations. For example, clients applications of information system can 
-%sent conditions for filters (conditions for \verb|where| clause of \verb|select| statement) as part of requests.
+Note that real-world systems can communicate with other systems source of which may be inaccessible to analyze. These systems can contain parts of queries to process and we should use some approximations. For example, clients applications of information system can sent conditions for filters (conditions for \verb|where| clause of \verb|select| statement) as part of requests.
 
 
 
