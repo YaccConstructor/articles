@@ -1,0 +1,204 @@
+        \documentclass{beamer}
+\usepackage{beamerthemesplit}
+\usetheme{SPbGU}
+%{CambridgeUS}
+% Выпишем часть возможных стилей, некоторые из них могут содержать
+% дополнительные опции
+% Darmstadt, Ilmenau, CambridgeUS, default, Bergen, Madrid, AnnArbor,Pittsburg, Rochester,
+% Antiles, Montpellier, Berkley, Berlin
+\usepackage{pdfpages}
+\usepackage{amsmath}
+\usepackage{cmap} % for serchable pdf's
+\usepackage[T2A]{fontenc} 
+\usepackage[utf8]{inputenc}
+\usepackage[english,russian]{babel}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage{dot2texi}
+\usepackage{tikz}
+\usepackage{graphicx}
+\usetikzlibrary{shapes,arrows}
+% Если у вас есть логотип вашей кафедры, факультета или университета, то
+% его можно включить в презентацию.
+
+%\usefoottemplate{\vbox{}}%  \tinycolouredline{structure!25}% {\color{white}\textbf{\insertshortauthor\hfill% \insertshortinstitute}}% \tinycolouredline{structure}% {\color{white}\textbf{\insertshorttitle}\hfill}% }}
+
+%\logo{\includegraphics[width=1cm]{SPbGU_Logo.png}}
+
+%[GLR-анализатор]
+\title[]{Применение абстракного синтаксического анализа для трансляции динамически формируемых строк}
+%\subtitle[студроект]{Студенческий проект}
+\institute[СПбГУ]{
+Санкт-Петербургский государственный университет \\
+Математико-Механический факультет \\
+Кафедра системного программирования }
+
+\author[Григорьев Семён]{Григорьев Семён Вячеславович}
+
+\date{25 апреля 2012г.}
+
+\begin{document}
+{
+
+\begin{frame}
+    \begin{center}
+        {\includegraphics[width=1cm]{SPbGU_Logo.png}}
+    \end{center}
+    \titlepage
+\end{frame}
+}
+
+\begin{frame}
+	\transwipe[direction=90]
+	\frametitle{Описание проблемы}
+    Встроенные языки широко распространены.
+	\begin{itemize}
+		\item Встроенный SQL
+		\item Генерация HTML
+		\item DSL
+		\item ...
+	\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+	\transwipe[direction=90]
+	\frametitle{Описание проблемы}
+	\begin{itemize}
+	    \item Динамически генерируемые строки -- тоже код на некотором формальном языке программирования, который необходимо соответствующим образом обрабатывать.
+	    \pause
+	    \item После преобразований необходимо гарантировать:
+	    \begin{itemize}
+		    \item синтаксическую корректность
+		    \item корректность по отношению к изменениям "внешнего" \ кода
+		        	\begin{itemize}
+                		\item Переименование объектов
+	                	\item Удаление объектов
+	                \end{itemize}
+	    \end{itemize}
+	    \pause
+	    \item  Необходимо помнть что:
+        \begin{itemize}
+	        \item возможности "внешних" \ языков могут различаться
+	        \item семантика языков может отличаться
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+	\transwipe[direction=90]
+	\frametitle{Пример. Динамический SQL.}
+	T-SQL:
+	\begin{verbatim}
+        IF @X = @Y
+            SET @TABLE = ‘#table1’
+        ELSE SET @TABLE = ‘table2’
+        SET @S = ‘SELECT x FROM ‘ + @TABLE 
+                    + ‘  WHERE ISNULL(n,0) > 1’
+        EXECUTE (@S)
+	\end{verbatim}
+	PL-SQL:
+	\begin{verbatim}
+        IF lv_X = lv_Y
+        THEN lv_TABLE := ‘tt_table1’;
+        ELSE lv_TABLE := ‘new_table2’;
+        END IF;
+        lv_S := ‘SELECT new_x FROM ‘ || lv_TABLE 
+                || ‘  WHERE NVL(n,0) > 1’;
+        OPEN new_cursor FOR lv_S;
+	\end{verbatim}
+\end{frame}
+
+\begin{frame}
+	\transwipe[direction=90]
+	\frametitle{Область применения}
+	\begin{itemize}
+		\item Реинжиниринг информационных систем
+		    	\begin{itemize}
+		            \item Обработка встроенного SQL
+   		            \item Обработка динамического SQL в БД
+	            \end{itemize}
+		\item Разработка IDE с поддержкой рефакторинга встроенных языков.
+	\end{itemize}
+\end{frame}
+
+
+\begin{frame}
+	\transwipe[direction=90]
+	\frametitle{Задача}
+	\begin{itemize}
+		\item Разаботать и реализовать библиотеку для трансляции динамически формируемых строк.
+		\item Реализовать проверку результатов трансляции, минимизировав затраты на разработку.
+	\end{itemize}
+\end{frame}
+
+
+\begin{frame}
+	\transwipe[direction=90]
+	\frametitle{Абстрактный анализ}
+	\begin{itemize}
+		\item Лексический.
+		\item Синксический.
+		\item Основан на обрабатке компактного представления множества возможных значений формируемой строки:
+	    	\begin{itemize}
+	            \item регулярное выражение
+	            \item граф
+	            \item data-flow уравнение
+            \end{itemize}
+		\item Используется для проверки синтаксической корректности динамически формируемых строк.
+		\item Не подходит для трансформаций динамически формируемых строк, так как не сохраняет привязку к исходному коду.
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\transwipe[direction=90]
+	\frametitle{Трансляция. Сохранение привязки.}
+	\input{dsqlTree.tex}
+\end{frame}
+
+\begin{frame}
+	\transwipe[direction=90]
+	\frametitle{Валидация результатов трансляции}
+	\begin{itemize}
+		\item Необходимо проверять корректность трансляции статически.
+		\item Необходимо минимизировать затраты на реализацию.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+	\transwipe[direction=90]
+	\frametitle{Валидация результатов трансляции}
+	\begin{itemize}
+	    \item Основная идея: если трансляция прошла успешно, то абстрактный парсер целевого языка должен получить столько деревьев, сколько получил абстрактный парсер исходного языка до трансляции.
+        \item Пактически всё можно переиспользовать.
+        \begin{itemize}
+	        \item Протягивание констант.
+            \item Абстрактный анализ.
+	    \end{itemize}
+	\end{itemize}
+\end{frame}
+
+
+\begin{frame}%[t]
+	\transwipe[direction=90]
+	\frametitle{Результаты}
+	\begin{itemize}
+		\item Реализована библиотека абстрактного анализа, расширенного для нуждд трансляции.
+        \item Проведена апробация на примере трансляции динамического SQL из T-SQL в PL-SQL.
+        \item Реализована проверка коректности результатов трансляции.
+        \item Продемонстрирована возможность переиспользования всех основных копонент для реализации проверки коректности результатов трансляции.
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\transwipe[direction=90]
+	\frametitle{Используемые технологии}
+	\begin{itemize}
+		\item F\#
+        \item FSharp PowerPack
+        \item FsLex
+        \item FsYacc
+        \item YaccConstructor
+	\end{itemize}
+\end{frame}
+
+\end{document}
