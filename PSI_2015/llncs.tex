@@ -1,0 +1,420 @@
+%for compilation: xelatex llncs.tex 
+\documentclass{llncs}
+
+\usepackage{makeidx}  % allows for indexgeneration
+\usepackage{listings}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{caption}
+\usepackage{algorithmicx}
+\usepackage{mathspec}
+
+\begin{document}
+
+\frontmatter          % for the preliminaries
+
+\pagestyle{headings}  % switches on printing of running heads
+\addtocmark{Hamiltonian Mechanics} % additional mark in the TOC
+
+\title{Parsing of Regular Sets}
+\titlerunning{Parsing of Regular Sets}  % abbreviated title (for running head)
+
+
+\author{Ekaterina Verbitskaia\inst{1} \and Semen Grigorev\inst{2}
+\and Dmitry Avdyukhin\inst{3}}
+%
+%\authorrunning{Ivar Ekeland et al.} % abbreviated author list (for running head)
+%
+
+\institute{Saint Petersburg state university\\
+\email{kajigor@gmail.com},
+\and
+\email{rsdpisuy@gmail.com}
+\and
+\email{dimonbv@gmail.com}}
+
+\maketitle              % typeset the title of the contribution
+
+\begin{abstract}
+
+There is a class of applications which utilizes the idea of string embedding of one language into
+another. In this approach a host program generates string representation of clauses in some external
+language, which are then passed to a dedicated runtime component
+for analysis and execution. Despite providing better expressiveness and flexibility, this technique
+makes the behavior of the system less predictable since a whole class of verification procedures
+is postponed until run time, which complicates refactoring, testing and maintenance. We present a
+technique for syntax analysis, which works on regular approximations of a set of all dynamically-generated clauses
+and allows to ensure their well-formedness at compile-time. Our technique is based on a generalization of RNGLR
+algorithm, which, inherently, allows us to construct a finite representation of parse forest for regularly approximated
+set of input strings. This representation can be further utilized for semantic analysis and transformations in the context
+of reengineering, code maintenance, program understanding etc. The approach in question so far implements
+\emph{relaxed parsing}: non-recognized strings in approximation set are ignored with no error detection.
+\keywords{string-embedded language, string analysis, parsing, parser generator, RNGLR}
+\end{abstract}
+
+\section{Introduction}
+String expressions provide simple and flexible way to communicate heterogeneous 
+components of a computer program. On the other hand, they cause various runtime 
+errors (i.e. by incorrect syntax of constructed queries) and security issues 
+(i.e. SQL injections). To address these issues, static analysis of string-embedded 
+code could be used. 
+
+General approach of such analysis may be the following. First, one should analyse 
+host program and find hotspots — code lines which use constructed string expression 
+or send it to another component. Then the set of possible string expressions in 
+the hotspot should be approximated: method proposed in~\cite{Stranger} may be used. After that, 
+operations similar to lexical analysis and then parsing should be performed to check 
+syntactic correctness of possible expressions and to create structured and 
+machine-readable representation of string-embedded code. Finally, when such 
+representation is created, custom user semantics could be calculated and more 
+complex analysis could be performed. 
+
+Host program is indeed a generator of strings, so we can say that it specify a 
+language $\mathrm{L}$. Each of generated string is supposed to be written in some 
+reference language $\mathrm{L_r}$. To check syntactic correctness of generated 
+expressions means to ensure that $\mathrm{L} \subset \mathrm{L_r}$. Language 
+inclusion problem is undecidable in general case, but is decidable, if $\mathrm{L}$ 
+is regular and $\mathrm{L_r}$ is, for example, deterministic context-free language. 
+As host program is usually written in a Turing-complete language, $\mathrm{L}$ 
+could be recursively enumerable (type-0 in Chomsky hierarchy). In order to deal 
+with decidable problem, it is rational to approximate $\mathrm{L}$ with a regular 
+language $\mathrm{L_a}$: paper~\cite{Stranger}  provide a method for it. 
+
+In this paper we propose a parsing algorithm which could be used in static analysis 
+of string-embedded languages. The algorithm takes an automaton specifying language 
+$\mathrm{L_a}$ and grammar specification of $\mathrm{L_r}$ as an input, and constructs 
+a compact representation of parse forest for all syntactically correct strings of 
+$\mathrm{L_a}$ or report an error, if every string is syntactically incorrect. 
+
+\section{Related Work}
+Our parsing algorithm is based on a RNGLR-algorithm presented by Elizabeth Scott 
+and Adrian Johnstone in~\cite{RNGLR}. In order to better understand the paper, a reader 
+should be familiar to its principles of work, so we briefly describe RNGLR-algorithm 
+in this section.  Also we point out differences between our approach and existing
+tools which operate with regular approximation of string-embedded language since
+we use such type of approximation as input for our algorithm.
+
+\subsection{Regular Approximation of Sting-Embedded Language}
+Some tools are aimed to build high quality regular approximation. For example, 
+Stranger~\cite{Stranger} which use forward reachability analysis to compute 
+over-approximation of all string values for program. Further analysis in Stranger 
+is based on patterns detection in approximation or generation finite subset of 
+strings for analyzing with standalone tools. Implementation of our algorithm may 
+use such tools as input generators.
+
+Paper~\cite{JSA} presents Java String Analyzer (JSA) — tool for static syntax 
+correctness checking of embedded SQL statements.  This tool build regular approximation 
+with Mohri-Nederhof~\cite{MohriNederhof} algorithm and then check its inclusion into reference grammar 
+without parsing and forest construction.
+ 
+Our algorithm is inspired by Alvor~\cite{Alvor} which apply GLR-based technique 
+for syntax correctness checking of regular approximation. Key difference of our 
+algorithm is building of parse forest finite representation. 
+
+\subsection{RNGLR}
+RNGLR stands for Right-Nulled Generalized LR and is able to process all context-free 
+grammars including ambiguous. Ambiguities of grammar produce Shift/Reduce and 
+Reduce/Reduce conflicts; the algorithm carry out all possible actions in such situations. 
+The algorithm uses parser tables, each cell of which can contain multiple actions 
+in case of conflicts. 
+
+RNGLR-algorithm uses Graph Structured Stack (GSS) — efficient representation of 
+the set of stacks produced during conflict processing. GSS is an ordered graph, 
+vertices of which corresponds to elements of classical stack and edges link sequential 
+elements together. Each vertex can have multiple incoming edges and by means of 
+it be shared between several stacks. Vertex is a pair $(s, l)$, where $s$ is a 
+parser state and $l$ is a level — position in an input string. Vertices in GSS 
+are unique and there is no multiple edges. GSS construction routine is illustrated 
+with pseudocode sample~\ref{rnglr}: addVertex and addEdge functions. 
+
+The feature of RNGLR-algorithm which let it process all context-free grammars is
+a specific way of handling \textit{right nullable} rules (i.e. rules of the form 
+$\mathrm{A} \rightarrow \alpha \beta$, where $\beta$ reduces to the empty string). 
+That is, not only reductions for items $\mathrm{A} \rightarrow \alpha \cdot$ are 
+applied, but also for the items of the form  $\mathrm{A} \rightarrow \alpha \cdot 
+\beta$, where $\beta \Rightarrow \epsilon$. Thus, reduction length — the number of 
+symbols to be reduced to a nonterminal — may be less than or equal to the length 
+of righthand side of the rule. There are also possible reductions of 0-length, 
+also called as $\epsilon$-reductions, corresponding to items of the form $\mathrm{A} 
+\rightarrow \cdot$. 
+
+RNGLR-algorithm reads an input from left to right, one token at a time, and 
+constructs levels of GSS sequentially for each position in the input. In the 
+main loop of the algorithm for each token from the input, firstly, all possible 
+reductions are applied (see reduce function in pseuducode sample~\ref{rnglr}), and then the next  token 
+is shifted (see push function in pseuducode sample~\ref{rnglr}).
+
+\begin{algorithm}[!ht]
+\begin{algorithmic}[1]
+\caption{RNGLR algorithm}
+\label{rnglr}
+  
+\Function{addVertex}{$level, state$}
+  \If{GSS does not contain vertex $v = (level, state)$}
+    \State{add new vertex $v = (level, state)$ to GSS}
+    \State{calculate the set of shifts by $v$ and the next token and add them to $\mathcal{Q}$}
+    \State{calculate the set of zero-reductions by $v$ and the next token and add them to $\mathcal{R}$}
+  \EndIf
+  \State{\Return{$v$}}
+\EndFunction
+
+\Function{addEdge}{$v_{h}, level_{t}, state_{t}, isZeroReduction$}
+  \State{$v_{t} \gets$ \Call{addVertex}{$level_{t}, state_{t}$}}
+  \If{GSS does not contain edge from $v_{t}$ to $v_{h}$}
+    \State{add new edge from $v_{t}$ to $v_{h}$ to GSS}
+    \If{not $isZeroReduction$}
+      \State{calculate the set of reductions by $v$ and the next token and add them to $\mathcal{R}$}
+    \EndIf
+  \EndIf
+\EndFunction
+
+\Function{reduce}{}
+  \While{$\mathcal{R}$ is not empty}
+    \State{$(v, N, l) \gets \mathcal{R}.Dequeue()$}
+    \State{find the set $\mathcal{X}$ of vertices reachable from $v$ along the path of length $(l-1)$, or length $0$ if $l=0$}
+    \ForAll{$v_{h} = (level_{h}, state_{h})$ in $\mathcal{X}$}
+      \State{$state_{t} \gets$ calculate new state by $state_{h}$ and nonterminal $N$}
+      \State{\Call{addEdge}{$v_{h}, v.level, state_{tail}, (l=0)$}}
+    \EndFor
+  \EndWhile
+\EndFunction
+
+\Function{push}{}
+  \State{$\mathcal{Q^{'}} \gets$ copy $\mathcal{Q}$}
+  \While{$\mathcal{Q^{'}}$ is not empty}
+    \State{$(v, state) \gets \mathcal{Q}.Dequeue()$}
+    \State{\Call{addEdge}{$v, v.level + 1, state, false$}}
+  \EndWhile
+\EndFunction
+
+\end{algorithmic}
+\end{algorithm}
+
+\section{Algorithm}
+Input of the algorithm is a reference grammar $G$ with alphabeth of terminal symbols $T$ 
+and a finite automaton $(Q, \Sigma, \delta, q0, F)$, where 
+$\Sigma \subseteq T$. RNGLR parser tables and some accessory information ($parserSource$ 
+in pseudocode sample~\ref{parsing}) are generated by reference grammar $G$. 
+Likewise RNGLR-algorithm, we associate GSS vertices with the position in the input,
+and in our case the position is a state of the input automaton. We construct the inner 
+data structure by copying input automaton graph and extending vertex type with 
+the following collections: 
+\begin{description}
+  \item[processed] \hfill \\ GSS vertices, all the pushes for which are processed. 
+                             This collection aggregates all GSS vertices associated with inner graph vertex.
+  \item[unprocessed] \hfill \\ GSS vertices, pushes for which are to be processed. 
+                               This collection is analogous to $\mathcal{Q}$ from classic RNGLR-algorithm.
+  \item[reductions] \hfill \\ Queue which is analogous to $\mathcal{R}$ from classic RNGLR-algorithm: 
+                              stores reductions to be processed.
+  \item[passingReductionsToHandle] \hfill \\ Pairs of GSS vertex and GSS edge to apply passing reductions along them.
+\end{description}
+
+Besides parser $state$ and $level$ (which is equal to the input automaton state), 
+we store collection of passing reductions in GSS vertex. Passing reduction is a 
+three-tuple $(startV, N, l)$, representing reductions which path passed through 
+the GSS vertex. This three-tuple is very similar to the one describing reductions, 
+but in this case $l$ is a remaining length of the path. Passing reductions are 
+stored in all vertices of the path except the first and the last during path 
+searching in makeReductions function (see pseuducode sample~\ref{processVertex}).
+
+The general idea of the algorithm is to traverse input graph and sequentially construct GSS
+in the similar manner as RNGLR does. When deal with graph instead of linear stream,
+the next symbol means the set of terminals on outgoing edges of current vertex.
+This leads to slightly different process of push and reduce calculation: 
+see line 9 in pseudocode sample~\ref{processVertex} and lines 7 and 22 in pseudocode 
+sample~\ref{gss_construction}. We use queue $Q$ to control the order of input graph vertices 
+processing. Every time new GSS vertex is added, zero reductions should be processed 
+and then new tokens could be shifted, so corresponging graph vertex should be 
+enqueueed for further processing. Adding of new GSS edge could produce reductions 
+to handle, so input graph vertex with which tail of the added edge is associated should 
+also be enqueueed. See details of GSS construction in pseudocode sample~\ref{gss_construction}. 
+Reductions are applied along the paths in GSS, and if new edge 
+which tail vertex have been in the graph before is added, then new paths will possibly 
+be added which means some reductions would be lost. So it is necessary to recalculate 
+those passing reductions: see applyPassingReductions function in pseudocode sample~\ref{processVertex}.
+\begin{algorithm}[!ht]
+\begin{algorithmic}[1]
+\caption{Parsing algorithm}
+\label{parsing}
+
+\Function{parse}{$inputGraph, parserSource$}
+  \If{$inputGraph$ contains no edges}
+    \If{$parserSource$ accepts empty input }
+      \State{report success}
+    \Else
+      \State{report failure}
+    \EndIf
+  \Else
+    \State{\Call{addVertex}{$inputGraph.startVertex, startState$}}
+    \State{$Q.Enqueue(inputGraph.startVertex)$}
+    \While{no $error$ have found and $Q$ is not empty}
+      \State{$v \gets Q.Dequeue()$}
+      \State{\Call{processVertex}{$v$}}
+    \EndWhile
+    \If{$v_f$ is the vertex in the last level of GSS and its state is accepting}
+      \State{report success}
+    \Else
+      \State{report failure}
+    \EndIf
+  \EndIf
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[!ht]
+\begin{algorithmic}[1]
+\caption{Single vertex processing}
+\label{processVertex}
+
+\Function{processVertex}{$v$}
+  \State{\Call{makeReductions}{$v$}}
+  \State{\Call{push}{$v$}}
+  \State{\Call{applyPassingReductions}{$v$}}
+\EndFunction
+
+\Function{push}{$innerGraphV$}
+  \State{$\mathcal{U} \gets$ copy $innerGraphV.unprocessed$}
+  \State{clear $innerGraphV.unprocessed$}
+  \ForAll{$v_{h}$ in $\mathcal{U}$}  
+    \ForAll{edge $e$ in outgoing edges of $innerGraphV$}
+      \State{$push \gets$ calculate next state by $v_{h}.state$ and the token on $e$}
+      \State{\Call{addEdge}{$v_{h}, e.Target, push, false$}}
+      \State{add $v_{h}$ in $innerGraphV.processed$}
+    \EndFor
+  \EndFor
+\EndFunction
+
+\Function{makeReductions}{$innerGraphV$}
+  \While{$innerGraphV.reductions$ is not empty}
+    \State{$(startV, N, l) \gets innerGraphV.reductions.Dequeue()$}
+    \State{find the set of vertices $\mathcal{X}$ reachable from $startV$ along the path of length ($l-1$), or $0$ if $l=0$; add $(startV, N, l-i)$ in $v.passingReductions$ where v is an i-th vertex of the path}
+    \ForAll{$v_{h}$ in $\mathcal{X}$}
+      \State{$state_{t} \gets$ calculate new state by $v_{h}.state$ and nonterminal $N$}
+      \State{\Call{addEdge}{$v_{h}, startV, state_{t}, (l=0)$}}
+    \EndFor
+  \EndWhile
+\EndFunction
+
+\Function{applyPassingReductions}{$innerGraphV$}
+  \ForAll{$(v, edge)$ in $innerGraphV.passingReductionsToHandle$}
+    \ForAll{$(startV, N, l) \gets v.passingReductions.Dequeue()$}
+      \State{find the set of vertices $\mathcal{X}$ reachable from $edge$ along the path of length ($l-1$)}
+      \ForAll{$v_{h}$ in $\mathcal{X}$}
+        \State{$state_{t} \gets$ calculate new state by $v_{h}.state$ and nonterminal $N$}
+        \State{\Call{addEdge}{$v_{h}, startV, state_{t}, false$}}
+      \EndFor
+    \EndFor
+  \EndFor
+\EndFunction
+
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[!ht]
+\begin{algorithmic}[1]
+\caption{Construction of GSS}
+\label{gss_construction}
+\Function{addVertex}{$innerGraphV, state$}
+  \If{$innerGraphV.processed$ or $innerGraphV.unprocessed$ contains vertex $v$ which state = $state$ }
+    \State{\Return{($v, false$)}}
+  \Else
+    \State{$v \gets$ create new vertex for $innerGraphV$ with state $state$}
+    \State{add $v$ in $innerGraphV.unprocessed$}
+    \ForAll{$e$ in outgoing edges of $innerGraphV$}
+      \State{calculate the set of zero-reductions by $v$ and the token on $e$ and add them in $innerGraphV.reductions$}
+    \EndFor
+    \State{\Return{$(v, true$)}}
+  \EndIf
+\EndFunction
+
+\Function{addEdge}{$v_{h}, innerGraphV, state_{t}, isZeroReduction$}
+  \State{$(v_{t}, isNew) \gets$ \Call{addVertex}{$innerGraphV, state_{t}$}}
+  \If{GSS does not contain edge from $v_{t}$ to $v_{h}$}
+    \State{$edge \gets$ create new edge from $v_{t}$ to $v_{h}$}
+    \State{$Q.Enqueue(innerGraphV)$}
+    \If{not $isNew$ and $v_{t}.passingReductions.Count>0$}
+      \State{add $(v_{t}, edge)$ in $innerGraphV.passingReductionsToHandle$}
+    \EndIf
+    \If{not $isZeroReduction$}
+      \ForAll{$e$ in outgoing edges of $innerGraphV$}
+        \State{calculate the set of reductions by $v$ and the token on $e$ and add them in $innerGraphV.reductions$}
+      \EndFor
+    \EndIf
+  \EndIf
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+
+\section{Proof of Correctness}
+
+\section{Construction of Parse Forest Finite Representation}
+The forest of parse trees can have infinite size in case of infinite number of paths in 
+the input graph, so some finite representation could be helpful for practical use. 
+It is natural to use Shared Packed Parse Forest (SPPF) presented by Rekers~\cite{SPPF}
+as such representation. SPPF is a directed graph which merge the nodes of 
+derivation trees. 
+
+\section{Future Work}
+
+% Errors detection.
+% Complexity estimation?
+% Context-free approximation processing?
+ 
+
+
+%
+% ---- Bibliography ----
+%
+\begin{thebibliography}{}
+%
+\bibitem{Stranger}
+Yu, Fang and Alkhalaf, Muath and Bultan, Tevfik and Ibarra, Oscar H.:
+Automata-based Symbolic String Analysis for Vulnerability Detection.
+Form. Methods Syst. Des. 44(1), 44--70 (2014)
+
+\bibitem{JSA}
+Christensen, Aske Simon and M{\o}ller, Anders and Schwartzbach, Michael I.:
+Precise Analysis of String Expressions.
+Proceedings of the 10th International Conference on Static Analysis, 1--18 (2003)
+
+\bibitem{Alvor}
+Annamaa, A., Breslav, A., Kabanov, J., Vene, V.:
+An Interactive Tool for Analyzing Embedded SQL Queries.
+In: Ueda, K. (eds.) APLAS 2010. LNCS, vol. 6461, pp. 131--138. Springer, Heidelberg (2010)
+
+\bibitem{RNGLR}
+Scott, E. and Johnstone, A.:
+Right Nulled GLR Parsers.
+ACM Trans. Program. Lang. Syst. 28(4), 577--618 (2006)
+
+\bibitem{SPPF}
+Rekers, J. G.:
+Parser generation for interactive environments.
+PhD Thesis. Amsterdam: Universty of Amsterdam. 174 p. (1992)
+
+\bibitem{LangInclusion}
+Asveld, Peter R. J., Nijholt, A.:
+The Inclusion Problem for Some Subclasses of Context-free Languages.
+Theor. Comput. Sci. 230(1\&2), 247--256 (1999)
+
+\bibitem{SELinIDE}
+Grigorev, S., Verbitskaia, E., Ivanov, A., Polubelova, M., Mavchun, E.:
+String-embedded Language Support in Integrated Development Environment.
+Proceedings of the 10th Central and Eastern European Software Engineering Conference in Russia. 21:1--21:11 (2014)
+
+\bibitem{MohriNederhof}
+Mohri M., Nederhof, M.-J.:
+Regular approximation of context-free grammars through transformation.
+ In J.-C. Junqua and G. van Noord (eds.), Robustness in Language and Speech Technology, pp. 153--163. Kluwer Academic Publishers (2001)
+
+
+\end{thebibliography}
+\clearpage
+%\addtocmark[2]{Author Index} % additional numbered TOC entry
+%\renewcommand{\indexname}{Author Index}
+%\printindex
+%\clearpage
+%\addtocmark[2]{Subject Index} % additional numbered TOC entry
+
+\end{document}
