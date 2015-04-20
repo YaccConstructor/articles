@@ -1,0 +1,108 @@
+\section{Related Works}
+
+Our parsing algorithm is based on a RNGLR-algorithm presented by Elizabeth Scott 
+and Adrian Johnstone in~\cite{RNGLR}. In order to better understand the paper, a reader 
+should be familiar to its principles of work, so we briefly describe RNGLR-algorithm 
+in this section.  Also we point out differences between our approach and existing
+tools which operate with regular approximation of string-embedded language since
+we use such type of approximation as input for our algorithm.
+
+% Abstract parsing -- Doh
+
+\subsection{Regular Approximation of Sting-Embedded Language}
+Some tools are aimed to build high quality regular approximation. For example, 
+Stranger~\cite{Stranger} which use forward reachability analysis to compute 
+over-approximation of all string values for program. Further analysis in Stranger 
+is based on patterns detection in approximation or generation finite subset of 
+strings for analyzing with standalone tools. Implementation of our algorithm may 
+use such tools as input generator.
+
+Paper~\cite{JSA} presents Java String Analyzer (JSA) — tool for static syntax 
+correctness checking of embedded SQL statements.  This tool build regular approximation 
+with Mohri-Nederhof~\cite{MohriNederhof} algorithm and then check its inclusion into reference grammar 
+without parsing and forest construction.
+ 
+Our algorithm is inspired by Alvor~\cite{Alvor} which apply GLR-based technique 
+for syntax correctness checking of regular approximation. Key difference of our 
+algorithm is building of parse forest finite representation. 
+
+\subsection{RNGLR}
+Generalized LR parsing algorithm was presented by Masaru Tomita~\cite{Tomita}
+as a solution for natural language processing and was intended to handle ambiguous
+context-free grammars. Ambiguities of grammar produce Shift/Reduce and 
+Reduce/Reduce conflicts. The algorithm uses parser tables similar to classical LR-tables,
+each cell of which can contain multiple actions in case of conflicts. The general approach of 
+the algorithm is to carry out all possible actions in these situations. 
+
+However, Tomita's algorithm failed to process general context-free grammars.  
+Elizabeth Scott and Adrian Johnstone presented Right-Nulled Generalized LR algorithm~\cite{RNGLR}
+which extends and corrects Tomita's GLR parsing methods by
+specific way of handling \emph{right nullable} rules (i.e. rules of the form 
+$\mathrm{A} \rightarrow \alpha \beta$, where $\beta$ reduces to the empty string). 
+That is, not only reductions for items $\mathrm{A} \rightarrow \alpha \cdot$ are 
+applied, but also for the items of the form  $\mathrm{A} \rightarrow \alpha \cdot 
+\beta$, where $\beta \Rightarrow \epsilon$. Thus, reduction length -- the number of 
+symbols to be reduced to a nonterminal -- may be less than or equal to the length 
+of righthand side of the rule. There are also possible reductions of 0-length, 
+also called as $\epsilon$-reductions, corresponding to items of the form $\mathrm{A} 
+\rightarrow \cdot$. 
+
+To represent the set of stacks produced during conflict processing efficiently,
+RNGLR algorithm uses Graph Structured Stack. GSS is an ordered graph, 
+vertices of which corresponds to elements of classical stack and edges link sequential 
+elements together. Each vertex can have multiple incoming edges and by means of 
+it be shared between several stacks. Vertex is a pair $(s, l)$, where $s$ is a 
+parser state and $l$ is a level -- position in an input string. Vertices in GSS 
+are unique and there is no multiple edges. GSS construction routine is illustrated with 
+\emph{addVertex} and \emph{addEdge} functions in Algorithm~\ref{rnglr}.
+
+RNGLR-algorithm reads an input from left to right, one token at a time, and 
+constructs levels of GSS sequentially for each position in the input. In the 
+main loop of the algorithm for each token from the input, firstly, all possible 
+reductions are applied (see \emph{reduce} function in Algorithm~\ref{rnglr}), and then the next token 
+is shifted (see \emph{push} function in Algorithm~\ref{rnglr}).
+\begin{algorithm}[!ht]
+\begin{algorithmic}[1]
+\caption{RNGLR algorithm}
+\label{rnglr}
+  
+\Function{addVertex}{$level, state$}
+  \If{GSS does not contain vertex $v = (level, state)$}
+    \State{add new vertex $v = (level, state)$ to GSS}
+    \State{calculate the set of shifts by $v$ and the next token and add them to $\mathcal{Q}$}
+    \State{calculate the set of zero-reductions by $v$ and the next token and add them to $\mathcal{R}$}
+  \EndIf
+  \State{\Return{$v$}}
+\EndFunction
+
+\Function{addEdge}{$v_{h}, level_{t}, state_{t}, isZeroReduction$}
+  \State{$v_{t} \gets$ \Call{addVertex}{$level_{t}, state_{t}$}}
+  \If{GSS does not contain edge from $v_{t}$ to $v_{h}$}
+    \State{add new edge from $v_{t}$ to $v_{h}$ to GSS}
+    \If{not $isZeroReduction$}
+      \State{calculate the set of reductions by $v$ and the next token and add them to $\mathcal{R}$}
+    \EndIf
+  \EndIf
+\EndFunction
+
+\Function{reduce}{}
+  \While{$\mathcal{R}$ is not empty}
+    \State{$(v, N, l) \gets \mathcal{R}.Dequeue()$}
+    \State{find the set $\mathcal{X}$ of vertices reachable from $v$ along the path of length $(l-1)$, or length $0$ if $l=0$}
+    \ForAll{$v_{h} = (level_{h}, state_{h})$ in $\mathcal{X}$}
+      \State{$state_{t} \gets$ calculate new state by $state_{h}$ and nonterminal $N$}
+      \State{\Call{addEdge}{$v_{h}, v.level, state_{tail}, (l=0)$}}
+    \EndFor
+  \EndWhile
+\EndFunction
+
+\Function{push}{}
+  \State{$\mathcal{Q^{'}} \gets$ copy $\mathcal{Q}$}
+  \While{$\mathcal{Q^{'}}$ is not empty}
+    \State{$(v, state) \gets \mathcal{Q}.Dequeue()$}
+    \State{\Call{addEdge}{$v, v.level + 1, state, false$}}
+  \EndWhile
+\EndFunction
+
+\end{algorithmic}
+\end{algorithm}
