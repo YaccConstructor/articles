@@ -67,7 +67,7 @@ are unique and there is no multiple edges. GSS construction routine is illustrat
 
 RNGLR-algorithm reads an input from left to right, one token at a time, and 
 constructs levels of GSS sequentially for each position in the input. In the 
-main loop of the algorithm for each token from the input, firstly, all possible 
+main loop (see \emph{parse} function in Algorithm~\ref{RNGLRMain}) of the algorithm for each token from the input, firstly, all possible 
 reductions are applied (see \emph{reduce} function in Algorithm~\ref{rnglr}), and then the next token 
 is shifted (see \emph{push} function in Algorithm~\ref{rnglr}).
 \begin{algorithm}[!ht]
@@ -75,46 +75,72 @@ is shifted (see \emph{push} function in Algorithm~\ref{rnglr}).
 \caption{RNGLR algorithm}
 \label{rnglr}
   
-\Function{addVertex}{$level, state$}
+\Function{addVertex}{$i, level, state$}
   \If{GSS does not contain vertex $v = (level, state)$}
     \State{add new vertex $v = (level, state)$ to GSS}
-    \State{calculate the set of shifts by $v$ and the next token and add them to $\mathcal{Q}$}
-    \State{calculate the set of zero-reductions by $v$ and the next token and}
+    \State{calculate the set of shifts by $v$ and the $input[i+1]$ and add them to $\mathcal{Q}$}
+    \State{calculate the set of zero-reductions by $v$ and the $input[i+1]$ and}
     \State{add them to $\mathcal{R}$}
   \EndIf
   \State{\Return{$v$}}
 \EndFunction
 
-\Function{addEdge}{$v_{h}, level_{t}, state_{t}, isZeroReduction$}
-  \State{$v_{t} \gets$ \Call{addVertex}{$level_{t}, state_{t}$}}
+\Function{addEdge}{$i, v_{h}, level_{t}, state_{t}, isZeroReduction$}
+  \State{$v_{t} \gets$ \Call{addVertex}{$i, level_{t}, state_{t}$}}
   \If{GSS does not contain edge from $v_{t}$ to $v_{h}$}
     \State{add new edge from $v_{t}$ to $v_{h}$ to GSS}
     \If{not $isZeroReduction$}
-      \State{calculate the set of reductions by $v$ and the next token and}
+      \State{calculate the set of reductions by $v$ and the $input[i+1]$ and}
       \State{add them to $\mathcal{R}$}
     \EndIf
   \EndIf
 \EndFunction
 
-\Function{reduce}{}
+\Function{reduce}{$i$}
   \While{$\mathcal{R}$ is not empty}
     \State{$(v, N, l) \gets \mathcal{R}.Dequeue()$}
     \State{find the set $\mathcal{X}$ of vertices reachable from $v$ along the path of length $(l-1)$}
     \State{or length $0$ if $l=0$}
     \ForAll{$v_{h} = (level_{h}, state_{h})$ in $\mathcal{X}$}
       \State{$state_{t} \gets$ calculate new state by $state_{h}$ and nonterminal $N$}
-      \State{\Call{addEdge}{$v_{h}, v.level, state_{tail}, (l=0)$}}
+      \State{\Call{addEdge}{$i, v_{h}, v.level, state_{tail}, (l=0)$}}
     \EndFor
   \EndWhile
 \EndFunction
 
-\Function{push}{}
+\Function{push}{$i$}
   \State{$\mathcal{Q^{'}} \gets$ copy $\mathcal{Q}$}
   \While{$\mathcal{Q^{'}}$ is not empty}
     \State{$(v, state) \gets \mathcal{Q}.Dequeue()$}
-    \State{\Call{addEdge}{$v, v.level + 1, state, false$}}
+    \State{\Call{addEdge}{$i, v, v.level + 1, state, false$}}
   \EndWhile
 \EndFunction
 
 \end{algorithmic}
 \end{algorithm}
+
+\begin{algorithm}[!ht]
+\begin{algorithmic}[1]
+\caption{RNGLR main function}
+\label{RNGLRMain}
+\Function{parse}{$grammar, input$}
+  \State{$\mathcal{Q} \gets \emptyset$} \Comment{Queue of tuples of GSS vertex, nonterminal, and reduction length}
+  \State{$\mathcal{R} \gets \emptyset$} \Comment{Collection of pairs of GSS vertex and parser state}
+  \If{$input = \epsilon$}
+    \If{$grammar$ accepts empty input} {report success}
+    \Else { report failure}
+    \EndIf
+  \Else
+    \ForAll{$i$ in $0..input.Length-1$}
+      \State{\Call{reduce}{$i$}}
+      \State{\Call{push}{$i$}}
+    \EndFor
+    \If{$i=input.Length-1$ and there is a vertex in the last level of GSS which state is accepting}
+      \State{report success}
+    \Else { report failure}
+    \EndIf
+  \EndIf
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
