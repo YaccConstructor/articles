@@ -1,0 +1,121 @@
+\appendix
+
+\section{\appendixname: Example of SPPF construction}\label{example}
+
+In this section we demonstrate our algorithm by an example. Reference grammar $G$ is the following:\\
+(0) start\_rule ::= s \\
+(1) s ::= LBR s RBR s\\
+(2) s ::= $\varepsilon$ \\
+
+Consider the following input FA constructed by tokenization of some regular approximated string-embedded code~\ref{faApprox}.
+% \begin{figure}[!ht]
+%    \subfloat[$A_1$ -- input for our algorithm: regular approximation for string-embedded code after tokenization\label{faApprox}]{%
+%      \includegraphics[scale=0.3]{dot/in3.eps}
+%   }
+%   \hfill
+%    \subfloat[SPPF for input FA presented in figure~\ref{faApprox}\label{resultSPPF}]{%
+%      \includegraphics[scale=0.3]{dot/out3.eps}
+%    }
+%    \caption{Example of SPPF for regular approximation}
+%    \label{fig:SPPFforReg}
+%  \end{figure}
+
+\begin{figure}
+    \begin{center}
+        \includegraphics[scale=0.5]{dot/in3.eps}
+    \end{center}
+    \caption{$A_1$ -- input for our algorithm: regular approximation for string-embedded code after tokenization} 
+    \label{faApprox}
+\end{figure}
+
+As you can see, some of the sentences from the language described by FA $A_1$ do not belong to the reference language $L(G)$.
+For example let $s$ = \verb|LBR LBR RBR| (``\verb|(()|'' before tokenization): $s \in L(A_1)$ but $s \notin L(G)$.
+The algorithm ignores such erroneous strings and constructs SPPF which contains derivatiom trees for all sentences $s \in L(A_1)$ such that $s \in L(G)$.
+The SPPF constructed is presented in figure~\ref{resultSPPF}.
+
+\begin{figure}
+    \begin{center}
+        \includegraphics[scale=0.3]{dot/out3.eps}
+    \end{center}
+    \caption{SPPF for input FA presented in figure~\ref{faApprox}}
+    \label{resultSPPF}
+\end{figure}
+
+\section{\appendixname: Pseudocode of RNGLR}\label{RNGLRCode}
+
+\begin{algorithm}[!ht]
+\begin{algorithmic}[1]
+\caption{RNGLR algorithm}
+\label{rnglr}
+  
+\Function{addVertex}{$i, level, state$}
+  \If{GSS does not contain vertex $v = (level, state)$}
+    \State{add new vertex $v = (level, state)$ to GSS}
+    \State{calculate the set of shifts by $v$ and the $input[i+1]$ and add them to $\mathcal{Q}$}
+    \State{calculate the set of zero-reductions by $v$ and the $input[i+1]$ and}
+    \State{add them to $\mathcal{R}$}
+  \EndIf
+  \State{\Return{$v$}}
+\EndFunction
+
+\Function{addEdge}{$i, v_{h}, level_{t}, state_{t}, isZeroReduction$}
+  \State{$v_{t} \gets$ \Call{addVertex}{$i, level_{t}, state_{t}$}}
+  \If{GSS does not contain edge from $v_{t}$ to $v_{h}$}
+    \State{add new edge from $v_{t}$ to $v_{h}$ to GSS}
+    \If{not $isZeroReduction$}
+      \State{calculate the set of reductions by $v$ and the $input[i+1]$ and}
+      \State{add them to $\mathcal{R}$}
+    \EndIf
+  \EndIf
+\EndFunction
+
+\Function{reduce}{$i$}
+  \While{$\mathcal{R}$ is not empty}
+    \State{$(v, N, l) \gets \mathcal{R}.Dequeue()$}
+    \State{find the set $\mathcal{X}$ of vertices reachable from $v$ along the path of length $(l-1)$}
+    \State{or length $0$ if $l=0$}
+    \ForAll{$v_{h} = (level_{h}, state_{h})$ in $\mathcal{X}$}
+      \State{$state_{t} \gets$ calculate new state by $state_{h}$ and nonterminal $N$}
+      \State{\Call{addEdge}{$i, v_{h}, v.level, state_{tail}, (l=0)$}}
+    \EndFor
+  \EndWhile
+\EndFunction
+
+\Function{push}{$i$}
+  \State{$\mathcal{Q^{'}} \gets$ copy $\mathcal{Q}$}
+  \While{$\mathcal{Q^{'}}$ is not empty}
+    \State{$(v, state) \gets \mathcal{Q}.Dequeue()$}
+    \State{\Call{addEdge}{$i, v, v.level + 1, state, false$}}
+  \EndWhile
+\EndFunction
+
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[!ht]
+\begin{algorithmic}[1]
+\caption{RNGLR main function}
+\label{RNGLRMain}
+\Function{parse}{$grammar, input$}
+  \State{$\mathcal{R} \gets \emptyset$} \Comment{Queue of tuples of GSS vertex, nonterminal, and reduction length}
+  \State{$\mathcal{Q} \gets \emptyset$} \Comment{Collection of pairs of GSS vertex and parser state}
+  \If{$input = \epsilon$}
+    \If{$grammar$ accepts empty input} {report success}
+    \Else { report failure}
+    \EndIf
+  \Else
+    \State{\Call{addVertex}{$0, 0, startState$}}
+    \ForAll{$i$ in $0..input.Length-1$}
+      \State{\Call{reduce}{$i$}}
+      \State{\Call{push}{$i$}}
+    \EndFor
+    \If{$i=input.Length-1$ and there is a vertex in the last level of GSS which state is accepting}
+      \State{report success}
+    \Else { report failure}
+    \EndIf
+  \EndIf
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+
