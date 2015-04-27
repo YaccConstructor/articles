@@ -35,78 +35,67 @@ interpretation~\cite{AbstractInterpretation}. This approach later evolved to a c
 in terms of attribute grammars which made it possible to analyze a wider class of languages, than
 LALR(1).
 
-\subsection{RNGLR}
-Generalized LR parsing algorithm was presented by Masaru Tomita~\cite{Tomita}
-as a solution for natural language processing and was intended to handle ambiguous
-context-free grammars. Ambiguities of grammar produce Shift/Reduce and 
-Reduce/Reduce conflicts. The algorithm uses parser tables similar to classical LR-tables,
-each cell of which can contain multiple actions in case of conflicts. The general approach of 
-the algorithm is to carry out all possible actions in these situations. The algorithm uses
-graph-based data structures to effectively represent the set of stacks and derivation
-trees.
+RNGLR (Right-Nulled Genralized LR) is a modification of Generalized LR (GLR) algorithm, which
+was developed by Masaru Tomita~\cite{Tomita} in context of natural language processing. 
+GLR was designed to handle ambiguous context-free grammars. Ambiguities in the grammar produce 
+shift/reduce and reduce/reduce conflicts, speaking in terms of LR approach. The algorithm 
+uses parser tables, similar to those in classical LR, each cell of which can contain multiple 
+actions. The general approach is to carry out all possible actions during parsing, 
+using graph-based data structures to efficiently represent the set of stacks 
+and derivation trees. Originally, Tomita's algorithm was unable to recognize all context-free languages.  
+Elizabeth Scott and Adrian Johnstone presented RNGLR~\cite{RNGLR},
+which extends GLR with a certain way of handling \emph{right nullable} 
+rules (i.e. rules of the form $\mathrm{A} \rightarrow \alpha \beta$, where $\beta$ 
+reduces to the empty string). 
 
-However, Tomita's algorithm failed to process general context-free grammars.  
-Elizabeth Scott and Adrian Johnstone presented Right-Nulled Generalized LR algorithm~\cite{RNGLR}
-which extends and corrects Tomita's GLR parsing methods by
-specific way of handling \emph{right nullable} rules (i.e. rules of the form 
-$\mathrm{A} \rightarrow \alpha \beta$, where $\beta$ reduces to the empty string). 
-That is, not only reductions for items $\mathrm{A} \rightarrow \alpha \cdot$ are 
-applied, but also for the items of the form  $\mathrm{A} \rightarrow \alpha \cdot \beta$, 
-where $\beta \Rightarrow \epsilon$. Thus, reduction length -- the number of 
-symbols to be reduced to a nonterminal -- may be less than or equal to the length 
-of righthand side of the rule. There are also possible reductions of 0-length, 
-also called as $\epsilon$-reductions, corresponding to items of the form $\mathrm{A} 
-\rightarrow \cdot$. All reductions are stored in the parse table as pairs of 
-a nonterminal to reduce to and a reduction length.
+To efficiently represent the set of all stacks, produced during conflict processing,
+RNGLR uses Graph Structured Stack (GSS). GSS is a directed graph, 
+whose vertices correspond to the elements of individual stacks and edges link succesive
+stack elements. Each vertex can have multiple incoming and outgoing edges to merge 
+multiple stacks together; thus stack element sharing is implemented. Each vertex is 
+a pair $(s, l)$, where $s$ is a parser state and $l$ is a \emph{level} (position in the input string). 
+Vertices in GSS are unique and there are no multi-edges. 
 
-To represent the set of stacks produced during conflict processing efficiently,
-RNGLR algorithm uses Graph Structured Stack. GSS is an directed graph, 
-vertices of which corresponds to elements of classical stack and edges link sequential 
-elements together. Each vertex can have multiple outgoing edges to merge several stacks
-together and have multiple incoming edges and, by means of it, be shared between stacks. 
-Vertex is a pair $(s, l)$, where $s$ is a parser state and $l$ is a level -- position 
-in an input string. Vertices in GSS are unique and there is no multiple edges. 
+According to RNGLR, an input is read left-to-right, one token at a time, and 
+the levels of GSS are constructed sequentially for each input position: first, all  
+possible reductions are applied, then the next input terminal is shifted and
+pushed to the GSS. When a reduction or push is performed, 
+the algorithm modifies GSS in the following manner. Suppose an 
+egde $(v_t, v_h)$ has to be added to the GSS. By construction, the head vertex
+$v_h$ is always already in the GSS. If the tail vertex is also in GSS, then
+a new egde $(v_t, v_h)$ is added (provided it is not yet there); otherwise both 
+new tail vertex and new edge are created and added to the GSS. Every time a new 
+vertex is created, the algorithm calculates new parser state by creating vertex 
+state and the next terminal of the input {\bf (how a next terminal can be created? what is a vertex state?)}
+(i.e. calculates the \emph{push}), and then adds the push {\bf (what is a push?)} to the global 
+collection $\mathcal{Q}$. The set of $\epsilon$-reductions 
+is also calculated, when a new vertex is added to the GSS, and they are {\bf (who?)} added to the 
+global queue $\mathcal{R}$. Edge creation entails the calculation of reductions with 
+nonzero length {\bf (did not understand this phrase)}. 
 
-An input string could have several derivation trees and, as a rule, they have 
-numerous identical subtrees. Shared Packed Parse Forest (SPPF) is a directed graph
-utilized to produce compact representation of possible derivation trees. RNGLR 
-algorithm constructs SPPF in the similar manner as Rekers does~\cite{SPPF}. 
-SPPF has the following structure: the \emph{root} (i.e. the vertex
-with no incoming edges) corresponds to the start nonterminal of the grammar; vertices 
-with no outgoing edges correspond to the terminals or $\epsilon$-tree (which means 
-$\mathrm{A} \Rightarrow \epsilon$); the rest of the vertices could be 
-divided into 2 classes: nonterminal and production. Each nonterminal node has a 
-\emph{family} (a collection) of production nodes, each of which present one of the 
-possible derivations of the nonterminal. Production nodes representing righthand side 
-of the production have an ordered collection of terminal or nonterminal nodes. The 
-lenght of a collection could be equal to the lenght of the rule, or less, if final 
-symbols derive $\epsilon$: nullable symbols are ignored to reduce memory consumption. 
+An input string can have several derivation trees and, as a rule, they can have 
+numerous identical subtrees. Shared Packed Parse Forest (SPPF)~\cite{SPPF} is a directed graph
+designed for compact representation of all possible derivation trees.  
+SPPF has the following structure: the \emph{root} (i.e. vertex with no incoming edges) corresponds 
+to the starting nonterminal of the grammar; vertices with no outgoing edges correspond to the terminals 
+or $\epsilon$-tree (which means $\mathrm{A} \Rightarrow \epsilon$) {\bf (where this A came from?)}; 
+the rest of the vertices are divided into two classes: \emph{nonterminal} and \emph{production}. 
+Each nonterminal vertex keeps a collection of production nodes, each of which represents one  
+possible derivation of that nonterminal. Production vertices represents a righthand side of the 
+production and keep an ordered list of terminal or nonterminal nodes. The lenght of this list is 
+either equal to the lenght of the right-hand side of the production, or one less, if final 
+symbols derives $\epsilon$ (nullable symbols are ignored to reduce memory consumption). 
 
-RNGLR algorithm reads an input from left to right, one token at a time, and 
-constructs levels of GSS sequentially for each position in the input: first, all the 
-possible reductions are applied, then the next terminal of the input is shifted and
-pushed to the GSS. When reduction or push is processed, the algorithm modifies GSS in 
-the following manner. Consider adding an $(v_{t}, v_{h})$ edge to GSS. As the algorithm
-builds a stack, the head vertex $v_{h}$ of the edge to be added is always in GSS by the 
-time of adding. The tail vertex, on the other hand, could be either in GSS or not. In 
-the first situation, new vertex does not created, only edge $(v_{t}, v_{h})$ is added 
-if there were no such edge (else, nothing is changed in GSS). In the second situation, 
-both new tail vertex and new edge is created and added to GSS. Every time new vertex
-is created, the algorithm calculates new parser state by created vertex state and the 
-next terminal of the input (i.e. calculates the \emph{push}), then adds the push to a
-global collection $\mathcal{Q}$. The set of $\epsilon$-reductions is also calculated 
-when new vertex is added to the GSS, and they are added to a global queue $\mathcal{R}$.
-Edge creation entails the calculation of reductions with nonzero length. The detailed 
-algorithm description and GSS construction routine can be found in the Appendix 
-section~\ref{RNGLRCode}. 
+SPPF is constructed simultaneously with GSS. Each edge of the GSS is associated with either 
+a terminal or nonterminal node. When a GSS edge is added with a push, 
+a new terminal node is created and associated with the edge. Nonterminal nodes are associated
+with edges, which were added when reductions were performed: if the edge has already been in GSS, 
+production node is added to the family of a nonterminal nodes associated with the edge. All subgraphs 
+from the edges of the reduction path are added as children to the production node. After the input 
+is read to the end, all vertices with accepting states are searched and nodes, associated with 
+outgoing edges of such vertices are merged to form the actual SPPF. All unreachable vertices 
+are deleted from the SPPF graph which leaves only actual derivation trees for the input.
 
-SPPF and GSS are constructed simultaneously. Each edge of GSS is associated with either 
-a terminal node or a nonterminal node. When a GSS edge is added while push processing, 
-terminal node is created and associated with the edge. Nonterminal nodes are associated
-with edges added during reduction processing: if the edge has already been in GSS, 
-production node is added to the family of a nonterminal node associated with the edge.
-Subgraphs from the edges of the reduction path are added as children to the production
-node. After the input is read to the end, vertices with accepting states are searched,
-nodes accociated with outgoing edges of such vertices are merged to form the actual
-SPPF. All unreachable vertices are deleted from the SPPF graph which leaves only 
-actual derivation trees for the input.
+The detailed algorithm description if the form of pseudocode can be found in the 
+Appendix~\ref{RNGLRCode}. 
+
