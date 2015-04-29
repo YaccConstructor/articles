@@ -14,9 +14,15 @@
 \usepackage[english,russian]{babel}
 \usepackage{indentfirst}
 \usepackage{amsmath}
-\usepackage{dot2texi}
+%\usepackage{dot2texi}
 \usepackage{tikz}
-\usepackage{graphicx}
+
+
+%\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{mathspec}
+
 \usetikzlibrary{shapes,arrows}
 \usepackage{fancyvrb}
 % Если у вас есть логотип вашей кафедры, факультета или университета, то
@@ -157,30 +163,69 @@ inv.invokeFunction(\textcolor{orange}{"hello"}, \textcolor{orange}{"Scripting!!!
 
 \begin{frame}
     \transwipe[direction=90]
-    \frametitle{Архитектура: аппроксимация и лексический анализ}    
+    \frametitle{Аппроксимация и лексический анализ}    
 \end{frame}
 
 \begin{frame}
     \transwipe[direction=90]
     \frametitle{Алгоритм: постановка задачи}
+    \begin{itemize}    
+        \item $G=\langle N,\Sigma, P,S\rangle$ -- однозначная КС грамматика
+        \item $R$ -- регулярное множество над алфавитом ${\Sigma}^{'} \subseteq \Sigma $
+        \item $AST(t,\omega,G)$ -- является ли $t$ деревом вывода $\omega$ в грамматике $G$
+    \end{itemize}
+    Необходимо построить алгоритм $\mathbb{P}$ такой что
+    $(\forall \omega \in R) (\omega \in L(G) \Rightarrow (\exists t \in \mathbb{P}(R,G))AST(t, \omega, G))$
+    $\land (\forall t \in \mathbb{P}(R,G))(\exists s \in R)AST(t,\omega,G)$
 \end{frame}
 
-\begin{frame}
+\begin{frame}[fragile] 
     \transwipe[direction=90]
     \frametitle{Алгоритм: описание}
+\begin{algorithm}[H] 
+\begin{algorithmic}[1]
+\Function{parse}{$grammar, automaton$}
+  \State{$inputGraph \gets$ construct inner graph representation of $automaton$}
+  \State{$parserSource \gets$ generate RNGLR parser tables for $grammar$}
+  \If{$inputGraph$ contains no edges}
+    \If{$parserSource$ accepts empty input} {report success}
+    \Else { report failure}
+    \EndIf
+  \Else
+    \State{\Call{addVertex}{$inputGraph.startVertex, startState$}}
+    \State{$\mathcal{Q}.Enqueue(inputGraph.startVertex)$}
+    \While{$Q$ is not empty}
+      \State{$v \gets \mathcal{Q}.Dequeue()$}
+      \State{\Call{makeReductions}{$v$}}
+      \State{\Call{push}{$v$}}
+      \State{\Call{applyPassingReductions}{$v$}}
+    \EndWhile
+    \If{$v_f.level = q_f$ and $v_f.state$ is accepting} {report success}
+    \Else { report failure}
+    \EndIf
+  \EndIf
+\EndFunction
+\end{algorithmic}
+\caption{Parsing algorithm}
+\label{parsing}
+\end{algorithm}
 \end{frame}
 
 \begin{frame}
     \transwipe[direction=90]
     \frametitle{Алгоритм: завершаемость}
     \begin{theorem}
-
-
+             Algorithm terminates for any input.
     \end{theorem}
 
     \begin{proof}
-
-
+       Each vertex of inner representation of the input finite automaton contains, at most, 
+$N$ GSS vertices, where $N$ is a number of parser states. So, the total number of 
+GSS vertices is, at most, $N\times n$, where $n$ is the number of vertices in the inner graph. 
+Since GSS has no multi-edges, the number of its edges is $O((N\times n)^2)$. The algorithm 
+dequeues vertex to be processed from $\mathcal Q$ in the each iteration of the 
+main loop. Vertices are enqueued to $\mathcal Q$ only when a new edge is added to GSS. Since the number of 
+GSS edges is finite, the algorithm always terminates.
     \end{proof}
 
 \end{frame}
@@ -188,25 +233,24 @@ inv.invokeFunction(\textcolor{orange}{"hello"}, \textcolor{orange}{"Scripting!!!
 \begin{frame}
     \transwipe[direction=90]
     \frametitle{Алгоритм: корректность}
-    \begin{theorem}
+        \begin{theorem}
+    For every GSS edge $(v_{t}, v_{h})$, $v_{t} \in V_{t}.processed$, $v_{h} \in V_{h}.processed$, 
+the terminals of the associated subtree correspond to some path in the inner graph $p$ 
+from $V_{h}$ to $V_{t}$.
+    \end{theorem}
 
+    \begin{theorem}
+       Every generated from SPPF tree is correct.
     \end{theorem}
 
     \begin{proof}
+      Consider arbitrary tree, generated from SPPF, and prove that it is correct. The first and the third statements
+of correctness definition immediately follow from SPPF definition. 
 
-
-    \end{proof}
-
-
-    \begin{theorem}
-
-    \end{theorem}
-
-    \begin{proof}
-
+\textsc{Lemma 1} proves the second item of the definition by consideration of all the edges from the GSS vertex
+on the last level having accepting state to the vertex on the 0-level with the start parser state.
 
     \end{proof}
-
 
 \end{frame}
 
