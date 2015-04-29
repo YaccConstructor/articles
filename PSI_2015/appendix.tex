@@ -53,22 +53,22 @@ for all recogrized strings w.r.t. reference grammar.
 \begin{algorithmic}[1]
 \caption{RNGLR algorithm}
 \label{rnglr}
-\Function{addVertex}{$i, level, state$}
-  \If{GSS does not contain vertex $v = (level, state)$}
-    \State{add new vertex $v = (level, state)$ to GSS}
-    \State{calculate the set of shifts by $v$ and the $input[i+1]$ and add them to $\mathcal{Q}$}
-    \State{calculate the set of zero-reductions by $v$ and the $input[i+1]$ and}
-    \State{add them to $\mathcal{R}$}
-  \EndIf
-  \State{\Return{$v$}}
-\EndFunction
-\Function{addEdge}{$i, v_{h}, level_{t}, state_{t}, isZeroReduction$}
-  \State{$v_{t} \gets$ \Call{addVertex}{$i, level_{t}, state_{t}$}}
-  \If{GSS does not contain edge from $v_{t}$ to $v_{h}$}
-    \State{add new edge from $v_{t}$ to $v_{h}$ to GSS}
-    \If{not $isZeroReduction$}
-      \State{calculate the set of reductions by $v$ and the $input[i+1]$ and}
-      \State{add them to $\mathcal{R}$}
+\Function{parse}{$grammar, input$}
+  \State{$\mathcal{R} \gets \emptyset$} \Comment{Queue of tuples of GSS vertex, nonterminal, and reduction length}
+  \State{$\mathcal{Q} \gets \emptyset$} \Comment{Collection of pairs of GSS vertex and parser state}
+  \If{$input = \epsilon$}
+    \If{$grammar$ accepts empty input} {report success}
+    \Else { report failure}
+    \EndIf
+  \Else
+    \State{\Call{addVertex}{$0, 0, startState$}}
+    \ForAll{$i$ in $0..input.Length-1$}
+      \State{\Call{reduce}{$i$}}
+      \State{\Call{push}{$i$}}
+    \EndFor
+    \If{$i=input.Length-1$ and there is a vertex in the last level of GSS which state is accepting}
+      \State{report success}
+    \Else { report failure}
     \EndIf
   \EndIf
 \EndFunction
@@ -92,26 +92,27 @@ for all recogrized strings w.r.t. reference grammar.
 \EndFunction
 \end{algorithmic}
 \end{algorithm}
+
 \begin{algorithm}[!ht]
 \begin{algorithmic}[1]
-\caption{RNGLR main function}
+\caption{GSS construction}
 \label{RNGLRMain}
-\Function{parse}{$grammar, input$}
-  \State{$\mathcal{R} \gets \emptyset$} \Comment{Queue of tuples of GSS vertex, nonterminal, and reduction length}
-  \State{$\mathcal{Q} \gets \emptyset$} \Comment{Collection of pairs of GSS vertex and parser state}
-  \If{$input = \epsilon$}
-    \If{$grammar$ accepts empty input} {report success}
-    \Else { report failure}
-    \EndIf
-  \Else
-    \State{\Call{addVertex}{$0, 0, startState$}}
-    \ForAll{$i$ in $0..input.Length-1$}
-      \State{\Call{reduce}{$i$}}
-      \State{\Call{push}{$i$}}
-    \EndFor
-    \If{$i=input.Length-1$ and there is a vertex in the last level of GSS which state is accepting}
-      \State{report success}
-    \Else { report failure}
+\Function{addVertex}{$i, level, state$}
+  \If{GSS does not contain vertex $v = (level, state)$}
+    \State{add new vertex $v = (level, state)$ to GSS}
+    \State{calculate the set of shifts by $v$ and the $input[i+1]$ and add them to $\mathcal{Q}$}
+    \State{calculate the set of zero-reductions by $v$ and the $input[i+1]$ and}
+    \State{add them to $\mathcal{R}$}
+  \EndIf
+  \State{\Return{$v$}}
+\EndFunction
+\Function{addEdge}{$i, v_{h}, level_{t}, state_{t}, isZeroReduction$}
+  \State{$v_{t} \gets$ \Call{addVertex}{$i, level_{t}, state_{t}$}}
+  \If{GSS does not contain edge from $v_{t}$ to $v_{h}$}
+    \State{add new edge from $v_{t}$ to $v_{h}$ to GSS}
+    \If{not $isZeroReduction$}
+      \State{calculate the set of reductions by $v$ and the $input[i+1]$ and}
+      \State{add them to $\mathcal{R}$}
     \EndIf
   \EndIf
 \EndFunction
