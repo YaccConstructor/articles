@@ -93,7 +93,7 @@ inv.invokeFunction(\textcolor{orange}{"hello"}, \textcolor{orange}{"Scripting!!!
     \transwipe[direction=90]
     \frametitle{Динамически формируемые строковые выражения: проблемы}
     \begin{itemize}
-        \item Значение выражения --- код на некотором языке и его нужно соответствующим образом поддерживать и обрабатывать
+        \item Значение выражения -- код на некотором языке и его нужно соответствующим образом поддерживать и обрабатывать
         \item Однако для стандартных инструментов это просто строки
         \begin{itemize}
             \item Ошибки в динамически формируемых выражениях обнаруживаются лишь во время выполнения
@@ -198,31 +198,27 @@ inv.invokeFunction(\textcolor{orange}{"hello"}, \textcolor{orange}{"Scripting!!!
     \frametitle{Синтакический анализ: идеи алгоритма}
     \begin{itemize}         
         \item Основан на RNGLR алгоритме
-        \item Вход: КА
+        \begin{itemize}         
+           \item Обрабатывает произвольные КС грамматики (в том числе неоднозначные)
+           \item Основные операции: {\bfseries{\textit{push}}} -- композиция переноса и goto; {\bfseries{\textit{reduce}}} -- свёртка
+           \item Использует компактное представление множества стеков ({\bfseries GSS}) и компактное представление леса разбора ({\bfseries SPPF})
+        \end{itemize}
+        \item Замена линейного входного потока на граф конечного автомата
+        \item Обход графа и последовательное построение GSS по аналогии с RNGLR
+            \begin{itemize}         
+                \item Для каждой вершины входного графа вычисляется множество возможных вершин GSS -- состояний LR-анализатора
+            \end{itemize}
+        \item Построение SPPF как в RNGLR
+        \item Использование очереди $\mathcal Q$ для задания последовательности обхода вершин
+            \begin{itemize}         
+                \item Вершина добавляется в $\mathcal Q$ если добавляется новое ребро в GSS с концом в этой вершине
+            \end{itemize}
     \end{itemize}
 \end{frame}
 
 \begin{frame}
     \transwipe[direction=90]
     \frametitle{Синтакический анализ: идеи алгоритма}
-
-
-The general idea of the algorithm is to traverse the automaton graph and sequentially construct GSS, similarly as in RNGLR.
-However, as we deal with a graph instead of a linear stream, the next symbol turns into the \emph{set of terminals} on 
-all outgoing edges of current vertex. This results in a different semantics of pushing and reducing (see line~5, 
-Algorithm~\ref{processVertex}, and lines~9 and~21, Algorithm~\ref{gss_construction}). We use queue $\mathcal Q$ to control the 
-order of automaton graph vertices processing. Every time a new GSS vertex is added, all zero-reductions have to be performed 
-and then new tokens have to be shifted, so a corresponding graph vertex has to be enqueueed for further processing. 
-Addition of new GSS edge can produce reductions to handle, so the graph vertex at the tail of the added edge has 
-also to be enqueueed (see Algorithm~\ref{gss_construction}). Reductions are applied along the paths in GSS, and if we add
-a new edge to some tail vertex, which was already presented in GSS, we also have to recalculate all \emph{passing} reductions
-(see \emph{applyPassingReductions} function in Algorithm~\ref{processVertex}).
-\end{frame}
-
-\begin{frame}
-    \transwipe[direction=90]
-    \frametitle{Синтакический анализ: идеи алгоритма}
-
 
 Besides parser $state$ and $level$ (which is equal to the input automaton state), 
 a collection of \emph{passing reductions} is stored in a GSS vertex. Passing reduction is a 
@@ -231,59 +227,77 @@ This triplet is similar to one describing reduction, where $l$ is a remaining le
 Passing reductions are stored for every vertex of the path (except for the first and the last) 
 during path search in \emph{makeReductions} function (see Algorithm~\ref{processVertex}).
 
-We inherit SPPF construction from the original RNGLR; in our case, 
-derivation trees for strings, accumulated along the paths of the input automaton 
-graph, are merged. 
 \end{frame}
 
 
 \begin{frame}
     \transwipe[direction=90]
     \frametitle{Синтакический анализ: идеи алгоритма}
+    \begin{itemize}
+    \item Вершины GSS связываются с позицией во входном потоке, аналогично RNGLR
+        \begin{itemize}
+        \item Позиция -- состояние входного конечного автомата        
+        \end{itemize}    
+    \item Строится вспомогательная структура данных (\emph{внутренний граф}) -- копия входного автомата с вершинами, хранящими дополнительную информацию
+        \begin{itemize}
+        \item \emph{processed}: вершины GSS, для который все свёртки выполнены 
+%   This set aggregates all GSS vertices, associated with inner graph vertex.
+        \item \emph{unprocessed}: вершины GSS, для которых требуется выполнение переноса токенов
+%   GSS vertices, for which all the pushes are to be processed. This set is analogous to $\mathcal{Q}$ of original RNGLR.
+        \item \emph{reductions}: очередь свёрток, которые необхоимо выполнить
+  % a queue, which is analogous to $\mathcal{R}$ of original RNGLR:  all reductions to be processed.
+        \item \emph{passingReductionsToHandle}: набор пар из вершины и ребра GSS для выполнения проходящих свёрток
+  %pairs of GSS vertex and GSS edge to apply  passing reductions along them.
+        \end{itemize}
+    \end{itemize}
+\end{frame}
 
-Likewise RNGLR, we associate GSS vertices with positions in the input,
-and, in our case, a position coincides with some state of input automaton. We construct some
-inner data structure (referred to as \emph{inner graph}) by copying input automaton graph and 
-extending each its vertex with the following collections: 
-
-\begin{itemize}
-  \item \emph{processed}: GSS vertices, for which all the pushes were processed. 
-   This set aggregates all GSS vertices, associated with inner graph vertex.
-  \item \emph{unprocessed}: GSS vertices, for which all the pushes are to be processed. 
-   This set is analogous to $\mathcal{Q}$ of original RNGLR.
-  \item \emph{reductions}: a queue, which is analogous to $\mathcal{R}$ of original RNGLR: 
-   all reductions to be processed.
-  \item \emph{passingReductionsToHandle}: pairs of GSS vertex and GSS edge to apply 
-   passing reductions along them.
-\end{itemize}
+\begin{frame}[fragile] 
+    \transwipe[direction=90]
+    \frametitle{Алгоритм синтаксического анализа: псевдокод}
+\begin{algorithmic}[1]
+\Function{parse}{$grammar, automaton$}
+  \State{$inputGraph \gets$ construct inner graph representation of $automaton$}
+  \State{$parserSource \gets$ generate RNGLR parser tables for $grammar$}
+  \State{\Call{addVertex}{$inputGraph.startVertex, startState$}}
+  \State{$\mathcal{Q}.Enqueue(inputGraph.startVertex)$}
+  \While{$Q$ is not empty}
+    \State{$v \gets \mathcal{Q}.Dequeue()$}
+    \State{\Call{makeReductions}{$v$}}
+    \State{\Call{push}{$v$}}
+    \State{\Call{applyPassingReductions}{$v$}}
+  \EndWhile
+  \If{$v_f.level = q_f$ and $v_f.state$ is accepting} {report success}
+  \Else { report failure}
+  \EndIf
+\EndFunction
+\end{algorithmic}
 \end{frame}
 
 \begin{frame}
     \transwipe[direction=90]
     \frametitle{Алгоритм: завершаемость}
     \begin{theorem}
-             Algorithm terminates for any input.
+             Алгоритм завершается для любой однозначной КС грамматики $G$ и любого КА без $\varepsilon-$переходов.
     \end{theorem}
 
     \begin{proof}
-       Each vertex of inner representation of the input finite automaton contains, at most, $N$ GSS vertices, where $N$ is a number of parser states. So, the total number of 
-       GSS vertices is, at most, $N\times n$, where $n$ is the number of vertices in the inner graph. 
-       Since GSS has no multi-edges, the number of its edges is $O((N\times n)^2)$. The algorithm 
-       dequeues vertex to be processed from $\mathcal Q$ in the each iteration of the 
-       main loop. Vertices are enqueued to $\mathcal Q$ only when a new edge is added to GSS. Since the number of GSS edges is finite, the algorithm always terminates.
+       Каждая вершина внутреннего графа содержит не более чем $N$ вершин GSS, где $N$ -- количество состояний LR-анализатора. Таким образом, всего может быть создано не более $N\times n$ вершин GSS, где $n$
+       -- количество вершин во внутреннем графе. Так как GSS не содержит кратных дуг, то количество дуг в GSS не более, чем $O((N\times n)^2)$. Алгоритм извлекает одну вершину из  $\mathcal Q$ на каждой итерации.
+       При этом вершины добавляются в $\mathcal Q$ только если добавляется новое ребро в GSS. Так как количество рёбер в GSS конечно, то алгоритм завершается.
     \end{proof}
 
 \end{frame}
 
 \begin{frame}
     \transwipe[direction=90]
-    \frametitle{Алгоритм: завершаемость}
+    \frametitle{Алгоритм: корректность. Определения}
     \begin{definition}
-         \emph{Correct tree} is an ordered tree with the following properties:
+         \emph{Корректное дерево} -- это упорядоченное дерево со следующими свойствами:
         \begin{enumerate}
-            \item The root is the start nonterminal of the grammar $G$.
-            \item The leaf nodes are terminals of $G$. The sequence of the leaf nodes corresponds to some path in the inner graph. 
-            \item The interior nodes are nonterminals of $G$. All children of nonterminal $N$ correspond to the symbols of the right-hand side of some production for $N$ in $G$.
+            \item корень дерева -- стартовый нетерминал грамматики $G$
+            \item листья --  терминалы $G$. При этом последовательность листьев соответствует какому-либо пути в КА
+            \item внутренние узлы -- нетерминалы $G$. Все дети нетерминала $N$ соответствуют правой части какой-то продукции для $N$ в $G$.
         \end{enumerate}
     \end{definition}
 \end{frame}
@@ -292,12 +306,11 @@ extending each its vertex with the following collections:
     \transwipe[direction=90]
     \frametitle{Алгоритм: корректность}
         \begin{lemma}[Lemma 1]
-    For every GSS edge $(v_{t}, v_{h})$, $v_{t} \in V_{t}.processed$, $v_{h} \in V_{h}.processed$, the terminals of the associated subtree correspond to some path in the inner graph $p$ 
-from $V_{h}$ to $V_{t}$.
+    Для любого ребра GSS $(v_{t}, v_{h})$, $v_{t} \in V_{t}.processed$, $v_{h} \in V_{h}.processed$, терминалы соответствующего поддерева соответствуют некоторому пути $p$ из $V_{h}$ в $V_{t}$ во внутреннем графе.
     \end{lemma}
 
     \begin{proof}
-        The proof is by induction on the height of derivation tree.
+        Доказательство проводится по индукции по высоте дерева вывода.
     \end{proof}
 
 \end{frame}
@@ -306,15 +319,14 @@ from $V_{h}$ to $V_{t}$.
     \transwipe[direction=90]
     \frametitle{Алгоритм: корректность}
     \begin{theorem}
-       Every generated from SPPF tree is correct.
+       Любое дерево, извлечённое из SPPF корректно.
     \end{theorem}
 
     \begin{proof}
-      Consider arbitrary tree, generated from SPPF, and prove that it is correct. The first and the third statements
-of correctness definition immediately follow from SPPF definition. 
+      Первое и третье свойство корректного дерева следуют из определения SPPF. 
 
-\textsc{Lemma 1} proves the second item of the definition by consideration of all the edges from the GSS vertex
-on the last level having accepting state to the vertex on the 0-level with the start parser state.
+      \textsc{Lemma 1} доказывает второе свойство при рассмотрении всех рёбер из вершин GSS на последнем уровне, соответствующих принимающему состоянию анализатора, в вершину на 
+      нулевом уровне, содержащую стартовое состояние.
 
     \end{proof}
 
@@ -324,20 +336,14 @@ on the last level having accepting state to the vertex on the 0-level with the s
     \transwipe[direction=90]
     \frametitle{Алгоритм: корректность}
     \begin{theorem}
-       \textit{For every path $p$ in the inner graph, recognized w.r.t. reference grammar, a correct tree corresponding to $p$ can 
-be generated from SPPF.}
-
+      Для строки, сооответствующей любому пути $p$ во внутреннем графе, имеющей вывод в эталонной грамматике $G$, корректное дерево, соответствующее $p$ может быть извлечено из SPPF.
     \end{theorem}
 
     \begin{proof}
-Consider arbitrary correct tree and show it can be generated from SPPF. The proof follows the proof of correctness 
-for RNGLR algorithm, except for the following moment. RNGLR constructs GSS layer-by-layer: it is guaranteed, that $\forall j \in [0..i-1]$ 
-$j$-th level of the GSS would be fixed by the time, when $i$-th level is processed. In our case, 
-this property does not hold, which leads to a possible generation of some paths for already applied reductions. 
-The only possible way to actually add a new path is to add an edge $(v_{t}, v_{h})$, where $v_{t}$ is already in the GSS and 
-it has some incoming edges. Since the algorithm stores which reductions have passed through each vertex, to overcome this problem 
-it is sufficient to continue passing reductions, stored in $v_{t}$, and this is exactly what \emph{applyPassingReductions} 
-function does. 
+Доказательство аналогично доказательству корректности RNGLR, за исключением следующего момента. RNGLR конструирует GSS по слоям, гарантируя, что $\forall j \in [0..i-1]$ $j$-й уровень будет зафиксирован к тому 
+моменту, когда будет обрабатываться $i$-й. В нашем случае это свойство не выполняется, что может привести к появлению новых путей для уже применённых свёрток. Единственный способ добавить новый путь --
+добавить ребро $(v_{t}, v_{h})$, где $v_{t}$ уже а GSS и содержит входящие рёбра. Так как алгоритм сохраняет свёртки, проходящие черех каждую вершину, то достаточно продолжить проходящие свёртки 
+для $v_{t}$. За это отвечает функция \emph{applyPassingReductions} 
     \end{proof}
 
 \end{frame}
@@ -375,7 +381,7 @@ function does.
     \transwipe[direction=90]
     \frametitle{Публикации}
   \begin{itemize}
-      \item Кириленко Я.А., Григорьев С. В., Авдюхин Д. А. Разработка синтаксических анализаторов в проектах по автоматизированному реинжинирингу информационных систем.  Научно-технические ведомости Санкт-Петербургского государственного политехнического университета информатика, телекоммуникации, управление. Т. 3, N 174, 2013. C. 94 --- 98.
+      \item Кириленко Я.А., Григорьев С. В., Авдюхин Д. А. Разработка синтаксических анализаторов в проектах по автоматизированному реинжинирингу информационных систем.  Научно-технические ведомости Санкт-Петербургского государственного политехнического университета информатика, телекоммуникации, управление. Т. 3, N 174, 2013. C. 94---98.
       \item Григорьев С. В., Вербицкая Е. А., Полубелова М. И., Иванов А. В., Мавчун Е. В. Инструментальная поддержка встроенных языков в интегрированных средах разработки. Моделирование и анализ информационных систем. Т. 21, N 6, 2014. С. 131---143.
       \item Григорьев С.В. Алгоритм синтаксического анализа динамически формируемых выражений.
   \end{itemize} 
