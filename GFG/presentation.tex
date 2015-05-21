@@ -1,0 +1,261 @@
+\documentclass{beamer}
+\usepackage{beamerthemesplit}
+\usetheme{SPbGU}
+%{CambridgeUS}
+% Выпишем часть возможных стилей, некоторые из них могут содержать
+% дополнительные опции
+% Darmstadt, Ilmenau, CambridgeUS, default, Bergen, Madrid, AnnArbor,Pittsburg, Rochester,
+% Antiles, Montpellier, Berkley, Berlin
+\usepackage{pdfpages}
+\usepackage{amsmath}
+\usepackage{cases}
+\usepackage{cmap} % for serchable pdf's
+\usepackage[T2A]{fontenc} 
+\usepackage[utf8]{inputenc}
+\usepackage[english,russian]{babel}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{graphicx}
+\usetikzlibrary{shapes,arrows}
+% Если у вас есть логотип вашей кафедры, факультета или университета, то
+% его можно включить в презентацию.
+
+%\usefoottemplate{\vbox{}}%  \tinycolouredline{structure!25}% {\color{white}\textbf{\insertshortauthor\hfill% \insertshortinstitute}}% \tinycolouredline{structure}% {\color{white}\textbf{\insertshorttitle}\hfill}% }}
+
+%\logo{\includegraphics[width=1cm]{SPbGU_Logo.png}}
+
+%[GLR-анализатор]
+\title[GFG]{Grammar Flow Graph}
+\subtitle[семнинар]{Доклад на семинаре лаборатории JetBrains}
+\institute[СПбГУ]{
+Санкт-Петербургский государственный университет \\
+Математико-Механический факультет }
+
+
+
+\author[С.В. Григорьев]{Семён Вячеславович Григорьев}
+
+\date{21 мая 2015г.}
+
+\begin{document}
+{
+
+\begin{frame}
+\begin{center}
+{\includegraphics[width=1cm]{SPbGU_Logo.png}}
+\end{center}
+\titlepage
+\end{frame}
+}
+
+\begin{frame}
+    \transwipe[direction=90]
+    \frametitle{Введение}
+    \begin{itemize}
+        \item GFG -- просто альтернативный взгляд на работу с КС языками и грамматиками
+        \begin{itemize}
+            \item ``Чудес'' \ и ``откровений'' \ не будет       
+        \end{itemize}
+        \item Зачем
+        \begin{itemize}
+            \item Применение в анализе динамически формируемых выражений
+            \item Применение при обучении
+        \end{itemize}
+    \end{itemize}
+
+\end{frame}
+
+\begin{frame}
+    \transwipe[direction=90]
+    \frametitle{Введение}
+    \begin{itemize}
+        \item Пара слов про анализ динамически формируемых выражений
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \transwipe[direction=90]
+    \frametitle{Конечные автоматы}
+    \begin{itemize}
+        \item КА -- $(\Sigma, S, s_0, \delta, F)$
+        \item Графическое изображение КА -- граф $G(V,E)$
+        \begin{itemize}
+            \item Метки рёбер -- $n \in (\Sigma \cup {\varepsilon}) $
+            \item Метки вершин --$a \in S$ 
+        \end{itemize}
+        \item Распознование строки $\omega$ -- поиск пути в автомате
+        \begin{itemize}
+            \item $p=v_0 v_1 v_n; v_i \in V; smb(v_0,v_1) + ... + smb(v_{n-1}, v_n) = \omega$ 
+        \end{itemize}
+        \item КА $\leftrightarrow$ регулярные азыки $\leftrightarrow$ регулярные грамматики
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \transwipe[direction=90]
+    \frametitle{КС языки и грамматики}
+    \begin{itemize}
+        \item Существует ``аналог'' \  КА для КС языков
+        \begin{itemize}
+            \item \emph{Keshav Pingali, Gianfranco Bilardi}. Parsing with Pictures.
+            \item \emph{Keshav Pingali, Gianfranco Bilardi}. A Graphical Model for Context-Free Grammar Parsing.
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+    \transwipe[direction=90]
+    \frametitle{Примнер}
+    \begin{itemize}
+        \item Расширенная КС грамматика $G = \langle N, T, S, P \rangle$
+
+\begin{verbatim}
+ +S ::= E 
+  E ::= (E + E)
+  E ::= E + E
+  E ::= int
+\end{verbatim}
+
+        \item $S$ не встречается в правых частях правил
+        \item LR-ситуация (item)  -- правило с точкой
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \transwipe[direction=90]
+    \frametitle{Пример: GFG}
+    \begin{itemize}
+        \item Грамматика -- набор процедур
+        \item Разбор -- последовательность вызова этих процедур
+        \item Можно построить ``CFG'' для грамматики
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \transwipe[direction=90]
+    \frametitle{Определение GFG}
+    \begin{itemize}
+       \item $GFG = G(V,E)$ -- ориентированный
+       \item Метки рёбер $ v \in (T\cup \{ \varepsilon \}) $
+        \item Метки вершин уникальны и могут быть произвольными, удобно использовать LR-ситуации
+        \item Типы вершин:
+        \begin{tabular}{|c|c|c|c|p{4cm}|} 
+            \hline
+            Start & End & $\cdot A$ & $A \cdot$ & Начало и конец всех ``обработчиков'' нетерминала  \\
+            \hline
+            Call & Return & $E ::= \cdot Ab$ & $E ::= A \cdot b$ & Вызов обработки нетерминала и возврат из неё \\
+            \hline
+            Entry & Exit & $E ::= \cdot Ab$ & $E ::= Ab \cdot$ & Начало и конец продукции                      \\
+            \hline
+            Scan &       & $E ::= A \cdot b$ &  & Начало обработки токена                                  \\
+            \hline
+        \end{tabular}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \transwipe[direction=90]
+    \frametitle{Построение GFG}
+    \begin{itemize}
+        \item $\mathcal{G} = \langle N, T, S, P \rangle$ -- КС грамматика
+        \item $GFG(\mathcal{G}) = G(V(\mathcal{G}),E(\mathcal{G}))$ -- минимальный ориентированный со следующими свойствами
+        \begin{itemize}
+            \item $\forall A \in N (\{ Start(A), End(A) \} \in V (\mathcal{G}))$
+            \item $\forall A \rightarrow \varepsilon \in P ( v(A \rightarrow \cdot)  (*\text{одноврменно и Entry и Exit}*) \in V (\mathcal{G}) \& \{ (Start(A),v(A \rightarrow \cdot)),(v(A \rightarrow \cdot), End(A))  \} \in E(\mathcal{G}) )$ 
+            \item $\forall A \rightarrow u_1 ... u_r \in P$
+            \begin{itemize}
+                \item $\{ v(A \rightarrow \cdot u_1 u_2 ... u_r),v(A \rightarrow u_1 \cdot u_2 ... u_r) ... v(A \rightarrow u_1 u_2 ... u_r \cdot)\} \in V(\mathcal{G}) (*\text{Entry, Exit, Call, Return, Scan вершины. Всего r+1 штука}*)$
+                \item $\{ (Start(A),v(A \rightarrow \cdot u_1 u_2 ... u_r)),(v(A \rightarrow u_1 u_2 ... u_r \cdot), End(A))  \} \in E(\mathcal{G})$ -- entry и exit рёбра
+                \item $\forall u_i \in T (( v(A \rightarrow u_1 ... u_{i-1} \cdot u_i u_{i+1} ... u_r) , v(A \rightarrow u_1 ... u_{i-1} u_i \cdot u_{i+1} ... u_r)) \in E(\mathcal{G}) (*\text{scan-ребро, помечено } u_i*) )$
+                \item $\forall u_i \in N (\{(v(A \rightarrow u_1 ... u_{i-1} \cdot u_i u_{i+1} ... u_r) , v(\cdot u_i)), (v(u_i \cdot ),v(A \rightarrow u_1 ... u_{i-1}u_i \cdot u_{i+1} ... u_r)) \} \in E(\mathcal{G}) (*\text{call, return рёбра}*))$
+            \end{itemize}    
+            \item Не scan рёбра поемечены $\varepsilon$
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \transwipe[direction=90]
+    \frametitle{Пути в GFG}
+    \begin{itemize}
+        \item Полный путь (complete path) -- $p=v(\cdot S)...v(S\cdot)$
+        \item Сбалансированная последовательность:
+        \begin{itemize}
+            \item Пустая последовательность
+            \item $v(A \rightarrow \alpha \cdot B \gamma),K,A \rightarrow \alpha B \cdot \gamma$, где $K$ -- сбалансированная последовательность и $A \rightarrow \alpha  B \gamma \in P$
+            \item $s_1 = x_1...x_m, s_2 = y_1 ... y_n $ -- сбалансированные. $s=s_1+s_2$ -- сбалансирована, если $x_m \neq y_1$. Если $x_m=y_1$, тогда $s = x_1...x_f y_2 ... y_n$ сбалансирована
+                  (*$v(A \rightarrow \alpha C \cdot B \gamma)$ -- Call и Return одновременно*).                                                                                                                                                                           
+        \end{itemize}
+        \item Сбалансированный путь в GFG -- путь, подпоследовательность Call и Return узлов которого сбалансирована
+        \item CR-путь (Call-Return path) в GFG -- подпоследовательность полного сбалансированного пути: не содержит подпосдевательности $v_c, K, v_r$ такой
+        , что $K$ -- сбалансирована, $v_c - Call$, $v_r - Return$, но $(v_c,v_r)$ -- не является корректной парой. 
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \transwipe[direction=90]
+    \frametitle{Связь GFG, языков и грамматик}
+    \begin{theorem}
+        Если $\mathcal{G} = \langle N, T, S, P \rangle$ -- КС грамматика, $\omega \in T^{*}$, тогда $\omega \in L(\mathcal{G})$ в том и только том случае, если 
+         существует полный сбалансированный путь $p \in GFG(\mathcal{G})$, такой, что $\omega$ порождается $p$.
+    \end{theorem}
+\end{frame}
+
+\begin{frame}
+    \transwipe[direction=90]
+    \frametitle{Недетерминированный GFG автомат (NGA)}
+    \begin{itemize}
+        \item Вид push-down автомата
+        \item NGA
+        \begin{itemize}
+            \item Конфигурация: $\langle PC \times C \times K \rangle$
+            \begin{itemize}
+                \item ``фронт обхода'': $PC \in V(\mathcal{G})$
+                \item Вход: $C \in T^{*} \times T^{*}$ 
+                \item Стек Return узлов: $K \in (V_R(\mathcal{G}))^{*}$
+            \end{itemize}
+            \item Стратовая конфигурация: $\langle \cdot S, [], \cdot \omega \rangle$
+            \item Принимающая конфигурация: $\langle S \cdot, [], \omega \cdot \rangle$
+            \item Правила перехода:
+            \begin{itemize}
+                \item $CALL \langle A \rightarrow \alpha \cdot B \gamma, C, K \rangle \mapsto \langle \cdot B, C, (A \rightarrow \alpha B \cdot \gamma, K) \rangle$
+                \item $START \langle \cdot B, C, K \rangle \mapsto \langle B \rightarrow \cdot \beta, C, K \rangle$
+                \item $EXIT \langle B \rightarrow \beta \cdot, C, K \rangle \mapsto \langle B\cdot, C,  K \rangle$
+               \item $END \langle B \cdot, C, (A \rightarrow \alpha B \cdot \gamma, K) \rangle \mapsto \langle A \rightarrow \alpha B \cdot \gamma, C, K \rangle$
+                \item $SCAN \langle A \rightarrow \alpha \cdot t \gamma, u\cdot t v, K \rangle \mapsto \langle A \rightarrow \alpha t \cdot \gamma, u t \cdot v, K \rangle$
+            \end{itemize}
+
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \transwipe[direction=90]
+    \frametitle{NGA}
+    \begin{itemize}
+        \item В START используется недетерминированный выбор (globaly angelic nondeterminism)
+        \item Конкретный алгоритм анализа (Earley, LR(k), LALR(k)) -- реализация этого выбора
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \transwipe[direction=90]
+    \frametitle{Предпросмотр}
+    \begin{itemize}
+        \item Контекстно-зависимый: LR(k)
+        \item Контекстно-независимый: LALR(k)
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \transwipe[direction=90]
+    \frametitle{Анализ динамически формируемых выражений}
+    \begin{itemize}
+        \item Снова пара слов про анализ динамически формируемых выражений
+        \item Хотим (как минимум) подменить КА на GFG
+    \end{itemize}
+\end{frame}
+
+
+\end{document}
