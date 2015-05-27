@@ -193,56 +193,10 @@ inv.invokeFunction(\textcolor{orange}{"hello"}, \textcolor{orange}{"Scripting!!!
 
 \begin{frame}
     \transwipe[direction=90]
-    \frametitle{Архитектура: цели и задачи}
-    \begin{itemize}
-        \item Упростить создание инструментов анализа динамически формируемых выражений
-        \item Предоставить набор готовых компонентов, генератор лексических и синтаксических анализаторов
-    \end{itemize}
-\end{frame}
-
-\begin{frame}
-    \transwipe[direction=90]
-    \frametitle{Архитектура: процесс анализа}
+    \frametitle{Процесс анализа динамически формируемых строковых выражений}
     \begin{center}
         \includegraphics[width=300pt]{pictures/Seq.pdf}
     \end{center}
-\end{frame}
-
-\begin{frame}
-    \transwipe[direction=90]
-    \frametitle{Архитектура: инструментарий}
-        \includegraphics[width=345pt]{pictures/Components.pdf}
-\end{frame}
-
-\begin{frame}[fragile]
-    \transwipe[direction=90]
-    \frametitle{Аппроксимация и лексический анализ}    
-    \begin{itemize}    
-        \item Используется регулярное приближение сверху множества значений выражения  
-        \item Для лексического анализа используются конечные преобразователи
-    \end{itemize}
-
-\begin{center}
-    \begin{tabular}{p{6cm}|p{6cm}}
-    \begin{minipage}{3in}
-
-        \begin{Verbatim}[commandchars=\\\{\}]
-\textcolor{blue}{string} expr = \textcolor{orange}{"()"}
-\textcolor{blue}{while} (cond) \textcolor{blue}{do} 
-    expr := \textcolor{orange}{"("} + expr + \textcolor{orange}{")"}
-\underline{evaluate(expr)}  
-        \end{Verbatim}
-    \end{minipage}
-&
-\\      
-Аппроксимация: & Результат лексического анализа:
-\\
-\includegraphics[width=150pt]{pictures/in3_appr.pdf}
-&
-\includegraphics[width=160pt]{pictures/in3.pdf}
-
-    \end{tabular}
-\end{center}
 \end{frame}
 
 \begin{frame}
@@ -286,64 +240,6 @@ inv.invokeFunction(\textcolor{orange}{"hello"}, \textcolor{orange}{"Scripting!!!
 
 \begin{frame}
     \transwipe[direction=90]
-    \frametitle{Синтакический анализ: описание алгоритма}
-    \begin{itemize}         
-         \item {\bfseries{\textit{Свёртка}}} -- путь в GSS (путь в графе)
-         \item {\bfseries{\textit{Проходящая свёртка}}} -- тройка $(startV, N, l)$, представляющая информацию о свёртке, проходившей через данную GSS вершину
-         \begin{itemize}         
-                \item $startV$ -- начало пути
-        \item $N$ -- продукция, по которой нужно произвести свёртку
-        \item $l$ -- длинна оставшегося пути
-         \end{itemize}
-    \end{itemize}
-\end{frame}
-
-\begin{frame}
-    \transwipe[direction=90]
-    \frametitle{Синтакический анализ: описание алгоритма}
-    \begin{itemize}
-    \item Вершины GSS связываются с позицией во входном потоке
-        \begin{itemize}
-        \item Позиция -- состояние входного конечного автомата        
-        \end{itemize}    
-    \item Строится вспомогательная структура данных (\emph{внутренний граф}) -- копия входного графа с вершинами, хранящими дополнительную информацию
-        \begin{itemize}
-        \item \emph{processed}: вершины GSS, для которых все свёртки выполнены 
-%   This set aggregates all GSS vertices, associated with inner graph vertex.
-        \item \emph{unprocessed}: вершины GSS, для которых требуется выполнение переноса токенов
-%   GSS vertices, for which all the pushes are to be processed. This set is analogous to $\mathcal{Q}$ of original RNGLR.
-        \item \emph{reductions}: очередь свёрток, которые необхоимо выполнить
-  % a queue, which is analogous to $\mathcal{R}$ of original RNGLR:  all reductions to be processed.
-        \item \emph{passingReductionsToHandle}: набор пар из вершины и ребра GSS для выполнения проходящих свёрток
-  %pairs of GSS vertex and GSS edge to apply  passing reductions along them.
-        \end{itemize}
-    \end{itemize}
-\end{frame}
-
-\begin{frame}[fragile] 
-    \transwipe[direction=90]
-    \frametitle{Алгоритм синтаксического анализа: основной цикл}
-\begin{algorithmic}[1]
-\Function{parse}{$grammar, automaton$}
-  \State{$inputGraph \gets$ construct inner graph representation of $automaton$}
-  \State{$parserSource \gets$ generate RNGLR parser tables for $grammar$}
-  \State{\Call{addVertex}{$inputGraph.startVertex, startState$}}
-  \State{$\mathcal{Q}.Enqueue(inputGraph.startVertex)$}
-  \While{$\mathcal{Q}$ is not empty}
-    \State{$v \gets \mathcal{Q}.Dequeue()$}
-    \State{\Call{makeReductions}{$v$}}
-    \State{\Call{push}{$v$}}
-    \State{\Call{applyPassingReductions}{$v$}}
-  \EndWhile
-  \If{$v_f.level = q_f$ and $v_f.state$ is accepting} {report success}
-  \Else { report failure}
-  \EndIf
-\EndFunction
-\end{algorithmic}
-\end{frame}
-
-\begin{frame}
-    \transwipe[direction=90]
     \frametitle{Алгоритм: корректность}
     \begin{rudefinition}
          \emph{Корректное дерево} -- это упорядоченное дерево со следующими свойствами:
@@ -377,9 +273,36 @@ inv.invokeFunction(\textcolor{orange}{"hello"}, \textcolor{orange}{"Scripting!!!
 
 \end{frame}
 
+\begin{frame}[fragile]
+    \transwipe[direction=90]
+    \frametitle{Пример работы: аппроксимация и лексический анализ}    
+\begin{center}
+    \begin{tabular}{p{6cm}|p{6cm}}
+    \begin{minipage}{3in}
+
+        \begin{Verbatim}[commandchars=\\\{\}]
+\textcolor{blue}{string} expr = \textcolor{orange}{"()"}
+\textcolor{blue}{while} (cond) \textcolor{blue}{do} 
+    expr := \textcolor{orange}{"("} + expr + \textcolor{orange}{")"}
+\underline{evaluate(expr)}  
+        \end{Verbatim}
+    \end{minipage}
+&
+\\      
+Аппроксимация: & Результат лексического анализа:
+\\
+\includegraphics[width=150pt]{pictures/in3_appr.pdf}
+&
+\includegraphics[width=160pt]{pictures/in3.pdf}
+
+    \end{tabular}
+\end{center}
+\end{frame}
+
+
 \begin{frame}[t]
     \transwipe[direction=90]
-    \frametitle{Алгоритм: пример работы}
+    \frametitle{Пример работы: синтаксический анализ}
 %\begin{center}
     \begin{tabular}{p{5.8cm} p{6.2cm}}
 Грамматика:& Результат (SPPF):
@@ -402,21 +325,23 @@ $$
 
 \end{frame}
 
+\begin{frame}
+    \transwipe[direction=90]
+    \begin{itemize}
+        \item Упростить создание инструментов анализа динамически формируемых выражений
+        \item Предоставить набор готовых компонентов, генератор лексических и синтаксических анализаторов
+    \end{itemize}
+
+    \frametitle{Архитектура: инструментарий}
+        \includegraphics[width=345pt]{pictures/Components.pdf}
+\end{frame}
+
+
 \begin{frame}[t]
     \transwipe[direction=90]
     \frametitle{Методология}
     \begin{itemize}
         \item  Берём и генерируем
-    \end{itemize}
-\end{frame}
-
-\begin{frame}[t]
-    \transwipe[direction=90]
-    \frametitle{Апробация: замеры производительности}
-    \begin{itemize}
-        \item Подмножество T-SQL
-        \item Входные КА эмулируют наиболее распростронённые типы входов
-        \item ГРАФИКИ!!!
     \end{itemize}
 \end{frame}
 
@@ -450,7 +375,7 @@ $$
 
 \begin{frame}
     \transwipe[direction=90]
-    \frametitle{Публикации}
+    \frametitle{Публикации (ВАК)}
   \begin{itemize}
       \item Кириленко Я.А., Григорьев С. В., Авдюхин Д. А. Разработка синтаксических анализаторов в проектах по автоматизированному реинжинирингу информационных систем.  Научно-технические ведомости Санкт-Петербургского государственного политехнического университета информатика, телекоммуникации, управление. Т. 3, N 174, 2013. C. 94---98.
       \item Григорьев С. В., Вербицкая Е. А., Полубелова М. И., Иванов А. В., Мавчун Е. В. Инструментальная поддержка встроенных языков в интегрированных средах разработки. Моделирование и анализ информационных систем. Т. 21, N 6, 2014. С. 131---143.
@@ -467,6 +392,22 @@ $$
           \item Semen Grigorev, Iakov Kirilenko. From Abstract Parsing to Abstract Translation. Proceedings of the Spring/Summer Young Researchers' Colloquium on Software Engineering. 2014. Saint Petersburg, Russia. 1-5 p.
   \end{itemize} 
 \end{frame}
+
+\begin{frame}
+    \transwipe[direction=90]
+    \frametitle{Конференции и семинары}
+  \begin{itemize}
+          \item CEE-SECR-(2012, 2013, 2014)
+          \begin{itemize}
+              \item Премия Бертрана Мейера за лучшую исследовательскую работу в области программной 
+инженерии
+          \end{itemize} 
+          \item Parsing@SLE-2013
+          \item Семинар по наукоёмкому программному обеспесчению при PSI-2014
+          \item Научный семинар по программной инженерии (2013, 2015. ИИТУ, Политех)
+  \end{itemize} 
+\end{frame}
+
 
 \begin{frame}[fragile] 
     \transwipe[direction=90]
