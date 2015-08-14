@@ -1,0 +1,231 @@
+\section{Relaxed Parsing of Regular Sets}
+
+The input of our algorithm (see Algorithm~\ref{parsing}) is a reference grammar $G$ with alphabet of terminal symbols $T$ 
+and a finite non-deterministic automaton $(Q, \Sigma, \delta, q_0, q_f)$ with a single start state $q_0$, single final state $q_f$ 
+and no $\epsilon$-transitions, where $\Sigma \subseteq T$~--- alphabet of input symbols, $Q$~--- alphabet of states, 
+$\delta$~--- transition relation. RNGLR parse tables and some accessory information (called $parserSource$ in pseudocode) 
+are generated for the grammar $G$. 
+
+The general idea of the algorithm is to traverse the automaton graph and sequentially construct GSS, similarly as in RNGLR.
+However, as we deal with a graph instead of a linear stream, the next symbol turns into the \emph{set of terminals} on 
+all outgoing edges of current vertex. This results in a different semantics of pushing and reducing (see line~5, 
+Algorithm~\ref{processVertex}, and lines~9 and~21, Algorithm~\ref{gss_construction}). We use queue $\mathcal Q$ to control the 
+order of automaton graph vertices processing. Every time a new GSS vertex is added, all zero-reductions have to be performed 
+and then new tokens have to be shifted, so a corresponding graph vertex has to be enqueueed for further processing. 
+Addition of new GSS edge can produce reductions to handle, so the graph vertex at the tail of the added edge has 
+also to be enqueueed (see Algorithm~\ref{gss_construction}). Reductions are applied along the paths in GSS, and if we add
+a new edge to some tail vertex, which was already presented in GSS, we also have to recalculate all \emph{passing} reductions
+(see \emph{applyPassingReductions} function in Algorithm~\ref{processVertex}).
+
+Like RNGLR, we associate GSS vertices with positions in the input,
+and, in our case, a position coincides with some state of input automaton. We construct some
+inner data structure (referred to as \emph{inner graph}) by copying input automaton graph and 
+extending each of its vertices with the following collections: 
+
+\begin{itemize}
+  \item \emph{processed}: GSS vertices, for which all the pushes were processed. 
+   This set aggregates all GSS vertices, associated with inner graph vertex.
+  \item \emph{unprocessed}: GSS vertices, for which all the pushes are to be processed. 
+   This set is analogous to $\mathcal{Q}$ of original RNGLR.
+  \item \emph{reductions}: a queue, which is analogous to $\mathcal{R}$ of original RNGLR: 
+   all reductions to be processed.
+  \item \emph{passingReductionsToHandle}: pairs of GSS vertex and GSS edge to apply 
+   passing reductions along them.
+\end{itemize}
+
+Besides parser $state$ and $level$ (which is equal to the input automaton state), 
+a collection of \emph{passing reductions} is stored in a GSS vertex. Passing reduction is a 
+triplet $(startV, N, l)$, representing reductions, whose path contains given GSS vertex. 
+This triplet is similar to one describing reduction, where $l$ is a remaining length of the path. 
+Passing reductions are stored for every vertex of the path (except for the first and the last) 
+during path search in \emph{makeReductions} function (see Algorithm~\ref{processVertex}).
+
+We inherit SPPF construction from the original RNGLR; in our case, 
+derivation trees for strings, accumulated along the paths of the input automaton 
+graph, are merged. 
+
+\begin{algorithm}[!ht]
+\begin{algorithmic}[1]
+\caption{Parsing algorithm}
+\label{parsing}
+\Function{parse}{$grammar, automaton$}
+  \State{$inputGraph \gets$ construct inner graph representation of $automaton$}
+  \State{$parserSource \gets$ generate RNGLR parse tables for $grammar$}
+  \If{$inputGraph$ contains no edges}
+    \If{$parserSource$ accepts empty input} {report success}
+    \Else { report failure}
+    \EndIf
+  \Else
+    \State{\Call{addVertex}{$inputGraph.startVertex, startState$}}
+    \State{$\mathcal{Q}.Enqueue(inputGraph.startVertex)$}
+    \While{$Q$ is not empty}
+      \State{$v \gets \mathcal{Q}.Dequeue()$}
+      \State{\Call{makeReductions}{$v$}}
+      \State{\Call{push}{$v$}}
+      \State{\Call{applyPassingReductions}{$v$}}
+    \EndWhile
+    \If{$\exists v_f: v_f.level = q_f$ and $v_f.state$ is accepting} {report success}
+    \Else { report failure}
+    \EndIf
+  \EndIf
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[!ht]
+\begin{algorithmic}[1]
+\caption{Single vertex processing}
+\label{processVertex}
+\Function{push}{$innerGraphV$}
+  \State{$\mathcal{U} \gets$ copy $innerGraphV.unprocessed$}
+  \State{clear $innerGraphV.unprocessed$}
+  \ForAll{$v_{h}$ in $\mathcal{U}$}  
+    \ForAll{$e$ in outgoing edges of $innerGraphV$}
+      \State{$push \gets$ calculate next state by $v_{h}.state$ and the token on $e$}
+      \State{\Call{addEdge}{$v_{h}, e.Head, push, false$}}
+      \State{add $v_{h}$ in $innerGraphV.processed$}
+    \EndFor
+  \EndFor
+\EndFunction
+
+\Function{makeReductions}{$innerGraphV$}
+  \While{$innerGraphV.reductions$ is not empty}
+    \State{$(startV, N, l) \gets innerGraphV.reductions.Dequeue()$}
+    \State{find the set of vertices $\mathcal{X}$ reachable from $startV$}
+    \State{    along the path of length ($l-1$), or $0$ if $l=0$;}
+    \State{add $(startV, N, l-i)$ in $v.passingReductions$,}
+    \State{    where $v$ is an $i$-th vertex of the path}
+    \ForAll{$v_{h}$ in $\mathcal{X}$}
+      \State{$state_{t} \gets$ calculate new state by $v_{h}.state$ and nonterminal $N$}
+      \State{\Call{addEdge}{$v_{h}, startV, state_{t}, (l=0)$}}
+    \EndFor
+  \EndWhile
+\EndFunction
+
+\Function{applyPassingReductions}{$innerGraphV$}
+  \ForAll{$(v, edge)$ in $innerGraphV.passingReductionsToHandle$}
+    \ForAll{$(startV, N, l) \gets v.passingReductions.Dequeue()$}
+      \State{find the set of vertices $\mathcal{X}$,}
+      \State{    reachable from $edge$ along the path of length ($l-1$)}
+      \ForAll{$v_{h}$ in $\mathcal{X}$}
+        \State{$state_{t} \gets$ calculate new state by $v_{h}.state$ and nonterminal $N$}
+        \State{\Call{addEdge}{$v_{h}, startV, state_{t}, false$}}
+      \EndFor
+    \EndFor
+  \EndFor
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+ 
+\begin{algorithm}[!ht]
+\begin{algorithmic}[1]
+\caption{GSS construction}
+\label{gss_construction}
+\Function{addVertex}{$innerGraphV, state$}
+  \State{$v \gets$ find a vertex with state $=state$ in}
+  \State{    $innerGraphV.processed \cup innerGraphV.unprocessed$}
+  \If{$v$ is not $null$ } \Comment{The vertex have been found in GSS}
+    \State{\Return{($v, false$)}} 
+  \Else
+    \State{$v \gets$ create new vertex for $innerGraphV$ with state $state$}
+    \State{add $v$ in $innerGraphV.unprocessed$}
+    \ForAll{$e$ in outgoing edges of $innerGraphV$}
+      \State{calculate the set of zero-reductions by $v$}
+      \State{    and the token on $e$ and add them in $innerGraphV.reductions$}
+    \EndFor
+    \State{\Return{$(v, true$)}}
+  \EndIf
+\EndFunction
+
+\Function{addEdge}{$v_{h}, innerGraphV, state_{t}, isZeroReduction$}
+  \State{$(v_{t}, isNew) \gets$ \Call{addVertex}{$innerGraphV, state_{t}$}}
+  \If{GSS does not contain edge from $v_{t}$ to $v_{h}$}
+    \State{$edge \gets$ create new edge from $v_{t}$ to $v_{h}$}
+    \State{$\mathcal{Q}.Enqueue(innerGraphV)$}
+    \If{not $isNew$ and $v_{t}.passingReductions.Count>0$}
+      \State{add $(v_{t}, edge)$ in $innerGraphV.passingReductionsToHandle$}
+    \EndIf
+    \If{not $isZeroReduction$}
+      \ForAll{$e$ in outgoing edges of $innerGraphV$}
+        \State{calculate the set of reductions by $v$}
+        \State{    and the token on $e$ and add them in $innerGraphV.reductions$}
+      \EndFor
+    \EndIf
+  \EndIf
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Correctness of the Algorithm}
+We conclude this section by justification of termination and correctness of our algorithm.
+
+\textsc{Theorem 1.}
+\textit{Algorithm terminates for any input.}
+
+\textsc{Proof.}
+Each vertex of inner graph contains, at most, 
+$N$ GSS vertices, where $N$ is the number of parser states. So, the total number of 
+GSS vertices is, at most, $N\times n$, where $n$ is the number of vertices in the inner graph. 
+Since GSS has no multi-edges, the number of its edges is $O((N\times n)^2)$. The algorithm 
+dequeues some vertex to process from $\mathcal Q$ in each iteration of the 
+main loop. Vertices are enqueued to $\mathcal Q$ only when a new edge is added to GSS. Since the number of 
+GSS edges is finite, the algorithm always terminates. \qed
+
+To prove correctness, we first introduce the following definition:
+
+\textsc{Definition.} 
+\emph{Correct tree} is an ordered tree with the following properties:
+\begin{enumerate}
+  \item The root is the start nonterminal of the grammar $G$.
+  \item The leaf nodes are terminals of $G$. The sequence of the leaf nodes 
+        corresponds to some path in the inner graph. 
+  \item The interior nodes are nonterminals of $G$. All children of nonterminal 
+        $N$ correspond to the symbols of the right-hand side of some production for $N$ in $G$.
+\end{enumerate}
+
+Informally, a correct tree is a derivation tree (w.r.t. reference grammar) for some word in 
+regular approximation. Now we have to prove that, first, SPPF contains only correct trees, 
+and second, that for any recognized by the reference grammar string there is some correct tree in
+the SPPF.
+
+\textsc{Lemma.}
+For every GSS edge $(v_{t}, v_{h})$, $v_{t} \in V_{t}.processed$, $v_{h} \in V_{h}.processed$, 
+the terminals of the associated subtree correspond to some path in the inner graph $p$ 
+from $V_{h}$ to $V_{t}$.
+
+\textsc{Proof.}
+The proof is by induction on the height of derivation tree. 
+The base case is either some $\epsilon$-tree or a tree with a single leaf. An $\epsilon$-tree corresponds 
+to a path of zero length; the tail and the head of the edge associated with $\epsilon$-tree are identical, 
+thus the statement is true. A tree with the single leaf corresponds to a single terminal read from an edge 
+($V_{h}$, $V_{t}$) of the inner graph, thus the statement is true.
+
+A tree of height $k$ has a nonterminal $N$ as its root. By third statement of correct tree definition, 
+there is a production $N \rightarrow A_{0}, A_{1}, \dots, A_{n}$ for children $A_{0}, A_{1}, \dots, A_{n}$ of the root node. 
+A subtree $A_{i}$ is associated with GSS edge $(v_{t}^{i}, v_{h}^{i})$ and, as its height is $k-1$, by inductive hypothesis,
+there is a path in the inner graph from $V_{h}^{i}$ to $V_{t}^{i}$. $V_{t}^i = V_{h}^{i+1}$, since $v_{t}^i = v_{h}^{i+1}$, 
+thus there is a path in the inner graph from $V_{h}^{0}$ to $V_{t}^{n}$, corresponding to the tree under consideration.
+\qed
+
+\textsc{Theorem 2.} 
+\textit{Every tree, generated from SPPF, is correct.}
+
+\textsc{Proof.} Consider arbitrary tree, generated from SPPF, and prove that it is correct. The first and the third statements
+of correctness definition immediately follow from SPPF definition. The second statement of the definition follows from \textsc{Lemma 1} 
+by considering all edges from GSS vertices on the last level, labeled by accepting state, to the vertices on level 0.
+\qed
+
+\textsc{Theorem 3.} 
+\textit{For every path $p$ in the inner graph, recognized w.r.t. reference grammar, a correct tree corresponding to $p$ can 
+be generated from SPPF.}
+
+\textsc{Proof.}
+Consider arbitrary correct tree and show it can be generated from SPPF. The proof follows the proof of correctness 
+for RNGLR algorithm, except for the following moment. RNGLR constructs GSS layer-by-layer: it is guaranteed, that $\forall j \in [0..i-1]$ 
+$j$-th level of the GSS would be fixed by the time, when $i$-th level is processed. In our case, 
+this property does not hold, which leads to a possible generation of some paths for already applied reductions. 
+The only possible way to actually add a new path is to add an edge $(v_{t}, v_{h})$, where $v_{t}$ is already in the GSS and 
+it has some incoming edges. Since the algorithm stores which reductions have passed through each vertex, to overcome this problem 
+it is sufficient to continue passing reductions, stored in $v_{t}$, and this is exactly what \emph{applyPassingReductions} 
+function does. 
+\qed
