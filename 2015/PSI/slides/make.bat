@@ -1,2 +1,2 @@
-pdflatex --shell-escape presentation_1.tex
+pdflatex --shell-escape presentation.tex
 start presentation.pdf
