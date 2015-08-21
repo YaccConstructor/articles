@@ -1,11 +1,97 @@
 
-==0==
+==1==
 Hello, my name is Ekaterina. I am a graduate student of Saint Petersburg State University and a researcher in JetBrains Programming languages and tools library. 
 Today I want to talk about syntactic analysis of string-embedded languages. 
 
-==1==
+==2==
 First of all, let me recall what is string embedding. 
 By string embedding we mean simply that the strings are used in order to compose some queries to subsystems which does not "understand" the programming language of the host programm.
 The most common example of this technique is embedded SQL: SQL statements are composed inside the program written in some general purpose language. 
 After such statement is composed, some dedicated environment interprets it.
-Another example, which is a special case of the previous one, is a dynamic SQL. 
+Another example, which is a special case of the previous one, is a dynamic SQL, in which SQL statements are constructed by the code written in SQL.
+It is worth noting than almost any programming language could play the role of host or embedded language.
+
+==3==
+Despite of the high expressivity of string embedding, it has drawbacks. 
+It is essential that the strings are code fragments in some programming language.
+Nobody knows exactly what expression would be passed to an external environment for execution. 
+This circumstance makes it harder to reason about the behaviour of the programm which use this approach.
+IDE features for string embedded languages, for example autocomplete, code highlightning, renaming and so on, can significantly simplify the development, testing and maintenance of such code.
+Moreover, as new systems replace string embedding, it can become necessary to migrate to such systems, so the task of translation of embedded code can occur.
+String embedded code often incorporates user input.
+This causes a whole class of vulnerabilities: cross-site scripting, sql-injections and other. 
+In essence, any problem ocurring in the context of software development can be faced when dealing with string embedding.
+
+A possible way to solve these problems is to perform some kind of static analysis of string embedded code.
+
+==4==
+What do we mean by static analysis of string embedded code?
+First of all, it should be performed without programm execution -- that is what "static" stands for.
+Secondly, the "analysis" means that some set of properties should be checked for all the possible expressions constructed from strings. 
+
+Unfortunatelly, as a host programm is usually written in some Turing-complete language, the problem of static analysis is undecidable in general case. 
+As a partial solution to this, usually some over-approximation of all possible values is constructed and analysed. 
+In case of regular approximation some of the problems are decidable.
+For example, the language inclusion problem, which answers the question "Is it true that all possible values of dynamically generated string are correct expressions in some programming language?" is decidable in case of regular approximation. 
+
+==5==
+There are several tools which statically analyse embedded code. 
+First four of them checks syntactical correctness of generated strings using different techniques.
+PHPStorm and IntelliLang are IDE plugins which support embedded code.
+Stranger perform vulnerability detection. 
+
+Unfortunately they have limited functionality and cannot be easily extended with new features or new languages support.
+None of them create structural representation of embedded code, which comes in handy when you try to perform complex semantic analysis.
+
+==6==
+The general scheme of static analysis contains 5 steps.
+Firstly, the set of points of interest or hotspots should be identified. 
+These are usually the places in the host program, where generated string is used.
+This step is usually performed in user-assisted manner, for example, the hotspots can be marked with some attributes.
+
+Secondly, the approximation of possible string values is generated. 
+It can be done by a symbolic forward reachability computation that uses DFAs as a symbolic representation. 
+This approach was introduced by Fang Yu et al in their tool called Stranger.
+
+After the approximation is constructed, it can be useful to perform lexical analysis -- transform finite automaton over the alphabeth of symbols to finite automaton over the alphabeth of tokens. 
+
+This automaton then can be parsed -- meaning that the parse tree is constructed for each string accepted by the automaton.
+
+The set of constructed trees can be further utilized in semantics calculation. 
+For example, you can calculate which variables were left unintialized in some of generated expressions or to highlight the code in IDE. 
+The parse forest allows to perform classical semantics analysis in the same manner as for the host language, which simplify the development of tools for string-embedded languages.
+
+==7==
+Here some illustrations of the mentioned steps are presented. 
+You can see a code sample, which generates some string values in variable res. 
+The hotspot -- the line of code in which res's value is used -- is squared. 
+Below that the set of possible values of the variable res is presented. 
+It is the string of concatenated pair of parenthesis with the maximum length of 2*l. 
+Unfortunatelly, it is not always possible to determine l value statically. 
+The regular approximation of such set of values is represented below.
+In the bottom of the page the graph of finite automaton of this regular approximation is presented.
+
+==8==
+After the approximation is constructed, the automaton is processed by lexical analyzer -- the result of work of which is illustrated here. 
+This finite automaton can be parsed according to the reference grammar and some representation of parse forest can be constructed. 
+This talk focuses on the parsing of some regular approximation of embedded code. 
+
+==9==
+So, the aim is to develop an algorithm suitable for static syntactic analysis of string embedded code. 
+To achieve this goal, the algorithm should be able to process regular approximation of embedded code.
+As a result of the work the algorithm should construct finite representation of parse forest.
+The parse tree for each syntactically correct string from the input regular set should be presented in the result forest. 
+No other trees should be in the forest. 
+Strings which contain syntactic errors should be omitted, no error detection is needed.
+The algorithm should take a specification for reference grammar for embedded code and parse with reference to it. 
+
+==10==
+So, let's move on to the algorithm itself. 
+The input of the algorithm is a reference grammar of the language in which, as we believe, generated strings are written, and the automaton representing the regular approximation.
+The automaton should be over the alphabeth of tokens of the reference grammar and should not have epsilon-transitions.
+
+As a result of the work, the algorithm constructs the finite representation of the parse forest containing parse trees for each correct string accepted by the input automaton.
+
+==11==
+The algorithm is based on Right Nulled Generalized LR algorithm, it 
+ 
