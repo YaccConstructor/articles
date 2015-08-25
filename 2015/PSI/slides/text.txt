@@ -87,11 +87,131 @@ The algorithm should take a specification for reference grammar for embedded cod
 
 ==10==
 So, let's move on to the algorithm itself. 
-The input of the algorithm is a reference grammar of the language in which, as we believe, generated strings are written, and the automaton representing the regular approximation.
+The input of the algorithm is a reference grammar of the language in which, as we believe, generated strings are written, 
+        and the automaton representing the regular approximation.
 The automaton should be over the alphabeth of tokens of the reference grammar and should not have epsilon-transitions.
 
-As a result of the work, the algorithm constructs the finite representation of the parse forest containing parse trees for each correct string accepted by the input automaton.
+As a result of the work, the algorithm constructs the finite representation of the parse forest containing parse trees for 
+        each correct string accepted by the input automaton.
 
 ==11==
-The algorithm is based on Right Nulled Generalized LR algorithm, it 
+The algorithm is based on Right Nulled Generalized LR algorithm, so I am going to spend some time on this algorithm.
+RNGLR is created in the University of London, it is intended to process context free grammar. 
+This algorithm is a correction to Tomita's GLR algorithm. 
+It uses slightly modified LR parse tables, each time when some LR conflict occur, the algorithm continues parsing in each possible way.
+To reduce memory and time consumption, the algorithm uses special data structures. 
+
+==12==
+One of these data structures is Graph-Structured Stack.
+Here on the slide one such stack is presented. 
+The features of GSS I want to point out are the following.
+First, GSS is a graph, it merges several classic linear stacks by reusing common parts. 
+In this picture, there are 5 classic stacks merged in one graph. 
+When one vertex has several ingoing edges, it is reused in different stacks. 
+This property is used when GLR algorithm processes conflict: to be able to continue processing in several ways, you need to maintain several stacks.
+When it is clear, that after some point several stacks will be constructed in the same way, the stacks are merged: see vertex 8 on the right.
+When it is clear -- when parse states are equal for indentical position in the input stream.
+ 
+The algorithm basically constructs such stack using only two operation.
+
+==13==
+First operation is shift. 
+Shift basically means: read the next symbol from the input and for each top vertex of stack for the given position in the input, calculate new 
+        parser states and add corresponding edges in the gss. 
+If merge is possible -- merge new tops.
+
+==14==
+Second operation is reduce.
+Reduce means that the right part of some rule is accumulated in the stack and we need to subtitute it with the corresponding nonterminal.
+In the GSS we do not really substitute fragments of stacks, we just add new edge for such reduction.
+Each reduction have its lenght -- the lenght of the right part of the rule by which we reduce.
+Reductions are started from some vertex of stack. 
+The algorithm find the set of the vertices which are reachable from the start vertex along the path of the corresponding length. 
+In this case vertices 5 and 11 are such start vertices and the length is 4. 
+After the set of reachable vertices is computed, new edge labeled with nonterminal is added to each vertex of this set. 
+In this case, new edge is highligthed with red. 
+Note, the rules of merging are applied while reduction processing too. 
+
+==15==
+So, RNGLR parses an input sequentially: one token at a time. 
+For each token first process all reductions, then shift the next symbol. 
+Each time when new vertex is added to the GSS, the algorithm calculates new shifts to apply on the next step. 
+Each time new edge is added to the GSS, the algorithm also calculates new reduces to apply on the next step. 
+
+The algorithm processes the input either until the end, or stops when it is clear that no new shifts or reduces can be processed. 
+If the algorithm read the input to the end, and the GSS has accepting state, the algorithm reports success, else -- fail. 
+
+==16==
+So, I am finished with all the introductions!!!!1
+Let me proceed to the algorithm itself.
+
+The algorithm is an extension to the RNGLR algorithm. 
+The algorithm traverses the input graph and sequentially constructs GSS pretty much similar to the way RNGLR does.
+The principle of the work is based on the following observation. 
+The branch in the input graph means pretty much the same as the LR-conflict. 
+The algorithm does not know, how to proceed: there is several possible ways to shift the next token from the input.
+So, we added this artificial so-called conflict Shift/Shift and process it in the similar manner RNGLR does with real conflicts.
+
+We associate GSS vertices with vertices of the input graph: it is a generalization of RNGLR level conception.
+The order in which vertices of input graph are processed is regulated by GSS construction process. 
+Each time new edge is added to the GSS, we enqueue the vertex in the input graph in the tail of the edge. 
+
+There is one drastic change in the GSS properties, which could possibly led to incorrect work of the algorithm.
+Let's consider this example. 
+
+==17== 
+Suppose we had this stack at some point of analysis. 
+Suppose, the stack 2-1-0 (color red) was reduced to some nonterminal; the result of which was this edge 3-0. 
+
+==18==
+Then, the analysis proceeded and at some point the stack looked like this. 
+
+==19==
+Somehow, on the next step the edge 1-5 was added, which closed the cycle. 
+
+==20==
+As you can see, this new edge created the path of the length 2 from the vertex 2 which was not presented in the GSS 
+        when the reductions from the second vertex was calculated. 
+This means that all reductions which could have paths which include this vertex 1 should be recalculated. 
+In the general case, each time when the edge which had the tail vertex presented in the GSS is added, all reductions which paths include 
+        this tail vertex, should be recalculated.
+
+==21==
+So, after this new reduction edge 2-5 is added and the folowing analysis will proceed with no errors.
+To reduce the time of analysis, we save the data about the reduction in every vertex of its paths, so the algorithm just continues passing paths.
+
+==22==
+Well, that was the algorithm.
+We proved that it works.
+To formulate the correctness theorems, we need to introduce the following notion of the correct tree.
+Correct tree is a derivation tree of some string, accumulated along some path in the input graph. 
+In this picture, the correct tree for string accumulated if the cycle presented in the graph is traversed twice.
+
+==23==
+So, the theorems of correctness state the following:
+First, the algorithm terminates for any input. 
+Second and third theorems state that the algorithm parses the input correctly. 
+For each string accepted by the input automaton, there is a correct tree in the constructed SPPF and in the SPPF there is nothing else in the SPPF.
+
+==24==
+The algorithm was implemented as a part of YaccConstructor project using F# programming language.
+The algorithm fully reuse RNGLR parse tables with no changes.
+
+==25==
+We evaluated the algorithm on the data set taken from big enterprise project of migration from MS-SQL to Oracle server.
+This dataset contains 2.7 millions of line of code of dynamic SQL, contains 2430 queries, 2188 of them were successfully processed. 
+The algorithm reduces the number of the queries, previously failed to be processed because of the timeout from 45 to 1. 
+The distribution of query processing time is presented in this picture. 
+You can see, that the wast majority of queries took less than 10 ms to process.
+Only 45 took more than a second. 
+And 2 took more than a 100 second.
+These input graph was really big and the time is fair. 
+
+==26==
+So, to sum up. 
+
+
+
+
+	
  
