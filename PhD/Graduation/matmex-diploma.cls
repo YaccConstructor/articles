@@ -194,9 +194,6 @@
     \my@title@supervisorPosition@ru\ \my@title@supervisor@ru
     }
     {\normalsize \raggedleft 
-    Допущена к защите.\\
-    Зав. кафедрой:\\
-    \my@title@chairHeadPosition@ru\ \my@title@chairHead@ru\sigspace
     Научный руководитель:\\
     \my@title@supervisorPosition@ru\ \my@title@supervisor@ru\sigspace
     Рецензент:\\
@@ -237,7 +234,7 @@
     \ifthenelse{\equal{\my@title@type@en}{coursework}}
     {Course Work}
     {\ifthenelse{\equal{\my@title@type@en}{diploma}}
-    {Graduation Thesis}
+    {Graduation Qualification Paper}
     {\ifthenelse{\equal{\my@title@type@en}{master}}
     {Master's Thesis}
     {\ifthenelse{\equal{\my@title@type@en}{bachelor}}
@@ -251,10 +248,6 @@
     \my@title@supervisorPosition@en\ \my@title@supervisor@en
     }
     {\normalsize \raggedleft 
-    Admitted for defence.\\
-    Head of the chair:\\
-    \my@title@chairHeadPosition@en\ \my@title@chairHead@en\sigspace
-
     Scientific supervisor:\\
     \my@title@supervisorPosition@en\ \my@title@supervisor@en\sigspace
 
