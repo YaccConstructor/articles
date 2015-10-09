@@ -497,10 +497,10 @@ FUNCTION {bbl.page}   %   { "\bblp."
 
 FUNCTION {bbl.ppages}%    { "\bblPp." }
 {  curlanguage "english" =
-    {"Pp."}
+    {"P."}
     { curlanguage "ukrainian" = curlanguage "russian" = or
            {"{С.}"}
-           {"language is not defined: " language  "Pp." * * warning$ "Pp."}
+           {"language is not defined: " language  "P." * * warning$ "P."}
       if$}
   if$
 }
