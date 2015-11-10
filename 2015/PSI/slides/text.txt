@@ -1,0 +1,244 @@
+
+==1==
+Hello, my name is Ekaterina. I am a graduate student of Saint Petersburg State University and a researcher in JetBrains Programming languages 
+	and tools library. 
+Today I want to talk about syntactic analysis of string-embedded languages. 
+
+==2==
+First of all, let me recall what is string embedded code. 
+By string embedded code we mean simply that the strings are used in order to compose some queries to subsystems which does not "understand" 
+	the programming language of the host programm.
+The most common example of this technique is embedded SQL: SQL statements are composed inside the program written in some general purpose 
+	language. 
+After such statement is composed, some dedicated environment executes it.
+Another example, which is a special case of the previous one, is a dynamic SQL, in which SQL statements are constructed by the code written
+	in SQL.
+It is worth noting than almost any programming language could play the role of both host or embedded language.
+
+==3==
+Despite of the high expressivity of string embedded code, it has drawbacks. 
+It is essential that the strings are code fragments in some programming language.
+Nobody knows exactly which expression would be passed to an external environment for execution. 
+This circumstance makes it harder to reason about the behaviour of the programm which use this approach.
+IDE features for string embedded languages, for example autocomplete, code highlightning, renaming and so on, can significantly simplify
+	the development, testing and maintenance of such code.
+Moreover, as new systems replace string embedded code, it can become necessary to migrate to such systems, so the task of translation of 
+	embedded code can occur.
+String embedded code often incorporates user input.
+This causes a whole class of vulnerabilities: cross-site scripting, sql-injections and other. 
+In essence, any problem ocurring in the context of software development can be faced when dealing with string embedded code.
+
+A possible way to solve these problems is to perform some kind of static analysis of string embedded code.
+
+==4==
+What do we mean by static analysis of string embedded code?
+First of all, it should be performed without programm execution -- that is what "static" stands for.
+Secondly, the "analysis" means that some set of properties should be checked for all the possible expressions constructed from strings. 
+
+Unfortunatelly, as a host programm is usually written in some Turing-complete language, the problem of static analysis is undecidable 
+	in general case. 
+As a partial solution to this, usually some over-approximation of all possible values is constructed and analysed. 
+In case of regular approximation some of the problems are decidable.
+For example, the language inclusion problem, which answers the question "Is it true that all possible values of dynamically generated 
+	string are correct expressions in some programming language?" is decidable in case of regular approximation. 
+
+==5==
+There are several tools which statically analyse embedded code. 
+First four of them checks syntactical correctness of generated strings using different techniques.
+PHPStorm and IntelliLang are IDE plugins which support embedded code.
+Stranger perform vulnerability detection. 
+
+Unfortunately they have limited functionality and cannot be easily extended with new features or new languages support.
+None of them create structural representation of embedded code, which comes in handy when you try to perform complex semantic analysis.
+
+==6==
+The general scheme of static analysis contains 5 steps.
+Firstly, the set of points of interest or hotspots should be identified. 
+These are usually the places in the host program, where generated string is used.
+This step is usually performed in user-assisted manner, for example, the hotspots can be marked with some attributes.
+
+Secondly, the approximation of possible string values is constructed. 
+It can be done by a symbolic forward reachability computation that uses DFAs as a symbolic representation. 
+This approach was introduced by Fang Yu et al in their tool called Stranger.
+
+After the approximation is constructed, it can be useful to perform lexical analysis -- transform finite automaton over the alphabeth 
+	of symbols to finite automaton over the alphabeth of tokens. 
+
+This automaton then can be parsed -- meaning that the parse tree is constructed for each string accepted by the automaton.
+
+The set of constructed trees can be further utilized in semantics calculation. 
+For example, you can calculate which variables were left unintialized in some of generated expressions or to highlight the code in IDE. 
+The parse forest allows to perform classical semantics analysis in the same manner as for the host language, which simplify the 
+	development of tools for string-embedded languages.
+
+==7==
+Here some illustrations of the mentioned steps are presented. 
+You can see a code sample, which generates some string values in variable res. 
+The hotspot -- the line of code in which res's value is used -- is squared. 
+Below that the set of possible values of the variable res is presented. 
+It is the string of concatenated pair of parenthesis with the maximum length of 2*l. 
+Unfortunatelly, it is not always possible to determine l value statically. 
+The regular approximation of such set of values is represented below.
+In the bottom of the page the graph of finite automaton of this regular approximation is presented.
+
+==8==
+After the approximation is constructed, the automaton is processed by lexical analyzer -- the result of work of which is illustrated here. 
+This finite automaton can be parsed according to the reference grammar and some representation of parse forest can be constructed. 
+This talk focuses on the parsing of some regular approximation of embedded code. 
+
+==9==
+So, the aim is to develop an algorithm suitable for static syntactic analysis of string embedded code. 
+To achieve this goal, the algorithm should be able to process regular approximation of embedded code.
+As a result of the work the algorithm should construct finite representation of parse forest.
+The parse tree for each syntactically correct string from the input regular set should be presented in the result forest. 
+No other trees should be in the forest. 
+Strings which contain syntactic errors should be omitted, no error detection is needed.
+The algorithm should take a specification for reference grammar for embedded code and parse with respect to it. 
+
+==10==
+So, let's move on to the algorithm itself. 
+The input of the algorithm is a reference grammar of the language in which, as we believe, generated strings are written, 
+        and the automaton representing the regular approximation.
+The automaton should be over the alphabeth of tokens of the reference grammar and should not have epsilon-transitions.
+
+As a result of the work, the algorithm constructs the finite representation of the parse forest containing parse trees for 
+        each correct string accepted by the input automaton.
+
+==11==
+The algorithm is based on Right Nulled Generalized LR algorithm, so I am going to spend some time on this algorithm.
+RNGLR is created in the University of London, it is intended to process context free grammar. 
+This algorithm is a correction to Tomita's GLR algorithm. 
+It uses slightly modified LR parse tables, each time when some LR conflict occur, the algorithm continues parsing in each possible way.
+To reduce memory and time consumption, the algorithm uses special data structures. 
+
+==12==
+One of these data structures is Graph-Structured Stack.
+Here on the slide one such stack is presented. 
+The features of GSS I want to point out are the following.
+First, GSS is a graph, it merges several classic linear stacks by reusing common parts. 
+In this picture, there are 5 classic stacks merged in one graph. 
+When one vertex has several ingoing edges, it is reused in different stacks. 
+This property is used when GLR algorithm processes conflict: to be able to continue processing in several ways, you need to maintain 
+	several stacks.
+When it is clear, that after some point several stacks will be constructed in the same way, the stacks are merged: see vertex 8 on the right.
+When it is clear -- when parse states are equal for indentical position in the input stream.
+ 
+The algorithm basically constructs such stack using only two operations.
+
+==13==
+First operation is shift. 
+Shift basically means: read the next symbol from the input and for each top vertex of stack for the given position in the input, calculate new 
+        parser states and add corresponding edges in the gss. 
+If merge is possible -- merge new tops.
+
+==14==
+Second operation is reduce.
+Reduce means that the right part of some rule is accumulated in the stack and we need to subtitute it with the corresponding nonterminal.
+In the GSS we do not really substitute fragments of stacks, we just add new edge for such reduction.
+Each reduction have its lenght -- the lenght of the right part of the rule by which we reduce.
+Reductions are started from some vertex of stack. 
+The algorithm find the set of the vertices which are reachable from the start vertex along the path of the corresponding length. 
+In this case vertices 5 and 11 are such start vertices and the length is 4. 
+After the set of reachable vertices is computed, new edge labeled with nonterminal is added to each vertex of this set. 
+In this case, new edge is highligthed with red. 
+Note, the rules of merging are applied while reduction processing too. 
+
+==15==
+So, RNGLR parses an input sequentially: one token at a time. 
+For each token first process all reductions, then shift the next symbol. 
+Each time when new vertex is added to the GSS, the algorithm calculates new shifts to apply on the next step. 
+Each time new edge is added to the GSS, the algorithm also calculates new reduces to apply on the next step. 
+
+The algorithm processes the input either until the end, or stops when it is clear that no new shifts or reduces can be processed. 
+If the algorithm read the input to the end, and the GSS has accepting state, the algorithm reports success, else -- fail. 
+
+==16==
+So, I am finished with all the introductions!!!!1
+Let me proceed to the algorithm itself.
+
+The algorithm is an extension to the RNGLR algorithm. 
+The algorithm traverses the input graph and sequentially constructs GSS pretty much similar to the way RNGLR does.
+The principle of the work is based on the following observation. 
+The branch in the input graph means pretty much the same as the LR-conflict. 
+The algorithm does not know, how to proceed: there is several possible ways to shift the next token from the input.
+So, we added this artificial so-called conflict Shift/Shift and process it in the similar manner RNGLR does with real conflicts.
+
+We associate GSS vertices with vertices of the input graph: it is a generalization of RNGLR level conception.
+The order in which vertices of input graph are processed is regulated by GSS construction process. 
+Each time new edge is added to the GSS, we enqueue the vertex in the input graph in the tail of the edge. 
+
+There is one drastic change in the GSS properties, which could possibly led to incorrect work of the algorithm.
+Let's consider this example. 
+
+==17== 
+Suppose we had this stack at some point of analysis. 
+Suppose, the stack 2-1-0 (color red) was reduced to some nonterminal; the result of which was this edge 3-0. 
+
+==18==
+Then, the analysis proceeded and at some point the stack looked like this. 
+
+==19==
+Somehow, on the next step the edge 1-5 was added, which closed the cycle. 
+
+==20==
+As you can see, this new edge created the path of the length 2 from the vertex 2 which was not presented in the GSS 
+        when the reductions from the second vertex was calculated. 
+This means that all reductions which could have paths which include this vertex 1 should be recalculated. 
+In the general case, each time when the edge which had the tail vertex presented in the GSS is added, all reductions which paths include 
+        this tail vertex, should be recalculated.
+
+==21==
+So, after this new reduction edge 2-5 is added and the folowing analysis will proceed with no errors.
+To reduce the time of analysis, we save the data about the reduction in every vertex of its paths, so the algorithm just continues passing paths.
+
+==22==
+How is parse forest constructed?
+First of all, we use special data structure to represent possible infinite number of derivation trees.
+It is called Shared Packed Parse Forest: all derivation trees are merged in this structure. 
+Like GSS, it is a graph, and common subtrees are reused among bigger trees.
+SPPF in our case constructed in the same manner as in RNGLR.
+
+Fragments of derivation trees are associated with GSS edges, and the resulting forest is constructed in the same time as GSS is built.
+Whenever push operation is processed, new tree consisting of a single terminal leaf is associated with the edge added to the GSS.
+Whenever reduction operation is processed, new tree with the root corresponding to the nonterminal is added.
+Subtrees, associated with the edges of reduction path are added to this new tree as a child of the root vertex.
+It is important, that we do not copy subtrees, they are completely reused.
+After parsing is finished, the root of resulting forest is associated with GSS edge, corresponding to the reduction to the starting nonterminal.
+Unreachable vertices are deleted, so the rest of the graph represent the set of valid trees. 
+
+
+==23==
+Well, that was the algorithm.
+We proved that it works.
+To formulate the correctness theorems, we need to introduce the following notion of the correct tree.
+Correct tree is a derivation tree of some string, accumulated along some path in the input graph. 
+In this picture, the correct tree for string accumulated if the cycle presented in the graph is traversed twice.
+
+==24==
+So, the theorems of correctness state the following:
+First, the algorithm terminates for any input. 
+Second and third theorems state that the algorithm parses the input correctly. 
+For each string accepted by the input automaton, there is a correct tree in the constructed SPPF and in the SPPF there is nothing else 
+	in the SPPF.
+
+==25==
+The algorithm was implemented as a part of YaccConstructor project using F# programming language.
+The algorithm fully reuse RNGLR parse tables with no changes.
+
+==26==
+We evaluated the algorithm on the data set taken from big enterprise project of migration from MS-SQL to Oracle server.
+This dataset contains 2.7 millions of lines of code of dynamic SQL, contains 2430 queries, 2188 of them were successfully processed. 
+The algorithm reduces the number of the queries, previously failed to be processed because of the timeout from 45 to 1. 
+The distribution of query processing time is presented in this picture. 
+You can see, that the wast majority of queries took less than 10 ms to process.
+Only 45 took more than a second. 
+And 2 took more than a 100 seconds.
+These input graph was really big and the time is fair. 
+
+==27==
+So, to sum up. 
+We developed the algorithm, which can parse and construct derivation trees for each string in some regular set, which is a correct string in
+        some deterministic context free language.
+We proved termination and correctness of this algorithm.
+We also implemented it and evaluated on the enterprise project. 
+The evaluation shows that the algorithm is applicable to complex real-world tasks.
