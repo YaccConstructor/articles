@@ -648,35 +648,9 @@ FUNCTION {format.names}
   #1 'nameptr :=
   s num.names$ 'numnames :=
   numnames 'namesleft :=
-    { namesleft #0 > }
-    { s nameptr
-      "{vv~}{ll}{~jj}{~ff}" format.name$ 't :=
-      nameptr #1 >
-        {
-          nameptr #4 =
-          numnames #4 > and
-            { "others" 't :=
-              #1 'namesleft := }
-            'skip$
-          if$
-          namesleft #1 >
-            { ", " * t * }
-            {
-              t "others" =
-      t "~others" =
-      or
-                { " " * bbl.etal * }
-                { ", " * t * }
-              if$
-            }
-          if$
-        }
-        't
-      if$
-      nameptr #1 + 'nameptr :=
-      namesleft #1 - 'namesleft :=
-    }
-  while$
+  s nameptr
+  "{vv~}{ll}{~jj}{~ff}" format.name$ 
+  
 }
 
 
