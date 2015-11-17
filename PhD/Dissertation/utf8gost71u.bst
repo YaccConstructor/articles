@@ -1086,7 +1086,7 @@ FUNCTION {author.after}
 {
   author empty$
     'skip$
-    {author num.names$ #3 >
+    {author num.names$ #0 >
       {format.authors.after output
        new.semicolumn }
       'skip$
@@ -1097,7 +1097,7 @@ FUNCTION {bookauthor.after}
 {
   bookauthor empty$
     'skip$
-    {bookauthor num.names$ #3 >
+    {bookauthor num.names$ #0 >
       {format.bookauthors.after output
        new.semicolumn }
       'skip$
