@@ -1,0 +1,286 @@
+\documentclass{beamer}
+\usepackage{beamerthemesplit}
+\usepackage{wrapfig}
+\usetheme{SPbGU}
+\usepackage{pdfpages}
+\usepackage{amsmath}
+\usepackage{cmap} 
+\usepackage[T2A]{fontenc} 
+\usepackage[utf8]{inputenc}
+\usepackage[english,russian]{babel}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{multirow}
+\usepackage[noend]{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usetikzlibrary{shapes,arrows}
+\usepackage{fancyvrb}
+\newtheorem{rutheorem}{Теорема}
+\newtheorem{ruproof}{Доказательство}
+\newtheorem{rudefinition}{Определение}
+\newtheorem{rulemma}{Лемма}
+\beamertemplatenavigationsymbolsempty
+
+\title[]{Парсер-комбинаторы и левая рекурсия}
+\subtitle[]{продолжение}
+% То, что в квадратных скобках, отображается в левом нижнем углу. 
+\institute[]{
+Лаборатория языковых инструментов JetBrains \\
+Санкт-Петербургский государственный университет \\
+Математико-механический факультет }
+
+% То, что в квадратных скобках, отображается в левом нижнем углу.
+\author[Екатерина Вербицкая]{Екатерина Вербицкая}
+
+\date{9 ноября 2015г.}
+
+\definecolor{orange}{RGB}{179,36,31}
+
+\begin{document}
+{
+\begin{frame}[fragile]
+  \titlepage
+\end{frame}
+}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{В предыдущей серии}
+  Парсер-комбинатор: функция высшего порядка, которая конструирует парсер из набора других парсеров.
+
+  \begin{itemize}
+    \item Примитивные парсеры 
+    \item Комбинаторы для последовательности, выбора, повторения и т.д.
+  \end{itemize}
+\end{frame}
+            
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Монадические парсер-комбинаторы}
+\begin{verbatim}
+  -- result :: a -> Parser a
+  result v = \inp -> [(v,inp)]
+
+  -- bind :: Parser a -> (a -> Parser b) -> Parser b
+  p ‘bind‘ f = \inp -> concat [f v out | (v,out) <- p inp]
+
+  -- zero :: Parser a
+  zero = \inp -> []
+  
+  -- (++) :: Parser a -> Parser a -> Parser a
+  p ++ q = \inp -> (p inp ++ q inp)
+\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Преимущества монадических парсер-комбинаторов}
+  \begin{itemize}
+    \item Простота, гибкость, выразительность, модульность
+    \item Возможность откатываться (backtracking)
+    \item Лексический анализ не нужно выделять в отдельный шаг
+    \item Можно считать семантику во время синтаксического анализа
+  \end{itemize}
+
+  \begin{itemize}
+    \item Если использовать неграмотно, можно получить непредсказуемое время 
+работы и легко исчерпать всю доступную память
+    \begin{itemize}
+      \item Есть набор практик, которые позволяют избежать проблем
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Левая рекурсия в монадических парсер-комбинаторах}
+В явном виде приводит к зацикливанию. Есть комбинатор для частного случая:
+
+\begin{verbatim}
+chainl1 :: Parser a -> Parser (a -> a -> a) -> Parser a
+p ‘chainl1‘ op = [foldl (\x (f,y) -> f x y) x fys
+                    | x <- p
+                    , fys <- many [(f,y) | f <- op, y <- p]]
+	
+expr = factor ‘chainl1‘ addop
+addop = [(+) | _ <- char ’+’] ++ [(-) | _ <- char ’-’]
+factor = nat ++ bracket (char ’(’) expr (char ’)’)
+\end{verbatim}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Что можно парсить монадическими парсер-комбинаторами?}
+  \begin{itemize}
+    \item Все контекстно-свободные + некоторое подмножество контекстно-зависимых
+  \end{itemize}
+  \begin{itemize}
+    \item Parsec: "It can parse context-sensitive, infinite look-ahead grammars"
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Packrat-парсер}
+  \begin{itemize}               
+    \item Unlimited lookahed + backtracking 
+    \item Гарантирует линейное время работы на LL(k) и LR(k) грамматиках
+    \item Использует запоминание
+  \end{itemize}
+\end{frame}
+         
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Борьба с левой рекурсией: Warth et al}
+\begin{itemize}
+  \item Первый раз, когда наткнулись на левую рекурсию, запомнить в таблице 
+ошибку анализа --- посадить семечко
+  \item Откатиться во входном потоке в начало правила и применить правило еще раз --- прорастить семечко
+\end{itemize}
+
+\begin{itemize}
+  \item Определение левой рекурсии:
+  \begin{itemize}
+    \item В таблице наряду с вычисленным значением храним галочку: 
+леворекурсивно ли это правило
+    \item Перед применением правила, выставляем галочку в false
+    \item Если в таблице нет вычисленного значения, значит попали в левую 
+рекурсию: выставляем галочку в true, садим семечко
+  \end{itemize}
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Warth et al: неявная рекурсия}
+\begin{itemize}
+  \item Храним стек вызовов правил
+  \item При проращивании семечка проращиваем все вовлеченные в левую рекурсию 
+правила
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Проблемы с подходом Warth et al}
+Проблемы с ассоциативностью, если есть и левая, и правая рекурсия
+
+\begin{verbatim}
+E :: E - E | Num
+\end{verbatim}
+
+"$1-2-3$" разберется как "$1-(2-(3))$". Однако если переписать грамматику 
+следующим образом, ассоциативность будет правильной
+
+\begin{verbatim}
+E :: E - E (- E)? | Num
+\end{verbatim}
+
+Частичное решение: ограничить правую рекурсию максимум одним шагом в глубину
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Parser Expression Grammars}
+\begin{itemize}
+  \item Похоже на EBNF-форму, но выбор упорядочен
+  \item Нет --- неоднозначностям, да --- правильному приоритету!
+\end{itemize}
+
+\begin{itemize}
+  \item Любая PEG может быть проанализирована packrat-парсером
+\end{itemize}
+
+\begin{itemize}
+  \item Класс принимаемых языков: не известен
+  \begin{itemize}
+    \item Все LR(k), LL(k) языки
+    \item Какие-то еще КС-языки
+    \item Но! Нельзя разобрать $S \rightarrow x \, S \, x \, | x$
+    \item Зато! Можно описать не-КС язык ${a^n \, b^n \, c^n}$
+  \end{itemize}
+\end{itemize}
+
+\begin{verbatim}
+S ::= &(A c) a + B !(a/b/c)
+A ::= a A? b
+B ::= b B? c
+\end{verbatim}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Борьба с левой рекурсией: Hafiz}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{}
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Литература}
+\begin{itemize}
+\end{itemize}
+
+\end{frame}
+\end{document}

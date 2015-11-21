@@ -1,0 +1,638 @@
+\documentclass{beamer}
+\usepackage{beamerthemesplit}
+\usepackage{wrapfig}
+\usetheme{SPbGU}
+\usepackage{pdfpages}
+\usepackage{amsmath}
+\usepackage{cmap} 
+\usepackage[T2A]{fontenc} 
+\usepackage[utf8]{inputenc}
+\usepackage[english,russian]{babel}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{multirow}
+\usepackage[noend]{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usetikzlibrary{shapes,arrows}
+\usepackage{fancyvrb}
+\newtheorem{rutheorem}{Теорема}
+\newtheorem{ruproof}{Доказательство}
+\newtheorem{rudefinition}{Определение}
+\newtheorem{rulemma}{Лемма}
+\beamertemplatenavigationsymbolsempty
+
+\title[]{Парсер-комбинаторы и левая рекурсия}
+\subtitle[]{введение}
+% То, что в квадратных скобках, отображается в левом нижнем углу. 
+\institute[]{
+Лаборатория языковых инструментов JetBrains \\
+Санкт-Петербургский государственный университет \\
+Математико-механический факультет }
+
+% То, что в квадратных скобках, отображается в левом нижнем углу.
+\author[Екатерина Вербицкая]{Екатерина Вербицкая}
+
+\date{2 ноября 2015г.}
+
+\definecolor{orange}{RGB}{179,36,31}
+
+\begin{document}
+{
+\begin{frame}[fragile]
+  \titlepage
+\end{frame}
+}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Синтаксический анализ}
+  Сопоставление строки терминалов формальной грамматике языка
+
+  \begin{itemize}
+    \item Восходящие
+    \item Нисходящие
+  \end{itemize}
+
+  \begin{itemize}
+    \item Написанные руками
+    \item Генерируемые по спецификации грамматики
+    \item Написанные руками, но с использованием некого инструментария
+  \end{itemize}
+\end{frame}
+            
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Парсер-комбинаторы: общая идея}
+  \begin{itemize}
+    \item Написать примитивные парсеры (например, для обработки отдельных 
+символов)
+    \item Написать комбинаторы для составления из примитивных парсеров более 
+сложных
+    \begin{itemize}
+      \item Последовательности
+      \item Альтернативы
+      \item Повторение
+      \item Опциональный парсер
+      \item \dots
+    \end{itemize}
+    \item С использованием этого инструментария описать необходимый парсер
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \transwipe[direction=90]
+  \frametitle{Парсер-комбинаторы: тип парсера}
+$$
+\begin{array}{crcl}
+&Parser & = & String \rightarrow Tree \\ \pause
+&Parser & = & String \rightarrow (Tree, String) \\ \pause
+&Parser & = & String \rightarrow [(Tree, String)] \\ \\ \pause
+&Parser \, a & = & String \rightarrow [(a, String)]
+\end{array}
+$$
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Примитивные парсеры}
+\begin{verbatim}
+result :: a -> Parser a
+result v = \inp -> [(v,inp)]
+
+zero :: Parser a
+zero = \inp -> []
+
+item :: Parser Char
+item = \inp -> case inp of
+                 [] -> []
+                 (x:xs) -> [(x,xs)]
+\end{verbatim}  
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Парсер-комбинаторы}
+\begin{verbatim}
+bind :: Parser a -> (a -> Parser b) -> Parser b
+p ‘bind‘ f = \inp -> concat [f v inp' | (v,inp') <- p inp]
+
+p ‘seq‘ q = p ‘bind‘ \x ->
+            q ‘bind‘ \y ->
+            result (x,y)
+
+sat :: (Char -> Bool) -> Parser Char
+sat p = item ‘bind‘ \x ->
+        if p x then result x else zero
+
+plus :: Parser a -> Parser a -> Parser a
+p ‘plus‘ q = \inp -> (p inp ++ q inp)
+\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Маленькие полезные парсеры}
+\begin{verbatim}
+char :: Char -> Parser Char
+char x = sat (\y -> x == y)
+
+digit :: Parser Char
+digit = sat (\x -> ’0’ <= x && x <= ’9’)
+
+lower :: Parser Char
+lower = sat (\x -> ’a’ <= x && x <= ’z’)
+
+upper :: Parser Char
+upper = sat (\x -> ’A’ <= x && x <= ’Z’)
+\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Менее маленькие полезные парсеры}
+\begin{verbatim}
+letter :: Parser Char
+letter = lower ‘plus‘ upper
+
+alphanum :: Parser Char
+alphanum = letter ‘plus‘ digit
+
+word :: Parser String
+word = neWord ‘plus‘ result ""
+       where
+         neWord = letter ‘bind‘ \x ->
+                  word ‘bind‘ \xs ->
+                  result (x:xs)
+
+word "Yes!" = [("Yes","!"), ("Ye","s!"), 
+               ("Y","es!"), ("","Yes!")]
+\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Монадические парсер-комбинаторы}
+\begin{verbatim}
+class Monad m where
+  result :: a -> m a
+  bind :: m a -> (a -> m b) -> m b
+
+instance Monad Parser where
+  -- result :: a -> Parser a
+  result v = \inp -> [(v,inp)]
+
+  -- bind :: Parser a -> (a -> Parser b) -> Parser b
+  p ‘bind‘ f = \inp -> concat [f v out | (v,out) <- p inp]
+\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Монадические парсер-комбинаторы}
+\begin{verbatim}
+class Monad m => Monad0Plus m where
+  zero :: m a
+  (++) :: m a -> m a -> m a
+
+instance Monad0Plus Parser where
+  -- zero :: Parser a
+  zero = \inp -> []
+  
+  -- (++) :: Parser a -> Parser a -> Parser a
+  p ++ q = \inp -> (p inp ++ q inp)
+\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Другая форма записи}
+\begin{verbatim}
+p1 ‘bind‘ \x1 ->
+p2 ‘bind‘ \x2 ->
+...
+pn ‘bind‘ \xn ->
+result (f x1 x2 ... xn)
+
+
+[ f x1 x2 ... xn | x1 <- p1
+                 , x2 <- p2
+                 , ...
+                 , xn <- pn ]
+
+string :: String -> Parser String
+string "" = [""]
+string (x:xs) = [x:xs | _ <- char x, _ <- string xs]
+\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Монадические парсер-комбинаторы}
+\begin{verbatim}
+sat :: (Char -> Bool) -> Parser Char
+sat p = [x | x <- item, p x]
+
+many :: Parser a -> Parser [a]
+many p = [x:xs | x <- p, xs <- many p] ++ [[]]
+
+
+
+ident :: Parser String
+ident = [x:xs | x <- lower, xs <- many alphanum]
+\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Примеры парсеров}
+\begin{verbatim}
+many1 :: Parser a -> Parser [a]
+many1 p = [x:xs | x <- p, xs <- many p]
+
+nat :: Parser Int
+nat = [eval xs | xs <- many1 digit]
+      where
+        eval xs = foldl1 op [ord x - ord ’0’ | x <- xs]
+        m ‘op‘ n = 10*m + n
+
+int :: Parser Int
+int = [-n | _ <- char ’-’, n <- nat] ++ nat
+
+int :: Parser Int
+int = [f n | f <- op, n <- nat]
+      where
+        op = [negate | _ <- char ’-’] ++ [id]
+\end{verbatim}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Пример: список чисел}
+\begin{verbatim}
+ints :: Parser [Int]
+ints = [n:ns | _ <- char ’[’
+             , n <- int
+             , ns <- many [x | _ <- char ’,’, x <- int]
+             , _ <- char ’]’]
+
+
+sepby1 :: Parser a -> Parser b -> Parser [a]
+p ‘sepby1‘ sep = [x:xs | x <- p
+                       , xs <- many [y | _ <- sep, y <- p]]
+
+ints = [ns | _ <- char ’[’
+           , ns <- int ‘sepby1‘ char ’,’
+           , _ <- char ’]’]
+
+\end{verbatim}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Список чисел: еще короче}
+\begin{verbatim}
+bracket :: Parser a -> Parser b -> Parser c -> Parser b
+bracket open p close = [x | _ <- open, x <- p, _ <- close]
+
+ints = bracket (char ’[’)
+               (int ‘sepby1‘ char ’,’)
+               (char ’]’)
+\end{verbatim}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Пример: арифметические выражения}
+$$
+\begin{array}{crcl}
+&expr & ::= & expr \, addop \, factor \, | \, factor \\ 
+&addop & ::= & + \, | \, - \\ 
+&factor & ::= & nat \, | \, ( \, expr \, ) \\
+\end{array}
+$$ 
+
+\begin{verbatim}
+
+expr :: Parser Int
+addop :: Parser (Int -> Int -> Int)
+factor :: Parser Int
+
+expr = [f x y | x <- expr
+              , f <- addop
+              , y <- factor] ++ factor
+
+addop = [(+) | _ <- char ’+’] ++ [(-) | _ <- char ’-’]
+
+factor = nat ++ bracket (char ’(’) expr (char ’)’)
+\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Преимущества монадических парсер-комбинаторов}
+  \begin{itemize}
+    \item Простота
+    \item Гибкость
+    \item Выразительность
+    \item Возможность откатываться (backtracking)
+    \item Лексический анализ не нужно выделять в отдельный шаг
+    \item Можно считать семантику во время синтаксического анализа
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Недостатки монадических парсер-комбинаторов}
+  \begin{itemize}
+    \item Если использовать неграмотно, можно получить непредсказуемое время 
+работы и легко исчерпать всю доступную память
+    \begin{itemize}
+      \item Наличие общих префиксов у нескольких правил. Решение: факторизация грамматики
+      \item Вычисление промежуточных результатов, где не было надо. Решение: использование ленивости (например, $p +++ q = first (p ++ q)$)
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Packrat-парсер: не совсем парсер-комбинаторы}
+  \begin{itemize}
+    \item Нисходящий
+    \item Использует преимущества ленивости и функционального стиля
+    \item Unlimited lookahed + backtracking 
+    \item Гарантирует линейное время работы на LL(k) и LR(k) грамматиках
+    \item Использует запоминание
+  \end{itemize}
+\end{frame}
+         
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Packrat-парсер: пример}
+Грамматика языка арифметических выражений
+$$
+\begin{array}{crcl}
+&E & :: & M \, + \, E \, | \, M \\ 
+&M & :: & P \, * \, M \, | \, P \\ 
+&P & :: & ( \, E \, ) \, | \, D \\
+&D & :: & 0 \, | \, 1 \, | \, \dots \, | \, 9
+\end{array}
+$$   	                         
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Типы классического нисходящего парсера}
+\begin{verbatim}  
+data Result v = Parsed v String
+              | NoParse
+\end{verbatim}
+
+Типы для правил грамматики выражений:
+
+\begin{verbatim}
+pE :: String -> Result Int
+pM :: String -> Result Int
+pP :: String -> Result Int
+pD :: String -> Result Int
+\end{verbatim}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Классический нисходящий парсер выражений}
+\begin{verbatim}  
+pE s = alt1 where
+    alt1 = case pM s of
+             Parsed vleft s' ->
+               case s' of
+                 ('+':s'') ->
+                   case pE s'' of
+                     Parsed vright s''' ->
+                       Parsed (vleft + vright) s'''
+                     _ -> alt2
+                _ -> alt2
+            _ -> alt2
+
+    alt2 = case pM s of
+             Parsed v s' -> Parsed v s'
+             NoParse -> NoParse
+\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Проблемы классического нисходящего парсинга}
+  \begin{itemize}
+    \item При откатах одно и то же может вычисляться несколько раз
+    \item В худшем случае экспоненциальное время работы
+    \item Факторизация грамматики -- выход, но не очень хороший
+  \end{itemize}
+
+  \begin{itemize}
+    \item Решение: запоминать промежуточные результаты в таблице
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Таблица}
+\begin{verbatim}
+data Derivs = Derivs { dvE :: Result Int,
+                       dvM :: Result Int,
+                       dvP :: Result Int,
+                       dvD :: Result Int,
+                       dvC :: Result Char }
+\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Типы}
+\begin{verbatim}
+data Result v = Parsed v Derivs
+              | NoParse
+
+
+pE :: Derivs -> Result Int
+pM :: Derivs -> Result Int
+pP :: Derivs -> Result Int
+pD :: Derivs -> Result Int
+\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Парсер для выражения}
+\begin{verbatim}
+pE d = alt1 where
+    alt1 = case dvM d of
+             Parsed vleft d' ->
+               case dvC d' of
+                 Parsed '+' d'' ->
+                   case dvE d'' of
+                     Parsed vright d''' ->
+                        Parsed (vleft + vright) d'''
+                     _ -> alt2
+                 _ -> alt2
+             _ -> alt2
+
+    alt2 = dvM d
+\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Парсер}
+\begin{verbatim}
+parse :: String -> Derivs
+parse s = d where
+    d    = Derivs add mult prim dec chr
+    add  = pE d
+    mult = pM d
+    prim = pP d
+    dec  = pD d
+    chr  = case s of
+             (c:s') -> Parsed c (parse s')
+             [] -> NoParse
+\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Монадический Packrat-парсер}
+\begin{verbatim}
+newtype Parser v = Parser (Derivs -> Result v)             
+
+instance Monad Parser where
+  
+  (Parser p1) >>= f2 = Parser pre
+          where pre d = post (p1 d)
+                post (Parsed v d’) = p2 d’
+                  where Parser p2 = f2 v
+                post (NoParse) = NoParse
+  
+  return x = Parser (\d -> Parsed x d)
+  
+  fail msg = Parser (\d -> NoParse)
+\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Монадический Packrat-парсер}
+Альтернатива: 
+\begin{verbatim}
+(<|>) :: Parser v -> Parser v -> Parser v
+(Parser p1) <|> (Parser p2) = Parser pre
+                where pre d = post d (p1 d)
+                      post d NoParse = p2 d
+                      post d r = r
+
+Parser pE = (do vleft <- Parser dvM
+                char ’+’
+                vright <- Parser dvE
+                return (vleft + vright))
+        <|> (do Parser dvM)
+
+\end{verbatim}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Преимущества и недостатки}
+\begin{itemize}
+  \item Линейное время работы, простота, выразительность, но:
+\end{itemize}
+\begin{itemize}
+  \item Можно реализовать только детерминированные парсеры
+  \item Нет состояний
+  \item Потребляет достаточно много памяти
+  \item Проблемы с левой рекурсией
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Борьба с левой рекурсией: Warth et al}
+\begin{itemize}
+  \item Первый раз, когда наткнулись на левую рекурсию, запомнить в таблице 
+ошибку анализа --- посадить семечко
+  \item Откатиться во входном потоке в начало правила и применить правило еще раз --- прорастить семечко
+\end{itemize}
+
+\begin{itemize}
+  \item Определение левой рекурсии:
+  \begin{itemize}
+    \item В таблице наряду с вычисленным значением храним галочку: 
+леворекурсивно ли это правило
+    \item Перед применением правила, выставляем галочку в false
+    \item Если в таблице нет вычисленного значения, значит попали в левую 
+рекурсию: выставляем галочку в true, садим семечко
+  \end{itemize}
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Warth et al: неявная рекурсия}
+Пример: разбираем "$4-3$" относительно грамматики
+\begin{verbatim}
+X :: E
+E :: X - Num | Num
+\end{verbatim}
+
+При обработке X посадили семечко: $X \rightarrow E \rightarrow 4$
+
+При проращивании семечка (повторном вызове парсера X) получаем уже лежащее в 
+таблице значение ($X \rightarrow E \rightarrow 4$)
+                        
+Решение: 
+\begin{itemize}
+  \item Храним стек вызовов правил
+  \item При проращивании семечка проращиваем все вовлеченные в левую рекурсию 
+правила
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Проблемы с подходом Warth et al}
+Проблемы с ассоциативностью, если есть и левая, и правая рекурсия
+
+\begin{verbatim}
+E :: E - E | Num
+\end{verbatim}
+
+"$1-2-3$" разберется как "$1-(2-(3))$". Однако если переписать грамматику 
+следующим образом, ассоциативность будет правильной
+
+\begin{verbatim}
+E :: E - E (- E)? | Num
+\end{verbatim}
+
+Частичное решение: ограничить правую рекурсию максимум одним шагом в глубину
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Литература}
+\begin{itemize}
+  \item Monadic Parser Combinators: \url{http://www.cs.nott.ac.uk/~pszgmh/monparsing.pdf}
+  \item Packrat Parsing: \url{http://www.brynosaurus.com/pub/lang/packrat-icfp02.pdf}
+  \item Packrat Parsers Can Support Left Recursion: \url{http://www.vpri.org/pdf/tr2007002_packrat.pdf}
+  \item Проблемы с предыдущим подходом (Direct Left-Recursive Parsing Expression Grammars): \url{http://tratt.net/laurie/research/pubs/papers/tratt__direct_left_recursive_parsing_expression_grammars.pdf}
+\end{itemize}
+
+\end{frame}
+\end{document}
