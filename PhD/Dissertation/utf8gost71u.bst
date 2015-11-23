@@ -649,7 +649,7 @@ FUNCTION {format.names}
   s num.names$ 'numnames :=
   numnames 'namesleft :=
   s nameptr
-  "{vv~}{ll}{~jj}{~ff}" format.name$ 
+  "{vv~}{ll,}{~jj}{~ff}" format.name$ 
   
 }
 
@@ -694,7 +694,7 @@ FUNCTION {format.names.rev}
 FUNCTION {format.authors}
 { author empty$
     { "" }
-    { author format.names emphasize}
+    { author format.names}
   if$
 }
 
@@ -1118,7 +1118,7 @@ FUNCTION {article}
   new.slash
   author.after
   new.dblslash
-  journal emphasize "journal" output.check
+  journal "journal" output.check
   new.block
   format.date output
   new.block
