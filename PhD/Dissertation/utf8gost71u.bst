@@ -665,8 +665,8 @@ FUNCTION {format.names.rev}
       format.name$ 't :=
       nameptr #1 >
         {
-          nameptr #4 =
-          numnames #4 > and
+          nameptr #10 =
+          numnames #10 > and
             { "others" 't :=
               #1 'namesleft := }
             'skip$
@@ -1035,7 +1035,7 @@ FUNCTION {author.before}
 {
   author empty$
     'skip$
-    {author num.names$ #4 <
+    {author num.names$ #10 <
       {format.authors output
        new.sentence}
       'skip$
@@ -1047,7 +1047,7 @@ FUNCTION {bookauthor.before}
 {
   bookauthor empty$
     'skip$
-    {bookauthor num.names$ #4 <
+    {bookauthor num.names$ #10 <
       {format.bookauthors output
        new.sentence}
       'skip$
