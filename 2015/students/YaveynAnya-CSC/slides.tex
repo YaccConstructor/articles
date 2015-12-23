@@ -1,0 +1,738 @@
+\documentclass[18pt,pdf,hyperref={unicode}]{beamer}
+\usepackage[english,russian]{babel}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{slashbox}
+\usepackage{multirow}
+\usepackage{xcolor,colortbl}
+\usepackage{listings}
+
+\usepackage{paratype}
+\renewcommand*\familydefault{\sfdefault}
+
+\usepackage{tikz}
+\usetikzlibrary{snakes,arrows,shapes}
+\usepackage{amsmath}
+
+\usetikzlibrary{automata}
+
+
+\newcommand{\E}{\ensuremath{\mathbb{E}}}
+\newcommand{\D}{\ensuremath{\mathbb{D}}}
+\renewcommand{\P}{\ensuremath{\mathbb{P}}}
+\newcommand{\COV}{\ensuremath{\mathbb{C}\mathrm{ov}}}
+\newcommand{\N}{\ensuremath{\mathrm{N}}}
+\newcommand{\X}{\ensuremath{\mathbf{X}}}
+\newcommand{\Y}{\ensuremath{\mathbf{Y}}}
+\newcommand{\CHI}{\ensuremath{\mathcal{X}}}
+\newcommand{\LAW}{\ensuremath{\mathcal{L}}}
+
+\newcommand{\mom}[1]{\ensuremath{m_{#1}}}
+\newcommand{\hmom}[1]{\ensuremath{\widehat{m}_{#1}}}
+
+\newcommand{\summ}[2]{\ensuremath{\sum\limits_{#1}^{#2}}}
+\newcommand{\SL}{\ensuremath{\sigma_{lim}}}
+\newcommand{\HSL}{\ensuremath{\widehat{\sigma}_{lim}}}
+\newcommand{\SLT}{\ensuremath{\sigma_{lim}^2}}
+\newcommand{\HSLT}{\ensuremath{\widehat{\sigma}_{lim}^2}}
+\newcommand{\RH}{\ensuremath{\rho(\X_n, \Y_n)}}
+\newcommand{\HRH}{\ensuremath{\widehat{\rho}(\X_n, \Y_n)}}
+\newcommand{\SE}{\ensuremath{\mathrm{\mathbf{SE}}}}
+\newcommand{\SEM}{\ensuremath{\mathrm{\mathbf{SEM}}}}
+\newcommand{\SEN}{\ensuremath{\mathrm{\mathbf{SE(N)}}}}
+\newcommand{\SEMN}{\ensuremath{\mathrm{\mathbf{SEM(N)}}}}
+
+\usepackage[customcolors]{hf-tikz}
+\definecolor{mlisting}{RGB}{237,237,237}
+\definecolor{mblue}{RGB}{180,180,255}
+\definecolor{mred}{RGB}{255,180,180}
+
+\newcommand{\listing}[1]{\texttt{\colorbox{mlisting}{#1}}}
+\newcommand{\foottt}[1]{\texttt{\footnotesize {#1}}}
+\newcommand{\smalltt}[1]{\texttt{\small {#1}}}
+\newcommand{\blue}[1]{\textcolor{blue}{#1}}
+\newcommand{\red}[1]{\textcolor{red}{#1}}
+
+\usetheme{Berlin}
+\usecolortheme{seahorse}
+
+\parindent=0mm
+% \parskip=.10in
+
+\setbeamertemplate{headline}{}
+
+\beamertemplatenavigationsymbolsempty
+
+\setbeamertemplate{footline}
+{
+  \leavevmode
+  \hbox{%
+  \begin{beamercolorbox}[wd=.38\paperwidth,ht=2.25ex,dp=1ex,center]{author in head/foot}%
+    \usebeamerfont{author in head/foot}\insertshortauthor\ \ %
+  \end{beamercolorbox}%
+  \begin{beamercolorbox}[wd=.38\paperwidth,ht=2.25ex,dp=1ex,left]{title in head/foot}%
+    \usebeamerfont{title in head/foot}\ \insertshorttitle
+  \end{beamercolorbox}%
+  \begin{beamercolorbox}[wd=.24\paperwidth,ht=2.25ex,dp=1ex,right]{date in head/foot}%
+    \usebeamerfont{date in head/foot}\hspace*{2em}
+    \insertframenumber{} / \inserttotalframenumber\hspace*{2ex}
+  \end{beamercolorbox}}%
+  \vskip0pt%
+}
+
+
+\title[Строковые операции]{\textbf{Поддержка строковых операций в лексическом анализе динамически формируемого кода}}
+\subtitle{}
+\author[Анна Явейн]{
+  Анна Явейн \\ \vskip 15pt
+  {
+    Куратор: Екатерина Вербицкая
+  }
+}
+\date[декабрь 2015]{2015}
+
+
+\begin{document}
+
+
+\frame{\titlepage}
+
+\makeatletter
+\begin{frame}
+  \frametitle{YaccConstructor}
+  \begin{itemize}
+    \item Динамический SQL \\
+      \vskip15pt
+      \foottt{
+        \blue{IF} @X = @Y \\
+          \hskip17pt\blue{SET} @TBL = \red{' table1 '} \\
+        \blue{ELSE} \\
+          \hskip17pt\blue{SET} @TBL = \red{' table2 '} \\
+        \blue{SET}\,@S\,=\,\red{'SELECT\,x\,FROM'}\,+\,@TBL\,+\,\red{'WHERE ISNULL(n,0)\,>\,1'} \\
+        \blue{EXECUTE} (@S) \\
+      }
+      \vskip15pt
+    \item Встроенный SQL \\
+      \vskip15pt
+      \foottt{
+        \blue{SqlCommand} myCommand = new \blue{SqlCommand}(\\
+          \hskip17pt\red{''SELECT $\ast$ FROM table WHERE Column = @Param2''},\\
+            \hskip17ptmyConnection);\\
+        myCommand.Parameters.Add(myParam2);
+      }
+  \end{itemize}
+\end{frame}
+\makeatother
+
+\begin{frame}
+\frametitle{Лексический анализ и строковые операции}
+На входе:
+  \smalltt{
+    \hskip60pt\blue{string} res = \red{``''}; \\
+    \hskip60pt\hskip49pt\blue{for} (\blue{int} i = 0; i $<$ l; $++$i) \\
+      \hskip60pt\hskip49pt\hskip25pt res = \red{``()''} + res; \\
+    \hskip60pt\hskip49pt\blue{do\_something\_with}(res); \\
+  }\vskip20pt
+Множество
+  \vskip-7pt
+    \hskip110pt\smalltt{\{\red{``''}, \red{``()''}, \dots, \red{``()''}\textsuperscript{N}\}} \\
+\vskip-7pt значений:
+  \vskip25pt
+Аппроксимация:
+  \vskip19pt
+    \hskip111pt\smalltt{(\red{``()''})*}
+  \vskip-31pt
+  \hskip200pt
+{\small
+  \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=1.4cm, semithick, initial text=]
+    \tikzstyle{every state}=[fill=red!60,draw=none,text=white, minimum size = 10pt]
+    \tikzstyle{accepting}=[fill=blue!60,draw=none,text=white, minimum size = 10pt]
+
+    \node[state,initial,accepting]       (A)              {};
+    \node[state]                         (B) [below of=A] {};
+
+    \path (B) edge    [bend left=40]          node {\smalltt{\red{``)''}}} (A)
+          (A) edge    [bend left=40]          node {\smalltt{\red{``(''}}} (B);
+  \end{tikzpicture}
+}
+\end{frame}
+
+
+\begin{frame}<1-4>[label=past]
+\frametitle{Что было}
+\begin{itemize}
+  \item<1-> Конкатенация.
+  \smallskip
+  \item<2-> Объединение.
+  \smallskip
+  \item<3-> Пересечение.
+  \smallskip
+  \item<4-> Избыточная аппроксимация для \listing{replace}.
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Зачем нужен replace}
+
+На входе:
+\smalltt{
+  \hskip60pt \blue{var} col = \red{``a\_b\_c''}; \\
+  \hskip60pt\hskip49pt replace(col, \red{``\_''}, \red{`` ''}); \\
+  \hskip60pt\hskip49pt db.execute(\red{``select''} + col + \\
+      \hskip60pt\hskip175pt \red{``from tbl''});
+}
+\vskip40pt
+\smalltt{
+  \red{``select a\_b\_c from tbl''} -- identifier \\\vskip25pt
+  \red{``select a b\_c from tbl''} -- identifier + alias \\\vskip25pt
+  \red{``select a b c from tbl''} -- error
+}
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Избыточная аппроксимация для replace}
+\begin{block}{\vskip-1pt\texttt{replace(F, P, T) = R}\\\vskip3pt}
+  \smallskip
+  $\omega \in$ \texttt{R} тогда и только тогда, когда
+  \smallskip
+  \begin{itemize}
+    \item $\exists\, \omega^\prime \in$ \texttt{F}:
+        $\;\;\omega^\prime = \omega_1x_1\omega_2x_2\dots\omega_kx_k\omega_{k+1}, x_i \in$ \texttt{P}.
+    \item $\omega_i$ не содежат подстроки из \texttt{P}.
+    \item $\omega = \omega_1c_1\omega_2c_2\dots\omega_kc_k\omega_{k+1},\; c_i \in$ \texttt{T}.
+  \end{itemize}
+  \smallskip
+\end{block}
+\end{frame}
+
+\begin{frame}
+\frametitle{Избыточная аппроксимация для replace}
+\bigskip
+
+\texttt{F}:
+\vskip-19pt
+\hskip60pt
+{\small
+  \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=1.4cm, semithick, initial text=]
+    \tikzstyle{every state}=[fill=red!60,draw=none,text=white, minimum size = 10pt]
+    \tikzstyle{accepting}=[fill=blue!60,draw=none,text=white, minimum size = 10pt]
+
+    \node[initial,state]           (A)              {};
+    \node[state]                   (B) [right of=A] {};
+    \node[state]                   (C) [right of=B] {};
+    \node[state]                   (D) [right of=C] {};
+    \node[state,accepting]         (E) [right of=D] {};
+
+    \path (A) edge              node {b} (B)
+          (B) edge              node {a} (C)
+          (C) edge              node {a} (D)
+          (D) edge              node {b} (E);
+  \end{tikzpicture}
+  \bigskip
+  \bigskip
+}
+
+\texttt{P}:
+\vskip-17pt
+\hskip60pt
+{\small
+  \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=1.4cm, semithick, initial text=]
+    \tikzstyle{every state}=[fill=red!60,draw=none,text=white, minimum size = 10pt]
+    \tikzstyle{accepting}=[fill=blue!60,draw=none,text=white, minimum size = 10pt]
+
+    \node[initial,state]           (A)              {};
+    \node[state,accepting]         (B) [right of=A] {};
+
+    \path (A) edge                node {a} (B)
+          (B) edge  [loop right]  node {a} (B);
+  \end{tikzpicture}
+  \bigskip
+  \bigskip
+}
+
+\texttt{T}:
+\vskip-17pt
+\hskip60pt
+{\small
+  \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=1.4cm, semithick, initial text=]
+    \tikzstyle{every state}=[fill=red!60,draw=none,text=white, minimum size = 10pt]
+    \tikzstyle{accepting}=[fill=blue!60,draw=none,text=white, minimum size = 10pt]
+
+    \node[initial,state]           (A)              {};
+    \node[state,accepting]         (B) [right of=A] {};
+
+    \path (A) edge                node {m} (B);
+  \end{tikzpicture}
+  \bigskip
+  \bigskip
+  \bigskip
+  \bigskip
+}
+
+\texttt{R}:
+\vskip-19pt
+\hskip60pt
+{\small
+  \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=1.4cm, semithick, initial text=]
+    \tikzstyle{every state}=[fill=red!60,draw=none,text=white, minimum size = 10pt]
+    \tikzstyle{accepting}=[fill=blue!60,draw=none,text=white, minimum size = 10pt]
+
+    \node[initial,state]           (A)              {};
+    \node[state]                   (B) [right of=A] {};
+    \node[state]                   (C) [right of=B] {};
+    \node[state]                   (D) [right of=C] {};
+    \node[state,accepting]         (E) [right of=D] {};
+
+    \path (A) edge              node {b} (B)
+          (B) edge              node {m} (C)
+          (C) edge              node {m} (D)
+          (D) edge              node {b} (E)
+          (B) edge [bend right=70] node {m} (D);
+  \end{tikzpicture}
+}
+\end{frame}
+
+
+\begin{frame}<1>[label=present]
+\frametitle{Возможные сужения аппроксимации}
+\begin{itemize}
+  \item<1-> Жадная (\textbf{greedy}) семантика.
+  \smallskip
+  \item<2-> Ленивая (\textbf{reluctant}) семантика.
+  \bigskip
+  \smallskip
+  \item<3-> Самое левое совпадение (\textbf{leftmost}).
+  \bigskip
+  \smallskip
+  \item<4-> Замена только первого вхождения (\textbf{replaceFirst}).
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Greedy replace}
+\bigskip
+
+\texttt{F}:
+\vskip-19pt
+\hskip60pt
+{\small
+  \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=1.4cm, semithick, initial text=]
+    \tikzstyle{every state}=[fill=red!60,draw=none,text=white, minimum size = 10pt]
+    \tikzstyle{accepting}=[fill=blue!60,draw=none,text=white, minimum size = 10pt]
+
+    \node[initial,state]           (A)              {};
+    \node[state]                   (B) [right of=A] {};
+    \node[state]                   (C) [right of=B] {};
+    \node[state]                   (D) [right of=C] {};
+    \node[state,accepting]         (E) [right of=D] {};
+
+    \path (A) edge              node {b} (B)
+          (B) edge              node {a} (C)
+          (C) edge              node {a} (D)
+          (D) edge              node {b} (E);
+  \end{tikzpicture}
+  \bigskip
+  \bigskip
+}
+
+\texttt{P}:
+\vskip-17pt
+\hskip60pt
+{\small
+  \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=1.4cm, semithick, initial text=]
+    \tikzstyle{every state}=[fill=red!60,draw=none,text=white, minimum size = 10pt]
+    \tikzstyle{accepting}=[fill=blue!60,draw=none,text=white, minimum size = 10pt]
+
+    \node[initial,state]           (A)              {};
+    \node[state,accepting]         (B) [right of=A] {};
+
+    \path (A) edge                node {a} (B)
+          (B) edge  [loop right]  node {a} (B);
+  \end{tikzpicture}
+  \bigskip
+  \bigskip
+}
+
+\texttt{T}:
+\vskip-17pt
+\hskip60pt
+{\small
+  \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=1.4cm, semithick, initial text=]
+    \tikzstyle{every state}=[fill=red!60,draw=none,text=white, minimum size = 10pt]
+    \tikzstyle{accepting}=[fill=blue!60,draw=none,text=white, minimum size = 10pt]
+
+    \node[initial,state]           (A)              {};
+    \node[state,accepting]         (B) [right of=A] {};
+
+    \path (A) edge                node {m} (B);
+  \end{tikzpicture}
+  \bigskip
+  \bigskip
+  \bigskip
+  \bigskip
+}
+
+\texttt{R}:\hfill greedy \hspace{10pt}
+\vskip-19pt
+\hskip60pt
+{\small
+  \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=1.4cm, semithick, initial text=]
+    \tikzstyle{every state}=[fill=red!60,draw=none,text=white, minimum size = 10pt]
+    \tikzstyle{accepting}=[fill=blue!60,draw=none,text=white, minimum size = 10pt]
+
+    \node[initial,state]           (A)              {};
+    \node[state]                   (B) [right of=A] {};
+    \node[state, fill=white]       (C) [right of=B] {};
+    \node[state]                   (D) [right of=C] {};
+    \node[state,accepting]         (E) [right of=D] {};
+
+    \path (A) edge              node {b} (B)
+          (D) edge              node {b} (E)
+          (B) edge [bend right=70] node {m} (D);
+  \end{tikzpicture}
+}
+\end{frame}
+
+
+\againframe<2>{present}
+
+
+\begin{frame}
+\frametitle{Reluctant replace}
+\bigskip
+
+\texttt{F}:
+\vskip-19pt
+\hskip60pt
+{\small
+  \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=1.4cm, semithick, initial text=]
+    \tikzstyle{every state}=[fill=red!60,draw=none,text=white, minimum size = 10pt]
+    \tikzstyle{accepting}=[fill=blue!60,draw=none,text=white, minimum size = 10pt]
+
+    \node[initial,state]           (A)              {};
+    \node[state]                   (B) [right of=A] {};
+    \node[state]                   (C) [right of=B] {};
+    \node[state]                   (D) [right of=C] {};
+    \node[state,accepting]         (E) [right of=D] {};
+
+    \path (A) edge              node {b} (B)
+          (B) edge              node {a} (C)
+          (C) edge              node {a} (D)
+          (D) edge              node {b} (E);
+  \end{tikzpicture}
+  \bigskip
+  \bigskip
+}
+
+\texttt{P}:
+\vskip-17pt
+\hskip60pt
+{\small
+  \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=1.4cm, semithick, initial text=]
+    \tikzstyle{every state}=[fill=red!60,draw=none,text=white, minimum size = 10pt]
+    \tikzstyle{accepting}=[fill=blue!60,draw=none,text=white, minimum size = 10pt]
+
+    \node[initial,state]           (A)              {};
+    \node[state,accepting]         (B) [right of=A] {};
+
+    \path (A) edge                node {a} (B)
+          (B) edge  [loop right]  node {a} (B);
+  \end{tikzpicture}
+  \bigskip
+  \bigskip
+}
+
+\texttt{T}:
+\vskip-17pt
+\hskip60pt
+{\small
+  \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=1.4cm, semithick, initial text=]
+    \tikzstyle{every state}=[fill=red!60,draw=none,text=white, minimum size = 10pt]
+    \tikzstyle{accepting}=[fill=blue!60,draw=none,text=white, minimum size = 10pt]
+
+    \node[initial,state]           (A)              {};
+    \node[state,accepting]         (B) [right of=A] {};
+
+    \path (A) edge                node {m} (B);
+  \end{tikzpicture}
+  \bigskip
+  \bigskip
+  \bigskip
+  \bigskip
+}
+
+\texttt{R}:\hfill reluctant \hspace{7pt}
+\vskip-19pt
+\hskip60pt
+{\small
+  \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=1.4cm, semithick, initial text=]
+    \tikzstyle{every state}=[fill=red!60,draw=none,text=white, minimum size = 10pt]
+    \tikzstyle{accepting}=[fill=blue!60,draw=none,text=white, minimum size = 10pt]
+
+    \node[initial,state]           (A)              {};
+    \node[state]                   (B) [right of=A] {};
+    \node[state]                   (C) [right of=B] {};
+    \node[state]                   (D) [right of=C] {};
+    \node[state,accepting]         (E) [right of=D] {};
+
+    \path (A) edge              node {b} (B)
+          (B) edge              node {m} (C)
+          (C) edge              node {m} (D)
+          (D) edge              node {b} (E);
+  \end{tikzpicture}
+}
+\end{frame}
+
+
+\againframe<3>{present}
+
+
+\begin{frame}
+\frametitle{Leftmost replace}
+\smallskip
+
+\texttt{F}:
+\vskip-19pt
+\hskip60pt
+{\small
+  \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=1.4cm, semithick, initial text=]
+    \tikzstyle{every state}=[fill=red!60,draw=none,text=white, minimum size = 10pt]
+    \tikzstyle{accepting}=[fill=blue!60,draw=none,text=white, minimum size = 10pt]
+
+    \node[initial,state]           (A)              {};
+    \node[state]                   (B) [right of=A] {};
+    \node[state]                   (C) [right of=B] {};
+    \node[state,accepting]         (D) [right of=C] {};
+
+    \path (A) edge              node {a} (B)
+          (B) edge              node {b} (C)
+          (C) edge              node {b} (D);
+  \end{tikzpicture}
+  \bigskip
+  \bigskip
+}
+
+\texttt{P}:
+\vskip-17pt
+\hskip60pt
+{\small
+  \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=1.4cm, semithick, initial text=]
+    \tikzstyle{every state}=[fill=red!60,draw=none,text=white, minimum size = 10pt]
+    \tikzstyle{accepting}=[fill=blue!60,draw=none,text=white, minimum size = 10pt]
+
+    \node[initial,state]           (A)              {};
+    \node[state]                   (B) [right of=A] {};
+    \node[state,accepting]         (C) [right of=B] {};
+
+    \path (A) edge                 node {a} (B)
+          (B) edge                 node {b} (C)
+          (A) edge [bend right=70] node {b} (C)
+          (C) edge [loop right]    node {b} (C);
+  \end{tikzpicture}
+  \bigskip
+  \bigskip
+  \bigskip
+}
+
+
+\texttt{R}:
+\vskip-19pt
+\hskip60pt
+{\small
+  \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=1.4cm, semithick, initial text=]
+    \tikzstyle{every state}=[fill=red!60,draw=none,text=white, minimum size = 10pt]
+    \tikzstyle{accepting}=[fill=blue!60,draw=none,text=white, minimum size = 10pt]
+
+    \node[initial,state]           (A)              {};
+    \node[state]                   (B) [right of=A] {};
+    \node[state,accepting]         (C) [right of=B] {};
+    \node[state,accepting]         (D) [right of=C] {};
+    \node[state,accepting]         (E) [below of=B] {};
+    \node[state,accepting]         (F) [below of=C] {};
+
+    \path (A) edge              node {a} (B)
+          (B) edge              node {m} (C)
+          (C) edge              node {m} (D)
+          (A) edge [bend right=45] node {m} (E)
+          (E) edge              node {m} (F);
+  \end{tikzpicture}
+  \bigskip
+  \bigskip
+}
+
+\texttt{R}:\hfill leftmost \hspace{10pt}
+\vskip-19pt
+\hskip60pt
+{\small
+  \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=1.4cm, semithick, initial text=]
+    \tikzstyle{every state}=[fill=red!60,draw=none,text=white, minimum size = 10pt]
+    \tikzstyle{accepting}=[fill=blue!60,draw=none,text=white, minimum size = 10pt]
+
+    \node[state, initial]          (B)              {};
+    \node[state,accepting]         (C) [right of=B] {};
+    \node[state,accepting]         (D) [right of=C] {};
+
+    \path (B) edge              node {m} (C)
+          (C) edge              node {m} (D);
+  \end{tikzpicture}
+}
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Leftmost replace}
+\smallskip
+
+\texttt{F}:
+\vskip-19pt
+\hskip60pt
+{\small
+  \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=1.4cm, semithick, initial text=]
+    \tikzstyle{every state}=[fill=red!60,draw=none,text=white, minimum size = 10pt]
+    \tikzstyle{accepting}=[fill=blue!60,draw=none,text=white, minimum size = 10pt]
+
+    \node[initial,state]           (A)              {};
+    \node[state]                   (B) [right of=A] {};
+    \node[state]                   (C) [right of=B] {};
+    \node[state,accepting]         (D) [right of=C] {};
+
+    \path (A) edge              node {a} (B)
+          (B) edge              node {b} (C)
+          (C) edge              node {b} (D);
+  \end{tikzpicture}
+  \bigskip
+  \bigskip
+}
+
+
+\texttt{P}:
+\vskip-17pt
+\hskip60pt
+{\small
+  \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=1.4cm, semithick, initial text=]
+    \tikzstyle{every state}=[fill=red!60,draw=none,text=white, minimum size = 10pt]
+    \tikzstyle{accepting}=[fill=blue!60,draw=none,text=white, minimum size = 10pt]
+
+    \node[initial,state]           (A)              {};
+    \node[state]         (B) [right of=A] {};
+    \node[state,accepting]         (C) [right of=B] {};
+
+    \path (A) edge                 node {a} (B)
+          (B) edge                 node {b} (C)
+          (A) edge [bend right=70] node {b} (C)
+          (C) edge [loop right]    node {b} (C);
+  \end{tikzpicture}
+  \bigskip
+  \bigskip
+  \bigskip
+}
+
+\texttt{R}:\hfill leftmost + greedy \hspace{10pt}
+\vskip-19pt
+\hskip60pt
+{\small
+  \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=1.4cm, semithick, initial text=]
+    \tikzstyle{every state}=[fill=red!60,draw=none,text=white, minimum size = 10pt]
+    \tikzstyle{accepting}=[fill=blue!60,draw=none,text=white, minimum size = 10pt]
+
+    \node[state, initial]          (B)              {};
+    \node[state,accepting]         (C) [right of=B] {};
+
+    \path (B) edge              node {m} (C);
+  \end{tikzpicture}
+  \bigskip
+  \bigskip
+}
+
+\texttt{R}:\hfill leftmost + reluctant \hspace{10pt}
+\vskip-19pt
+\hskip60pt
+{\small
+  \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=1.4cm, semithick, initial text=]
+    \tikzstyle{every state}=[fill=red!60,draw=none,text=white, minimum size = 10pt]
+    \tikzstyle{accepting}=[fill=blue!60,draw=none,text=white, minimum size = 10pt]
+
+    \node[state, initial]          (B)              {};
+    \node[state]                   (C) [right of=B] {};
+    \node[state,accepting]         (D) [right of=C] {};
+
+    \path (B) edge              node {m} (C)
+          (C) edge              node {m} (D);
+  \end{tikzpicture}
+}
+\end{frame}
+
+
+\againframe<4>{present}
+
+
+\begin{frame}
+\frametitle{Что дальше?}
+
+\texttt{F}:\hfill \colorbox{mred}{aba}\,a \hspace{130pt}
+\bigskip
+\bigskip
+
+\texttt{P}:\hfill \colorbox{mred}{aba} | \colorbox{mblue}{abaa} \hspace{117pt}
+\bigskip
+\bigskip
+
+\texttt{T}:\hfill m \hspace{140pt}
+\bigskip
+\bigskip
+\bigskip
+\bigskip
+
+
+\texttt{R}:\hfill \colorbox{mred}{m}\,a \hspace{105pt} (PCRE)
+\bigskip
+\bigskip
+
+\texttt{R}:\hfill \colorbox{mblue}{m} \hspace{100pt} (C++ ?!)
+
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Трудности и полученные знания}
+\begin{itemize}
+  \item Новый язык: F\#.
+  \smallskip
+  \item Регулярные выражения.
+  \smallskip
+  \item Автоматы и трансдьюсеры.
+  \bigskip
+  \bigskip
+  \item Академический характер задачи.
+  \smallskip
+  \item Найденные исследования оказались неприменимы в моем случае.
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}
+Спасибо за внимание.
+\bigskip
+\bigskip
+\bigskip
+\bigskip
+\bigskip
+\bigskip
+
+Репозиторий на GitHub:
+\medskip
+
+\hskip20pt\small{\texttt{YaccConstructor/QuickGraph}}
+\bigskip
+
+\hskip20pt\small{\texttt{anya.yaveyn@yandex.ru}}
+\end{frame}
+
+
+\end{document}
