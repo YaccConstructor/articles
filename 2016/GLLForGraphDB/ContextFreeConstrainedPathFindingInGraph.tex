@@ -93,11 +93,45 @@ In GLL each GSS node is pair of position in input and grammmar slot.
 
 \subsection{Shared pached parse forest}
 
-Shared Packed Parse Forest (SPPF) is a spectial structure for compact derivation forest representation. GLL use binarized form of SPPF proposed~\cite{brnglr} which allow to achive worst-case cubic space complexity.
+Shared Packed Parse Forest (SPPF) is a spectial data structure for derivation forest compact representation. 
+Binarized form of SPPF proposed in~\cite{brnglr} and it allow to achive worst-case cubic space complexity.
 
-Picture with nodes description.
+Let we present an example of SPPF for ambiguos grammar $G_0$ (pic~\ref{grammarG0}).
 
-Binarised SPPF is a graph where and each node has one of four types and one node marked as 'root' --- node for start nonterminal.
+\begin{figure}[h]
+   \begin{center}
+\begin{verbatim}
+   0: s = NUM
+   1: s = LBR s RBR
+   2: s = s s
+\end{verbatim}
+   \caption{Grammar $G_0$}
+   \label{grammarG0}        
+   \end{center}
+\end{figure}
+
+Here \verb|N| is token for number, \verb|L| and \verb|R| are tokens for '(' and ')'  respectively.
+
+Let we parse the sentence \verb|(1)(2)(3)|. There are two diferent lefmost derivations of this sentence in grammar $G_0$: 
+\begin{enumerate} 
+    \item $s \rightarrow ^ 2 s s \rightarrow ^ 2 s s s \rightarrow ^ 1 L s R s s \rightarrow ^ 0 L N R s s \rightarrow ^ 1 
+    L N R L s R s \rightarrow ^ 1 L N R L s R s \rightarrow ^ 0 L N R L N R s \rightarrow ^ 1 L N R L N R L s R \rightarrow ^ 0 L N R L N R L N R$
+    \item $s \rightarrow ^ 2 s s \rightarrow ^ 1 L s R s  \rightarrow ^ 0 L N R s \rightarrow ^ 2 L N R s s  \rightarrow ^ 1 
+    L N R L s R s \rightarrow ^ 1 L N R L s R s \rightarrow ^ 0 L N R L N R s \rightarrow ^ 1 L N R L N R L s R \rightarrow ^ 0 L N R L N R L N R$
+\end{enumerate}
+    , SPPF should contains two trees. SPPF presented in figure~\ref{sppfSample} will be constructed.
+
+
+\begin{figure}[h]
+    \begin{center}
+        \includegraphics[width=8cm]{dot/Brackets.pdf}
+        \caption{SPPF}
+        \label{sppfSample}        
+    \end{center}
+\end{figure}
+
+Binarised SPPF is a graph where !!! and each node has one of four types and one node marked as 'root' --- node for start nonterminal.
+
 \begin{itemize}
     \item terminal node
     \item nonterminal node
@@ -105,7 +139,9 @@ Binarised SPPF is a graph where and each node has one of four types and one node
     \item ....
 \end{itemize}
 
-GLL can use SPPF~\cite{gllParsingTree} for results representation  achive cubic space complexity with binarised version.
+Further we will remove redudant nodes from SPPF to simplify it and decrease size of structure.
+
+GLL can use SPPF~\cite{gllParsingTree} for results representation achive cubic space complexity with binarised version.
 
 
 \section{Preliminaries}
@@ -115,11 +151,11 @@ Let we introduce some definitions.
   \item Context-free grammar $G=(N, \Sigma, P, S)$ where $N$ is a set of nonterminal symbols, $\Sigma$ is a set of nonterminal symbols, $S \in N$ is a start nionterminal, and $P$ is a productions set. 
   \item Directed graph $M = (V,E,L)$ where $V$ --- vertices set, $L \subseteq \Sigma$ --- edge labels set, $E\subseteq V\times L\times V$. 
   We assume that there are no parallel edges with equal labebs: for every $e_1=(v_1,l_1,v_2) \in E, e_2=(u_1,l_2,u_2) \in E$ if $v_1 = u_1$ and $v_2 = u_2$ then $l_1 \neq l_2$.
-  \item Helper function $tag: E \rightarrow L; tag(e = (v_1,l,v_2), e \in E) = l$.
+  \item Helper function for edge's tag calculation $tag: E \rightarrow L; tag(e = (v_1,l,v_2), e \in E) = l$.
   \item Concatenation operation $\oplus: L^+ \times L^+ \rightarrow L^+$.
   \item Path $p$ in graph $M$. \\ $p = (v_0,l_0,v_1),(v_1,l_1,v_2),\dots,(v_{n-1},l_{n-1},v_n) = e_0,e_1,\dots,e_{n-1}$ where $v_i \in V$,$e_i \in E$, $l_i \in L$, $|p| = n \leq 1$. 
-  \item Set of path $P = \{p: p \text{ path in } M\}$
-  \item Helper function $\Omega: P \rightarrow L^+$.\\ $\Omega(p = e_0,e_1,\dots,e_{n-1}, p \in P) = tag (e_0) \oplus \dots \oplus tag (e_{n-1})$.
+  \item Set of paths $P = \{p: p \text{ path in } M\}$
+  \item Helper function for string produced by path calculation $\Omega: P \rightarrow L^+$.\\ $\Omega(p = e_0,e_1,\dots,e_{n-1}, p \in P) = tag (e_0) \oplus \dots \oplus tag (e_{n-1})$.
 \end{itemize}
 
 As a result we can define that context-free language constrained path querying meens that each path $p = e_0,\dots,e_{n-1}$ from result set satisfied with next constraint: $\Omega(p) \in L(G)$. 
@@ -212,7 +248,7 @@ We use next markers for nodes.
 \end{itemize}
 
 As an example of derivation structure usage we can find 'middle' of any path in example above simply by finding corresponded nonterminal $middle$ in SPPF.
-So we can found that there is only one common ancestor for all results and it is vertex with id=$0$. 
+So we can found that there is only one common ancestor for all results and it is vertex with $id = 0$. 
 
 Extensions stored in nodes allow to check whether path from $u$ to $v$ exists and extract it. 
 Path extraction is SPPF traversal. 
