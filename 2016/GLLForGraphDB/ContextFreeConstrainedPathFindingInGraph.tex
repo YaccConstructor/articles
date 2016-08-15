@@ -107,6 +107,7 @@ In this work we are focused on parsing algorithm, and not on the data representa
 Also we need to introduce some definitions.
 \begin{itemize}
   \item Context-free grammar $G=(N, \Sigma, P, S)$ where $N$ is a set of nonterminal symbols, $\Sigma$ is a set of terminal symbols, $S \in N$ is a start nonterminal, and $P$ is a productions set. 
+  \item $\mathcal{L}(G)$ is a language specified by grammar $G$.
   \item Directed graph $M = (V,E,L)$ where $V$ --- vertices set, $L \subseteq \Sigma$ --- edge labels set, $E\subseteq V\times L\times V$. 
   We assume that there are no parallel edges with equal labebs: for every $e_1=(v_1,l_1,v_2) \in E, e_2=(u_1,l_2,u_2) \in E$ if $v_1 = u_1$ and $v_2 = u_2$ then $l_1 \neq l_2$.
   \item Helper function for edge's tag calculation $tag: E \rightarrow L$. $$tag(e = (v_1,l,v_2), e \in E) = l$$
@@ -125,10 +126,11 @@ Also we need to introduce some definitions.
   \end{align*}
 \end{itemize}
 
-As a result we can define that context-free language constrained path querying meens that we get query as grammar $G$ and result of this query is a set of paths $P=\{p|\Omega(p) \in L(G)\}$.
+As a result we can define that context-free language constrained path querying meens that we get query as grammar $G$ and result of this query is a set of paths $$P=\{p|\Omega(p) \in \mathcal{L}(G)\}.$$
 
 For some graphs and some queries $P$ can be infinite set, and it can not be explicitly represented. 
-In order to solve this problem, in this paper, we will construct not explicit representation of $P$ but compact data structure which store all elements of $P$ in finite space and allow to extract any of them. 
+In order to solve this problem, in this paper, we will construct not explicit representation of $P$ but compact data structure which store all elements of $P$ in finite space and allow to extract any of them.
+In this point our solution is slightly similar to subgraph quering proposed in article~\cite{GraphQueryWithEarley}, but we are also construct derivetion forest for result subgraph.
 
 \section{Example}
 As a motivation of context-free constraints importance let we introduce the next example.
@@ -176,7 +178,8 @@ Finite representation of result set with structure related to specified grammar 
 Our solution is based on generalized LL (GLL)~\cite{scott2010gll, FastPracticalGLL} parsing algorithm which allow to process ambiguous context-free grammars.
 Complexity is $O(n^3)$ in worst case and linear for unambiguous grammars, that better then complexity of CYK and Earley which used as base in other solutions (for example~\cite{ConjCFPathQuery}, ~\cite{GraphQueryWithEarley}).
 This fact allow to demonstarte better performance on linear subgraphs and unambiguous grammars.
-Also it is not necessary to transform input grammar to CNF which required for CYK.
+Also it is not necessary to transform input grammar to CNF which required for CYK which allow to avoid grmmar size decreasing.
+It is important because real performance of parsing algorithm is sensetive to grammar size.
 
 
 \subsection{Generalized LL Parsing Algorithm}
@@ -267,9 +270,13 @@ Further we will remove redudant intermidiate and packed nodes from SPPF to simpl
 
 \subsection{GLL-based graph parsing}
 
+$\mathbb{P}:G,M \rightarrow SPPF$
+
 In order to use GLL for graph parsing we need only use graph verticea as position in input.
 As far as we work with context-free languages it is not important how this descriptor was created, and so descriptors management and other basic mechanisms of original algorithm can be reused ``as is''. 
 We can merge it if thea are equal. 
+
+
 
 We implement some optimizations:~\cite{FastPracticalGLL}
 
@@ -286,7 +293,7 @@ Time complexity estimation in terms of input graph and grammar size is pretty si
 Descriptor is a triple $(L, s, j)$ where $|L| = f(G) = g$ --- some grammar-depended constant, $|j| = |V|$, and $|s| = |GSS.Nodes|$.
 GSS node $N$ is a pair $(lbl, j)$ where $|lbl| = f(G) = g$ and $|j| = |V|$. 
 Thus we can create at most $$|L|*|s|*|j| = g * g * |V| * |V| = g^2*|V|^2$$ descriptors, where $g^2$ is grammar-depended constant and may by skipped.
-For each descriptor we should examine all outgoing edges which can be bounded with $$\max\limits_{v \in V}(deg^+(v))$$  where $deg^+(v)$ is outdegree of vertex $v$.
+For each descriptor we should examine all outgoing edges which can be bounded with $$\max\limits_{v \in V}\left(deg^+\left(v\right)\right)$$  where $deg^+(v)$ is outdegree of vertex $v$.
 Thus we need $$O\left(|V|^2*\left(\max\limits_{v \in V}\left(deg^+\left(v\right)\right)\right)\right)$$ operation for outgoing edges processing.
 
 For all elsements produced in previous step we should perform search in internal data structures. It is possible in linear (w.r.t position count, $|V|$ in our case) time~\cite{modellingGLL}.
@@ -419,7 +426,7 @@ Full graph for highly unambiguos greammar $G_3$ (figure~\ref{grammarG3}).
    1: s = s s
    2: s = A
 \end{verbatim}
-   \caption{Highly unambiguos grammar $G_3$}
+   \caption{Highly ambiguos grammar $G_3$}
    \label{grammarG3}        
    \end{center}
 \end{figure}
