@@ -8,8 +8,6 @@
 
 % ажетс€, можно уменьшить распинательства про то, как узлы в дереве отрисовываютс€ -- жалко полстраницы на это. 
 
-%ћне в принципе нравитс€ структура: все достаточно последовательно. 
-
 %“ы упоминаешь formal languages constraint path problem, но не говоришь, что это за проблема. 
 
 %Ћучше не называть константу, завис€щую от грамматики L. L это €зык обычно, а €зыки бывают бесконечными, а это не позвол€ет вз€ть и выкинуть из оценки множитель. 
@@ -49,6 +47,9 @@
 \usepackage{textcomp}
 
 \begin{document}
+
+\newtheorem{mytheorem}{Theorem}
+\newtheorem{lemma}{Lemma}
 
 \makeatletter
 \def\@copyrightspace{\relax}
@@ -112,7 +113,6 @@ GLR-based for string-embedded SQL checking~\cite{Alvor1, Alvor2}.
 Solution based on RNGLR~\cite{rnglr} for relaxed parsing of string-embedded languages~\cite{relaxedRNGLR} which allow to find all path between two specified vertices.
 
 
-
 despite of the fact There is set of solutions in DB area but !!! Query result exploration is a challenge~\cite{hofman2015separabilityForRegQueryDebugging}. 
 Classical parsing allow to construct derivation tree which is structural representation of parsed sentence.
 Structural represenatation of query result can be useful for its exploration and qury debugging.
@@ -146,7 +146,7 @@ Also we need to introduce some definitions.
   \item Helper function for string produced by path calculation $\Omega: P \rightarrow L^+$. 
   \begin{align*}
   & \Omega(p = e_{0},e_{1},\dots,e_{n-1}, p \in P) = \\
-  & tag (e_{0}) \oplus \dots \oplus tag (e_{n-1})
+  & tag (e_{0}) \oplus \dots \oplus tag (e_{n-1}).
   \end{align*}
 \end{itemize}
 
@@ -156,13 +156,15 @@ For some graphs and some queries $P$ can be infinite set, and it can not be expl
 In order to solve this problem, in this paper, we will construct not explicit representation of $P$ but compact data structure which store all elements of $P$ in finite space and allow to extract any of them.
 In this point our solution is slightly similar to subgraph quering proposed in article~\cite{GraphQueryWithEarley}, but we are also construct derivetion forest for result subgraph.
 
-\section{Example}
+\section{Motivating Example}
 As a motivation of context-free constraints importance let we introduce the next example.
 Let we have graph $M=(\{0;1;2;3\},E,\{A;B\})$ presented in figure~\ref{input} where labels represent next relations:
 \begin{itemize}
     \item $A$ --- ``is friend of'' ($v_0 A v_1$ meens $v_0$ is friend of $v_1$);
     \item $B$ --- ``has friend'' ($v_0 B v_1$ meens $v_0$ has friend $v_1$).
 \end{itemize} 
+
+each time when it opend it should be closed in future.
 
 Suppose for each $n \geq 1$ we want to find all $n$-th generation friends with a common ancestor.
 In the other worlds, we wath to find all paths $p$, such that $\Omega(p) \in \{AB; AABB; AAABBB; \dots\}$ or $\Omega(p) = A^n B^n$ where $n \geq 1$.
@@ -214,7 +216,7 @@ GLL is native for grammar, can be simple created blah-blah-blah.
 GLL use descriptors for parsing states specification.
 Each descriptor contains full specification of process state anought to start parsing from state stored.
 
-Descriptor is a triple $(L, s, j)$ where $L$ is a line label, $s$ is a stack and $j$ is a position in the input.
+Descriptor is a quadriple $(L, s, j, a)$ where $L$ is a line label, $s$ is a stack, $j$ is a position in the input, and $a$ is a node of derivation tree.
 
 allows to restore parsing
 
@@ -244,7 +246,7 @@ Let we present an example of SPPF for ambiguos grammar $G_0$ (pic~\ref{grammarG0
 
 Here \verb|N| is token for number, \verb|L| and \verb|R| are tokens for '(' and ')'  respectively.
 
-Let we parse the sentence \verb|(1)(2)(3)|. 
+Let we parse the sentence \verb|"()()()"|. 
 There are two diferent lefmost derivations of this sentence in grammar $G_0$ ($\rightarrow ^ n$ denote an application of production with nimber $n$): 
 \begin{enumerate} 
     \item $s \rightarrow ^ 2 s s \rightarrow ^ 2 s s s \rightarrow ^ 1 L s R s s \rightarrow ^ 0 L N R s s \rightarrow ^ 1 
@@ -252,9 +254,9 @@ There are two diferent lefmost derivations of this sentence in grammar $G_0$ ($\
     \item $s \rightarrow ^ 2 s s \rightarrow ^ 1 L s R s  \rightarrow ^ 0 L N R s \rightarrow ^ 2 L N R s s  \rightarrow ^ 1 
     L N R L s R s \rightarrow ^ 1 L N R L s R s \rightarrow ^ 0 L N R L N R s \rightarrow ^ 1 L N R L N R L s R \rightarrow ^ 0 L N R L N R L N R$
 \end{enumerate}
+ 
     As far as there are tho different derivations, SPPF should contains 2 different trees and it is presented in figure~\ref{sppfSample}: result SPPF~\ref{sppf} and trees for derivation 1~\ref{tree1} and derivation 2~\ref{tree1} respectively. 
-
-
+ 
 \begin{figure*}[ht]
     \begin{center}
     \centering
@@ -280,21 +282,19 @@ There are two diferent lefmost derivations of this sentence in grammar $G_0$ ($\
     \end{center}                
 \end{figure*}
 
-Binarised SPPF is a graph where !!! and each node has one of four types and one node marked as 'root' --- node for start nonterminal.
+Binarised SPPF can be represented as a graph where each node has one of four types: 
 
 \begin{itemize}
-    \item terminal node
-    \item nonterminal node
-    \item intermidiate node
-    \item packed node
+    \item terminal node with label $(i,T,j)$;
+    \item nonterminal node with label $(i,N,j)$;
+    \item intermidiate node with label $(t,i,j)$ where $t$ is a grammar slot;
+    \item packed node with label $(N : \gamma \cdot, k)$;
 \end{itemize}
+, and one of nodes can be marked as 'root' --- node for start nonterminal.
 
-Further we will remove redudant intermidiate and packed nodes from SPPF to simplify it and decrease size of structure.
-
+Further in our examples we will remove redudant intermidiate and packed nodes from SPPF to simplify it and decrease size of structure.
 
 \subsection{GLL-based graph parsing}
-
-$\mathbb{P}:G,M \rightarrow SPPF$
 
 In order to use GLL for graph parsing we need only use graph verticea as position in input.
 As far as we work with context-free languages it is not important how this descriptor was created, and so descriptors management and other basic mechanisms of original algorithm can be reused ``as is''. 
@@ -310,42 +310,104 @@ We
 
 Binarized SPPF is at most cubic in terms of result size. Any path can be extracted in the linear time.
 
-\subsection{Complexity}
-
-Time complexity estimation in terms of input graph and grammar size is pretty similar to estimation of GLL complexity explained in~\cite{modellingGLL}.
-
-Descriptor is a triple $(L, s, j)$ where $|L| = f(G) = g$ --- some grammar-depended constant, $|j| = |V|$, and $|s| = |GSS.Nodes|$.
-GSS node $N$ is a pair $(lbl, j)$ where $|lbl| = f(G) = g$ and $|j| = |V|$. 
-Thus we can create at most $$|L|*|s|*|j| = g * g * |V| * |V| = g^2*|V|^2$$ descriptors, where $g^2$ is grammar-depended constant and may by skipped.
-For each descriptor we should examine all outgoing edges which can be bounded with $$\max\limits_{v \in V}\left(deg^+\left(v\right)\right)$$  where $deg^+(v)$ is outdegree of vertex $v$.
-Thus we need $$O\left(|V|^2*\left(\max\limits_{v \in V}\left(deg^+\left(v\right)\right)\right)\right)$$ operation for outgoing edges processing.
-
-For all elsements produced in previous step we should perform search in internal data structures. It is possible in linear (w.r.t position count, $|V|$ in our case) time~\cite{modellingGLL}.
-So, worst-case complexity of proposed algorithm is 
-\begin{equation} \label{eq:worst}
-O\left(V^3*\max\limits_{v \in V}\left(deg^+\left(v\right)\right)\right)
-\end{equation}
-
-To get averege-case complexity we can calculate averege outdegree:
-\begin{align} \label{eq:avg}
-  & O\left(|V|^3*\frac {\sum\limits_{v \in V} deg^+(v)}{|V|}\right) = \nonumber \\
-  & O\left(|V|^2*\sum\limits_{v \in V} deg^+(v)\right) = \nonumber \\
-  & O\left(|V|^2*|E|\right) 
-\end{align}
-
-For unambiguous grammar complexity should be linear in terms of vertices count for the same reason as in classical GLL.
-
-From~(\ref{eq:worst}) and~(\ref{eq:avg}) we can get estimations for linear input: $\text{for any } v \in V deg^+(v) \leq 1$, so $\max\limits_{v \in V}(deg^+(v))  = 1 $ and from~(\ref{eq:worst}) we have $O(|V|^3)$. 
-By the same way we can get $O(|V|^3)$ form~(\ref{eq:avg}) denote that $|E| = |V| - 1$ in case of linera input. 
-
-As discussed in~\cite{modellingGLL} achiving of theoretical complexity reqired special datastructures which can be irrational for practice implementation and it is necessary to finde balance between performance, software complexity, and hardware resources.
-As a result in practice we can get slightly worse performance than theoretical estimation.
-
-\subsection{Example}
+$\mathbb{P}:G, M, StartVset, FinalVSet \rightarrow SPPF$
 In details, main function input is graph $M$, set of start vertices $V_s\subseteq V$, set of final vertices $V_f\subseteq V$, grammar $G_1$.
 Output is Shared Packed Parse Forest (SPPF)~\cite{SPPF} --- finite data structure which contains all derivation trees for all paths in $M$, $\Omega(p) \in L(G_1)$ and allows to reconstruct any of paths implicitly.
 As far as we can specify sets of start and final vertices, our solution can find all paths in graph, all paths from specified vertex, all paths between specified vertices. 
 Also SPPF represents a structure of paths in terms of derivation which allow to get more useful information about result.
+
+
+\subsection{Complexity}
+
+Time complexity estimation in terms of input graph and grammar size is pretty similar to estimation of GLL complexity provided in~\cite{gllParsingTree}.
+
+\begin{lemma}\label{lem:Descriptors}
+For any descriptor $(L,u,i,w)$ either $w = \$$ or $w$ has extension $(j,i)$ where u has index $j$.
+\end{lemma}
+\begin{proof}
+Proof of this lemma is the same as provided for riginal GLL in~\cite{gllParsingTree} because main function used for descriptor creation are the same as original one.
+\end{proof}
+
+
+\begin{mytheorem}\label{thm:GSSSpace}
+The GSS generated by GLL-based graph parsing algorithm for grammar $G$ on input graph $M=(V,E,L)$ has at most $O(|V|)$ vertices and $O(|V|^2)$ edges.
+\end{mytheorem}
+
+\begin{proof}
+
+Proof the same as the proof of \textbf{Theorem 2} from~\cite{gllParsingTree}. 
+
+\end{proof}
+
+\begin{mytheorem}\label{thm:SPPFSpace}
+The SPPF generated by GLL-based graph parsing algorithm on input graph $M=(V,E,L)$ has at most $O(|V|^3 + |E|)$ vertices and edges.
+\end{mytheorem}
+
+\begin{proof}
+Let we estimate number of nodes of each type.
+\begin{itemize}
+\item Terminal nodes. 
+Each of them has label of form $(T, v_0, v_1)$, and such lable can be created only if there is such $e \in E$ that $e=(v_0,T,v_1)$. 
+Note, that there are no duplicate edges. 
+Hence tere are at most $|E|$ terminal nodes.
+\item $\varepsilon$ nodes labled with $(\varepsilon, v ,v)$, hence there are at most $|E|$ of these. 
+\item Nonterminal nodes have label of form $(N,v_0,v_1)$, so there are at most $O(|V|^2)$ of these.
+\item Intermideate nodes have label of form $(t,v_0,v_1)$, where $t$ is grammar slot, so there are at most $O(|V|^2)$ of these.
+\item Packed nodes are children of intermediate or nonterminal nodes and have label of form $(t,v)$ where $t$ is a grammar slot $N : \alpha \cdot \beta$.
+There are at most $O(|V|^2)$ parents for packed nodes and each of them can have at most $O(|V|)$ children.
+\end{itemize}
+
+As a result there are at most $O(|V|^3 + |E|)$ nodes in SPPF.
+
+The packed nodes have at most two children so there are at most $O(|V|^3 + |E|)$ edges with source in packed node. 
+Nonterminal and intermediate nodes have at most $O(|V|)$ children and all of them are packed nodes.
+Thus there are at most $O(|V|^3)$ edges with source in nonterminal or intermediate nodes. As a result there are at most $O(|V|^3 + |E|)$ edges in SPPF.
+
+
+\end{proof}
+
+\begin{mytheorem}
+The space complexity of GLL-based graph parsing algorithm for graph $M=(V,E,L)$ is at most $O(|V|^3 + |E|)$.
+\end{mytheorem}
+
+\begin{proof}
+
+From theorems~\ref{thm:GSSSpace} and~\ref{thm:SPPFSpace} we have that space requerd for main data structures is at most $O(|V|^3 + |E|)$. 
+
+\end{proof}
+
+
+\begin{mytheorem}\label{thm:complexity}
+The runtime complexity of GLL-based graph parsing algorithm for graph $M=(V,E,L)$ is at most $$O\left(|V|^3*\max\limits_{v \in V}\left(deg^+\left(v\right)\right)\right).$$
+\end{mytheorem}
+
+\begin{proof}
+
+From Lemma~\ref{lem:Descriptors} we get that there are at most $O(|V|^2)$ descriptors. 
+Complexity of all functions are the same as in proof of \textbf{Theorem 4} from~\cite{gllParsingTree} except \textit{processing} function where we should process not one next input token, but all outgoing edges.
+Thus for each descriptor we should examine at most $$\max\limits_{v \in V}\left(deg^+\left(v\right)\right)$$ edges where $deg^+(v)$ is outdegree of vertex $v$.
+
+So, worst-case complexity of proposed algorithm is $$O\left(V^3*\max\limits_{v \in V}\left(deg^+\left(v\right)\right)\right).$$
+\end{proof}
+
+%Also we can get averege-case complexity by calculate averege outdegree:
+%\begin{align} \label{eq:avg}
+%  & O\left(|V|^3*\frac {\sum\limits_{v \in V} deg^+(v)}{|V|}\right) = \nonumber \\
+%  & O\left(|V|^2*\sum\limits_{v \in V} deg^+(v)\right) = \nonumber \\
+%  & O\left(|V|^2*|E|\right) 
+%\end{align}
+
+From theorem~(\ref{thm:complexity}) we can get estimations for linear input and for LL grammars: $\text{for any } v \in V deg^+(v) \leq 1$, so $\max\limits_{v \in V}(deg^+(v))  = 1 $ and we get $O(|V|^3)$. 
+For LL grammars and linear input complexity should be $O(|V|)$ for the same reason as for original GLL.
+ 
+
+As discussed in~\cite{modellingGLL} achiving of theoretical complexity reqired special datastructures which can be irrational for practice implementation and it is necessary to finde balance between performance, software complexity, and hardware resources.
+As a result in practice we can get slightly worse performance than theoretical estimation.
+
+Note that result SPPF contains only paths matched specified query, so result SPPF size is $O(|V'|^3 + |E'|)$ where $M'=(V',E',L')$ is a subgraph of input graph $M$ which contains only matched paths.
+Also note that each specific path can be explored with linear SPPF traversal. 
+
+\subsection{Example}
 
 Let we introduce the next example. Grammar $G_1$ is a query and we want to find all paths in graph $M$ (presented in picture~\ref{input}) matched this query.
 Result SPPF for this input is presented in picture~\ref{SPPF}. Note that presented version does not contein obsolete nodes.
@@ -388,14 +450,9 @@ p_1=\{&(0,A,1);(1,A,2);(2,A,0);(0,A,1);(1,A,2);(2,A,0);\\ &(0,B,3);(3,B,0);(0,B,
 
 \section{Evaluation}
 
-We perform some experiments on syntatic graphs.
-Full graphs and graphs with structure presented in figure !!!.
-All paths from all vertices and all paths from one specified vertex. 
-For full graph also all paths between two specified vertices.
+We use two grammars for balanced brakets --- ambiguos grammar $G_0$~\ref{grammarG0} and unambiguos grammar $G_2$~\ref{grammarG2} --- in order to investigate performance and grammar ambiguity correlation.
 
-We use two grammars for balanced brakets in order to investigate performance relations with grammar ambiguity: ambiguos grammar $G_0$~\ref{grammarG0} and unambiguos grammar $G_2$~\ref{grammarG2}.
-
-\begin{figure}[h]
+\begin{figure}[ht]
    \begin{center}
 \begin{verbatim}
    0: s = L s R s 
@@ -406,6 +463,10 @@ We use two grammars for balanced brakets in order to investigate performance rel
    \end{center}
 \end{figure}
 
+For input we use complete graphs where for each termial symbol there is edge between two vertices labeled with it.
+Note that we use only terminal symbols for edges labels.  
+Task we solve in our experiments is to find all paths from all vertices to all vertixes satisfied specified query.
+Such designed input looks hard for quering in terms of required resources because there are correct path between any two vertices and result set is infinite.
 
 All tests were performed on a PC with following characteristics:
 \begin{itemize}
@@ -415,10 +476,43 @@ All tests were performed on a PC with following characteristics:
 \item RAM: 32 GB
 \end{itemize}
 
-Results presented in figure~\ref{pic:DoubleCyclesPerf}.
-From all and from one vertex is because descriptors reusing.
+Performance mesurament results presented in figure~\ref{pic:Perf}. 
+As far as for complete graph $M=(V,E,L)$ $$\max\limits_{v \in V}\left(deg^+\left(v\right)\right) = (|V| - 1)*|\Sigma|$$ where $\Sigma$ is terminals of input grammar, we should get time complexity at most $O(|V|^4)$ and space complexity at most $O(|V|^3)$.
+For time mesurement results we have that all two curves can be fit with polinomial function of degree 4 to a high level of confidence with $R^2$. 
 
-\begin{figure}[h]
+%g(x) = m*x**3 + n*x**2 + o*x + p
+%fit g(x) 'perf/2' using 1:4 via n,m,o,p
+
+\begin{figure}[ht]
+\centering
+\begin{gnuplot}
+set terminal epslatex color size 9cm,8cm
+set yrange [0:]
+set key box top left
+set key width 2
+set key opaque
+set sample 1000
+set xlabel 'Number of vertices in input graph'
+set ylabel 'Time in milliseconds'
+
+f1(x) = 0.000495989*x**4 + 0.001252184*x**3 + 0.068491746*x**2 - 0.306749160*x
+f2(x) = 0.003368883*x**4 - 0.114919298*x**3 + 3.161793404*x**2 - 22.549491142*x
+
+plot 'perf/2' using 1:3  pt 6 title '$G_0$',\
+     'perf/2' using 1:4  pt 5 title '$G_2$',\
+     f1(x)  with line lt -1 title '$f_1$',\
+     f2(x)  lc rgb "black" dashtype 2 title '$f_2$'     
+
+ \end{gnuplot}
+\caption{Performance on complete graphs for grmmars $G_0$ and $G_2$ \\ 
+$f_1(x) = 0.000495989*x^4 + 0.001252184*x^3 + 0.068491746*x^2 - 0.306749160*x$; $R^2 = 0.99996$ \\
+$f_2(x) = 0.003368883*x^4 - 0.114919298*x^3 + 3.161793404*x^2 - 22.549491142*x$; $R^2 = 0.99995$}
+\label{pic:Perf}
+\end{figure}
+
+Also we present SPPF size in terms of nodes for both $G_0$ and $G_2$ grammars~\ref{pic:SPPFSize}. As we expected, all two curves are cubic to a high level of confidence with $R^2 = 1$. 
+
+\begin{figure}[ht]
 \centering
 \begin{gnuplot}
 set terminal epslatex color size 9cm,8cm
@@ -426,34 +520,65 @@ set key box top left
 set key width 2
 set key opaque
 set sample 1000
-set xlabel '$x$-label'
-set ylabel '$y$-label
-plot 'perf/1' using 1:2 with lines ls 2 ti '$P_2$',\
-     'perf/1' using 1:3 with lines ls 3 ti '$P_2$',\
-     'perf/1' using 1:4 with lines ls 4 ti '$P_2$',\
-     'perf/1' using 1:5 with lines ls 5 ti '$P_3$'
+set xlabel 'Number of vertices in input graph'
+set ylabel 'Number of SPPF nodes'
+
+f1(x) = 3.000047*x**3 + 3.994579*x**2 + 4.191568*x
+f2(x) = 3.000050*x**3 + 2.994338*x**2 + 4.196472*x
+
+
+plot 'perf/2' using 1:6 pt 6 title '$G_2$',\
+     'perf/2' using 1:7 pt 5 title '$G_0$',\
+     f1(x)  with line lt -1 title '$f_1$',\
+     f2(x)  lc rgb "black" dashtype 2 title '$f_2$'     
+
  \end{gnuplot}
-\caption{Performance on C graph for grmmars $G_0$ and $G_2$}
-\label{pic:DoubleCyclesPerf}
+\caption{SPPF size on complete graph for grmmars $G_0$ and $G_2$ an complete graphs \\
+$f_1(x) = 3.000047*x^3 + 3.994579*x^2 + 4.191568*x$; $R^2 = 1$\\
+$f_2(x) = 3.000050*x^3 + 2.994338*x^2 + 4.196472*x$; $R^2 = 1$}
+\label{pic:SPPFSize}
 \end{figure}
 
-To summarise we can say that performance for unambiguos grammars is better then for ambiguos. 
 
-Full graphs for balanced brackets.
+%\begin{figure}[h]
+%\centering
+%\begin{gnuplot}
+%set terminal epslatex color size 9cm,8cm
+%set key box top left
+%set logscale y
+%set key width 2
+%set key opaque
+%set sample 1000
+%set xlabel '$x$-label'
+%set ylabel '$y$-label
+%plot 'perf/3' using 1:2 with lines ls 2 ti '$Unamb$',\
+%     'perf/3' using 1:3 with lines ls 3 ti '$amb$'
+%
+% \end{gnuplot}
+%\caption{Performance on C graph for grmmars $G_0$ and $G_2$}
+%\label{pic:DoubleCyclesPerf}
+%\end{figure}
 
-Full graph for highly unambiguos greammar $G_3$ (figure~\ref{grammarG3}).
 
-\begin{figure}[h]
-   \begin{center}
-\begin{verbatim}
-   0: s = s s s 
-   1: s = s s
-   2: s = A
-\end{verbatim}
-   \caption{Highly ambiguos grammar $G_3$}
-   \label{grammarG3}        
-   \end{center}
-\end{figure}
+
+
+%To summarise we can say that performance for unambiguos grammars is better then for ambiguos. 
+
+%Full graphs for balanced brackets.
+
+%Full graph for highly unambiguos greammar $G_3$ (figure~\ref{grammarG3}).
+
+%\begin{figure}[h]
+%   \begin{center}
+%\begin{verbatim}
+%   0: s = s s s 
+%   1: s = s s
+%   2: s = A
+%\end{verbatim}
+%   \caption{Highly ambiguos grammar $G_3$}
+%   \label{grammarG3}        
+%   \end{center}
+%\end{figure}
 
 
 \section{Conclusion and future work}
@@ -462,6 +587,7 @@ Provided data structure can be useful for result investigation and processing, a
 Presented algorithm implemented in F\#~\cite{FSharp} and available on GitHub:\url{https://github.com/YaccConstructor/YaccConstructor}.
 
 In order to estimate practical value of proposed algorithm we should perform evaluation on real dataset and real queries.
+One of possible application of our algorithm is metagenomical assambly quering, and we are working on this topic.
 
 Also we are working on performance improvement by implementation of recently proposed modifications in original GLL algorithm~\cite{FGLL}.
 One of direction of our research is generalization of grammar factorization proposed in~\cite{FGLL} which may be useful for regular query processing.
