@@ -4,8 +4,6 @@
 
 %У тебя где-то сказано, что SPPF содержит все решения, но нигде не приведена аргументация. 
 
-%Было бы неплохо написать мотивацию выбора именно тех бенчмарков, на которых ты графики рисуешь. 
-
 %Кажется, можно уменьшить распинательства про то, как узлы в дереве отрисовываются -- жалко полстраницы на это. 
 
 %Ты упоминаешь formal languages constraint path problem, но не говоришь, что это за проблема. 
@@ -101,9 +99,15 @@ Path querying with constrains formulated in terms of formal grammars is a specif
 Classical parsing techniques can be used to solve formal language constrained path problem thus we can use ``graph parsing'' and it may be required not only in graph data base quering but also in other 
 different areas: formal verification, and string-embedded language processing, for example. 
 
-Classical solution in DB area use such parsing algorithms as CYK or Earley.
+The moste solution in DB area use such parsing algorithms as CYK or Earley.
 In string-embedded languages analysis (RN)GLR is used.
 It has better time complexity.
+
+Complexity is $O(n^3)$ in worst case and linear for unambiguous grammars, that better than complexity of CYK and Earley which used as base in other solutions (for example~\cite{ConjCFPathQuery}, ~\cite{GraphQueryWithEarley}).
+This fact allow to demonstarte better performance on linear subgraphs and unambiguous grammars.
+Also it is not necessary to transform input grammar to CNF which required for CYK which allow to avoid grmmar size decreasing.
+It is important because real performance of parsing algorithm is sensetive to grammar size.
+
 
 Graph parsing can be also used in string-embedde languages prcessing. 
 Regular approximation for value set of string variable can by represened as directed graph of related fite automata.
@@ -112,100 +116,28 @@ For example grammar of one of SQL dialects.
 GLR-based for string-embedded SQL checking~\cite{Alvor1, Alvor2}.
 Solution based on RNGLR~\cite{rnglr} for relaxed parsing of string-embedded languages~\cite{relaxedRNGLR} which allow to find all path between two specified vertices.
 
+Despite of the fact that there is set of path quering solutions~\cite{GraphQueryWithEarley, ConjCFPathQuery, !!!}, query result exploration still a challenge~\cite{hofman2015separabilityForRegQueryDebugging}. 
+Complex query debugging also is a problem. 
+To solve these problems structural represenatation of query result can be useful, and classical parsing thechniques allow to construct such representation: derivation tree contains full information abaut parsed sentence structure in terms of specified grammar.
 
-despite of the fact There is set of solutions in DB area but !!! Query result exploration is a challenge~\cite{hofman2015separabilityForRegQueryDebugging}. 
-Classical parsing allow to construct derivation tree which is structural representation of parsed sentence.
-Structural represenatation of query result can be useful for its exploration and qury debugging.
+
 In this paper, we propose graph parsing technique which allow to construct structural representation of query result with reletion to grammar query or derivation of result.
-
 
 So, we propose algorithm based top-down parsing algorithm. LL is more natural and so on.
 
+\input{Preliminaries.tex}
 
+\input{MotivExample.tex}
 
-
-\section{Preliminaries}
-
-In this work we are focused on parsing algorithm, and not on the data representation, and de assume that full input graph can be located in RAM memory by the optimal for our algorithm way.
-
-Also we need to introduce some definitions.
-\begin{itemize}
-  \item Context-free grammar $G=(N, \Sigma, P, S)$ where $N$ is a set of nonterminal symbols, $\Sigma$ is a set of terminal symbols, $S \in N$ is a start nonterminal, and $P$ is a productions set. 
-  \item $\mathcal{L}(G)$ is a language specified by grammar $G$.
-  \item Directed graph $M = (V,E,L)$ where $V$ --- vertices set, $L \subseteq \Sigma$ --- edge labels set, $E\subseteq V\times L\times V$. 
-  We assume that there are no parallel edges with equal labebs: for every $e_1=(v_1,l_1,v_2) \in E, e_2=(u_1,l_2,u_2) \in E$ if $v_1 = u_1$ and $v_2 = u_2$ then $l_1 \neq l_2$.
-  \item Helper function for edge's tag calculation $tag: E \rightarrow L$. $$tag(e = (v_1,l,v_2), e \in E) = l$$
-  \item Concatenation operation $\oplus: L^+ \times L^+ \rightarrow L^+$.
-  \item Path $p$ in graph $M$. 
-  \begin{align*}
-   p &= (v_0,l_0,v_1),(v_1,l_1,v_2),\dots,(v_{n-1},l_{n-1},v_n) \\
-     &= e_0,e_1,\dots,e_{n-1}
-  \end{align*}
-  where $v_i \in V$,$e_i \in E$, $l_i \in L$, $|p| = n, n \geq 1$. 
-  \item Set of paths $P = \{p: p \text{ path in } M\}$
-  \item Helper function for string produced by path calculation $\Omega: P \rightarrow L^+$. 
-  \begin{align*}
-  & \Omega(p = e_{0},e_{1},\dots,e_{n-1}, p \in P) = \\
-  & tag (e_{0}) \oplus \dots \oplus tag (e_{n-1}).
-  \end{align*}
-\end{itemize}
-
-As a result we can define that context-free language constrained path querying meens that we get query as grammar $G$ and result of this query is a set of paths $$P=\{p|\Omega(p) \in \mathcal{L}(G)\}.$$
-
-For some graphs and some queries $P$ can be infinite set, and it can not be explicitly represented. 
-In order to solve this problem, in this paper, we will construct not explicit representation of $P$ but compact data structure which store all elements of $P$ in finite space and allow to extract any of them.
-In this point our solution is slightly similar to subgraph quering proposed in article~\cite{GraphQueryWithEarley}, but we are also construct derivetion forest for result subgraph.
-
-\section{Motivating Example}
-As a motivation of context-free constraints importance let we introduce the next example.
-Let we have graph $M=(\{0;1;2;3\},E,\{A;B\})$ presented in figure~\ref{input} where labels represent next relations:
-\begin{itemize}
-    \item $A$ --- ``is friend of'' ($v_0 A v_1$ meens $v_0$ is friend of $v_1$);
-    \item $B$ --- ``has friend'' ($v_0 B v_1$ meens $v_0$ has friend $v_1$).
-\end{itemize} 
-
-each time when it opend it should be closed in future.
-
-Suppose for each $n \geq 1$ we want to find all $n$-th generation friends with a common ancestor.
-In the other worlds, we wath to find all paths $p$, such that $\Omega(p) \in \{AB; AABB; AAABBB; \dots\}$ or $\Omega(p) = A^n B^n$ where $n \geq 1$.
-This constraint can not be specified with regular language as far as $L=\{A^n B^n; n \geq 1\}$ is not regular but context free.
-Required language can be specified by grammar $G_1$ presented in picture~\ref{grammarG} where $N = \{s; middle\}$, $\Sigma = \{A; B\}$, and $S = s$.
-
-\begin{figure}[h]
-    \begin{center}
-        \includegraphics[width=6cm]{dot/input.pdf}
-        \caption{Input graph $M$}
-        \label{input}        
-    \end{center}
-\end{figure}
-
-\begin{figure}[h]
-   \begin{center}
-\begin{verbatim}
-   0: s = L s R 
-   1: s = middle
-   2: middle = L R
-\end{verbatim}
-   \caption{Grammar $G_1$ for language $L=\{L^n R^n; n \geq 1\}$}
-   \label{grammarG}        
-   \end{center}
-\end{figure}
-
-
-Result is infinite for this query, and we can not... 
-Also we want to know, who is common accesor.
-Futher we show ho to solve it.
-
-
-\section{Algorithm for graph parsing}
+\section{Top-down Algorithm For Graph Parsing}
 We propose a context-free language constrained path problem solution which allow to find all paths satisfied specified arbitrary context-free grammar and to construct implicit representation of result. 
 Finite representation of result set with structure related to specified grammar may be useful not only for results understanding and processing but also for query debugging especially for complex queries. 
 
 Our solution is based on generalized LL (GLL)~\cite{scott2010gll, FastPracticalGLL} parsing algorithm which allow to process ambiguous context-free grammars.
-Complexity is $O(n^3)$ in worst case and linear for unambiguous grammars, that better then complexity of CYK and Earley which used as base in other solutions (for example~\cite{ConjCFPathQuery}, ~\cite{GraphQueryWithEarley}).
-This fact allow to demonstarte better performance on linear subgraphs and unambiguous grammars.
-Also it is not necessary to transform input grammar to CNF which required for CYK which allow to avoid grmmar size decreasing.
-It is important because real performance of parsing algorithm is sensetive to grammar size.
+%Complexity is $O(n^3)$ in worst case and linear for unambiguous grammars, that better than complexity of CYK and Earley which used as base in other solutions (for example~\cite{ConjCFPathQuery}, ~\cite{GraphQueryWithEarley}).
+%This fact allow to demonstarte better performance on linear subgraphs and unambiguous grammars.
+%Also it is not necessary to transform input grammar to CNF which required for CYK which allow to avoid grmmar size decreasing.
+%It is important because real performance of parsing algorithm is sensetive to grammar size.
 
 
 \subsection{Generalized LL Parsing Algorithm}
@@ -255,7 +187,7 @@ There are two diferent lefmost derivations of this sentence in grammar $G_0$ ($\
     L N R L s R s \rightarrow ^ 1 L N R L s R s \rightarrow ^ 0 L N R L N R s \rightarrow ^ 1 L N R L N R L s R \rightarrow ^ 0 L N R L N R L N R$
 \end{enumerate}
  
-    As far as there are tho different derivations, SPPF should contains 2 different trees and it is presented in figure~\ref{sppfSample}: result SPPF~\ref{sppf} and trees for derivation 1~\ref{tree1} and derivation 2~\ref{tree1} respectively. 
+    As far as there are tho different derivations, SPPF should contains two different trees and it is presented in figure~\ref{sppfSample}: result SPPF(fig. ~\ref{sppf}) and trees for derivation 1(fig.~\ref{tree1}) and derivation 2(fig.~\ref{tree2}) respectively. 
  
 \begin{figure*}[ht]
     \begin{center}
@@ -277,7 +209,7 @@ There are two diferent lefmost derivations of this sentence in grammar $G_0$ ($\
         \caption{Tree for derivation 2}
         \label{tree2}        
     \end{subfigure}
-    \caption{SPPF for sentence \textbf{\texttt{(1)(2)(3)}} and grammar $G_0$}
+    \caption{SPPF for sentence \textbf{\texttt{"(1)(2)(3)"}} and grammar $G_0$}
     \label{sppfSample}
     \end{center}                
 \end{figure*}
@@ -436,17 +368,23 @@ We use next markers for nodes which similar to original SPPF but have some addit
 \end{itemize}
 
 As an example of derivation structure usage we can find 'middle' of any path in example above simply by finding corresponded nonterminal $middle$ in SPPF.
-So we can found that there is only one common ancestor for all results and it is vertex with $id = 0$. 
+So we can found that there is only one common ancestor for all results, and it is vertex with $id = 0$. 
 
-Extensions stored in nodes allow to check whether path from $u$ to $v$ exists and extract it. 
-To extract specified path we need only travers SPPF which can be done in linear time. 
-Let for example we want to find path satisfying specified constraints from vertex $0$.
+Extensions stored in nodes allow to check whether path from $u$ to $v$ exists, and extract it. 
+To extract specified path we need only travers SPPF, and it can be done in linear time (in terms of SPPF size). 
+
+Let for example we want to find paths satisfying specified in $G_1$ constraints from vertex $0$.
 To do this we should find vertices with label $(0, s, \_)$ in SPPF.
-There are two vertices with requred label: $(0, s, 0)$ and $(0, s , 3)$.
+We can see that there are two vertices with reqired label: $(0, s, 0)$ and $(0, s, 3)$.
+Next step let we try to extract corresponded paths from SPPF.
 In our example there is cycle in SPPF so there are \textbf{at least} two different paths: $$p_0=\{(0,A,1);(1,A,2);(2,A,0);(0,B,3);(3,B,0);(0,B,3)\}$$ and 
 \begin{align*}
 p_1=\{&(0,A,1);(1,A,2);(2,A,0);(0,A,1);(1,A,2);(2,A,0);\\ &(0,B,3);(3,B,0);(0,B,3);(3,B,0);(0,B,3);(3,B,0)\}.
 \end{align*}
+
+
+Thus SPPF which constructed by described algorithm can be useful for query result investigation. 
+But in some cases explicit representation of matched subgraph may be preferred, and requred subgraph may be extracted from SPPF trivially by its traversal.
 
 \section{Evaluation}
 
