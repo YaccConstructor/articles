@@ -1,0 +1,248 @@
+\section{Механизм диагностики ошибок}
+Предлагаемый механизм диагностики ошибок состоит из двух частей:
+\begin{itemize}
+    \item алгоритм синтаксического анализа регулярной аппроксимации динамически формируемых выражений (далее основной анализ) модифицируется, позволяя для каждой GSS вершины строить все корректные для нее префиксы внутреннего графа;
+    \item после основного анализа с помощью построенных префиксов обнаруживаются ошибочные ребра внутреннего графа.
+\end{itemize}
+Далее в этой главе будут рассмотрены: компактное представление префиксов внутреннего графа, алгоритм построения корректных префиксов внутреннего графа для GSS-вершин и алгоритм диагностики ошибок, проводящий анализ построенных префиксов.
+
+\subsection{Компактное представление префиксов внутреннего графа}
+Так как внутренний граф может иметь циклы, то множество различных префиксов внутреннего графа может быть бесконечным. В качестве компактного представления всех корректных префиксов внутреннего графа для вершины GSS используется ориентированный граф с выделенным множеством начальных вершин (далее \emph{граф префиксов}). Из-за особенностей операций, используемых при построении графов префиксов, начальные вершины представляют не начало, а конец хранимых префиксов внутреннего графа в рассматриваемом графе префиксов. Каждая вершина в графе префиксов ассоциируется с ребром GSS или является специальной вершиной $EOP$ (End Of Prefix). Ребра GSS, в свою очередь, будем делить на три вида:
+\begin{itemize}
+    \item  \emph{терминальное} ребро --- ребро, порожденное операцией сдвига по какому-то терминалу $t$;
+    \item \emph{нетерминальное} --- ребро, порожденное операцией свертки длины $l$, где $l > 0$;
+    \item \emph{обнуляемое} --- ребро, порожденное операцией свертки длины $l$, где $l = 0$.
+\end{itemize}
+Будем говорить, что начальная вершина $V$ графа префиксов $GP_{1}$ \emph{соединена} с графом префиксов $GP_{2}$, если для любой начальной вершины $U$ графа префиксов $GP_{2}$, существует ребро из вершины $V$ в вершину $U$. Каждая, кроме $EOP$, начальная вершина графа префиксов соединена с одним графом префиксов. Вершина $EOP$ не имеет исходящих дуг.
+
+С каждым нетерминальным ребром ассоциируется множество путей в GSS, по которым произведена операция свертки для данного нетерминального ребра. Будем говорить что данное нетерминальное ребро \emph{порождает} каждый путь из рассмотренного множества путей GSS.
+% * <Екатерина Вербицкая> 14:16:56 13 May 2016 UTC+0300:
+% > множество путей в GSS, по которым произведена операция свертки
+% 
+% Я не уверена, что так говорить корректно.
+
+Рассмотрим путь $(V_{1},..,V_{n})$ в графе префиксов $GP$ как последовательность вершин графов префиксов. Удалим вершину $EOP$, если она присутствует, а также заменим все вершины в данном пути на ребра GSS, с которыми они ассоциируются. Получим последовательность $(e_{1},..,e_{n})$ ребер GSS. \emph{Раскрытием} данной последовательности будем называть последовательность, получающуюся в результате применения следующих действий:
+\begin{itemize}
+    \item все нетерминальные ребра GSS $e$, заменяются на последовательность ребер, соответствующую одному из порожденных ребром $e$ пути;
+    \item все обнуляемые ребра GSS удаляются из последовательности.
+\end{itemize}
+Если после конечного числа раскрытий в последовательности останутся только терминальные ребра GSS, то будем говорить, что изначальный путь в графе префиксов \emph{сводится} к строке, получающейся инвертированием этой последовательности терминальных ребер и их замены на терминалы, с которыми они ассоциированы. Если полученная строка получается заменой ребер в пути префикса внутреннего графа $P$, на терминалы, которыми нагружены эти ребра, то путь в графе префиксов \emph{сводится} к префиксу внутреннего графа $P$. Будем говорить, что граф префиксов $GP$ \emph{порождает} префикс внутреннего графа $P$, если $\exists (V_{1},..,V_{n},EOP)$ --- путь в графе префиксов $GP$, где $V_{1}$ --- одна из начальных вершин графа префиксов $GP$, который сводится к префиксу внутреннего графа $P$. В графе префиксов также могут быть циклы, что позволяет сводиться к бесконечному множеству префиксов внутреннего графа.
+% * <Екатерина Вербицкая> 14:24:18 13 May 2016 UTC+0300:
+% Сюда бы тоже картинку.
+
+\subsection{Алгоритм построения префиксов}
+Данный алгоритм является модификацией алгоритма ослабленного синтаксического анализа регулярной аппроксимации динамически формируемого выражения. Добавляется ассоциация вершин GSS с коллекцией $prefixes$ --- граф префиксов, порождающий все корректные префиксы внутреннего графа для данной GSS вершины. После создания начальной GSS-вершины в ее графе префиксов создается начальная вершина $EOP$. Добавляется ассоциация нетерминальных ребер GSS с коллекцией $paths$ --- множество путей в GSS, порождаемых рассматриваемым нетерминальным ребром. Функция $addEdge$ модифицируется, добавляется дополнительный параметр $pathsToAdd$ --- множество путей в GSS, которое необходимо добавить к множеству путей в GSS, порождаемых ребром $edge$ из вершины $v_{t}$ в вершину $v_{h}$. Также создается начальная вершина графа префиксов $v_{t}.prefixes$, ассоциированная с ребром $edge$ и соединенная с графом префиксов $v_{h}.prefixes$. Функция $addVertex$ не изменилась.
+
+\begin{algorithm}[H]
+\begin{algorithmic}[1]
+\caption{Модификация построения GSS}
+\label{addEdge_mod}
+\Function{addEdge}{$v_{h}, innerGraphV, state_{t}, isZeroReduction, pathsToAdd$}
+
+  \State{$(v_{t}, isNew) \gets$ \Call{addVertex}{$innerGraphV, state_{t}$}}
+  \If{GSS does not contain edge from $v_{t}$ to $v_{h}$}
+% * <Екатерина Вербицкая> 14:26:52 13 May 2016 UTC+0300:
+% Может тут тоже можно половину кода выкинуть, оставив только важное.
+% ^ <Рустам Азимов> 14:27:51 13 May 2016 UTC+0300:
+% Не представляю пока. Как это?
+    \State{$edge \gets$ create new edge from $v_{t}$ to $v_{h}$}
+    \State{$\mathcal{Q}.Enqueue(innerGraphV)$}
+    \If{not $isNew$ and $v_{t}.passingReductions.Count>0$}
+      \State{add $(v_{t}, edge)$ in $innerGraphV.passingReductionsToHandle$}
+    \EndIf
+    \If{not $isZeroReduction$}
+      \ForAll{$e$ in outgoing edges of $innerGraphV$}
+        \State{calculate the set of reductions by $v$ and the token on $e$}
+        \State{     and add them in $innerGraphV.reductions$}
+      \EndFor
+    \EndIf
+    \State{$V \gets$ vertex of the prefix graph,}
+    \State{     associated with $edge$ and connected to $v_{h}.prefixes$}
+    \State{add $V$ to initial vertexes of $v_{t}.prefixes$}
+  \EndIf
+  \If{pathsToAdd is not empty}
+    \State{$edge \gets$ edge from $v_{t}$ to $v_{h}$}
+    \State{add all paths in $pathsToAdd$ to $edge.paths$}
+  \EndIf
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+Параметр $pathsToAdd$ при вызове функции $addEdge$ для терминальных или обнуляемых ребер GSS является пустым множеством.
+
+\begin{algorithm}[H]
+\begin{algorithmic}[1]
+\caption{Модификация операции сдвига}
+\label{push_mod}
+\Function{push}{$innerGraphV$}
+  \State{$\mathcal{U} \gets$ copy $innerGraphV.unprocessed$}
+  \State{clear $innerGraphV.unprocessed$}
+  \ForAll{$v_{h}$ in $\mathcal{U}$}  
+    \ForAll{$e$ in outgoing edges of $innerGraphV$}
+      \State{$push \gets$ calculate next state by $v_{h}.state$ and the token on $e$}
+      \State{$pathsToAdd \gets$ empty set}
+% * <Екатерина Вербицкая> 14:32:07 13 May 2016 UTC+0300:
+% Обычно в таких листингах новый код выделяется болдом или еще как-то в том же духе. Чтобы повысить читабельность и чтобы сразу было понятно, что конкретно изменилось.
+      \State{\Call{addEdge}{$v_{h}, e.Head, push, false, pathsToAdd$}}
+      \State{add $v_{h}$ in $innerGraphV.processed$}
+    \EndFor
+  \EndFor
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\begin{algorithmic}[1]
+\caption{Модификация операции свертки}
+\label{reduce_mod}
+\Function{makeReductions}{$innerGraphV$}
+  \While{$innerGraphV.reductions$ is not empty}
+    \State{$(startV, N, l) \gets innerGraphV.reductions.Dequeue()$}
+    \State{find the set of vertices $\mathcal{X}$ reachable from $startV$}
+    \State{    along the path of length ($l-1$), or $0$ if $l=0$;}
+    \State{add $(startV, N, l-i)$ in $v.passingReductions$,}
+    \State{    where $v$ is an $i$-th vertex of the path}
+    \ForAll{$v_{h}$ in $\mathcal{X}$}
+      \State{$state_{t} \gets$ calculate new state by $v_{h}.state$ and nonterminal $N$}
+      \If{$l > 0$}
+        \State{$pathsToAdd \gets$ all paths, by which $v_{h}$ is reachable}
+        \State{     from $startV$}
+      \Else
+        \State{$pathsToAdd \gets$ empty set}
+      \EndIf
+      \State{\Call{addEdge}{$v_{h}, startV, state_{t}, (l=0), pathsToAdd$}}
+    \EndFor
+  \EndWhile
+\EndFunction
+
+\Function{applyPassingReductions}{$innerGraphV$}
+  \ForAll{$(v, edge)$ in $innerGraphV.passingReductionsToHandle$}
+    \ForAll{$(startV, N, l) \gets v.passingReductions.Dequeue()$}
+      \State{find the set of vertices $\mathcal{X}$,}
+      \State{    reachable from $edge$ along the path of length ($l-1$)}
+      \ForAll{$v_{h}$ in $\mathcal{X}$}
+        \State{$state_{t} \gets$ calculate new state by $v_{h}.state$ and nonterminal $N$}
+        \State{$pathsToAdd \gets$ all paths, by which $v_{h}$ is reachable}
+        \State{     from $startV$}
+        \State{\Call{addEdge}{$v_{h}, startV, state_{t}, false, pathsToAdd$}}
+      \EndFor
+    \EndFor
+  \EndFor
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+После описанных модификаций алгоритм синтаксического анализа регулярной аппроксимации динамически формируемого выражения для каждой вершины GSS дополнительно конструирует все корректные для нее префиксы внутреннего графа.
+
+\subsection{Алгоритм диагностики ошибок}
+Данный алгоритм получает на вход внутренний граф с построенными в ходе основного синтаксического анализа структурами (в том числе и префиксами внутреннего графа GSS вершин), а также сгенерированные RNGLR-таблицы. Алгоритм делает обход внутреннего графа и для каждого исходящего из вершины внутреннего графа ребра анализирует множества графов префиксов соседних вершин. 
+
+Для обхода внутреннего графа используется глобальная очередь $Q$. Все ребра внутреннего графа, ведущие не в конечную вершину, обрабатываются в функции $processVertex$. Для ребер, ведущих в конечную вершину внутреннего графа, используется глобальная очередь $F$, с последующей обработкой в функции $processEOF$.
+
+В результате работы алгоритма все ребра из множества $errors$ являются ошибочными, а ребра из множества $probErrors$ --- возможно ошибочными. То есть множество всех ошибочных ребер принадлежит объединению двух данных множеств. Кроме того, с элементами этих множеств ассоциируются множества графов префиксов (элемент $e$ множества $errors$ или множества $probErrors$ ассоциируется со множеством $errors[e]$ или $probErrors[e]$ соответственно), которые порождают корректные префиксы, заканчивающиеся в вершине, из которой исходит рассматриваемое ребро. Данные множества могут быть использованы при создании сообщения пользователю о возможных ошибках динамически формируемого выражения. Все префиксы, порождаемые графами префиксов из множества $errors[e]$, становятся некорректными при добавлении в конец ребра $e$. Все префиксы, порождаемые графами префиксов из множества $probErrors[e]$, возможно становятся некорректными при добавлении в конец ребра $e$. Но множество всех корректных префиксов внутреннего графа, заканчивающихся в вершине, из которой исходит ребро $e$, и становящихся некорректными при добавлении ребра $e$ в конец, порождается хотя бы одним графом префиксов из объединения множеств $errors[e]$ и $probErrors[e]$, где множество $errors[e]$ пусто, если $e \notin errors$, и множество $probErrors[e]$ пусто, если $e \notin probErrors$.
+% * <Екатерина Вербицкая> 14:37:32 13 May 2016 UTC+0300:
+% Что такое возможно ошибочные ребра? Почему множество всех ошибок -- это множество ошибок плюс возможно ошибочные?
+
+\begin{algorithm}[H]
+\begin{algorithmic}[1]
+\caption{Алгоритм диагностики ошибок}
+\label{error_handling}
+\Function{findErrors}{$inputGraph, parserSource$}
+    \State{$\mathcal{Q}.Enqueue(inputGraph.startVertex)$}
+    \While{$Q$ is not empty}
+        \State{$v \gets \mathcal{Q}.Dequeue()$}
+        \State{\Call{processVertex}{$v$}}
+    \EndWhile
+    \While{$F$ is not empty}
+        \State{$e \gets \mathcal{F}.Dequeue()$}
+        \State{\Call{processEOF}{$e$}}
+    \EndWhile
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\begin{algorithmic}[1]
+\caption{Анализ неконечных ребер внутреннего графа}
+\label{error_edges}
+\Function{processVertex}{$innerGraphV$}
+    \ForAll{$e$ in outgoing edges of $innerGraphV$}
+        \If{token on $e$ is EOF}
+            \State{$\mathcal{F}.Enqueue(e)$}
+        \Else
+            \If{$e.Head$ was not processed}
+                \State{$\mathcal{Q}.Enqueue(e.Head)$}
+            \EndIf
+            \State{$headPrefixes \gets$ all prefixes graphs}
+            \State{    from all GSS vertexes of $e.Head$;}
+            \State{$pushedPrefixes \gets$ all prefixes graphs, to which connected}
+            \State{    some initial vertex of prefixes graph in $headPrefixes$,}
+            \State{     associated with terminal edge;}
+            \State{$withCycle \gets$ all cyclical prefixes graphs in $pushedPrefixes$}
+            \State{$withoutCycle \gets$ all non-cyclical graphs in $pushedPrefixes$}
+            \State{$notPushedPrefixes \gets$ all prefixes graphs}
+            \State{     from all GSS vertexes of $innerGraphV$,}
+            \State{     without prefixes graphs from $pushedPrefixes$;}
+            \ForAll{$p$ in $notPushedPrefixes$}
+                \If{prefixes graph $p$ has a cycle}
+                    \State{add $e$ to $probErrors$}
+                    \State{add $p$ to $probErrors[e]$}
+                \Else
+                    \ForAll{$prefixPath$ in paths of prefixes graph $p$}
+                        \State{$pathG \gets$ prefixes graph generated by $prefixPath$}
+                        \If{$withoutCycle$ does not have any prefixes graph with
+                            \State{    equivalent to $prefixPath$ path} }
+                            \If{$withCycle$ is not empty}
+                                \State{add $e$ to $probErrors$}
+                                \State{add $pathG$ to $probErrors[e]$}
+                            \Else
+                                \State{add $e$ to $errors$}
+                                \State{add $pathG$ to $errors[e]$}
+                            \EndIf
+                        \EndIf
+                    \EndFor
+                \EndIf
+            \EndFor
+        \EndIf
+    \EndFor
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\begin{algorithmic}[1]
+\caption{Анализ конечных ребер внутреннего графа}
+\label{error_EOFedges}
+\Function{processEOF}{$edge$}
+    \State{$acceptedPrefixes \gets$ all prefixes graphs}
+    \State{    from all GSS vertexes of $edge.Tail$ with accepted state;}
+    \State{$withCycle \gets$ all cyclical prefixes graphs in $acceptedPrefixes$}
+    \State{$withoutCycle \gets$ all non-cyclical graphs in $acceptedPrefixes$}
+    \State{$notAcceptedPrefixes \gets$ all prefixes graphs}
+    \State{    from all GSS vertexes of $edge.Tail$ with not accepted state;}
+    \ForAll{$p$ in $notAcceptedPrefixes$}
+        \If{prefixes graph $p$ has a cycle}
+            \State{add $edge$ to $probErrors$} 
+% * <Екатерина Вербицкая> 14:42:34 13 May 2016 UTC+0300:
+% Вообще наличие цикла не говорит о том, что у нас обязательно в нем ошибка, поэтому нужна хоть какая-то мотивация в пользу такого подхода.
+            \State{add $p$ to $probErrors[edge]$}
+        \Else
+            \ForAll{$prefixPath$ in paths of prefixes graph $p$}
+                \State{$pathG \gets$ prefixes graph generated by $prefixPath$}
+                \If{$withoutCycle$ does not have any prefixes graph 
+                    \State{     with equivalent to $prefixPath$ path} }
+                    \If{$withCycle$ is not empty}
+                        \State{add $edge$ to $probErrors$}
+                        \State{add $pathG$ to $probErrors[edge]$}
+                    \Else
+                        \State{add $edge$ to $errors$}
+                        \State{add $pathG$ to $errors[edge]$}
+                    \EndIf
+                \EndIf
+            \EndFor
+        \EndIf
+    \EndFor
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
