@@ -16,6 +16,7 @@
 \usepackage[noend]{algpseudocode}
 \usepackage{algorithm}
 \usepackage{algorithmicx}
+\usepackage{ stmaryrd }
 \usetikzlibrary{shapes,arrows}
 \usepackage{fancyvrb}
 \newtheorem{rutheorem}{Теорема}
@@ -85,30 +86,6 @@
 
 \end{frame}
 
-\begin{frame}[fragile]
-  \transwipe[direction=90]
-  \frametitle{Регулярная грамматика}
-  \textbf{Праволинейная грамматика} --- грамматика, все правила которой имеют следующий вид:
-  \begin{itemize}
-    \item $A \rightarrow a B$ или $A \rightarrow a$, где $A, B \in V_N, a \in V_T$
-  \end{itemize}
-
-
-  \textbf{Леволинейная грамматика} --- грамматика, все правила которой имеют следующий вид:
-  \begin{itemize}
-    \item $A \rightarrow B a$ или $A \rightarrow a$, где $A, B \in V_N, a \in V_T$
-  \end{itemize}
-
-\pause 
-
-  \begin{rutheorem}[]
-    Пусть L --- формальный язык. 
-
-    $\exists G_r$ --- праволинейная грамматика, т.ч. $L = L(G_r) \Leftrightarrow \exists G_l$ --- леволинейная грамматика, т.ч. $L = L(G_l) $
-  \end{rutheorem}
-\pause
-  \textbf{Регулярная грамматика} --- праволинейная или леволинейная грамматика
-\end{frame}
 
 \begin{frame}[fragile]
   \transwipe[direction=90]
@@ -121,6 +98,11 @@
     \item $q_0 \in Q$ --- начальное состояние
     \item $F \subseteq Q$ --- множество конечных состояний
   \end{itemize}
+
+  КА называется \textbf{полным}, если существует переход из каждого состояния по каждому символу алфавита
+\begin{itemize}
+    \item Обычно добавляют "дьявольскую" вершину, она же сток. 
+\end{itemize}
 \end{frame}
 
 
@@ -137,6 +119,13 @@
    \end{center}
 \end{frame}
 
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Пример полного конечного автомата}
+  \begin{center}
+     \includegraphics[width=0.55\textwidth]{pics/FA_DN.PNG}  
+   \end{center}
+\end{frame}
 
 \begin{frame}[fragile]
   \transwipe[direction=90]
@@ -237,7 +226,8 @@
   \transwipe[direction=90]
   \frametitle{Проверка на эквивалентность автоматов}
   \begin{itemize}
-    \item Запустить обход в ширину
+    \item Запустить одновременный обход в ширину двух автоматов
+    \item Каждый переход должен приводить в терминальные или нетерминальные вершины в обоих автоматах соответственно
   \end{itemize}
 \end{frame}
 
@@ -285,6 +275,164 @@
    \begin{ruproof}
      $\delta' (p_i, c \omega) = \delta' (\delta (p_i, c), \omega) = \delta' (q_i, \omega) = t_i$
    \end{ruproof}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Алгоритм минимизации КА}
+    TLDR: разбиваем состояния на классы эквивалентности, которые делаем новыми состояниями
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Алгоритм минимизации КА}
+   $Q$ --- очередь; $marked$ --- таблица размером $n \times n$ (n --- количество состояний КА).
+   
+   ~\\
+    Помечаем в таблице пары неэквивалентных состояний и кладем их в очередь
+\end{frame}
+      
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Алгоритм минимизации КА}   
+    \begin{itemize}
+      \item Если автомат не полный --- дополнить дьявольской вершиной
+      \item Строим отображение $\delta^{-1}$ --- обратные ребра
+      \item Находим все достижимые из стартового состояния
+      \item Добавляем в $Q$ и отмечаем в $marked$ пары состояний, различимые $\varepsilon$
+      \item Можем пометить пару $(u, v)$, если $\exists c \in \Sigma. (\delta(u, c), \delta(v, c)) помечена$. Для этого, пока $Q \neq \emptyset$:
+      \begin{itemize}
+        \item Извлекаем $(u, v)$ из $Q$
+        \item $\forall c \in \Sigma$ перебираем $(\delta^{-1}(u, c), \delta^{-1}(v, c))$ --- если пара не помечена, помечаем и кладем в очередь
+      \end{itemize}
+      \item В момент опустошения $Q$ непомеченные пары являются эквивалентными
+      \item За проход по таблице выделяем классы эквивалентности
+      \item За проход по таблице формируем новые состояния и переходы	
+    \end{itemize}
+    
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Алгоритм минимизации КА}   
+    \begin{itemize}
+      \item Стартовое состояние --- класс эквивалентности, которому принадлежит стартовое состояние исходного КА
+      \item Конечные состояния --- классы эквивалентности, которым принадлежат конечные состояния исходного КА
+    \end{itemize}
+    
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Алгоритм минимизации КА: корректность}   
+    \begin{itemize}
+      \item Пусть в результате применения алгоритма к КА $A$ получили КА $A_{min}$. Покажем, что этот автомат минимальный и единственный с точностью до изоморфизма
+      \item Пусть $\exists A'. A'$ и $A$ эквивалентны, но количество состояний $A'$ меньше, чем у $A_{min}$
+      \item Стартовые состояния $s \in A_{min}$ и $s' \in A'$ эквивалентны (КА допускают один язык)
+      \item $\sphericalangle \alpha = a_1 a_2 \dots a_k, a_i \in \Sigma: \langle s, \alpha \rangle \vdash^* \langle u, \varepsilon \rangle; \langle s', \alpha \rangle \vdash^* \langle u', \varepsilon \rangle$
+      \item $\sphericalangle \langle s, a_1 \rangle \vdash^* \langle l, \varepsilon \rangle; \langle s', a_1 \rangle \vdash^* \langle l', \varepsilon \rangle$. $s, s'$ эквивалентны $\Rightarrow l, l'$ эквивалентны
+      \item Аналогично для всех $a_i \Mapsto u, u'$ эквивалентны 
+      \item $\Mapsto \forall q$ --- состояние $A_{min} \exists q'$ --- эквивалентное состояние $A'$
+      \item Состояний $A'$ меньше, чем состояний $A_{min} \Rightarrow$ 2 состояниям $A_{min}$ соответствует 1 состояние $A' \Rightarrow$ они эквивалентны. Но по построение $A_{min}$ в нем не может быть эквивалентных состояний. Противоречие
+    \end{itemize}
+    
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Недетерминированный КА}   
+ \textbf{Недетерминированный конечный автомат} --- $\langle Q, \Sigma, \delta, q_0, F \rangle$
+  \begin{itemize}
+    \item $Q \neq \emptyset$ --- конечное множество состояний
+    \item $\Sigma$ --- Конечный входной алфавит
+    \item $\delta$ --- отображение типа $Q \times \Sigma \rightarrow 2^Q$
+    \item $q_0 \in Q$ --- начальное состояние
+    \item $F \subseteq Q$ --- множество конечных состояний
+  \end{itemize}
+    
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Распознавание слова НКА}
+  \begin{itemize}
+    \item \textbf{Конфигурация (Мгновенное описание)} КА --- $\langle q, \omega \rangle$, где $q \in Q, \omega \in \Sigma^*$
+    \item \textbf{Такт работы} --- бинарное отношение $\vdash$: если $q \in \delta(p, x)$ и $\omega \in \Sigma ^*$, то $\langle p , x \omega \rangle \vdash \langle q , \omega \rangle$
+    \item Бинарное отношение $\vdash^*$ --- рефлексивное, транзитивное замыкание $\vdash$
+    \item НКА \textbf{допускает} слово $\alpha$, если $\exists t \in F. \langle s, \alpha \rangle \vdash^* \langle t, \varepsilon \rangle$
+    \item \textbf{Язык НКА} $L(A) = \{ \omega \in \Sigma^* \, | \, \exists t \in F. \langle s, \omega \rangle \vdash^* \langle t, \varepsilon \rangle \}$ 
+  \end{itemize}
+  \begin{itemize}
+    \item ДКА --- частный случай НКА
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Алгоритм, определяющий допустимость слова}
+  \begin{itemize}
+    \item $R(\alpha) = \{ p | \langle s, \alpha \rangle \vdash^* \langle p, \varepsilon \rangle\}$
+    \item $R(\varepsilon) = \{q_0\}$
+    \item $R(\alpha c) = \{q | q \in \delta (p, c), p \in R(\alpha)\}$
+    \item НКА допускает слово $\alpha \Leftrightarrow \exists t \in F. t \in R(\alpha) $
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Построение ДКА по НКА: алгоритм Томпсона}
+  \begin{itemize}
+    \item Помещаем в $Queue$ множество $\{ q_0 \}$
+    \item Пока очередь не пуста, выполняем:
+    \begin{itemize}
+      \item $q = Queue.pop()$
+      \item Строим множество $q' = \{t = \delta (s, c) | s \in q, c \in \Sigma\}$. Если $q' \notin Queue$, добавить его в очередь. Каждое такое множество --- новая вершина ДКА; добавляем переходы по соответствующим символам
+      \item Если во множестве есть хотя бы одна вершина, являющаяся терминальной в данном НКА, то соответствующая вершина ДКА будет конечной
+    \end{itemize}
+  \item Результат: $\langle \Sigma, Q, q_0 \in Q, T \subset Q, \delta: Q \times \Sigma \rightarrow 2^Q \rangle$
+  \begin{itemize}
+    \item 
+  \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Эквивалентность языков, распознаваемых ДКА и НКА}
+  \begin{rutheorem}
+  ДКА и НКА распознают один и тот же класс языков
+  \end{rutheorem}
+  \begin{proof}
+  $\Rightarrow: $ очевидно
+  
+  $\Leftarrow: $ Рассмотрим произвольный НКА и покажем, что алгоритм Томпсона строит по нему эквивалентный ДКА.
+  \end{proof}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Регулярная грамматика}
+  \textbf{Праволинейная грамматика} --- грамматика, все правила которой имеют следующий вид:
+  \begin{itemize}
+    \item $A \rightarrow a B$ или $A \rightarrow a$, где $A, B \in V_N, a \in V_T$
+  \end{itemize}
+
+
+  \textbf{Леволинейная грамматика} --- грамматика, все правила которой имеют следующий вид:
+  \begin{itemize}
+    \item $A \rightarrow B a$ или $A \rightarrow a$, где $A, B \in V_N, a \in V_T$
+  \end{itemize}
+
+\pause 
+
+  \begin{rutheorem}[]
+    Пусть L --- формальный язык. 
+
+    $\exists G_r$ --- праволинейная грамматика, т.ч. $L = L(G_r) \Leftrightarrow \exists G_l$ --- леволинейная грамматика, т.ч. $L = L(G_l) $
+  \end{rutheorem}
+\pause
+  \textbf{Регулярная грамматика} --- праволинейная или леволинейная грамматика
 \end{frame}
 
 \begin{frame}[fragile]
