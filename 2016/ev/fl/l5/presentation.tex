@@ -1,0 +1,275 @@
+\documentclass{beamer}
+\usepackage{beamerthemesplit}
+\usepackage{wrapfig}
+\usetheme{SPbGU}
+\usepackage{pdfpages}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{cmap} 
+\usepackage[T2A]{fontenc} 
+\usepackage[utf8]{inputenc}
+\usepackage[english,russian]{babel}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{multirow}
+\usepackage[noend]{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{ stmaryrd }
+\usepackage{qtree}
+\usetikzlibrary{shapes,arrows}
+\usepackage{fancyvrb}
+\newtheorem{rutheorem}{Теорема}
+\newtheorem{ruproof}{Доказательство}
+\newtheorem{rudefinition}{Определение}
+\newtheorem{rulemma}{Лемма}
+\beamertemplatenavigationsymbolsempty
+
+\title[]{Теория автоматов и формальных языков}
+\subtitle[]{Контекстно-свободные языки}
+\institute[]{
+Санкт-Петербургский государственный электротехнический университет <<ЛЭТИ>>\\
+}
+
+\author[]{Екатерина Вербицкая}
+
+\date{27 сентября 2016г.}
+
+\definecolor{orange}{RGB}{179,36,31}
+
+\begin{document}
+{
+  \begin{frame}
+    \titlepage
+  \end{frame}
+}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{В предыдущей серии}
+  \begin{itemize}
+    \item Регулярные выражения, регулярные грамматики и конечные автоматы задают класс регулярных языков
+    \item Класс регулярных языков замкнут относительно теоретико-множественных операций, конкатенации, итерации, гомоморфизма цепочек
+    \item Определение принадлежности слова языку осуществляется за $O(n)$ операций
+    \item Однако класс регулярных языков достаточно узок, ни один используемый в промышленности язык программирования не является регулярным
+    \begin{itemize}
+      \item Лемма о накачке для доказательства нерегулярности языка
+      \item Язык правильных скобочных последовательностей, язык палиндромов не являются регулярными
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Контекстно-свободная грамматика}
+  Четверка $\langle V_T, V_N, P, S \rangle$
+
+   \begin{itemize}
+     \item $V_T$ --- алфавит терминальных символов (терминалов) 
+     \item $V_N$ --- алфавит нетерминальных символов (нетерминалов)
+     \begin{itemize} 
+        \item $V_T \cap V_N = \emptyset$ 
+        \item $V ::= V_T \cup V_N$
+     \end{itemize}
+     \item P --- конечное множество правил вида $A \rightarrow \alpha$
+     \begin{itemize}
+       \item $A \in V_N $
+       \item $\alpha \in V^*$
+     \end{itemize}  
+     \item S --- начальный нетерминал грамматики, $S  \in V_N$
+  \end{itemize}
+
+Пример: арифметические выражения
+
+  $$
+  \begin{array}{crcl}
+  &E& \rightarrow & E + E \, | \, E * E \, | \, N \\
+  &N& \rightarrow & 0 \, | \, 1  \, | \, \dots \, | \, 9
+  \end{array}
+  $$
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Вывод в грамматике}
+  \begin{itemize}
+    \item \textbf{Отношение выводимости}: $\forall \alpha, \gamma, \delta \in V^*, A \in V_N: A \rightarrow \alpha \in P. \, \gamma A \delta \Rightarrow \gamma \alpha \delta$
+    \item \textbf{Вывод} --- транизитивное, рефлексивное замыкание отношения выводимости ($\xRightarrow[]{*}, \xRightarrow[]{+}, \xRightarrow[]{k}$)
+    \item \textbf{Левосторонний (правосторонний) вывод} --- на каждом шаге заменяем самый левый (правый) нетерминал
+    \begin{itemize}
+      \item Если не специфицируется, подразумевается левосторонний вывод
+    \end{itemize}
+    \item По сути, правила грамматики рассматриваются как правила переписывания
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Пример вывода}
+  Построим левосторонний вывод цепочки $2+3*4$ в грамматике $\langle \{ 0, 1, \dots, 9, +, *\}, \{E, N\}, P, E \rangle$
+  
+  $$
+  \begin{array}{crcl}
+  &E& \rightarrow & E + N \, | \, E * N \, | \, N \\
+  &N& \rightarrow & 0 \, | \, 1  \, | \, \dots \, | \, 9
+  \end{array}
+  $$
+  
+$E \Rightarrow  E * N \Rightarrow E + N * N \Rightarrow N + N * N \Rightarrow 2 + N * N \xRightarrow[]{2} 2 + 3 * 4$
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Существование левостороннего вывода}
+  \begin{rutheorem}
+    Если для цепочки $\omega$ существует некоторый вывод $S \xRightarrow[]{*} \omega$, то существует и левосторонний вывод для этой цепочки $S \xRightarrow[l]{*} \omega$
+  \end{rutheorem}
+  \begin{proof}
+  Докажем более общее утверждение: если существует $A \xRightarrow[]{*} \omega$, то существует $A \xRightarrow[l]{*} \omega$, где $A \in V_N$. 
+  
+  Доказываем по индукции по длине вывода $k$
+  
+    $k = 1: A \Rightarrow \omega$ --- тривиально. 
+    
+  $k \rightarrow k + 1: \sphericalangle A \Rightarrow \alpha \xRightarrow[]{*} \omega$. 
+  
+  Обозначим $ \alpha = B_1 B_2 \dots B_m \xRightarrow[]{*} \omega_1 \omega_2 \dots \omega_m = \omega; \forall i. B_i \xRightarrow[]{l_i} \omega_i, l_i \leq n$
+  
+  По индукционному предположению $\forall i. \, B_i \xRightarrow[l]{*} \omega_i$
+  
+  $\Mapsto: A \Rightarrow B_1 B_2 \dots B_m \xRightarrow[l]{*} \omega_1  B_2 \dots B_m \xRightarrow[l]{*} \omega$ --- левосторонний вывод
+  \end{proof}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Единственность вывода}
+  Не всегда (левосторонний) вывод единственен: 2 вывода строки $2+3*4$
+  
+  $$
+  \begin{array}{crcl}
+  &E& \rightarrow & E + E \, | \, E * E \, | \, N \\
+  &N& \rightarrow & 0 \, | \, 1  \, | \, \dots \, | \, 9
+  \end{array}
+  $$
+
+\begin{tabular}{p{5.5cm} p{6cm}}
+  
+\Tree [.E [.E [.N 2 ] ] + [.E [.E [.N 3 ] ] * [.E [.N 4 ] ] ] ] 
+& 
+\Tree [.E [.E [.E [.N 2  ] ]  + [.E [.N 3 ] ] ] * [.E [.N 4 ] ] ]  
+\end{tabular}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Однозначность грамматики}
+  \begin{itemize}
+    \item Грамматика называется \textbf{однозначной}, если для \emph{любого} слова языка существует \emph{единственный} (левосторонний) вывод
+    \item Грамматика называется \textbf{неоднозначной}, если \emph{существует} слово языка, такое что для него \emph{существует} \emph{несколько} (левосторонних) выводов
+  \end{itemize}
+
+  \begin{itemize}
+    \item По однозначной грамматике можно тривиальным образом построить неоднозначную: продублировать правило
+    \begin{itemize}
+      \item $S \rightarrow A; A \rightarrow a$
+      \item $S \rightarrow A | B; A \rightarrow a; B \rightarrow a$
+     \end{itemize}
+     \item Не существует общего алгоритма преобразования неоднозначной грамматики в однозначную
+   \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Примеры однозначной и неоднозначной грамматики}
+  \begin{itemize}
+    \item { Неоднозначная грамматика
+  $$
+  \begin{array}{crcl}
+  &E& \rightarrow & E + E \, | \, E * E \, | \, N \\
+  &N& \rightarrow & 0 \, | \, 1  \, | \, \dots \, | \, 9
+  \end{array}
+  $$
+  }
+    \item { Однозначная грамматика
+  $$
+  \begin{array}{crcl}
+  &E& \rightarrow & E + N \, | \, E * N \, | \, N \\
+  &N& \rightarrow & 0 \, | \, 1  \, | \, \dots \, | \, 9
+  \end{array}
+  $$
+  }
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Проверка однозначности грамматики --- неразрешимая задача}
+  \begin{itemize}
+    \item Проверка однозначности грамматик сводится к задаче соответствий Поста
+  \end{itemize}
+    \begin{itemize}
+    \item Задача соответствий Поста: Даны списки $A = (a_1, \dots, a_n)$ и $B = (b_1 ,\dots ,b_n)$, где $\forall i. \, a_i \in \Sigma ^*$ и $b_i \in \Sigma ^*$.Cуществует ли непустая последовательность $(i_1 , \dots, i_k)$, удовлетворяющая условию $a_{i_1} \dots a_{i_k} = b_{i_1} \dots b_{i_k}$, где $\forall j. \, 1 \leq i_j \leq n$
+  \end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Контекстно-свободный язык}
+  \begin{itemize}
+    \item Язык называется \textbf{контекстно-свободным}, если для него \emph{существует} контекстно-свободная грамматика
+    \item Язык, задаваемый КС грамматикой $\langle V_T, V_N, P, S\rangle$: $\{ \omega \in V_T^* | S \xRightarrow[]{*} \omega \}$
+    \item КС язык называется \textbf{существенно неоднозначным}, если для него не существует однозначной грамматики
+  \end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Пустота КС языка}
+   \begin{rutheorem}
+   Существует алгоритм, определяющий, является ли язык, порождаемый КС грамматикой, пустым
+   \end{rutheorem}
+   \begin{proof}
+     Для доказательства потребуется следующая лемма
+   \end{proof}
+\end{frame}
+  
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Лемма}
+   \begin{rutheorem}
+   Если в данной грамматике выводится некоторая цепочка, то существует цепочка, дерево вывода которой не содержит ветвей длиннее $m$, где $m$ --- количество нетерминалов грамматики
+   \end{rutheorem}
+   \begin{proof}
+   Рассмотрим дерево вывода цепочки $\omega$. Если в нем есть 2 узла, соответствующих одному нетерминалу $A$, обозначим их $n_1$ и $n_2$. Предположим, $n_1$ расположен ближе к корню дерева, чем $n_2$; $A_{n_1} \xRightarrow[]{*} \alpha \omega_1 \beta; A_{n_2} \xRightarrow[]{*} \gamma \omega_2 \delta$. При этом $\omega_2$ является подцепочкой $\omega_1$. 
+   
+   Заменим в изначальном дереве узел $n_1$ на $n_2$. Полученное дерево является деревом вывода $\alpha \omega_2 \delta$. Повторяем процесс замены одинаковых нетерминалов до тех пор, пока в дереве не останутся только уникальные нетерминалы. 
+   
+   В полученном дереве не может быть ветвей длины большей, чем $m$. По постороению оно является деревом вывода. 
+   \end{proof}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Алгоритм проверки пустоты КС языка}
+   \begin{proof}
+   Строим коллекцию деревьев, представляющих вывод в грамматике.
+   
+  \begin{enumerate}
+    \item Инициализируем коллекцию деревом из одного узла S
+    \item Добавляем в коллекцию дерево, полученное применением единственного правила грамматики из какого-нибудь дерева из коллекции, если его в нем еще нет, и самая длинная ветвь не длиннее $m$
+    \item Если после окончания построения коллекции в ней существует дерево, являющееся деревом вывода некоторой цепочки терминалов, значит, язык не пуст
+  \end{enumerate}
+   \end{proof}
+\end{frame}
+
+
+
+ \end{document}
+ 
+
+  
