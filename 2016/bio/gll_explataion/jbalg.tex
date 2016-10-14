@@ -1,0 +1,306 @@
+\documentclass[12pt]{article}  % standard LaTeX, 12 point type
+\usepackage{amsfonts,latexsym}
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage[utf8]{inputenc} % Кодировка
+\usepackage[english,russian]{babel} % Многоязычность
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{conjecture}[theorem]{Conjecture}
+
+\theoremstyle{definition}
+\newtheorem{definition}{Определение}[section]
+\newtheorem{example}{Example}[section]
+
+% unnumbered environments:
+
+\theoremstyle{remark}
+\newtheorem*{remark}{Remark}
+\newtheorem*{notation}{Notation}
+\newtheorem*{note}{Note}
+
+\setlength{\parskip}{5pt plus 2pt minus 1pt}
+%\setlength{\parindent}{0pt}
+
+\usepackage{color}
+\usepackage{listings}
+\usepackage{caption}
+\usepackage{graphicx}
+\usepackage{ucs}
+
+\graphicspath{{pics/}}
+
+
+
+\title{Modification of modificated CYK}
+\author{Semyon Grogorev}
+\date{\today}
+
+\begin{document}
+
+\algnewcommand\algorithmicswitch{\textbf{switch}}
+\algnewcommand\algorithmiccase{\textbf{case}}
+\algnewcommand\algorithmicassert{\texttt{assert}}
+\algnewcommand\Assert[1]{\State \algorithmicassert(#1)}
+% New "environments"
+\algdef{SE}[SWITCH]{Switch}{EndSwitch}[1]{\algorithmicswitch\ #1\ \algorithmicdo}{\algorithmicend\ \algorithmicswitch}
+\algdef{SE}[CASE]{Case}{EndCase}[1]{\algorithmiccase\ #1}{\algorithmicend\ \algorithmiccase}
+
+\algtext*{EndSwitch}
+\algtext*{EndCase}
+\algtext*{EndWhile}% Remove "end while" text
+\algtext*{EndIf}% Remove "end if" text
+\algtext*{EndFor}% Remove "end for" text
+\algtext*{EndFunction}% Remove "end function" text
+
+
+
+Выполняется обход грамматики, согласованный со входной строкой --- есть два указателя: в грамматику и позицию во воходе.
+Указатель в грамматику --- слот: $X \rightarrow x_0 .. x_k \cdot x_{k+1} .. x_n$
+
+Возможны несколько ситуаций. Предположим, что слот выглядит одним из следующих способов: $X \rightarrow \alpha \cdot x \beta$ или $X \rightarrow \alpha \cdot$. Указатель во входе находится на позиции $i$.
+\begin{enumerate}
+\item $x = \omega[i+1]$. Указатель в грамматике перемещается в позицию $X \rightarrow \alpha x \cdot \beta$ и указатель во входе сдвигается в позицию $i+1$.
+\item $x$ --- это нетерминал $A$. Запоминаем точку возврата: кладём на стек слот $X \rightarrow \alpha x \cdot \beta$. Сдвигаем указатель в грамматике в позицию $A \rightarrow \cdot \gamma$. 
+Здесь можно воспользоваться FIRST для детерминизации выбора. 
+      Позиция во входе неизменна.
+\item Указатель в грамматике в позиции $X \rightarrow \alpha \cdot$ и стек непуст. На вершине стека должен быть "адрес возврата" \  вида $Y \rightarrow \delta X \cdot \mu$. 
+      Он извлекается из стека и становится текущим указателем в грамматике. 
+\item Указатель в грамматике в позиции $S \rightarrow \alpha \cdot$ ($S$ --- стартоый нетерминал) и стек пуст. Успешное завершение разбора. Иначе провал. 
+\end{enumerate}
+
+На шаге 2 можно не продожать сразу все возможные варианты, а создать дескриптор --- сущность, позволяющую возобновить обход с места, которое он описывает.
+Для каждого полученного слота вида $A \rightarrow \cdot \gamma$ создаём дескриптор, содержащий его, указатель на вход в позицию $i$ и указатель на стек, на адрес возврата, который только что был добавлен ($X \rightarrow \alpha A \cdot \beta$).
+Для организации стека можно использовать GSS, а дескриптор будет указывыать на вершину в нём.
+
+Возможны проблемы с бесконечным количеством дескрипторов и "потерей" \ точек возврата.
+
+\begin{itemize}
+\item $R$ --- мн-во дескрипторов для обработки
+\item $U$ --- мн-во созданных дескрипторов
+\item $P$ --- мн-во тех, для кого надо не забыть сделать $pop$
+\end{itemize}
+
+\begin{verbatim}
+let _add L v i = 
+    if (L, v, i) not in U 
+    then 
+      add (L, v, i) to U
+      add (L, v, i) to R
+
+let _pop v i =
+    if v <> v_0
+    then
+      add (v,i) to P
+      for each u in v.child do _add v.L u i
+
+let _create L v i =
+    if (L,i) not in GSS then add (L,i) to GSS
+    let u = GSS.get (L,i)
+    if there is not an edge from u to v
+    then
+      add edge from u to v
+      for all (u,k) in P do _add L v k
+    u
+\end{verbatim}
+
+Нам нужен табличный вариант.
+
+
+\begin{verbatim}
+let rec dispatcher () = 
+  if R.Count <> 0 
+  then 
+    (L,v,i) := R.Get() 
+    dispatch := false 
+  else 
+    stop := true 
+
+and processing () =  
+  dispatch := true 
+  match L with
+  | (X -> a . x b where x = input[i + 1]) ->
+     i := i + 1
+     L := (X -> a x . b)
+     dispatch := false 
+  | (X -> a . x b where x is nonterminal) ->
+     v := _create (X -> a x . b) v i
+     let slots = pTable[x][input[i]]  
+     for L in slots do             
+         _add L v i
+  | (X -> a .) -> _pop v i
+  | _ -> final result processing and error notification
+
+let control () = 
+    while not !stop do 
+       if !dispatch then dispatcher() else processing() 
+
+control() 
+
+\end{verbatim}
+
+
+Если граф детерминированный, то кроме использования в качестве позиции вершины не требуется иных модификаций, так как в первом случае ровно один вариант совпадения входного символа с ожидаемым в правиле.
+
+
+Лес разбора ($L$ --- слот, $i,j,k$ --- координаты).
+\begin{itemize}
+\item Терминальные узлы $(T,i,j)$
+\item Нетерминальные узлы $(N,i,j)$. Сыновья --- запакованные узлы вида $N \rightarrow \gamma \cdot , k$
+\item Промежуточные узлы $(L,i,j)$. Сыновья --- запакованные узлы с меткой $L, k$, где $ i \leq k \leq j$ 
+\item Запакованные узлы $(L,k)$. Один или два сына. Правый --- терминал или нетерминал с меткой $(S,k,i)$. Левый (если есть) --- терминал, нетерминал или промежуточный с меткой $(S, j, k)$ 
+\end{itemize}
+
+Теперь в дескрипторе надо запоминать ссылку на узел дерева: $(L, v, i, a)$
+Дескрипторы с непустой ссылкой создаются в момент вызова \verb|_pop|. Правый сын создаваемого узла --- только что построенный узел. Левый сын хранится на ребре, исходящем из вершины, которую только что достали со стека.
+Метка нового узла --- адрес возврата, полученный из достанного узла.
+
+Теперь функции должны работать ещё и с узлами леса.
+
+\begin{algorithm}[!ht]
+\begin{algorithmic}[1]
+\caption{Single vertex processing}
+\label{processVertex}
+\Function{add}{$L,v,i,a$}
+  \If{$(L,v,i,a) \notin U$}  
+      \State{$U.add(L,v,i,a)$}
+      \State{$R.add(L,v,i,a)$}
+  \EndIf
+\EndFunction
+
+\Function{pop}{$v,i,z$}
+  \If{$v \neq v_0$}  
+      \State{$P.add(v,z)$}
+      \ForAll{$(a,u) \in v.outEdges$}
+        \State{$y \gets$ \Call{getNodeP}{$v.L, a, z$}}
+        \State{\Call{add}{$v.L,u,i,y$}}
+      \EndFor
+  \EndIf
+\EndFunction
+
+\Function{create}{$L,v,i,a$}
+  \If{$(L,i) \notin GSS.nodes$}  
+      \State{$GSS.nodes.add (L,i)$}
+  \EndIf
+  \State{$u \gets$ \Call{GSS.nodes.get}{$L, i$}}
+  \If{$(u,a,v) \notin GSS.edges$}  
+      \State{$GSS.edges.add(u,a,v)$}
+      \ForAll{$(u,z) \in P$}
+         \State{$y \gets$ \Call{getNodeP}{$L, a, z$}}
+         \State{$(\_,\_, k) \gets z.lbl$}
+         \State{\Call{add}{$L,v,k,y$}}
+      \EndFor
+  \EndIf
+  \Return{$u$}
+\EndFunction
+
+\Function{getNodeT}{$x,i$}
+  \If{$x = \varepsilon$}  
+      \State{$h \gets i$}
+  \Else
+      \State{$h \gets i + 1$}
+  \EndIf
+  \If{$(x,i,h) \notin SPPF.nodes$}  
+      \State{$SPPF.nodes.add(x,i,h)$}
+  \EndIf
+  \Return{$SPPF.nodes.get(x,i,h)$}
+\EndFunction
+
+
+%\Function{getNodeP}{$(X \rightarrow \omega_1 \cdot \omega_2), a ,z$}
+%  \If{$\omega_1$ is terminal or non-nullable nonterminal and $\omega_2 \neq \varepsilon$}  
+%      \Return{$z$}
+%  \Else
+%      \If{$\omega_2 = \varepsilon$}  
+%          \State{$t \gets X$}
+%       \Else
+%          \State{$h \gets (\rightarrow \omega_1 \cdot \omega_2)$}
+%       \EndIf
+%       \State{$(q,k,i) \gets z.lbl$}
+%      \If{$a \neq dummy$}  
+%         \State{$(s,j,k) \gets a.lbl$}
+%          \State{$y \gets $ find_or_create SPPF.nodes (n.lbl = (t,i,j))}
+%      \EndIf
+%
+%  \EndIf
+%  \Return{$SPPF.nodes.get(x,i,h)$}
+%\EndFunction
+
+
+\end{algorithmic}
+\end{algorithm}
+
+\begin{verbatim}
+let getNodeP (X -> w1 . w2) a z =
+    if w1 is terminal or non-nullable nonterminal and w2 <> \eps
+    then return z
+    else 
+      let t = if w2 = \eps then X else (X -> w1 . w2)
+      let (q,k,i) = z.lbl
+      if a <> dummy
+      then
+       let (s,j,k) = a.lbl
+       let y = find_or_create SPPF.nodes (n.lbl = (t,i,j))
+       if y does not have a child with label (X -> w1 . w2)
+       then
+         let y' = new_packed_node(a,z)
+         y.chld.add y'
+       return y
+      else
+        let y = find_or_create SPPF.nodes (n.lbl = (t,k,i))   
+        if y does not have a child with label (X -> w1 . w2)
+        then
+          let y' = new_packed_node(z)
+          y.chld.add y'
+        return y
+
+\end{verbatim}
+
+
+\begin{verbatim}
+let rec dispatcher () = 
+  if R.Count <> 0 
+  then 
+    (L,v,i,cN) := R.Get() 
+    cR := dummy
+    dispatch := false 
+  else 
+    stop := true 
+
+and processing () =  
+  dispatch := true 
+  match L with
+  | (X -> a . x b where x = input[i + 1]) ->
+     if cN = dummyAST 
+     then cN := getNodeT i
+     else cR := getNodeT i
+     i := i + 1
+     L := (X -> a x . b)
+     if !cR <> dummy
+     then cN := getNodeP L cN cR 
+     dispatch := false 
+  | (X -> a . x b where x is nonterminal) ->
+     v := _create (X -> a x . b) v i cN
+     let slots = pTable[x][input[i]]  
+     for L in slots do             
+         _add L v i dummy
+  | (X -> a .) -> 
+     _pop v i cN
+  | _ -> final result processing and error notification
+
+let control () = 
+    while not !stop do 
+       if !dispatch then dispatcher() else processing() 
+
+control() 
+
+\end{verbatim}
+
+
+\end{document}
