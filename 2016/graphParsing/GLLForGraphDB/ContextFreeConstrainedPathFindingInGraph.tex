@@ -32,10 +32,31 @@
 \usepackage{hyperref}
 \usepackage{textcomp}
 
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+
+
 \begin{document}
 
 \newtheorem{mytheorem}{Theorem}
 \newtheorem{lemma}{Lemma}
+
+\algnewcommand\algorithmicswitch{\textbf{switch}}
+\algnewcommand\algorithmiccase{\textbf{case}}
+\algnewcommand\algorithmicassert{\texttt{assert}}
+\algnewcommand\Assert[1]{\State \algorithmicassert(#1)}
+% New "environments"
+\algdef{SE}[SWITCH]{Switch}{EndSwitch}[1]{\algorithmicswitch\ #1\ \algorithmicdo}{\algorithmicend\ \algorithmicswitch}
+\algdef{SE}[CASE]{Case}{EndCase}[1]{\algorithmiccase\ #1}{\algorithmicend\ \algorithmiccase}
+
+\algtext*{EndSwitch}
+\algtext*{EndCase}
+\algtext*{EndWhile}% Remove "end while" text
+\algtext*{EndIf}% Remove "end if" text
+\algtext*{EndFor}% Remove "end for" text
+\algtext*{EndFunction}% Remove "end function" text
+
 
 \makeatletter
 \def\@copyrightspace{\relax}
@@ -154,6 +175,157 @@ Graph structured stack (GSS)~\cite{Tomita} is used to solve this problem. GSS al
 In GLL each GSS node contains pair --- position in input and grammmar slot. Grammar slot is like LR-slot. Slot is a grammar rule and position in it (for example !!!!).
 
 The next part of the descriptor is a tree node. Parsers build derivation tree using input and grammar. There are more than one tree for ambigious grammar and generalised algorithms builds all derivation trees. Special data structure -- SPPF -- is used to reduce space required for tree storage.
+
+\begin{algorithm}[h]
+\begin{algorithmic}[1]
+\caption{Single vertex processing}
+\label{processVertex}
+\Function{add}{$L,v,i,a$}
+  \If{$(L,v,i,a) \notin U$}  
+      \State{$U.add(L,v,i,a)$}
+      \State{$R.add(L,v,i,a)$}
+  \EndIf
+\EndFunction
+
+\Function{pop}{$v,i,z$}
+  \If{$v \neq v_0$}  
+      \State{$P.add(v,z)$}
+      \ForAll{$(a,u) \in v.outEdges$}
+        \State{$y \gets$ \Call{getNodeP}{$v.L, a, z$}}
+        \State{\Call{add}{$v.L,u,i,y$}}
+      \EndFor
+  \EndIf
+\EndFunction
+
+\Function{create}{$L,v,i,a$}
+  \If{$(L,i) \notin GSS.nodes$}  
+      \State{$GSS.nodes.add (L,i)$}
+  \EndIf
+  \State{$u \gets$ \Call{GSS.nodes.get}{$L, i$}}
+  \If{$(u,a,v) \notin GSS.edges$}  
+      \State{$GSS.edges.add(u,a,v)$}
+      \ForAll{$(u,z) \in P$}
+         \State{$y \gets$ \Call{getNodeP}{$L, a, z$}}
+         \State{$(\_,\_, k) \gets z.lbl$}
+         \State{\Call{add}{$L,v,k,y$}}
+      \EndFor
+  \EndIf
+  \Return{$u$}
+\EndFunction
+
+\end{algorithmic}
+\end{algorithm}
+
+
+\begin{algorithm}[h]
+\begin{algorithmic}[1]
+\caption{Single vertex processing}
+\label{processVertex}
+
+\Function{getNodeT}{$x,i$}
+  \If{$x = \varepsilon$}  
+      \State{$h \gets i$}
+  \Else
+      \State{$h \gets i + 1$}
+  \EndIf
+  \If{$(x,i,h) \notin SPPF.nodes$}  
+      \State{$SPPF.nodes.add(x,i,h)$}
+  \EndIf
+  \Return{$SPPF.nodes.get(x,i,h)$}
+\EndFunction
+
+\Function{getNodeP}{$(X \rightarrow \omega_1 \cdot \omega_2), a ,z$}
+  \If{$\omega_1$ is terminal or non-nullable nonterminal and $\omega_2 \neq \varepsilon$}  
+      \Return{$z$}
+  \Else
+      \If{$\omega_2 = \varepsilon$}  
+          \State{$t \gets X$}
+       \Else
+          \State{$h \gets (\rightarrow \omega_1 \cdot \omega_2)$}
+       \EndIf
+       \State{$(q,k,i) \gets z.lbl$}
+      \If{$a \neq dummy$}  
+         \State{$(s,j,k) \gets a.lbl$}
+         \State{$y \gets findOrCreate \ SPPF.nodes \ (n.lbl = (t,i,j))$}
+         \If{$y$ does not have a child with label $(X \rightarrow \omega_1 \cdot \omega_2)$}
+             \State{$y' \gets newPackedNode(a,z)$}
+             \State{$y.chld.add \ y'$}
+             \State{\Return{$y$}}
+         \Else
+             \State{$y \gets findOrCreate \ SPPF.nodes \ (n.lbl = (t,k,i))$}
+             \If{$y$ does not have a child with label $(X \rightarrow \omega_1 \cdot \omega_2)$}
+                \State{$y' \gets newPackedNode(z)$}
+                \State{$y.chld.add \ y'$}
+                \State{\Return{$y$}}
+             \EndIf
+         \EndIf
+      \EndIf
+  \EndIf
+  \Return{$SPPF.nodes.get(x,i,h)$}
+\EndFunction
+
+
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[h]
+\begin{algorithmic}[1]
+\caption{Single vertex processing}
+\label{processVertex}
+\Function{dispatcher}{}
+  \If{$R.Count \neq 0$}  
+      \State{$(L,v,i,cN) \gets R.Get()$}
+      \State{$cR \gets dummy$}
+      \State{$dispatch \gets false$}
+  \Else
+      \State{$stop \gets true$}
+  \EndIf
+\EndFunction
+
+\Function{processing}{}
+  \State{$dispatch \gets true$}
+  \Switch{$L$}
+  \Case{$(X \rightarrow \alpha \cdot x \beta)$ where $x = input[i + 1])$}
+       \If{$cN = dummyAST$} 
+          \State{$cN \gets \Call{getNodeT}{i}$} 
+       \Else 
+          \State{$cR \gets \Call{getNodeT}{i}$}
+       \EndIf
+       \State{$i \gets i + 1$}
+       \State{$L \gets (X \rightarrow \alpha x \cdot \beta)$}
+       \If{$cR \neq dummy$}
+          \State{$cN \gets \Call{getNodeP}{L, cN, cR}$} 
+       \EndIf
+       \State{$dispatch \gets false$}        
+  \EndCase
+  \Case{$(X \rightarrow \alpha \cdot x \beta)$ where $x$ is nonterminal}
+       \State{$v \gets$ \Call{create}{$(X \rightarrow \alpha x \cdot \beta), v, i, cN$}}
+       \State{$slots \gets pTable[x][input[i]]$}
+       \ForAll{$L \in slots$}
+          \State{\Call{add}{L,v,i,dummy}} 
+       \EndFor
+  \EndCase
+  \Case{$(X \rightarrow \alpha \cdot )$}
+       \State{\Call{pop}{v,i,cN}} 
+  \EndCase
+  \Case{$\_$}
+       \State{final result processing and error notification} 
+  \EndCase
+  \EndSwitch
+\EndFunction
+
+\Function{control}{}
+  \While{not $stop$}  
+      \If{$dispatch$}
+        \State{\Call{dispatcher}{}}
+      \Else
+         \State{\Call{processing}{}}
+      \EndIf
+  \EndWhile
+\EndFunction
+
+\end{algorithmic}
+\end{algorithm}
 
 \subsection{Shared packed parse forest}
 
