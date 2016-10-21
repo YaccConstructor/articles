@@ -11,6 +11,24 @@ Our solution is based on generalized LL (GLL)~\cite{scott2010gll, FastPracticalG
 
 \subsection{Generalized LL Parsing Algorithm}
 
+States
+
+\begin{itemize}
+\item
+\item
+\item
+\item
+\end{itemize}
+
+Sets
+\begin{itemize}
+\item
+\item
+\item
+\item
+\end{itemize}
+
+
 Generalized LL (GLL) is generalized top-down parsing algorithm which handle all context-free grammars (including left recursive) with worst-case cubic time complexity and linear for LL grammars.
 GLL is native for grammar, can be simple created !!!!!!! and debugging. Generalised algorithms look through all possible derivation in grammar for input. If current parsing branch is wrong the analisys (!??) process cotinious with others. 
 GLL uses descriptors mechanism to store all parsing branches. Descriptors are four (!!???!!) elements which fully (??!!!) describes current parser state. Descriptor is a quadriple $(L, s, j, a)$ where $L$ is a line label, $s$ is a stack node, $j$ is a position in the input, and $a$ is a node of derivation tree. GLL parsers, like recursive descent parsers, consist of functions for every nonterminal and one dispatching function. Every function has label and a function gets control from another function due the call by the name. Process of analisys consist of calling function and tarts from the function for start nonterminal. !!!!!!!!!!!!!!!  нужно перейти от того, что лэйблы в оригинале и у нас!!!!!!!!!
@@ -20,11 +38,12 @@ In GLL each GSS node contains pair --- position in input and grammmar slot. Gram
 
 The next part of the descriptor is a tree node. Parsers build derivation tree using input and grammar. There are more than one tree for ambigious grammar and generalised algorithms builds all derivation trees. Special data structure -- SPPF -- is used to reduce space required for tree storage.
 
+We use table version~\cite{TableGLL} instead of code generation.
 
 \begin{algorithm}[h]
 \begin{algorithmic}[1]
-\caption{Single vertex processing}
-\label{processVertex}
+\caption{Control functions}
+\label{mainFunctions}
 \Function{dispatcher}{}
   \If{$R.Count \neq 0$}  
       \State{$(L,v,i,cN) \gets R.Get()$}
@@ -152,10 +171,48 @@ Binarised SPPF can be represented as a graph where each node has one of four typ
 Further in our examples we will remove redudant intermidiate and packed nodes from SPPF to simplify it and decrease size of structure.
 
 \subsection{GLL-based graph parsing}
-(!!!!!Нужен какой-то переход или рассказ про то, как мы в виде графа представляем вход!!!!!!11)
-In order to adapt GLL for graph parsing we need only use graph verticea as position in input.
-As far as we work with context-free languages it is not important how this descriptor was created, and so descriptors management and other basic mechanisms of original algorithm can be reused ``as is''. 
-We can merge it if they are equal. (!!!!!!!ВОТ эти два предожения вообще не нужны, кажется, но надо подумать!!!!!!!!!!!!!!) 
+%(!!!!!Нужен какой-то переход или рассказ про то, как мы в виде графа представляем вход!!!!!!11)
+In order to use GLL for graph parsing we need only use graph vertices as position in input. After that we should modify \textbf{Processing} function such that 
+
+\begin{algorithm}[h]
+\begin{algorithmic}[1]
+\caption{Control functions}
+\label{mainFunctions}
+\Function{processing}{}
+  \State{$dispatch \gets true$}
+  \Switch{$L$}
+  \Case{$(X \rightarrow \alpha \cdot x \beta)$ where $x = input[i + 1])$}
+       \If{$cN = dummyAST$} 
+          \State{$cN \gets \Call{getNodeT}{i}$} 
+       \Else 
+          \State{$cR \gets \Call{getNodeT}{i}$}
+       \EndIf
+       \State{$i \gets i + 1$}
+       \State{$L \gets (X \rightarrow \alpha x \cdot \beta)$}
+       \If{$cR \neq dummy$}
+          \State{$cN \gets \Call{getNodeP}{L, cN, cR}$} 
+       \EndIf
+  \EndCase
+  \Case{$(X \rightarrow \alpha \cdot x \beta)$ where $x$ is nonterminal}
+       \State{$v \gets$ \Call{create}{$(X \rightarrow \alpha x \cdot \beta), v, i, cN$}}
+       \State{$slots \gets \bigcup_{e \in input.OutEdges(i)} pTable[x][e.Token]$}
+       \ForAll{$L \in slots$}
+          \State{\Call{add}{L,v,i,dummy}} 
+       \EndFor
+  \EndCase
+  \Case{$(X \rightarrow \alpha \cdot )$}
+       \State{\Call{pop}{v,i,cN}} 
+  \EndCase
+  \Case{$\_$}
+       \State{final result processing and error notification} 
+  \EndCase
+  \EndSwitch
+\EndFunction
+
+\end{algorithmic}
+\end{algorithm}
+
+
 
 We implement some optimizations:~\cite{FastPracticalGLL}
 
