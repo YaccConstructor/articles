@@ -5,11 +5,30 @@
 \usepackage{graphicx}
 
 \usepackage{url}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+
 \urldef{\mailsa}\path|gorohov.art@gmail.com|    
 \newcommand{\keywords}[1]{\par\addvspace\baselineskip
 \noindent\keywordname\enspace\ignorespaces#1}
 
 \begin{document}
+
+\algnewcommand\algorithmicswitch{\textbf{switch}}
+\algnewcommand\algorithmiccase{\textbf{case}}
+\algnewcommand\algorithmicassert{\texttt{assert}}
+\algnewcommand\Assert[1]{\State \algorithmicassert(#1)}
+% New "environments"
+\algdef{SE}[SWITCH]{Switch}{EndSwitch}[1]{\algorithmicswitch\ #1\ \algorithmicdo}{\algorithmicend\ \algorithmicswitch}
+\algdef{SE}[CASE]{Case}{EndCase}[1]{\algorithmiccase\ #1}{\algorithmicend\ \algorithmiccase}
+
+\algtext*{EndSwitch}
+\algtext*{EndCase}
+\algtext*{EndWhile}% Remove "end while" text
+\algtext*{EndIf}% Remove "end if" text
+\algtext*{EndFor}% Remove "end for" text
+\algtext*{EndFunction}% Remove "end function" text
 
 \mainmatter  % start of an individual contribution
 
@@ -60,9 +79,9 @@ blabla bla bla blablalba blabla bla bla blablalba blabla bla bla blablalba blabl
 
 \section{EBNF}%--------------------------------------------------------------------------------------------------------------------------------------------
 
-GLL allows analysis only by grammars in Backus-Naur Form. When most of the time people use Extended Backus-Naur Form.
-Extended Backus-Naur Form is a syntax of expressing context-free grammars. Unlike the Chomsky normal form it 
-introduces such new constructions: 
+GLL allows analysis only by grammars in Backus-Naur Form. When use of Extended Backus-Naur Form is more common.
+Extended Backus-Naur Form is a syntax of expressing context-free grammars. Unlike the Backus-Naur Form it 
+uses such new constructions:
 \begin{itemize}
     \item alternation $\mid$
     \item option [ ... ]
@@ -89,27 +108,243 @@ of parsing process. It consists of:
     \item Current \textbf{GSS node}
 \end{itemize}
 
-It creates and queues new descriptors depending on current parse state that we get by unqueued descriptor. 
-In case descriptor was already created it does not add it to queue. For this purpose we have a descriptor 
-elimination set that stores \textbf{all} created descriptors. Thus reducing set of possible descriptors 
-decreases the parse time and required memory.
+It creates and queues new descriptors depending on current parse state that we get from unqueued descriptor. 
+In case descriptor was already created it does not add it to queue. For this purpose we have a set of
+\textbf{all} created descriptors. Thus reducing set of possible descriptors decreases the parse time
+and required memory.
 
-Let us spot on slots. Grammar written in EBNF usually is more compact then in BNF. That means EBNF contains 
+Let us spot on \textbf{slots}. Grammar written in EBNF is usually more compact then it's representation in BNF. That means EBNF contains 
 less slots and parser creates less descriptors. Thus support of EBNF in GLL can increase parsing performance. 
 
+\section{Base functions}
+dd
+\vspace{9cm}
+\begin{algorithmic}
+    \Function{add}{$L,u,i,w$}
+    \If{$(L,u,i,w) \notin U$}  
+    \State $U.add(L,u,i,w)$
+    \State $R.add(L,u,i,w)$
+    \EndIf
+    \EndFunction
+\end{algorithmic}
+    
+\begin{algorithmic}    
+    \Function{create}{$L, u, i, w$}
+    \If{($\exists$ GSS node labeled $(A, i)$)}  
+   
+    \State $v \gets$ GSS node labeled $(A, i)$
+   
+    \If{(there is no GSS edge from $v$ to $u$ labeled ($L,w$))}
+    \State add a GSS edge from $v$ to $u$ labeled ($L,w$)
+           \For{($(v, z) \in \mathcal{P} $)}
+           \State $y \gets$ \textbf{getNodeP}($L,w,z$)
+           \State \textbf{add}($L, u, h, y$) where $h$ is the right extent of $y$
+           \EndFor
+    \EndIf
+    
+    \Else
+    \State $v \gets$ \textbf{new} GSS node labeled ($A, i$)
+    \State create a GSS edge from $v$ to $u$ labeled ($L, w$)
+           \For{(each alternative $\alpha_{k}$ of $A$)}
+           \State \textbf{add}($A ::= \cdot \alpha_{k}, v, i, \$ $)
+           \EndFor
+           
+    \EndIf
+    \Return{$v$}
+    \EndFunction
+\end{algorithmic}
+
+\begin{algorithmic}   
+    \Function{pop}{$u,i,z$}
+    \If{($(u,z) \notin \mathcal{P}$)}  
+    \State $\mathcal{P}.add(u,z)$
+    \ForAll{GSS edges $(u,L,w,v)$}
+    \State $y \gets$ \textbf{getNodeP}($L, w, z$)
+    \State \textbf{add}($L,v,i,y$)
+    \EndFor
+    \EndIf
+    \EndFunction
+\end{algorithmic}
+
+\begin{algorithmic}   
+    \Function{getNodeT}{$x, i$}
+    \If{($x = \epsilon$)}  
+    \State $h \gets i$
+    \Else
+    \State $h \gets i + 1$
+    \EndIf
+    
+    \If{($\nexists$ SPPF node labelled $(x, i, h)$)}  
+    \State create SPPF node labelled $(x, i, h)$
+    \EndIf
+    
+    \Return SPPF node labelled $(x, i, h)$
+    
+    \EndFunction
+\end{algorithmic}
+\vspace{9cm}
+\begin{algorithmic}   
+    \Function{getNodeP}{$X ::= \alpha \cdot \beta,w, z$}
+    \If{($\alpha$ is a terminal or a non-nullable nontermial $\&$ $\beta \neq \epsilon$)}  
+    \State \Return{$z$}
+    \Else
+    
+    \If{($\beta = \epsilon$)}
+    \State $t \gets X$
+    \Else
+    \State $t \gets (X ::=\alpha \cdot \beta)$
+    \EndIf
+    
+    \State suppose that $z$ has label $(q, k, i)$
+    
+    \If{($w \neq \$$)}
+    \State suppose that $w$ has label $(s, j, k)$
+    
+    \If{($\nexists$ SPPF node $y$ labelled $(t, j, i)$)}
+    \State create such node
+    \EndIf
+    
+    
+    \If{($\nexists$ child of $y$ labelled $((X ::=\alpha \cdot \beta), k)$)}
+    \State create such node with left child $w$ and right child $z$
+    \EndIf
+    
+    \Else
+    \If{($\nexists$ SPPF node $y$ labelled $(t, k, i)$)}
+    \State create such node
+    \EndIf
+    
+    \If{($\nexists$ child of $y$ labelled $((X ::=\alpha \cdot \beta), k)$)}
+    \State create such node with child $z$
+    \EndIf
+    
+    \EndIf
+           
+    \State \Return{$y$}
+    \EndIf
+    \EndFunction
+\end{algorithmic}
+\vspace{9cm}
 
 
+
+
+
+\section{New Functions}
+\begin{algorithmic}
+    \Function{add}{$S,u,i,w$}
+    \If{$(S,u,i,w) \notin U$}  
+    \State $U.add(S,u,i,w)$
+    \State $R.add(S,u,i,w)$
+    \EndIf
+    \EndFunction
+\end{algorithmic}
+\vspace{2cm}
+\begin{algorithmic}    
+    \Function{create}{$S_{curr}, S_{call},S_{next}, u, i, w$}
+    \If{($\exists$ GSS node labeled $(S_{call}, i)$)}  
+    
+    \State $v \gets$ GSS node labeled $(S_{call}, i)$
+           \If{(there is no GSS edge from $v$ to $u$ labeled ($S_{next},w$))}
+           \State add a GSS edge from $v$ to $u$ labeled ($S_{next},w$)
+                  \For{($(v, z) \in \mathcal{P} $)}
+                  \State $y \gets$ \textbf{getNodeP}($S_{next},w,z$)
+                  \State \textbf{add}($S_{next} , u, h, y$) where $h$ is the right extent of $y$
+                  \EndFor
+           \EndIf
+    
+    \Else
+    \State{$v \gets$ \textbf{new} GSS node labeled $(S_{call}, i)$}
+    \State{create a GSS edge from $v$ to $u$ labeled ($S_{next}, w$)
+    \State{\textbf{add}($S_{call}, v, i, \$ $)}
+    
+    }
+    \EndIf
+    \Return{$v$}
+    \EndFunction
+\end{algorithmic}  
+
+\begin{algorithmic}   
+    \Function{pop}{$u,i,z$}
+    \If{($(u,z) \notin \mathcal{P}$)}  
+    \State{$\mathcal{P}.add(u,z)$}
+    \ForAll{GSS edges $(u,S_{next},w,v)$}
+    \State{$y \gets$ \textbf{getNodeP}($S_{next}, w, z$)}
+    \State{\textbf{add}($S_{next},v,i,y$)}
+    \EndFor
+    \EndIf
+    \EndFunction
+\end{algorithmic}
+
+\begin{algorithmic}   
+    \Function{getNodeT}{$x, i$}
+    \If{($x = \epsilon$)}  
+    \State{$h \gets i$}
+    \Else
+    \State{$h \gets i + 1$}
+    \EndIf
+    
+    \If{($\nexists$ SPPF node labelled $(x, i, h)$)}  
+    \State{create SPPF node labelled $(x, i, h)$}
+    \EndIf
+    
+    \Return{ SPPF node labelled $(x, i, h)$}
+    
+    \EndFunction
+\end{algorithmic}
+
+\begin{algorithmic}   
+    \Function{getNodeP}{$S, w, z$}
+    \If{($\alpha$ is a terminal or a non-nullable nontermial $\&$ $\beta \neq \epsilon$)}  
+    \State{\Return{$z$}}
+    \Else
+    
+    \If{($\beta = \epsilon$)}
+    \State{$t \gets X$}
+    \Else
+    \State{$t \gets (X ::=\alpha \cdot \beta)$}
+    \EndIf
+    
+    \State{suppose that $z$ has label $(q, k, i)$}
+    
+    \If{($w \neq \$$)}
+    \State{suppose that $w$ has label $(s, j, k)$}
+    
+    \If{($\nexists$ SPPF node $y$ labelled $(t, j, i)$)}
+    \State{create such node}
+    \EndIf
+    
+    
+    \If{($\nexists$ child of $y$ labelled $((X ::=\alpha \cdot \beta), k)$)}
+    \State{create such node with left child $w$ and right child $z$}
+    \EndIf
+    
+    \Else
+    \If{($\nexists$ SPPF node $y$ labelled $(t, k, i)$)}
+    \State{create such node}
+    \EndIf
+    
+    \If{($\nexists$ child of $y$ labelled $((X ::=\alpha \cdot \beta), k)$)}
+    \State{create such node with child $z$}
+    \EndIf
+    
+    \EndIf
+    
+    \State{\Return{$y$}}
+    \EndIf
+    \EndFunction
+\end{algorithmic}
 
 \section{Grammar Transformation}%--------------------------------------------------------------------------------------------------------------------------------------------
 
 There are some basic methods converting regular expressions to nondeterministic finite state automatons. 
 At the same time context-free grammar productions are regular expressions, that can contain as terminals 
-as nonterminals. Thus for each grammar rule we can build a finite state automata, with edges tagged with 
+as nonterminals. Thus for each grammar rule we can build a finite state automaton, with edges tagged with 
 terminals, nonterminals or epsilon-symbols. We used Thompson's method\cite{Thompson:1968:PTR:363347.363387}. 
 In built automatons nonterminals should be replaced with links to initial states of automaton that stands 
 for this nonterminal.
 
-Produced $\varepsilon$-NFAs can be converted to DFAs. An algorithm is described in book[ The Design and Analysis of Computer Algorithms page 324].
+Produced $\varepsilon$-NFAs can be converted to DFAs. An algorithm is described in \cite{aho1974design}.
 
 Minimization of the quantity of the DFA states decreases number of GLL descriptors. John Hopcroft's 
 algorithm\cite{hopcroft1971n} can be used for it. But we can apply it to all automatons at one time. 
@@ -122,12 +357,14 @@ Initial state is class that contains initial state of automaton that represents 
 
 
 \section{GLL Modification}
-In FSA slots are actually states. And just as we can move through grammar slots we can move through states 
-in FSA. But in FSA we have multiple ways to go because many nonterminals can start with current input symbol. 
+Slots becomes DFA states. And just as we can move through grammar slots we can move through states 
+in DFA. But in DFA we have multiple ways to go because many nonterminals can start with current input symbol. 
 So we need to prevent creation of descriptors for each nonterminal on out edges. We can generate tables that 
 tells us what nonterminals can infer strings that starts with current terminal. And add descriptors only for 
 this edges. Moreover we need to create descriptor for edge that marked with current terminal if such exists.
 Other aspects of GLL remains unchanged.
+
+% Надо сказать про то что на самом деле структура грамматики не меняется. Меняется лишь её представление. И, например, ошибки детектить мы можем с тем же успехом что и раньше
 
 
 \section{Related works}%--------------------------------------------------------------------------------------------------------------------------------------------
