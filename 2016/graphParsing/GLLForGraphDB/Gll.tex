@@ -161,27 +161,37 @@ One of nonterminal nodes can be marked as 'root' --- node for start nonterminal.
 Further in our examples we will remove redundant intermediate and packed nodes from SPPF to simplify it and decrease size of structure.
 
 \subsection{GLL-based graph parsing}
-%(!!!!!Нужен какой-то переход или рассказ про то, как мы в виде графа представляем вход!!!!!!11)
-In order to use GLL for graph parsing we need only use graph vertices as position in input. After that we should modify \textbf{Processing} function such that 
+
+In this section we present such modification of GLL algorithm, that for input graph $M$, set of start vertices $V_s\subseteq V$, set of final vertices $V_f\subseteq V$, grammar $G_1$, it return SPPF which contains all derivation trees for all paths $p$ in $M$, such that $\Omega(p) \in L(G_1)$, and $p.start \in V_s, p.end \in V_f$.
+
+First of all note that input string for classical parser is a linear graph, and positions in input is vertices of this graph.
+This observation can be generalized to arbitrary graph with remark that in the position we have not only one next symbol, but set of labels of all outgoing edges for given vertex. 
+Thus in order to use GLL for graph parsing we need to use graph vertices as position in input and modify \textbf{Processing} function to allow to process more then one "next symbol".
+Required modifications presented in listing~\ref{modifAlgo}.
+Small modification also required for initialization of $R$ set: it is necessary to add not only one initial descriptor but set of descriptors for all vertices in $V_s$.
+All other functions can be reused from original algorithm without any changes.
 
 \begin{algorithm}[h]
 \begin{algorithmic}[1]
-\caption{Control functions}
-\label{mainFunctions}
+\caption{\textbf{Processing} function modified in order to process arbitrary directed graph}
+\label{modifAlgo}
 \Function{processing}{}
   \State{$dispatch \gets true$}
   \Switch{$L$}
-  \Case{$(X \rightarrow \alpha \cdot x \beta)$ where $x = input[i + 1])$}
-       \If{$cN = dummyAST$} 
-          \State{$cN \gets \Call{getNodeT}{i}$} 
+  \Case{$(X \rightarrow \alpha \cdot x \beta)$ where $x$ is terminal}
+	   \ForAll{$\{ e | e \in input.outEdges(i), tag(e) = x \}$}
+	   \State{$new\_cN \gets cN$}
+       \If{$new\_cN = dummyAST$} 
+          \State{$new\_cN \gets \Call{getNodeT}{e}$} 
        \Else 
-          \State{$cR \gets \Call{getNodeT}{i}$}
+          \State{$new\_cR \gets \Call{getNodeT}{e}$}
        \EndIf
-       \State{$i \gets i + 1$}
        \State{$L \gets (X \rightarrow \alpha x \cdot \beta)$}
-       \If{$cR \neq dummy$}
-          \State{$cN \gets \Call{getNodeP}{L, cN, cR}$} 
+       \If{$new\_cR \neq dummy$}
+          \State{$new\_cN \gets \Call{getNodeP}{L, new\_cN, new\_cR}$} 
        \EndIf
+	   \State{\Call{add}{L,v,target(e),new\_cN}}
+	   \EndFor
   \EndCase
   \Case{$(X \rightarrow \alpha \cdot x \beta)$ where $x$ is nonterminal}
        \State{$v \gets$ \Call{create}{$(X \rightarrow \alpha x \cdot \beta), v, i, cN$}}
@@ -204,18 +214,9 @@ In order to use GLL for graph parsing we need only use graph vertices as positio
 
 
 
-We implement some optimizations:~\cite{FastPracticalGLL}
 
-We also use binarised SPPF for result representation which allow to simplify query debugging and result exploration.
-We 
 
-$\mathbb{P}:G, M, StartVset, FinalVSet \rightarrow SPPF$
-In details, main function input is graph $M$, set of start vertices $V_s\subseteq V$, set of final vertices $V_f\subseteq V$, grammar $G_1$.
-Output is SPPF which contains all derivation trees for all paths $p$ in $M$, such that $\Omega(p) \in L(G_1)$.
 As far as we can specify sets of start and final vertices, our solution can find all paths in graph, all paths from specified vertex, all paths between specified vertices. 
-Also SPPF represents a structure of paths in terms of derivation which allow to get more useful 
-information about result. 
-Binarized SPPF is at most cubic in terms of result size. 
-Any path can be extracted in linear time.
+Also SPPF represents a structure of paths in terms of derivation which allow to get more useful information about result. 
 
 A bit more on correctness.!!!!!
