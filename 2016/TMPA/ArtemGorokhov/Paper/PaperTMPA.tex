@@ -91,7 +91,11 @@ of parsing process. It consists of:
 
 and so on about GLL
 
-\section{EBNF}%--------------------------------------------------------------------------------------------------------------------------------------------
+
+
+\section{EBNF GLL parsing}%--------------------------------------------------------------------------------------------------------------------------------------------
+
+In this section we will show an application of EBNF grammars in automatons and corresponding GLL-style parsers.
 
 GLL allows analysis only by grammars in Backus-Naur Form. When use of Extended Backus-Naur Form is more common.
 Extended Backus-Naur Form is a syntax of expressing context-free grammars. Unlike the Backus-Naur Form it 
@@ -120,7 +124,7 @@ At the same time context-free grammar productions are regular expressions, that 
 as nonterminals. Thus for each grammar rule we can build a finite state automaton, with edges tagged with 
 terminals, nonterminals or $\varepsilon$-symbols. We used Thompson's method\cite{Thompson:1968:PTR:363347.363387}. 
 In built automatons nonterminals should be replaced with links to initial states of automaton that stands 
-for this nonterminal.
+for this nonterminal. An example of constructed automaton for grammar $\Gamma_{0}$\ref{fig:grammarG0} is given on fig.
 
 Produced $\varepsilon$-NFAs can be converted to DFAs. An algorithm is described in \cite{aho1974design}.
 
@@ -134,7 +138,61 @@ transitions between them.
 Initial state is class that contains initial state of automaton that represents productions of start nonterminal.
 % Надо сказать про то что на самом деле структура грамматики не меняется. Меняется лишь её представление.
 
-\section{GLL Modification}%--------------------------------------------------------------------------------------------------------------------------------------------
+Some states have labels: names of nonterminals which productions start in that states.
+
+\section{SPPFs For Automatons}%--------------------------------------------------------------------------------------------------------------------------------------------
+
+First, we should define derivation trees for DFA's: it is an ordered tree whose root is lable of the start state,
+leaf nodes are labeled with a terminals from DFA's edges or $\varepsilon$ and interior nodes are labeled with 
+nonterminals from DFA's edges($ A $) and have a sequence of children that corresponds to edge labels of path in 
+DFA that starts from the state labeled $ A $.
+DFA is ambiguous if there exist string that have more than one derivation trees. Thus, we can define SPPF for DFA. 
+It is similar to SPPF for grammars described in \cite{scott2013gll}. SPPF contains symbol nodes(like derivation trees), packed nodes
+and intermediate nodes. 
+Packed nodes are of the form $(S, k)$, where $S$ is a state of DFA. 
+Symbol nodes have labels $(X, i, j)$ where $X$ is an edge symbol or a nonterminal. 
+Intermediate nodes have labels $ (S, i, j) $, where $S$ is a state of DFA
+
+A packed node has one or two children right child can be symbol node, left child can be symbol or intermediate node.   
+Nonterminal symbol nodes have packed children nodes of the form $(S, k)$ where $S$ is pop state. 
+Terminal symbol nodes are leafs.
+
+ Use of intermediate and packed nodes leads to binarization of SPPF and thus the space complexity is $O(n^{3})$.
+%But in grammars slot defines position,
+%previous and next symbol, when DFA state tells the position only. Thus we can can construct SPPF using 
+%In general, we can't uniquely correspond an original grammar slot to automaton state.
+%We can consider example. For the grammar \ref{fig:grammarG0}, automaton will be represented as showed on fig.\ref{fig:automatonForG0}.
+%SPPF for input "aa" is on fig.\ref{fig:SPPF}.
+
+\begin{figure}
+    \centering
+    \parbox{2.9cm}{
+        \begin{center}
+            $S ::= (aa)|(ab)$
+        \end{center}
+        \caption{Grammar $\Gamma_{0}$}
+        \label{fig:grammarG0}}
+    \qquad
+    \begin{minipage}{4cm}
+        \includegraphics[width=4cm]{pictures/automatonForG0.pdf}
+        \caption{Automaton for $\Gamma_{0}$}
+        \label{fig:automatonForG0}
+    \end{minipage}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=4cm]{pictures/SPPFforG0.pdf}
+    \caption{SPPF for input "aa"}
+    \label{fig:SPPF}
+\end{figure}
+
+
+State 1 can be matched with two grammar slots: $S ::= (a \cdot a)|(b$ $a)$ and $S ::= (a$ $a)|(b \cdot a)$. But 
+SPPF represents WHAT???
+
+
+\section{GLL For Automatons}%--------------------------------------------------------------------------------------------------------------------------------------------
 Slots becomes DFA states. And just as we can move through grammar slots we can move through states 
 in DFA. But in DFA we have multiple ways to go because many nonterminals can start with current input symbol. 
 %So we need to prevent creation of descriptors for each nonterminal on out edges. We can generate tables that 
@@ -142,130 +200,26 @@ in DFA. But in DFA we have multiple ways to go because many nonterminals can sta
 %this edges. Moreover we need to create descriptor for edge that marked with current terminal if such exists.
 
 
-\subsection{Functions Modification}
-\begin{algorithmic}
-    \Function{add}{$S,u,i,w$}
-    \If{$(S,u,i,w) \notin U$}  
-    \State $U.add(S,u,i,w)$
-    \State $R.add(S,u,i,w)$
-    \EndIf
-    \EndFunction
-\end{algorithmic}
+\subsection{Functions Modification}%--------------------------------------------------------------------------------------------------------------------------------------------
 
-\begin{algorithmic}    
-\Function{create}{$edge, u, i, w$}
-    \State $edge$ is $(S_{curr}, Nonterm(A, S_{call}), S_{next}))$
-    \If{($\exists$ GSS node labeled $(A, i)$)}  
-    
-        \State $v \gets$ GSS node labeled $(A, i)$
-        \If{(there is no GSS edge from $v$ to $u$ labeled ($S_{next},w$))}
-            \State add a GSS edge from $v$ to $u$ labeled ($S_{next},w$)
-            \For{($(v, z) \in \mathcal{P} $)}
-                \State $y \gets$ \textbf{getNodeP}($S_{next}, u.nonterm, w, z$)
-                \State $(\_, \_, h) \gets y$
-                \State \textbf{add}($S_{next} , u, h, y$)
-            \EndFor
-        \EndIf
-    
-    \Else
-        \State $v \gets$ \textbf{new} GSS node labeled $(A, i)$
-        \State create a GSS edge from $v$ to $u$ labeled ($S_{next}, w$)
-        \State \textbf{add}($S_{call}, v, i, \$ $)
-    \EndIf
-    \Return{$v$}
-\EndFunction
-\end{algorithmic}  
+\input{add.tex}
+\input{create.tex}
 
-\begin{algorithmic}   
-\Function{pop}{$u,i,z$}
-    \If{($(u,z) \notin \mathcal{P}$)}  
-        \State $\mathcal{P}.add(u,z)$
-        \ForAll{GSS edges $(u,S,w,v)$}
-            \State $y \gets$ \textbf{getNodeP}($S, v.nonterm, w, z$)
-            \State \textbf{add}($S,v,i,y$)
-        \EndFor
-    \EndIf
-\EndFunction
-\end{algorithmic}
-
+\input{pop.tex}
 \subsection{SPPF construction}
-function $\textbf{getNodeT}(x,i)$ does not change
+\textbf{function} getNodeT$(x,i)$ does not change
 
+In states of parsing we can have a nondeterministic choice because the states of DFA can be "pop" states.
+In this case we need to create nonterminal node and raise \textbf{pop} function. But if there exist out edges from this state we also need to create intermediate node.
+For this purpose we defined function \textbf{getNodes} which can construct two nodes: intermediate and nonterminal (at least one of them, at most both of them).
+So if current state is "pop" state it constructs nonterminal node
 
-\begin{algorithmic}   
-\Function{getNodeP}{$S, A, w, z$}
-    \If{($isFiR[S][A]$) $\&$ ($S$ is not pop state)}
-        \State \Return{$z$}
-    \Else
-    
-        \If{($S$ is pop state)}
-            \State $L \gets A$
-        \Else
-            \State $L \gets S$
-        \EndIf
-    
-        \State $(\_, k, i) \gets z$
-    
-        \If{($w \neq \$$)}
-            \State $(\_, j, k) \gets w$
-    
-            \State $y \gets$ find or create SPPF node labelled $(L, j, i)$  
-    
-            \If{($\nexists$ child of $y$ labelled $(S, k)$)}
-                \State $y\prime \gets \textbf{new}$ $packedNode(S, k)$
-                \State $y\prime.addLeftChild(w)$
-                \State $y\prime.addRightChild(z)$
-                \State $y.addChild(y\prime)$
-            \EndIf
-    
-        \Else
-            \State $y \gets$ find or create SPPF node labelled $(L, k, i)$ 
-            \If{($\nexists$ child of $y$ labelled $(S, k)$)}
-                \State $y\prime \gets \textbf{new}$ $packedNode(S, k)$
-                \State $y\prime.addRightChild(z)$
-                \State $y.addChild(y\prime)$
-            \EndIf
-    
-        \EndIf
-    
-        \State \Return{$y$}
-    \EndIf
-\EndFunction
-\end{algorithmic}
+\vspace{6cm}
 
-\begin{algorithmic}
-\Function{parsing}{}
-    \While{not $R \neq \varnothing$}
-    \State{$(C_{S},C_{u},C_{i},C_{N}) \gets R.Get()$}
-    \State{$C_{R} \gets \$$}
-    \For{\textbf{each} $edge (C_{S},symbol,S_{next})$}
-        \Switch{$symbol$}  
-        \Case{$Terminal(x)$ where ($x = input[i]$ $\|$ $x = \varepsilon$)}
-            \State $C_{R} \gets \textbf{getNodeT}(x, C_{i})$
-            \If{$x \neq \varepsilon$}
-                \State{$C_{i} \gets C_{i} + 1$}
-            \EndIf
-            \State $C_{N} \gets \textbf{getNodeP}(S_{next}, C_{N}, C_{R})$
-            \State $R.add(S_{next}, C_{u}, C_{i}, C_{N})$
-        \EndCase
-    
-        \Case{$Nonterminal(A, S_{call})$}
-    %\State{$slots \gets pTable[A][input[i]]$}
-    %\If{$slots \neq \varnothing$}
-            \State \textbf{create}($edge,  C_{u}, C_{i}, C_{N}$)
-    %\EndIf
-    %\ForAll{$L \in slots$}
-    %    \State{\Call{add}{L,u,i,\$}} 
-    %\EndFor
-        \EndCase
-        \EndSwitch
-        \If{$C_{S}$ is pop state} 
-            \State \textbf{pop}$(C_{u},C_{i},C_{N})$
-        \EndIf
-    \EndFor
-    \EndWhile
-\EndFunction
-\end{algorithmic}
+\input{getNodes.tex}
+\input{getNodeP.tex}
+
+\input{parse.tex}
 
 
 \section{Related works}%--------------------------------------------------------------------------------------------------------------------------------------------
