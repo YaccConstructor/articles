@@ -1,9 +1,9 @@
 \section{Graph Parsing Algorithm}
 
-We propose graph parsing algorithm which allows to create finite representation of parse forest which contains trees for all satisfied paths in graph.
-Finite representation of result set with structure related to specified grammar may be useful not only for results understanding and processing but also for query debugging especially for complex queries. 
+We propose graph parsing algorithm which allows to construct finite representation of parse forest which contains trees for all satisfied paths in graph.
+Finite representation of result set with structure related to the specified grammar may be useful not only for results understanding and processing but also for query debugging especially for complex queries. 
 
-Therefore our solution is based on generalized LL (GLL)~\cite{scott2010gll, FastPracticalGLL} parsing algorithm which allows to process arbitrary (including left-recursive and ambiguous) context-free grammars with worst-case cubic time complexity and linear for LL grammars. 
+Therefore our solution is based on generalized LL (GLL)~\cite{scott2010gll, FastPracticalGLL} parsing algorithm which allows to process arbitrary (including left-recursive and ambiguous) context-free grammars with worst-case cubic time complexity and linear for LL grammars on linear input. 
 
 \subsection{Generalized LL Parsing Algorithm}
 
@@ -26,18 +26,19 @@ Descriptor is a quadriple $(L, s, j, a)$ where $L$ is a grammar slot, $s$ is a s
 The stack in parsing process is used to store return information for the parser --- a name of function which would be called when current function will finish computation. 
 As mentioned before, generalized parsers process all possible derivation branches and for every branch parser must store it's own stack. It leads to infinite stack growth.  
 Tomita-style graph structured stack (GSS)~\cite{Tomita} allows to combine stacks to solve this problem.
-In GLL each GSS node contains a pair of position in input and grammar slot. 
+In GLL each GSS node contains a pair of position in input and a grammar slot. 
 
 In order to provide termination and correctness we should avoid duplication of descriptors, and allow to process GSS nodes in arbitrary order. It is necessary to use some additional sets for this.
 \begin{itemize}
-\item $R$ --- working set which contains descriptors to process. Algorithm finish when $R$ is empty.
-\item $U$ --- all descriptors was created. Avoid duplication of these.
-\item $P$ --- popped nodes. Allows to process descriptors (and GSS nodes) in arbitrary order without loosing new descriptors in step~\ref{itm:3}. 
+\item $R$ --- working set which contains descriptors to be processed. Algorithm terminates whenever $R$ is empty.
+\item $U$ --- all created descriptors. Each time when we want to add new descriptor to $R$, we try to find it in this set first.  This way we process each descriptor only once.
+\item $P$ --- popped nodes. Allows to process descriptors (and GSS nodes) in arbitrary order. 
 \end{itemize}
 
 Instead of explicit code generation used in classical algorithm, we use table version of GLL~\cite{TableGLL} in order to simplify adaptation to graph processing.
 As a result, main control function is different from the original one because it should process LL-like table instead of switching between generated parsing functions.
-Control functions of the table based GLL are presented in listing~\ref{mainTblFunctions}. All other functions are the same as in original algorithm and their description can be found in original article~\cite{scott2010gll} or in Appendix~\ref{GLLCode}.
+Control functions of the table based GLL are presented in listing~\ref{mainTblFunctions}.
+All other functions are the same as in the original algorithm and their descriptions can be found in the original article~\cite{scott2010gll} or in Appendix~\ref{GLLCode}.
 
 \begin{algorithm}[h]
 \begin{algorithmic}[1]
@@ -106,22 +107,25 @@ There are more than one tree for ambiguous grammar and generalized algorithms bu
 Binarized Shared Packed Parse Forest (SPPF)~\cite{brnglr} allows to compress derivation trees with optimal reusing of common nodes and subtrees.
 Version of GLL which uses this structure for parsing forest representation achieves worst-case cubic space complexity~\cite{gllParsingTree}.
 
-Let we present an example of SPPF for the input sentence \verb|"ABABAB"| and ambiguous grammar $G_0$ (pic~\ref{grammarG0}).
+Let us present an example of SPPF for the input sentence \verb|"ababab"| and ambiguous grammar $G_0$ (fig~\ref{grammarG0}).
 
 \begin{figure}[h]
    \begin{center}
-\begin{verbatim}
-   0: s = eps
-   1: s = A s B
-   2: s = s s
-\end{verbatim}
+   \[
+\begin{array}{rl}
+
+   0: & S \rightarrow eps   \\
+   1: & S \rightarrow b \ S \ b \\
+   2: & S \rightarrow S \ S    
+\end{array}
+\]
    \caption{Grammar $G_0$}
    \label{grammarG0}        
    \end{center}
 \end{figure}
 
 
-There are two different leftmost derivations of given sentence in grammar $G_0$, hence SPPF should contains two different trees. Result SPPF(fig. ~\ref{sppf}) and two trees (fig.~\ref{tree1} and fig.~\ref{tree2}) are presented in figure~\ref{sppfSample}. 
+There are two different leftmost derivations of given sentence in grammar $G_0$, hence SPPF should contain two different derivation trees. Resulting SPPF(fig.~\ref{sppf}) and two trees extracted from it (fig.~\ref{tree1} and fig.~\ref{tree2}) are presented in figure~\ref{sppfSample}. 
  
 \begin{figure*}[ht]
     \begin{center}
@@ -143,23 +147,24 @@ There are two different leftmost derivations of given sentence in grammar $G_0$,
         \caption{Second derivation tree}
         \label{tree2}        
     \end{subfigure}
-    \caption{SPPF for sentence \textbf{\texttt{"ABABAB"}} and grammar $G_0$}
+    \caption{SPPF for sentence \textbf{\texttt{"ababab"}} and grammar $G_0$}
     \label{sppfSample}
     \end{center}                
 \end{figure*}
 
 Binarised SPPF can be represented as a graph where each node has one of four types which described below with correspondent graphical notation.
-Let $i$ and $j$ are start and end positions of substring, and tuple of positions $(i,j)$ is an \textit{extension} of node.
+Let $i$ and $j$ be start and end positions of substring, and tuple of positions $(i,j)$~---~an \textit{extension} of node.
 
 \begin{itemize}
-    \item Node with rectangle shape labeled with $(i, T, j)$ is terminal node.     
-    \item Node with oval shape labeled with $(i, N, j)$ is nonterminal node. 
+    \item Node of rectangle shape labeled with $(i, T, j)$ is a terminal node.     
+    \item Node of oval shape labeled with $(i, N, j)$ is a nonterminal node. 
     This node denotes that there is at least one derivation for substring $\alpha$ from position $i$ to position $j$ in input string $\omega$ such that $N \Rightarrow^*_G \alpha, \alpha = \omega[i..j-1] $.
     All derivation trees for given substring and nonterminal can be extracted from SPPF by left-to-right top-down graph traversal started from respective node. 
-    We use filled nonterminal node labeled with $(<\mkern-11mu | \mkern-11mu> (i, N, j))$ for denote that there are more then one derivations from nonterminal $N$ for substring from $i$ to $j$.
-    \item Packed node with label $(i,t,j)$ where $t$ is a grammar slot. We use dot shape for these nodes and omit label because it is important only for SPPF constriction.
-    Subgraph with root in such node is one variant of derivation in case when parent is nonterminal node with label $(<\mkern-9mu | \mkern-9mu> (i, N, j))$.
-    \item Node with rectangle shape and label $(N : \gamma \cdot, k)$ is an intermediate node.
+    We use filled nonterminal node labeled with $(<\mkern-11mu | \mkern-11mu> (i, N, j))$ to denote that there are more then one derivations from nonterminal $N$ for substring from $i$ to $j$.
+    \item Node of rectangle shape and label $(i,t,j)$ where $t$ is a grammar slot is an intermediate node: a special node which allows to construct binary version of SPPF.
+    \item Packed node with label $(N \rightarrow \alpha \cdot \beta, k)$. In our pictures we use dot shape for these nodes and omit labels because they are important only on SPPF constriction stage.
+    Subgraph with ``root'' in such node is one variant of derivation from nonterminal $N$ in case when parent is nonterminal node with label $(<\mkern-9mu | \mkern-9mu> (i, N, j))$.
+
 \end{itemize}
 
 Later in our examples we will remove redundant intermediate and packed nodes from the SPPF to simplify it and to decrease the size of structure.
