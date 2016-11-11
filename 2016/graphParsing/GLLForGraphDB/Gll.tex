@@ -34,7 +34,7 @@ In order to provide termination and correctness, we should avoid duplication of 
 \begin{itemize}
 \item $R$ --- working set which contains descriptors to be processed. Algorithm terminates whenever $R$ is empty.
 \item $U$ --- all created descriptors. Each time when we want to add a new descriptor to $R$, we try to find it in this set first.
-This way we process each descriptor only once and hence guarantee termination of parsing.
+This way we process each descriptor only once which guarantee termination of parsing.
 \item $P$ --- popped nodes. Allows to process descriptors (and GSS nodes) in arbitrary order. 
 \end{itemize}
 
@@ -161,29 +161,28 @@ Let $i$ and $j$ be start and end positions of substring, and tuple of positions 
 \begin{itemize}
     \item Node of rectangle shape labeled with $(i, T, j)$ is a terminal node.     
     \item Node of oval shape labeled with $(i, N, j)$ is a nonterminal node. 
-    This node denotes that there is at least one derivation for substring $\alpha$ from position $i$ to position $j$ in input string $\omega$ such that $N \Rightarrow^*_G \alpha, \alpha = \omega[i..j-1] $.
-    All derivation trees for given substring and nonterminal can be extracted from SPPF by left-to-right top-down graph traversal started from respective node. 
-    We use filled nonterminal node labeled with $(<\mkern-11mu | \mkern-11mu> (i, N, j))$ to denote that there are more then one derivations from nonterminal $N$ for substring from $i$ to $j$.
-    \item Node of rectangle shape and label $(i,t,j)$ where $t$ is a grammar slot is an intermediate node: a special node which allows to construct binary version of SPPF.
-    \item Packed node with label $(N \rightarrow \alpha \cdot \beta, k)$. In our pictures we use dot shape for these nodes and omit labels because they are important only on SPPF constriction stage.
-    Subgraph with ``root'' in such node is one variant of derivation from nonterminal $N$ in case when parent is nonterminal node with label $(<\mkern-9mu | \mkern-9mu> (i, N, j))$.
+    This node denotes that there is at least one derivation for substring $\alpha=\omega[i..j-1]$ such that $N \Rightarrow^*_G \alpha, \alpha = \omega[i..j-1] $.
+    All derivation trees for the given substring and nonterminal can be extracted from SPPF by left-to-right top-down graph traversal started from respective node. 
+    We use filled shape and label of form $(<\mkern-11mu | \mkern-11mu> (i, N, j))$ to denote that there are multiple derivations from nonterminal $N$ for substring $\omega[i..j-1]$.
+    \item Node of rectangle shape labeled with $(i,t,j)$, where $t$ is a grammar slot, is an intermediate node: a special kind of node used for binarization of SPPF.
+    \item Packed node labeled with $(N \rightarrow \alpha \cdot \beta, k)$. In our pictures, we use dot shape for these nodes and omit labels because they are important only on SPPF constriction stage.
+    Subgraph with ``root'' in such node is one variant of derivation from nonterminal $N$ in case when the parent is a nonterminal node labeled with $(<\mkern-9mu | \mkern-9mu> (i, N, j))$.
 
 \end{itemize}
 
-Later in our examples we will remove redundant intermediate and packed nodes from the SPPF to simplify it and to decrease the size of structure.
+In our examples we remove redundant intermediate and packed nodes from the SPPF to simplify it and to decrease the size of structure.
 
 \subsection{GLL-based Graph Parsing}
 
-In this section we present such modification of GLL algorithm, that for input graph $M$, set of start vertices $V_s\subseteq V$, set of final vertices $V_f\subseteq V$, and grammar $G_1$
-, it returns SPPF which contains all derivation trees for all paths $p$ in $M$, such that $\Omega(p) \in L(G_1)$, and $p.start \in V_s,\ p.end \in V_f$.
+In this section we present such modification of GLL algorithm, that for input graph $M$, set of start vertices $V_s\subseteq V$, set of final vertices $V_f\subseteq V$, and grammar $G_1$, it returns SPPF which contains all derivation trees for all paths $p$ in $M$, such that $\Omega(p) \in L(G_1)$, and $p.start \in V_s,\ p.end \in V_f$.
 In other words, we propose GLL-based algorithm which can solve language constrained path problem.
 
-First of all, notice that input string for classical parser can be represented as a linear graph, and positions in input are vertices of this graph.
+First of all, notice that an input string for classical parser can be represented as a linear graph, and positions in the input are vertices of this graph.
 This observation can be generalized to arbitrary graph with remark that for a position there is a set of labels of all outgoing edges for given vertex instead of just one next symbol. 
-Thus, in order to use GLL for graph parsing we need to use graph vertices as positions in input and modify \textbf{Processing} function to allow to process multiple ``next symbols''.
-Required modifications are presented in listing~\ref{modifAlgo}(line 5 and 17).
+Thus, in order to use GLL for graph parsing we need to use graph vertices as positions in input and modify \textbf{Processing} function to process multiple ``next symbols''.
+Required modifications are presented in the Algorithm~\ref{modifAlgo}~(line \textbf{5} and \textbf{17}).
 Small modification is also required for initialization of $R$ set: it is necessary to add not only one initial descriptor but the set of descriptors for all vertices in $V_s$.
-All other functions can be reused from original algorithm without any changes.
+All other functions are reused from original algorithm without any changes.
 
 \begin{algorithm}[h]
 \begin{algorithmic}[1]
@@ -193,6 +192,7 @@ All other functions can be reused from original algorithm without any changes.
   \State{$dispatch \gets true$}
   \Switch{$L$}
   \Case{$(X \rightarrow \alpha \cdot x \beta)$ where $x$ is terminal}
+       \boldnext
        \ForAll{$\{ e | e \in input.outEdges(i), tag(e) = x \}$}
        \State{$new\_cN \gets cN$}
        \If{$new\_cN = dummyAST$} 
@@ -209,6 +209,7 @@ All other functions can be reused from original algorithm without any changes.
   \EndCase
   \Case{$(X \rightarrow \alpha \cdot x \beta)$ where $x$ is nonterminal}
        \State{$v \gets$ \Call{create}{$(X \rightarrow \alpha x \cdot \beta), v, i, cN$}}
+	   \boldnext
        \State{$slots \gets \bigcup_{e \in input.OutEdges(i)} pTable[x][e.Token]$}
        \ForAll{$L \in slots$}
           \State{\Call{add}{L,v,i,dummy}} 
@@ -226,10 +227,9 @@ All other functions can be reused from original algorithm without any changes.
 \end{algorithmic}
 \end{algorithm}
 
-Note that our solution handles arbitrary numbers of start and final vertices, which allows to solve different kinds of problems arraising in the field
-, namely all paths in graph, all paths from specified vertex, all paths between specified vertices. 
-Also SPPF represents a structure of paths in terms of derivation which allows to get more useful information about result. 
+Note that our solution handles arbitrary numbers of start and final vertices, which allows one to solve different kinds of problems arising in the field, namely all paths in graph, all paths from specified vertex, all paths between specified vertices. 
+Also SPPF represents a structure of paths in terms of grammar which provides exhaustive information about result. 
 
 Note that termination of proposed algorithm is inherited from the basic GLL algorithm.
-We are process finite graphs, hence the set of positions is finite, and tree construction is not changed. 
-As a result, total number of descriptors is finite, and any of them cannot be added in $R$ twice, hence main loop is finite.
+We process finite graphs, hence the set of positions is finite, and tree construction has not been changed. 
+As a result, the total number of descriptors is finite, and each of them is added in $R$ only once, thus main loop is finite.
