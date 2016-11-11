@@ -1,28 +1,28 @@
 \section{Graph Parsing Algorithm}
 
-We propose graph parsing algorithm which allows to construct finite representation of parse forest which contains trees for all matched paths in graph.
-Finite representation of result set with structure related to the specified grammar may be useful not only for results understanding and processing but also for query debugging especially for complex queries. 
+We propose a graph parsing algorithm which allows to construct finite representation of parse forest which contains derivation trees for all matched paths in graph.
+Finite representation of result set with respect to the specified grammar may be useful not only for results understanding and processing, but also for query debugging. 
 
-Our solution is based on generalized LL (GLL)~\cite{scott2010gll, FastPracticalGLL} parsing algorithm which allows to process arbitrary (including left-recursive and ambiguous) context-free grammars with worst-case cubic time complexity and linear for LL grammars on linear input. 
+Our solution is based on generalized LL (GLL)~\cite{scott2010gll, FastPracticalGLL} parsing algorithm which allows to process arbitrary (including left-recursive and ambiguous) context-free grammars with worst-case cubic time complexity and linear time complexity for LL grammars on a linear input. 
 
 \subsection{Generalized LL Parsing Algorithm}
 
-In classical LL algorithm we have a pointer to input (position $i$) and a pointer to grammar in form $N \rightarrow \alpha \cdot x \beta $---grammar slot.
-The parsing may be described as a movement of these pointers from initial position ($i = 0$, $S \rightarrow \cdot \beta $, where $S$ is start nonterminal) to final ($i = input.Length$, $s \rightarrow \beta \cdot$).
+Classical LL algorithm operates with a pointer to input (position $i$) and with a grammar slot---pointer to grammar in form $N \rightarrow \alpha \cdot x \beta $.
+Parsing may be described as a transition of these pointers from the initial position ($i = 0$, $S \rightarrow \cdot \beta $, where $S$ is start nonterminal) to the final ($i = input.Length$, $s \rightarrow \beta \cdot$).
 At every step, there are four possible cases in processing of these pointers. 
 
 \begin{enumerate}
-\item $N \rightarrow \alpha \cdot x \beta $, when $x$ is a terminal and $x = input[i]$. In this case both pointers should be moved to the right: $i = i + 1$, new slot $N \rightarrow \alpha  x \cdot \beta $.
+\item $N \rightarrow \alpha \cdot x \beta $, when $x$ is a terminal and $x = input[i]$. In this case both pointers should be moved to the right ($i \leftarrow i + 1$, $N \rightarrow \alpha  x \cdot \beta $).
 \item $N \rightarrow \alpha \cdot X \beta $, when $X$ is nonterminal. In this case we push return address $N \rightarrow \alpha X \cdot \beta $ to stack and move pointer in grammar to position $X \rightarrow \cdot \gamma$.\label{itm:2}
 \item $N \rightarrow \alpha \cdot $. This case means that processing of nonterminal $N$ is finished. We should pop return address from stack and use it as new slot.\label{itm:3}
 \item $S \rightarrow \alpha \cdot $, where $S$ is a start nonterminal of grammar. In this case we should report success if $i = input.Length - 1$ or failure otherwise. 
 \end{enumerate}
 
 In the second case there can be several slots $X \rightarrow \cdot \gamma$, so a strategy on how to choose one of them to continue parsing is needed.
-In LL(k) algorithm lookahead is used, but this strategy is still not good enough.
+In LL(k) algorithm lookahead is used, but this strategy is still not good enough because there are context-free languages for which deterministic choice is impossible even for infinite lookahead~\cite{!!!}.
 On the contrary to LL(k), generalized LL does not choose at all, handling all possible variants.
 Note, that instead of immediate processing of all variants, GLL uses descriptors mechanism to store all possible branches and process them sequentially. 
-Descriptor is a quadruple $(L, s, j, a)$ where $L$ is a grammar slot, $s$ is a stack node, $j$ is a position in the input, and $a$ is a node of derivation tree. 
+Descriptor is a quadruple $(L, s, j, a)$ where $L$ is a grammar slot, $s$ is a stack node, $j$ is a position in the input string, and $a$ is a node of derivation tree. 
 
 The stack in parsing process is used to store return information for the parser---a name of function which will be called when current function finishes computation. 
 As mentioned before, generalized parsers process all possible derivation branches and parser must store it's own stack for every branch. 
@@ -40,7 +40,7 @@ This way we process each descriptor only once which guarantee termination of par
 
 Instead of explicit code generation used in classical algorithm, we use table version of GLL~\cite{TableGLL} in order to simplify adaptation to graph processing.
 As a result, main control function is different from the original one because it should process LL-like table instead of switching between generated parsing functions.
-Control functions of the table based GLL are presented in listing~\ref{mainTblFunctions}.
+Control functions of the table based GLL are presented in Algorithm~\ref{mainTblFunctions}.
 All other functions are the same as in the original algorithm and their descriptions can be found in the original article~\cite{scott2010gll} or in Appendix~\ref{GLLCode}.
 
 \begin{algorithm}[h]
@@ -107,7 +107,7 @@ Generalized LL build all such trees and compact them in a special data structure
 
 \subsection{Shared Packed Parse Forest}
 
-Binarized Shared Packed Parse Forest (SPPF)~\cite{brnglr} allows to compress derivation trees with optimal reusing of common nodes and subtrees.
+Binarized Shared Packed Parse Forest (SPPF)~\cite{brnglr} compresses derivation trees optimally reusing common nodes and subtrees.
 Version of GLL which uses this structure for parsing forest representation achieves worst-case cubic space complexity~\cite{gllParsingTree}.
 
 Let us present an example of SPPF for the input sentence \verb|"ababab"| and ambiguous grammar $G_0$ (fig~\ref{grammarG0}).
@@ -128,7 +128,7 @@ Let us present an example of SPPF for the input sentence \verb|"ababab"| and amb
 \end{figure}
 
 
-There are two different leftmost derivations of given sentence in grammar $G_0$, hence SPPF should contain two different derivation trees. Resulting SPPF(fig.~\ref{sppf}) and two trees extracted from it (fig.~\ref{tree1} and fig.~\ref{tree2}) are presented in figure~\ref{sppfSample}. 
+There are two different leftmost derivations of the given sentence w.r.t. grammar $G_0$, hence SPPF contains two different derivation trees. Resulting SPPF(fig.~\ref{sppf}) and two trees extracted from it (fig.~\ref{tree1} and fig.~\ref{tree2}) are presented in the figure~\ref{sppfSample}. 
  
 \begin{figure*}[ht]
     \begin{center}
@@ -155,8 +155,8 @@ There are two different leftmost derivations of given sentence in grammar $G_0$,
     \end{center}                
 \end{figure*}
 
-Binarised SPPF can be represented as a graph where each node has one of four types which described below with correspondent graphical notation.
-Let $i$ and $j$ be start and end positions of substring, and tuple of positions $(i,j)$---an \textit{extension} of node.
+Binarized SPPF can be represented as a graph in which each node has one of four types described below with correspondent graphical notation.
+Let $i$ and $j$ be the start and the end positions of substring, and let us call a tuple $(i,j)$ an \textit{extension} of node.
 
 \begin{itemize}
     \item Node of rectangle shape labeled with $(i, T, j)$ is a terminal node.     
