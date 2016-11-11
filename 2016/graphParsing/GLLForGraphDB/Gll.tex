@@ -7,33 +7,34 @@ Our solution is based on generalized LL (GLL)~\cite{scott2010gll, FastPracticalG
 
 \subsection{Generalized LL Parsing Algorithm}
 
-In classical LL algorithm we have a pointer to input (position $i$) and a pointer to grammar in form $N \rightarrow \alpha \cdot x \beta $ --- grammar slot.
+In classical LL algorithm we have a pointer to input (position $i$) and a pointer to grammar in form $N \rightarrow \alpha \cdot x \beta $---grammar slot.
 The parsing may be described as a movement of these pointers from initial position ($i = 0$, $S \rightarrow \cdot \beta $, where $S$ is start nonterminal) to final ($i = input.Length$, $s \rightarrow \beta \cdot$).
 At every step, there are four possible cases in processing of these pointers. 
 
 \begin{enumerate}
-\item $N \rightarrow \alpha \cdot x \beta $ when $x$ is a terminal and $x = input[i]$. In this case both pointers should be moved to the right: $i = i + 1$, new slot $N \rightarrow \alpha  x \cdot \beta $.
-\item $N \rightarrow \alpha \cdot X \beta $ when $X$ is nonterminal. In this case we should push return address $N \rightarrow \alpha X \cdot \beta $ to stack and move pointer in grammar to position $X \rightarrow \cdot \gamma$.\label{itm:2}
+\item $N \rightarrow \alpha \cdot x \beta $, when $x$ is a terminal and $x = input[i]$. In this case both pointers should be moved to the right: $i = i + 1$, new slot $N \rightarrow \alpha  x \cdot \beta $.
+\item $N \rightarrow \alpha \cdot X \beta $, when $X$ is nonterminal. In this case we push return address $N \rightarrow \alpha X \cdot \beta $ to stack and move pointer in grammar to position $X \rightarrow \cdot \gamma$.\label{itm:2}
 \item $N \rightarrow \alpha \cdot $. This case means that processing of nonterminal $N$ is finished. We should pop return address from stack and use it as new slot.\label{itm:3}
-\item $S \rightarrow \alpha \cdot $ where $S$ is a start nonterminal of grammar. In this case we should report success if $i = input.Length - 1$ or failure in other case. 
+\item $S \rightarrow \alpha \cdot $, where $S$ is a start nonterminal of grammar. In this case we should report success if $i = input.Length - 1$ or failure otherwise. 
 \end{enumerate}
 
-In the second case here can be several slots $X \rightarrow \cdot \gamma$, so some strategy on how to choose one of them to continue parsing is needed.
+In the second case there can be several slots $X \rightarrow \cdot \gamma$, so a strategy on how to choose one of them to continue parsing is needed.
 In LL(k) algorithm lookahead is used, but this strategy is still not good enough.
-On the contraty to LL(k), generalized LL doesn't choose at all, handling all possible variants.
+On the contrary to LL(k), generalized LL does not choose at all, handling all possible variants.
 Note, that instead of immediate processing of all variants, GLL uses descriptors mechanism to store all possible branches and process them sequentially. 
 Descriptor is a quadruple $(L, s, j, a)$ where $L$ is a grammar slot, $s$ is a stack node, $j$ is a position in the input, and $a$ is a node of derivation tree. 
 
-The stack in parsing process is used to store return information for the parser~---~a name of function which would be called when current function will finish computation. 
-As mentioned before, generalized parsers process all possible derivation branches and for every branch parser must store it's own stack. 
-In naive approach it leads to infinite stack growth.  
-Tomita-style graph structured stack (GSS)~\cite{Tomita} allows to combine stacks to solve this problem.
-In GLL each GSS node contains a pair of position in input and a grammar slot. 
+The stack in parsing process is used to store return information for the parser---a name of function which will be called when current function finishes computation. 
+As mentioned before, generalized parsers process all possible derivation branches and parser must store it's own stack for every branch. 
+It leads to an infinite stack growth being done naively.  
+Tomita-style graph structured stack (GSS)~\cite{Tomita} combines stacks resolving this problem.
+Each GSS node contains a pair of position in input and a grammar slot in GLL . 
 
-In order to provide termination and correctness we should avoid duplication of descriptors, and allow to process GSS nodes in arbitrary order. It is necessary to use some additional sets for this.
+In order to provide termination and correctness, we should avoid duplication of descriptors, and be able to process GSS nodes in arbitrary order. It is necessary to use the following additional sets for this.
 \begin{itemize}
 \item $R$ --- working set which contains descriptors to be processed. Algorithm terminates whenever $R$ is empty.
-\item $U$ --- all created descriptors. Each time when we want to add new descriptor to $R$, we try to find it in this set first.  This way we process each descriptor only once.
+\item $U$ --- all created descriptors. Each time when we want to add a new descriptor to $R$, we try to find it in this set first.
+This way we process each descriptor only once and hence guarantee termination of parsing.
 \item $P$ --- popped nodes. Allows to process descriptors (and GSS nodes) in arbitrary order. 
 \end{itemize}
 
@@ -101,8 +102,8 @@ All other functions are the same as in the original algorithm and their descript
 \end{algorithmic}
 \end{algorithm}
 
-There are more than one tree for ambiguous grammar and generalized algorithms builds all derivation trees. Special data structure --- Shared Packed Parse Forest~\cite{SPPF} --- is used to reduce space required for tree storage.
-
+There can be more than one derivation tree of a string with relation to ambiguous grammar.
+Generalized LL build all such trees and compact them in a special data structure Shared Packed Parse Forest~\cite{SPPF}, which will be described in the following section.
 
 \subsection{Shared Packed Parse Forest}
 
@@ -155,7 +156,7 @@ There are two different leftmost derivations of given sentence in grammar $G_0$,
 \end{figure*}
 
 Binarised SPPF can be represented as a graph where each node has one of four types which described below with correspondent graphical notation.
-Let $i$ and $j$ be start and end positions of substring, and tuple of positions $(i,j)$~---~an \textit{extension} of node.
+Let $i$ and $j$ be start and end positions of substring, and tuple of positions $(i,j)$---an \textit{extension} of node.
 
 \begin{itemize}
     \item Node of rectangle shape labeled with $(i, T, j)$ is a terminal node.     
