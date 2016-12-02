@@ -4,13 +4,12 @@
 \setcounter{tocdepth}{3}
 \usepackage{graphicx}
 \usepackage{wrapfig}
+\usepackage[caption=false]{subfig}
 
 \usepackage{url}
 \usepackage{algpseudocode}
 \usepackage{algorithm}
 \usepackage{algorithmicx}
-
-
 
 \urldef{\mailsa}\path|gorohov.art@gmail.com|    
 \newcommand{\keywords}[1]{\par\addvspace\baselineskip
@@ -155,25 +154,25 @@ and $P$ (the productions) is a map from $N$ to regular expressions over alphabet
 
 \section{Generalized LL Parsing}%--------------------------------------------------------------------------------------------------------------------------------------------
 
-There are works about parsing ECFG: ELL(k)~\cite{!!!}, ELR(k)~\cite{!!!} parsers;
+There are works about parsing ECFG: ELL(k)~\cite{!!!} and ELR(k)~\cite{!!!} parsers;
 Early-style parsers~\cite{!!!} but none of them work with arbitrary ECFG.
 Generalized algorithms (GLL and GLR) was purposed to perform syntax analysis of linear input by any context-free 
 grammar. Unlike the GLR, GLL algorithm~\cite{scott2010gll} is rather intuitive and allows to perform better diagnostics.
 As an output of GLL we get Shared Packed Parse Forest(SPPF)~\cite{scott2013gll} that represents all possible derivations of input string.
 
 Work of the GLL algorithm based on descriptors, it allows to handle all posible derivations.
-Descriptor is a four-element tuple that can uniquely define state of parsing process. 
-It is a tuple of the form $(L,i, T, S)$, where $L$ is a grammar slot ---
-pointer to position in grammar of the form$(S \to \alpha \cdot \beta)$, $i$ --- a position in input,
+Descriptor is a four-element tuple $(L,i, T, S)$ that can uniquely define state of parsing process. 
+$L$ is a grammar slot ---
+pointer to position in grammar of the form$(S \to \alpha \cdot \beta)$, $i$ --- position in input,
 T --- already built SPPF root, $S$ --- current Graph Structured Stack(GSS)~\cite{GSS} node.
 We used efficient GSS described in~\cite{afroozeh2015faster}.
 In initial state we have descriptors that describe start positions in grammar and input, dummy tree node and bottom of GSS.
-On each step algorithm processes first descriptor in queue and makes some actions depending on the grammar and input.
+On each step algorithm processes first descriptor in queue and makes actions depending on the grammar and input.
 If there are any ambiguity algorithm will queue descriptor for all cases to handle them all. 
 
-We used table based approach which allows to generate only tables for given grammar instead of full parser code.
-The idea is the same as in original article and main function uses same tree construction and stack processing functions.
-Code can be found in appendix.
+There are table based approach~\cite{ragozina} which allows to generate only tables for given grammar instead of full parser code.
+The idea is similar to one in original article and main function uses same tree construction and stack processing functions.
+Code can be found in appendix. Note: we do not include the check for first/follow sets in this paper.
 
 \subsection{Factorization}%--------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -186,10 +185,28 @@ In case descriptor was already created it does not add it to queue. For this pur
 and required memory.
 
 Let us spot on \textbf{slots}. Factorization decreases the number of grammar slots. 
-Consider example from the paper~\cite{scott2016structuring}.
+Consider example from the paper~\cite{scott2016structuring} on fig.~\ref{fig:ExampleOfFactorization}.
+
+\begin{figure}
+    \centering
+    \subfloat[Production $P_0$]{
+        $
+        \begin{array}{crcl}
+        S::&=& a& a\ B\ c\ d \\
+           &|& a& a\ c\ d \\
+           &|& a& a\ c\ e \\
+           &|& a& a
+        \end{array}
+        $
+    }
+    ~
+    \subfloat[Production $P_0\prime$]{
+        $S::= a\ a\ ( B\ c\ d\ |\ c\ ( d\ |\ e )\ |\ \varepsilon)$
+    }
+    \caption{Example of factorization}
+    \label{fig:ExampleOfFactorization}
+\end{figure}
 Production $P_0$ factorises to $P_0'$.
-$S::= a a B c d | a a c d | a a c e | a a $
-$S::= a a ( B c d | c( d | e ) | \varepsilon)$
 Second is much compact and contains much less possible slots, 
 so parser creates less descriptors.
 It gives significant performance improvement on some grammars.
@@ -208,41 +225,75 @@ There are some basic methods of conversion regular expressions to nondeterminist
 Thus for each right-hand side of grammar productions we can build a finite state automaton, with edges tagged with 
 terminals, nonterminals or $\varepsilon$-symbols. Thompson's method~\cite{Thompson:1968:PTR:363347.363387} can be used for this purpose. 
 In built automatons each nonterminal edge should be complemented with name of initial state of automaton that stands 
-for this nonterminal. An example of constructed automatons for grammar $\Gamma_{0}$\ref{fig:grammarG0} is given on fig.. State 0 is start state.
-We call final states of automatons ``pop'' states.
+for this nonterminal. An example of constructed automatons for grammar $\Gamma_{0}$(fig.~\ref{fig:grammarG0}) is given on fig.~\ref{fig:initialAutomatonsForG0}. State 0 is start state.
+We will call final states of automatons ``pop'' states.
 
 Produced automatons are $\varepsilon$-NFAs under alphabet of nonterminals, terminals and $\varepsilon$ symbols.
-To increase performance of parsing we can minimize the number of states in produced automatons without
-loosing the structure of initial grammar.
-Every automaton can be converted to determinate FA. An algorithm is described in~\cite{aho1974design}.
-
 Decrease of the quantity of the automaton states decreases number of GLL descriptors, as it was with factorization.
+Thus to increase performance of parsing we can minimize the number of states in produced automatons.
+%without loosing the structure of initial grammar.
 
+First, every automaton should be converted to determinate FA. An algorithm is described in~\cite{aho1974design}.
 Then John Hopcroft's algorithm~\cite{hopcroft1971n} can be applied to all automatons at one time. 
 An algorithm is based on dividing all states on equivalent classes. Initial state of algorithm consist 
 of 2 classes: first contains final states and second contains all other. For our problem we can set an 
 initial state as follow: first class contains all final states of \textbf{all} automatons and second class 
 contains all the other. As an algorithm result we get classes which represent new states of automaton. 
 Initial state is class that contains initial state of automaton that represents productions of start nonterminal.
+An example for grammar $G_0$ is shown on fig.~\ref{fig:minimizedAutomatonsForG0}.
 
-
-Now we can define automaton that well be used for parsing.
+Now we can define automaton that will be used for parsing.
 
 \begin{mydef}
-Automaton $A$ is a tuple $(\Sigma, N, Q, S, T, \delta)$, where
+Automaton $A$ is a tuple $(\Sigma, N, Q, S, A, P, \delta, F)$, where
 $\Sigma$ is a set of terminals,
 $N$ --- set of nonterminals,
 $Q$ --- set of states,
 $S \in Q$ --- start state,
-$T \in Q$ --- set of accept states,
-$\delta : Q \times M \to Q$, $M \in \Sigma \cup N$ --- edges of automata
+$A \in N$ --- start nonterminal,
+$P \in Q$ --- set of ``pop'' states,
+$\delta : Q \times M \to Q$, $M \in \Sigma \cup N$ --- edges of automata,
+$F : N \to Q$ --- first states of nonterminals.
 \end{mydef}
+
+
+\begin{figure}
+    \centering
+    \subfloat[Grammar $G_0$]{
+        $
+        \begin{array}{crcl}
+            S& ::= &(a&|B)\ a \\
+            B& ::= &a& \\
+        \end{array}
+        $
+        \label{fig:grammarG0}
+    }
+    ~
+    \subfloat[Automatons for productions]{
+        \includegraphics[scale=.48]{pictures/automatonForG0.pdf}
+        \label{fig:initialAutomatonsForG0}
+    }
+    ~
+    \subfloat[Minimized automaton]{
+        \includegraphics[scale=.46]{pictures/minimizedAutomatonForG0.pdf}
+        \label{fig:minimizedAutomatonsForG0}
+    }
+    \caption{Example of automatons}
+    \label{fig:fig1}
+\end{figure}
+
+%\begin{figure}
+%    \centering
+%    \includegraphics[width=4cm]{pictures/SPPFforG0.pdf}
+%    \caption{SPPF for input "aa"}
+%    \label{fig:SPPF}
+%\end{figure}
 
 
 \subsection{Input processing}%--------------------------------------------------------------------------------------------------------------------------------------------
 
 Slots have become automaton states. And just as we can move through grammar slots we can move through states 
-in automaton. But in automaton we have nondeterministic choice because there are can be many transitions to other states. 
+in automaton. But in automaton we have nondeterministic choice because there can be many transitions to other states. 
 %So we need to prevent creation of descriptors for each nonterminal on outgoing edges. We can generate tables that 
 %tells us what nonterminals can infer strings that starts with current terminal. And add descriptors only for 
 %this edges. Moreover we need to create descriptor for edge that marked with current terminal if such exists.
@@ -269,18 +320,20 @@ for transition depending on current input terminal, and symbol on edge.
 
 First, we should define derivation trees for automatons: it is an ordered tree whose root labeled with start state,
 leaf nodes are labeled with a terminals from automaton's edges or $\varepsilon$ and interior nodes are labeled with 
-nonterminals from automaton's edges($ A $) and have a sequence of children that corresponds to edge labels of path in 
+nonterminals from automaton's edges and have a sequence of children that corresponds to edge labels of path in 
 automaton that starts from the state labeled $ A $. More formal. 
 
 \begin{mydef}
 
-Derivation tree of sentence $\alpha$ in the automaton $A=(\Sigma, N, Q, S, T, \delta)$:%grammar $G=(\Sigma, N, S, P)$:
+Derivation tree of sentence $\alpha$ for the automaton $A=(\Sigma, N, Q, S, A, P, \delta, F)$:%grammar $G=(\Sigma, N, S, P)$:
 
 \begin{itemize}
-\item Ordered rooted tree. Root labeled with $S$
+\item Ordered rooted tree. Root labeled with $A$
 \item Leafs are terminals $\in \Sigma$
 \item Nodes are nonterminals
-\item Node with label $N_i$ has children $l_0 \dots l_n$ iff for $\omega = l_0 \cdot l_1 \dots\ l_n\in (\Sigma \cup N)^*$ exists $p \rightarrow M \in P$ such that $\omega \in L(M)$
+\item Node with label $N_i$ has children $l_0 \dots l_n$ iff exists
+path $F(N_i)\cdot \dots \cdot q_m$, $q_m \in P$. 
+%for $\omega = l_0 \cdot l_1 \dots\ l_n\in (\Sigma \cup N)^*$ exists $p \rightarrow M \in P$ such that $\omega \in L(M)$
 \end{itemize}
 
 \end{mydef}
@@ -304,29 +357,7 @@ Use of intermediate and packed nodes leads to binarization of SPPF and thus the 
 %We can consider example. For the grammar \ref{fig:grammarG0}, automaton will be represented as showed on fig.\ref{fig:automatonForG0}.
 %SPPF for input "aa" is on fig.\ref{fig:SPPF}.
 
-\begin{figure}
-    \centering
-    \parbox{2.9cm}{
-        \begin{center}
-            $S ::= (aa)|(Ba)$
-            $B ::= a$
-        \end{center}
-        \caption{Grammar $\Gamma_{0}$}
-        \label{fig:grammarG0}}
-    \qquad
-    \begin{minipage}{4cm}
-        \includegraphics[width=4cm]{pictures/automatonForG0.pdf}
-        \caption{Automaton for $\Gamma_{0}$}
-        \label{fig:automatonForG0}
-    \end{minipage}
-\end{figure}
 
-\begin{figure}
-    \centering
-    \includegraphics[width=4cm]{pictures/SPPFforG0.pdf}
-    \caption{SPPF for input "aa"}
-    \label{fig:SPPF}
-\end{figure}
 
 
 State 1 can be matched with two grammar slots: $S ::= (a \cdot a)|(b$ $a)$ and $S ::= (a$ $a)|(b \cdot a)$. 
@@ -353,19 +384,18 @@ Small demo example (message to Scott)
 \begin{figure}[h]
 $$
 \begin{array}{crcl}
-& \mbox{\texttt{ S }} &::=& \mbox{\texttt{ A A A A A A | A a A A A A }} \\
-& \mbox{\texttt{ A }} & ::=& \mbox{\texttt{ S A | a A | a}}\\
+S ::=& A\ A\ A\ A\ A\ A \\
+     &|A\ a\ A\ A\ A\ A \\
+A ::=& S\ A\ |\ a\ A\ |\ a \\
 \end{array}
 $$
 \caption{Grammar $G_0$.}
 \label{testGrammar}
 \end{figure}
 
-We have compared our parsers built on factorized grammar and on minimized FSA.
-Grammar $G_0$(fig.~\ref{testGrammar}) was used for the tests.
-
-Description of grammar: long ``common tail'' which is not unified with factorization.
-
+We have compared our parsers built on factorized grammar and on minimized automatons.
+Grammar $G_0$(fig.~\ref{testGrammar}) was used for the tests,
+it has long ``common tail'' which is not unified with factorization.
 FSA built for this grammar presented on fig.~\ref{dfa}.
 
 \begin{wrapfigure}{R}{0.2\textwidth}
@@ -399,8 +429,7 @@ Note: SPPF construction was disabled while testing.
 \end{table}
 
 Table~\ref{expTable} shows that in general minimized version works $19\%$ faster, uses $27\%$ less descriptors and $33\%$ less GSS edges.
-Also we use this FSA approach in metagenomic assemblies parsing and it gives us visible performance increase. Furthermore we can use EBNF constructions without any conversion.
-
+Also we use this automata approach in metagenomic assemblies parsing and it gives visible performance increase.
 A bit more discussion on evaluation.
 
 
