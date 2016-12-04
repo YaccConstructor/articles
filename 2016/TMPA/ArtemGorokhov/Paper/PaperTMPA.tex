@@ -1,5 +1,6 @@
 \documentclass[runningheads,a4paper]{llncs}
 
+\usepackage{mathtools}
 \usepackage{amssymb}
 \setcounter{tocdepth}{3}
 \usepackage{graphicx}
@@ -239,7 +240,7 @@ An algorithm is based on dividing all states on equivalent classes. Initial stat
 of 2 classes: first contains final states and second contains all other. For our problem we can set an 
 initial state as follow: first class contains all final states of \textbf{all} automatons and second class 
 contains all the other. As an algorithm result we get classes which represent new states of automaton. 
-Initial state is class that contains initial state of automaton that represents productions of start nonterminal.
+%Initial state is class that contains initial state of automaton that represents productions of start nonterminal.
 An example for grammar $G_0$ is shown on fig.~\ref{fig:minimizedAutomatonsForG0}.
 
 Now we can define automaton that will be used for parsing.
@@ -252,10 +253,12 @@ $Q$ --- set of states,
 $S \in Q$ --- start state,
 $A \in N$ --- start nonterminal,
 $P \in Q$ --- set of ``pop'' states,
-$\delta : Q \times M \to Q$, $M \in \Sigma \cup N$ --- edges of automata,
-$F : N \to Q$ --- first states of nonterminals.
+$\delta : Q \times M \to Q$, 
+$M \in \Sigma \cup N$ --- edges of automaton,
+$F : N \to Q$ --- start states of nonterminals.
 \end{mydef}
 
+Note: this automatons are not an abstract machines, but just a ``convenient'' representations of grammars.
 
 \begin{figure}
     \centering
@@ -293,15 +296,24 @@ $F : N \to Q$ --- first states of nonterminals.
 \subsection{Input processing}%--------------------------------------------------------------------------------------------------------------------------------------------
 
 Slots have become automaton states. And just as we can move through grammar slots we can move through states 
-in automaton. But in automaton we have nondeterministic choice because there can be many transitions to other states. 
+of automaton. But in automaton we have nondeterministic choice because there can be many edges to other states.
+Such significant cases:
+\begin{itemize} 
+\item edge that contains current input terminal exists
+a) it leads to ``pop'' state
+b) next state is not ``pop''
+\item nonterminal edge exists 
+\end{itemize}
+Both cases can be simultaneously, this brings nondeterminism. For second case we just can call create function for each nonterminal. But for the terminal case we need to add descriptor that describes next position to queue without checking it's existence in descriptor elimination set.
 %So we need to prevent creation of descriptors for each nonterminal on outgoing edges. We can generate tables that 
 %tells us what nonterminals can infer strings that starts with current terminal. And add descriptors only for 
 %this edges. Moreover we need to create descriptor for edge that marked with current terminal if such exists.
-In states of parsing we can have a nondeterministic choice because the states of automaton can be ``pop'' states and outgoing edges can contain nonterminals.
-If there exist outgoing edge that contains current terminal we need to create intermediate node.
-But if the next state is ``pop'' state we also need to create nonterminal node and call \textbf{pop} function.
-Moreover we need to call \textbf{create} function for edges that contains nonterminal.
-To handle nondeterminism \textbf{parse} function queues new descriptors for all described cases.
+
+%In states of parsing we can have a nondeterministic choice because the states of automaton can be ``pop'' states and outgoing edges can contain nonterminals.
+%If there exist outgoing edge that contains current terminal we need to create intermediate node.
+%But if the next state is ``pop'' state we also need to create nonterminal node and call \textbf{pop} function.
+%Moreover we need to call \textbf{create} function for edges that contains nonterminal.
+%To handle nondeterminism \textbf{parse} function queues new descriptors for all described cases.
 
 \input{add.tex}
 Function \textbf{add} queues descriptor if it was not already created.
@@ -321,7 +333,7 @@ for transition depending on current input terminal, and symbol on edge.
 First, we should define derivation trees for automatons: it is an ordered tree whose root labeled with start state,
 leaf nodes are labeled with a terminals from automaton's edges or $\varepsilon$ and interior nodes are labeled with 
 nonterminals from automaton's edges and have a sequence of children that corresponds to edge labels of path in 
-automaton that starts from the state labeled $ A $. More formal. 
+automaton that starts from the start state of this nonterminal. More formal. 
 
 \begin{mydef}
 
@@ -330,23 +342,24 @@ Derivation tree of sentence $\alpha$ for the automaton $A=(\Sigma, N, Q, S, A, P
 \begin{itemize}
 \item Ordered rooted tree. Root labeled with $A$
 \item Leafs are terminals $\in \Sigma$
-\item Nodes are nonterminals
-\item Node with label $N_i$ has children $l_0 \dots l_n$ iff exists
-path $F(N_i)\cdot \dots \cdot q_m$, $q_m \in P$. 
+\item Nodes are nonterminals $\in N$
+\item Node with label $N_i \in N$ has children $l_0 \dots l_n (l_i \in \Sigma \cup N)$ iff exists
+path
+$F(N_i) \xrightarrow[]{l_0} \dots \xrightarrow{l_n} q_m$, $q_m \in P$. 
 %for $\omega = l_0 \cdot l_1 \dots\ l_n\in (\Sigma \cup N)^*$ exists $p \rightarrow M \in P$ such that $\omega \in L(M)$
 \end{itemize}
 
 \end{mydef}
 
 Automaton is ambiguous if there exist string that have more than one derivation trees. Thus, we can define SPPF for automatons. 
-It is similar to SPPF for grammars described in~\cite{scott2013gll}. SPPF contains symbol nodes(like derivation trees), packed nodes
+It is similar to SPPF for grammars described in~\cite{scott2013gll}. SPPF contains symbol nodes, packed nodes
 and intermediate nodes. 
 
 Packed nodes are of the form $(S, k)$, where $S$ is a state of automaton. 
-Symbol nodes have labels $(X, i, j)$ where $X$ is an edge symbol or a nonterminal. 
-Intermediate nodes have labels $ (S, i, j) $, where $S$ is a state of automaton
+Symbol nodes have labels $(X, i, j)$ where $X \in \Sigma \cup N \cup \varepsilon$. 
+Intermediate nodes have labels $ (S, i, j) $, where $S$ is a state of automaton. $i$ is position in input before leftmost leaf terminal, $j$ --- position after rightmost leaf.
 
-A packed node has one or two children: right child is a symbol node, left child --- symbol or intermediate node.   
+Packed node has one or two children: right child is a symbol node, left child is --- symbol or intermediate node.
 Nonterminal nodes have packed children of the form $(S, k)$ where $S$ is pop state. 
 Terminal symbol nodes are leafs.
 
@@ -429,7 +442,7 @@ Note: SPPF construction was disabled while testing.
 \end{table}
 
 Table~\ref{expTable} shows that in general minimized version works $19\%$ faster, uses $27\%$ less descriptors and $33\%$ less GSS edges.
-Also we use this automata approach in metagenomic assemblies parsing and it gives visible performance increase.
+Also we use this automaton approach in metagenomic assemblies parsing and it gives visible performance increase.
 A bit more discussion on evaluation.
 
 
