@@ -68,6 +68,8 @@
 \tocauthor{Artem Gorokhov}
 \maketitle
 
+%\tableofcontents
+
 %Authors are invited to submit full papers (not exceeding 12 pages) or short papers (up to 6 pages)
 
 \begin{abstract}
@@ -178,17 +180,17 @@ As an output of GLL we get Shared Packed Parse Forest(SPPF)~\cite{scott2013gll} 
 
 Work of the GLL algorithm based on descriptors, it allows to handle all posible derivations.
 Descriptor is a four-element tuple $(L,i, T, S)$ that can uniquely define state of parsing process. 
-$L$ is a grammar slot ---
-pointer to position in grammar of the form$(S \to \alpha \cdot \beta)$, $i$ --- position in input,
+$L$ is a grammar slot --- pointer to position in grammar of the form$(S \to \alpha \cdot \beta)$, $i$ --- position in input,
 T --- already built SPPF root, $S$ --- current Graph Structured Stack(GSS)~\cite{GSS} node.
 %We used efficient GSS described in~\cite{afroozeh2015faster}.
+
 In initial state we have descriptors that describe start positions in grammar and input, dummy tree node and bottom of GSS.
 On each step algorithm processes first descriptor in queue and makes actions depending on the grammar and input.
 If there are any ambiguity algorithm will queue descriptor for all cases to handle them all. 
 
 There are table based approach~\cite{ragozina} which allows to generate only tables for given grammar instead of full parser code.
 The idea is similar to one in original article and main function uses same tree construction and stack processing functions.
-Code can be found in appendix. Note: we do not include the check for first/follow sets in this paper.
+Code can be found in appendix~\ref{!!!}. Note that we do not include the check for first/follow sets in this paper.
 
 \subsection{Factorization}%--------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -236,6 +238,7 @@ Let us show how to do it.
 In this section we will show an application of Extended Context-Free Grammars(ECFG) in automatons and corresponding GLL-style parsers.
 
 The idea of factorisation was evolved to use of automatons and their minimization.
+
 ECFG can be converted to recursive automata~\cite{tellier2006learning}.
 
 \begin{mydef}
@@ -303,15 +306,19 @@ is nonterminal name.
 \subsection{Input processing}%--------------------------------------------------------------------------------------------------------------------------------------------
 
 Just as we can move through grammar slots we can move through states 
-of automaton. But in automaton we have nondeterministic choice because there can be many edges to other states.
-Such significant cases:
+of automaton. But in automaton we have nondeterministic choice because there can be 
+many transitions to other states. Consider such significant cases:
 \begin{itemize} 
-\item edge that contains current input terminal exists
-a) it leads to final state
-b) next state is not final
-\item nonterminal edge exists 
+\item there are transition by current input terminal to final state
+\item there are transition by current input terminal to state that is not final
+\item there are transition by state
 \end{itemize}
-Both cases can be simultaneously, this brings nondeterminism. For second case we just can call create function for each nonterminal. But for the terminal case we need to add descriptor that describes next position to queue without checking it's existence in descriptor elimination set.
+All of them should be handled and this leads to nondeterminism. 
+For the last case we just can call create function for each state.
+But for the terminal cases we need to add descriptor that describes
+next position to queue without checking it's existence in descriptor elimination set.
+Thus we use descriptors queue to handle nondeterminism in states, while original algorithm uses it to 
+handle ambiguity in grammars.
 %So we need to prevent creation of descriptors for each nonterminal on outgoing edges. We can generate tables that 
 %tells us what nonterminals can infer strings that starts with current terminal. And add descriptors only for 
 %this edges. Moreover we need to create descriptor for edge that marked with current terminal if such exists.
@@ -323,14 +330,18 @@ Both cases can be simultaneously, this brings nondeterminism. For second case we
 %To handle nondeterminism \textbf{parse} function queues new descriptors for all described cases.
 
 \input{add.tex}
+
 Function \textbf{add} queues descriptor if it was not already created.
 \input{create.tex}
+
 Function \textbf{create} is called when we meet nonterminal on edge.
 It performs necessary operations with GSS and checks if there are already built SPPF for current
 input position and nonterminal.
 \input{pop.tex}
 \textbf{Pop} function is called when we reach final state. It queues descriptors for all outgoing edges from current GSS node.
+
 \input{parse.tex}
+
 The main function \textbf{parse} handles queued descriptor and checks all outgoing edges from current state to be appropriate
 for transition depending on current input terminal, and symbol on edge.
 
@@ -377,8 +388,9 @@ Use of intermediate and packed nodes leads to binarization of SPPF and thus the 
 %We can consider example. For the grammar \ref{fig:grammarG0}, automaton will be represented as showed on fig.\ref{fig:automatonForG0}.
 %SPPF for input "aa" is on fig.\ref{fig:SPPF}.
 
-%State 1 can be matched with two grammar slots: $S ::= (a \cdot a)|(b$ $a)$ and $S ::= (a$ $a)|(b \cdot a)$. 
+%State $1$ can be matched with two grammar slots: $S ::= (a \cdot a)|(b$ $a)$ and $S ::= (a$ $a)|(b \cdot a)$. 
 %But SPPF represents WHAT???
+
 
 \textbf{function} getNodeT$(x,i)$ did not change
 
