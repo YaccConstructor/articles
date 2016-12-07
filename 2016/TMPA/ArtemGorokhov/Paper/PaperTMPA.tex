@@ -137,33 +137,34 @@ Also we demonstarte that proposed modifications allow to get parsing performance
 
 \section{Extended Contex-Free grammars}%--------------------------------------------------------------------------------------------------------------------------------------------
 
-Extended Backus-Naur Form~\cite{EBNFISO} is a syntax of expressing context-free grammars. In addition to the Backus-Naur Form syntax it 
-uses such constructions:
+%Extended Backus-Naur Form~\cite{EBNFISO} is a syntax of expressing context-free grammars. In addition to the Backus-Naur Form syntax it 
+%uses such constructions:
 
-\begin{itemize}
-    \item alternation $\mid$
-    \item option [ ... ]
-    \item repetition \{ ... \}
-    \item grouping ( ... )
-\end{itemize}
+%\begin{itemize}
+%    \item alternation $\mid$
+%    \item option [ ... ]
+%    \item repetition \{ ... \}
+%    \item grouping ( ... )
+%\end{itemize}
 
-This form is usually used in technical documentation. While parser generators widely use Extended CFG form:
-right parts of productions are regular expressions over union alphabet $\Sigma \cup N$. 
-It operates under similar constructions so EBNF can be represented in ECFG form.
-In this article we will use the notation of ECFG.
-
+%This form is usually used in technical documentation. 
+Parser generators widely use Extended CFG form: right parts of productions are regular 
+expressions over union alphabet $\Sigma \cup N$. 
 \begin{mydef}
 An \textbf{extended context-free grammar} (ECFG)~\cite{ECFG} is a tuple ($N$, $\Sigma$, $P$, $S$), where $N$
 and $\Sigma$ are finite sets of nonterminals and terminals, $ S\in N$ is the start symbol,
 and $P$ (the productions) is a map from $N$ to regular expressions over alphabet $N \cup \Sigma$.
 \end{mydef}
 
-It is possible to transform ECFG to CFG~\cite{ELL}, but this transformation leads to grammar size increasement and its structure changing: new nonterminals addition is requred during transformation.
+It is possible to transform ECFG to CFG~\cite{ELL}, but this transformation leads to grammar size 
+increase and change in grammar structure: new nonterminals addition is required during transformation.
 As a result, parsing performs not in terms of user defined grammar.
 This fact leads to smth... 
-There are algorithms for parsing ECFG without transformations, based on different classical algorithms: ELL(k)~\cite{!!!} and ELR(k)~\cite{!!!} parsers, Early-style parsers~\cite{!!!}.
+There are algorithms for parsing ECFG without transformations, based on different classical algorithms: 
+ELL(k)~\cite{!!!} and ELR(k)~\cite{!!!} parsers, Early-style parsers~\cite{!!!}.
 Some of them point out a problem with parsing conflicts~\cite{}, and none of them work with arbitrary ECFG.
-Generalized parsing algorithms can handle arbitrary grammars and in this artice we shou how to use them for parsig with arbitrary ECFG.
+Generalized parsing algorithms can handle arbitrary grammars and in this paper we
+will show how to use them for parsing with arbitrary ECFG.
 
 %Regular expression syntax? Look at ``Towards a Taxonomy for ECFG and RRPG Parsing''
 
@@ -171,7 +172,7 @@ Generalized parsing algorithms can handle arbitrary grammars and in this artice 
 
 \section{Generalized LL Parsing Algorithm}%--------------------------------------------------------------------------------------------------------------------------------------------
 
-Generalized parsing algorithms (GLL and GLR) was purposed to perform syntax analysis of linear input by arbitrary context-free 
+Generalized parsing algorithms (GLL and GLR) was purposed to perform syntax analysis by arbitrary context-free 
 grammar. Unlike the GLR, GLL algorithm~\cite{scott2010gll} is rather intuitive and allows to perform better syntax error diagnostic.
 As an output of GLL we get Shared Packed Parse Forest(SPPF)~\cite{scott2013gll} that represents all possible derivations of input string.
 
@@ -180,7 +181,7 @@ Descriptor is a four-element tuple $(L,i, T, S)$ that can uniquely define state 
 $L$ is a grammar slot ---
 pointer to position in grammar of the form$(S \to \alpha \cdot \beta)$, $i$ --- position in input,
 T --- already built SPPF root, $S$ --- current Graph Structured Stack(GSS)~\cite{GSS} node.
-We used efficient GSS described in~\cite{afroozeh2015faster}.
+%We used efficient GSS described in~\cite{afroozeh2015faster}.
 In initial state we have descriptors that describe start positions in grammar and input, dummy tree node and bottom of GSS.
 On each step algorithm processes first descriptor in queue and makes actions depending on the grammar and input.
 If there are any ambiguity algorithm will queue descriptor for all cases to handle them all. 
@@ -194,12 +195,12 @@ Code can be found in appendix. Note: we do not include the check for first/follo
 In order to improve performance Elizabeth Scott and Adrian Johnstone offered support of factorised grammars in GLL~\cite{scott2016structuring}. 
 The idea is to automatically factorize grammars and use them for parser generation. 
 
-Main algorithm creates and queues new descriptors depending on current parse state that we get from unqueued descriptor. 
-In case descriptor was already created it does not add it to queue. For this purpose we have a set of
+The algorithm creates and queues new descriptors depending on current parse state that we get from unqueued descriptor. 
+In case descriptor has been already created it does not add it to queue. For this purpose we have a set of
 \textbf{all} created descriptors. Thus reducing a number of possible descriptors decreases the parse time
 and required memory.
 
-Let us spot on \textbf{slots}. Factorization decreases the number of grammar slots. 
+Factorization decreases the number of grammar slots. 
 Consider example from the paper~\cite{scott2016structuring} on fig.~\ref{fig:ExampleOfFactorization}.
 
 \begin{figure}
@@ -226,7 +227,7 @@ Second is much compact and contains much less possible slots,
 so parser creates less descriptors.
 It gives significant performance improvement on some grammars.
 
-But this idea can be extended to full EBNF support.
+This idea can also be extended to full ECFG support.
 Let us show how to do it.
 
 
@@ -235,44 +236,36 @@ Let us show how to do it.
 In this section we will show an application of Extended Context-Free Grammars(ECFG) in automatons and corresponding GLL-style parsers.
 
 The idea of factorisation was evolved to use of automatons and their minimization.
-Right parts of ECFG are regular expressions under alphabet of terminals and nonterminals.
-There are some basic methods of conversion regular expressions to nondeterministic finite state automatons. 
-Thus for each right-hand side of grammar productions we can build a finite state automaton, with edges tagged with 
-terminals, nonterminals or $\varepsilon$-symbols. Thompson's method~\cite{Thompson:1968:PTR:363347.363387} can be used for this purpose. 
-In built automatons each nonterminal edge should be complemented with name of initial state of automaton that stands 
-for this nonterminal. An example of constructed automatons for grammar $\Gamma_{0}$(fig.~\ref{fig:grammarG0}) is given on fig.~\ref{fig:initialAutomatonsForG0}. State 0 is start state.
-We will call final states of automatons ``pop'' states.
+ECFG can be converted to recursive automata~\cite{tellier2006learning}.
 
-Produced automatons are $\varepsilon$-NFAs under alphabet of nonterminals, terminals and $\varepsilon$ symbols.
+\begin{mydef}
+    Recursive automaton $R$ is a tuple $(\Sigma, Q, S, F, \delta)$, where
+    $\Sigma$ is a set of terminals,
+    $Q$ --- set of states of $R$,
+    $S \in Q$ --- start state,
+    $F \in Q$ --- set of final states,
+    $\delta : Q \times (\Sigma \cup Q) \to Q$ --- transition function.
+\end{mydef}
+
+Right parts of ECFG are regular expressions over alphabet of terminals and nonterminals.
+Thus for each right-hand side of grammar productions we can build a finite state automaton 
+using Thompson's method~\cite{Thompson:1968:PTR:363347.363387}. 
+To transform the set of produced automata we need to eliminate $\varepsilon$-transitions and replace
+transitions by nonterminals with transitions by start states of corresponding to nonterminal FSA.
+An example of constructed recursive automaton for grammar $\Gamma_{0}$(fig.~\ref{fig:grammarG0})
+is given on fig.~\ref{fig:initialAutomatonsForG0}, state 0 is start state.
+
 Decrease of the quantity of the automaton states decreases number of GLL descriptors, as it was with factorization.
 Thus to increase performance of parsing we can minimize the number of states in produced automatons.
 %without loosing the structure of initial grammar.
 
-First, every automaton should be converted to determinate FA. An algorithm is described in~\cite{aho1974design}.
-Then John Hopcroft's algorithm~\cite{hopcroft1971n} can be applied to all automatons at one time. 
-An algorithm is based on dividing all states on equivalent classes. Initial state of algorithm consist 
-of 2 classes: first contains final states and second contains all other. For our problem we can set an 
-initial state as follow: first class contains all final states of \textbf{all} automatons and second class 
-contains all the other. As an algorithm result we get classes which represent new states of automaton. 
-%Initial state is class that contains initial state of automaton that represents productions of start nonterminal.
+First, RA should be converted to deterministic RA using the algorithm for FSA described in ~\cite{aho1974design}.
+Then John Hopcroft's algorithm~\cite{hopcroft1971n} can be applied to RA to minimize the number of states.
 An example for grammar $G_0$ is shown on fig.~\ref{fig:minimizedAutomatonsForG0}.
 
-Now we can define automaton that will be used for parsing.
-
-\begin{mydef}
-Automaton $A$ is a tuple $(\Sigma, N, Q, S, A, P, \delta, F)$, where
-$\Sigma$ is a set of terminals,
-$N$ --- set of nonterminals,
-$Q$ --- set of states,
-$S \in Q$ --- start state,
-$A \in N$ --- start nonterminal,
-$P \in Q$ --- set of ``pop'' states,
-$\delta : Q \times M \to Q$, 
-$M \in \Sigma \cup N$ --- edges of automaton,
-$F : N \to Q$ --- start states of nonterminals.
-\end{mydef}
-
-Note: this automatons are not an abstract machines, but just a ``convenient'' representations of grammars.
+%Note: this automatons are not an abstract machines, but just a ``convenient'' representations of grammars.
+Note: later we will need a nonterminal names to build a SPPF, for this purpose we define function $\Delta : Q \to N$ where $N$
+is nonterminal name.
 
 \begin{figure}
     \centering
@@ -286,12 +279,12 @@ Note: this automatons are not an abstract machines, but just a ``convenient'' re
         \label{fig:grammarG0}
     }
     ~
-    \subfloat[Automatons for productions]{
+    \subfloat[Initial RA]{
         \includegraphics[scale=.48]{pictures/automatonForG0.pdf}
         \label{fig:initialAutomatonsForG0}
     }
     ~
-    \subfloat[Minimized automaton]{
+    \subfloat[Minimized RA]{
         \includegraphics[scale=.46]{pictures/minimizedAutomatonForG0.pdf}
         \label{fig:minimizedAutomatonsForG0}
     }
@@ -309,13 +302,13 @@ Note: this automatons are not an abstract machines, but just a ``convenient'' re
 
 \subsection{Input processing}%--------------------------------------------------------------------------------------------------------------------------------------------
 
-Slots have become automaton states. And just as we can move through grammar slots we can move through states 
+Just as we can move through grammar slots we can move through states 
 of automaton. But in automaton we have nondeterministic choice because there can be many edges to other states.
 Such significant cases:
 \begin{itemize} 
 \item edge that contains current input terminal exists
-a) it leads to ``pop'' state
-b) next state is not ``pop''
+a) it leads to final state
+b) next state is not final
 \item nonterminal edge exists 
 \end{itemize}
 Both cases can be simultaneously, this brings nondeterminism. For second case we just can call create function for each nonterminal. But for the terminal case we need to add descriptor that describes next position to queue without checking it's existence in descriptor elimination set.
@@ -323,9 +316,9 @@ Both cases can be simultaneously, this brings nondeterminism. For second case we
 %tells us what nonterminals can infer strings that starts with current terminal. And add descriptors only for 
 %this edges. Moreover we need to create descriptor for edge that marked with current terminal if such exists.
 
-%In states of parsing we can have a nondeterministic choice because the states of automaton can be ``pop'' states and outgoing edges can contain nonterminals.
+%In states of parsing we can have a nondeterministic choice because the states of automaton can be final states and outgoing edges can contain nonterminals.
 %If there exist outgoing edge that contains current terminal we need to create intermediate node.
-%But if the next state is ``pop'' state we also need to create nonterminal node and call \textbf{pop} function.
+%But if the next state is final state we also need to create nonterminal node and call \textbf{pop} function.
 %Moreover we need to call \textbf{create} function for edges that contains nonterminal.
 %To handle nondeterminism \textbf{parse} function queues new descriptors for all described cases.
 
@@ -336,7 +329,7 @@ Function \textbf{create} is called when we meet nonterminal on edge.
 It performs necessary operations with GSS and checks if there are already built SPPF for current
 input position and nonterminal.
 \input{pop.tex}
-\textbf{Pop} function is called when we reach ``pop'' state. It queues descriptors for all outgoing edges from current GSS node.
+\textbf{Pop} function is called when we reach final state. It queues descriptors for all outgoing edges from current GSS node.
 \input{parse.tex}
 The main function \textbf{parse} handles queued descriptor and checks all outgoing edges from current state to be appropriate
 for transition depending on current input terminal, and symbol on edge.
@@ -384,14 +377,8 @@ Use of intermediate and packed nodes leads to binarization of SPPF and thus the 
 %We can consider example. For the grammar \ref{fig:grammarG0}, automaton will be represented as showed on fig.\ref{fig:automatonForG0}.
 %SPPF for input "aa" is on fig.\ref{fig:SPPF}.
 
-
-
-
-State 1 can be matched with two grammar slots: $S ::= (a \cdot a)|(b$ $a)$ and $S ::= (a$ $a)|(b \cdot a)$. 
-But SPPF represents WHAT???
-
-
-
+%State 1 can be matched with two grammar slots: $S ::= (a \cdot a)|(b$ $a)$ and $S ::= (a$ $a)|(b \cdot a)$. 
+%But SPPF represents WHAT???
 
 \textbf{function} getNodeT$(x,i)$ did not change
 
@@ -399,8 +386,6 @@ We defined function \textbf{getNodes} which can construct two nodes: intermediat
 It uses modified function \textbf{getNodeP} that takes additional argument: state or nonterminal name. Symbol in returned SPPF node will be this argument's value.
 \input{getNodes.tex}
 \input{getNodeP.tex}
-
-
 
 \section{Evaluation}
 
