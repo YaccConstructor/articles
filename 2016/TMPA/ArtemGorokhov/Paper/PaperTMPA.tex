@@ -80,12 +80,44 @@ Parsing plays an important role in static program analysis: during this step a s
 
 \section{Introduction}%--------------------------------------------------------------------------------------------------------------------------------------------
 
-Static program analysis usually performed over structural representation of code and parsing is a classical way to get such representation.
-Parser generators often used for parser creation automation: these tools allow to create parser from grammar of language which should be specified in appropriate format.
-It allows to decrease efforts required for syntax analyzer creation and maintenance.
+Static program analysis is usually performed over a structural representation of code and parsing is a classical way to get such representation.
+Parser generators are often used to automata parser creation: these tools allow to derive parser from grammar.
+It decreases amount of efforts required for syntax analyzer creation and maintenance.
 
-There are a wide range of parsing techniques and algorithms (CYK, LR(k), LALR(k), LL, etc) and parser generation tools, which based on it. 
-The most practical parsing algorithms are LL(k)- and LR(k)-based algorithms.
+Extended Backus-Naur Form~\cite{EBNFISO} is a syntax of expressing context-free grammars. 
+In addition to the Backus-Naur Form syntax it uses the following constructions: alternation $\mid$, option [ ... ], repetition \{ ... \}, and grouping ( ... ).
+
+This form is widely used for grammar specification in technical documentation because it allows to make description of language syntax more expressive and compact. 
+Thus, it is necessary to have a parser generator which supports grammar in EBNF because documentation is one of main source of information for parsers developers
+
+Parser generators widely use Extended CFG form: right parts of productions are regular expressions over union alphabet $\Sigma \cup N$. 
+
+\begin{mydef}
+An \textbf{extended context-free grammar} (ECFG)~\cite{ECFG} is a tuple ($N$, $\Sigma$, $P$, $S$), where $N$
+and $\Sigma$ are finite sets of nonterminals and terminals, $ S\in N$ is the start symbol,
+and $P$ (the productions) is a map from $N$ to regular expressions over alphabet $N \cup \Sigma$.
+\end{mydef}
+
+It is possible to transform ECFG to CFG~\cite{ELL}, but this transformation leads to grammar size 
+increase and change in grammar structure: new nonterminals addition is required during transformation.
+As a result, parsing performs not in terms of user defined grammar.
+This fact leads to such problem: parser build structural representation not by the 
+original grammar but by transformed and it may differ from expected.
+There are algorithms for parsing ECFG without transformations, based on different classical algorithms: 
+ELL(k) and ELR(k)~\cite{ELL} parsers, Early-style parsers~\cite{!!!}.
+Some of them point out a problem with parsing conflicts~\cite{}, and none of them work with arbitrary ECFG.
+Generalized parsing algorithms can handle arbitrary grammars and in this paper we
+will show how to use them for parsing with arbitrary ECFG.
+
+
+In order to provide ability to process grammar in ELL, ELR~\cite{AttributedELL,ELRR,ECFGparsing,ELLParser,ELL,ECFG,ELALR,ELRParsing} and other can process EBNF but they do not deal with ambiguities in grammars.
+
+
+But classical parsing algorithms requires BNF, and as a result, parser generators requires BNF too.
+It is possible to convert from EBNF to BNF but with this conversion we loose the structure of main grammar and resulting trees are for the BNF grammars.
+
+
+There is a wide range of parsing techniques and algorithms (CYK, LR(k), LALR(k), LL, etc) and parser generation tools, which based on it. 
 The LL family is more intuitive than LR and can provide better error diagnostic.
 LL(1) is most practical, but not powerful enough, moreover LL(k) for any $k$ is not enough to process some languages: there are LR, but not LL languages.
 Also left and hidden left recursion in grammars is a problem for LL-based parsers.
@@ -94,14 +126,6 @@ All these facts restrict class of grammars which can be handled, which make pars
 In order to solve these problems generalized LL (GLL)~\cite{scott2010gll} was proposed~\cite{scott2010gll}. 
 This algorithm handles arbitrary context free grammar, even unambiguous and (hidden)left-recursive.
 Worst-case time and space complexity of GLL is cubic in terms of input size and for LL(1) grammars it demonstrates linear time and space complexity.
-
-Extended BNF (EBNF)~\cite{EBNFISO} is a useful format of grammar specification because it allows to make description of language syntax more expressive and compact. 
-This formalism often used in documentation, which is one of main source of information for parsers developers.
-So, it is necessary to have a parser generator which supports grammar in EBNF.
-But classical parsing algorithms requires BNF, and as a result, parser generators requires BNF too.
-It is possible to convert from EBNF to BNF but with this conversion we loose the structure of main grammar and resulting trees are for the BNF grammars.
-
-In order to provide ability to process grammar in ELL, ELR~\cite{AttributedELL,ELRR,ECFGparsing,ELLParser,ELL,ECFG,ELALR,ELRParsing} and other can process EBNF but they do not deal with ambiguities in grammars.
 
 At the same time, algorithm for left factorized grammars processing was introduced in~\cite{scott2016structuring}.
 Factorization means that there are no two productions for one nonterminal with equal prefixes (look at fig~\ref{fig:ExampleOfFactorization} for example).
@@ -120,53 +144,16 @@ Also we demonstrate that proposed modifications allow to get parsing performance
 %Предлагается модификация алгоритма GLL, работающая с грамматиками в форме EBNF.
 
 
-
-\section{Extended Contex-Free grammars}%--------------------------------------------------------------------------------------------------------------------------------------------
-
-%Extended Backus-Naur Form~\cite{EBNFISO} is a syntax of expressing context-free grammars. In addition to the Backus-Naur Form syntax it 
-%uses such constructions:
-
-%\begin{itemize}
-%    \item alternation $\mid$
-%    \item option [ ... ]
-%    \item repetition \{ ... \}
-%    \item grouping ( ... )
-%\end{itemize}
-
-%This form is usually used in technical documentation. 
-Parser generators widely use Extended CFG form: right parts of productions are regular 
-expressions over union alphabet $\Sigma \cup N$. 
-\begin{mydef}
-An \textbf{extended context-free grammar} (ECFG)~\cite{ECFG} is a tuple ($N$, $\Sigma$, $P$, $S$), where $N$
-and $\Sigma$ are finite sets of nonterminals and terminals, $ S\in N$ is the start symbol,
-and $P$ (the productions) is a map from $N$ to regular expressions over alphabet $N \cup \Sigma$.
-\end{mydef}
-
-It is possible to transform ECFG to CFG~\cite{ELL}, but this transformation leads to grammar size 
-increase and change in grammar structure: new nonterminals addition is required during transformation.
-As a result, parsing performs not in terms of user defined grammar.
-This fact leads to such problem: parser build structural representation not by the 
-original grammar but by transformed and it may differ from expected.
-There are algorithms for parsing ECFG without transformations, based on different classical algorithms: 
-ELL(k) and ELR(k)~\cite{ELL} parsers, Early-style parsers~\cite{!!!}.
-Some of them point out a problem with parsing conflicts~\cite{}, and none of them work with arbitrary ECFG.
-Generalized parsing algorithms can handle arbitrary grammars and in this paper we
-will show how to use them for parsing with arbitrary ECFG.
-
-%Regular expression syntax? Look at ``Towards a Taxonomy for ECFG and RRPG Parsing''
-
-
-
 \section{Generalized LL Parsing Algorithm}%--------------------------------------------------------------------------------------------------------------------------------------------
 
-Generalized parsing algorithms (GLL and GLR) was purposed to perform syntax analysis by arbitrary context-free 
+Generalized parsing algorithms~(GLL and GLR) was purposed to perform syntax analysis by arbitrary context-free 
 grammar. Unlike the GLR, GLL algorithm~\cite{scott2010gll} is rather intuitive and allows to perform better syntax error diagnostic.
-As an output of GLL we get Shared Packed Parse Forest(SPPF)~\cite{scott2013gll} that represents all possible derivations of input string.
+As an output of GLL we get Shared Packed Parse Forest~(SPPF)~\cite{scott2013gll} that represents all possible derivations of input string.
 
 Work of the GLL algorithm based on descriptors, it allows to handle all posible derivations.
 Descriptor is a four-element tuple $(L,i, T, S)$ that can uniquely define state of parsing process. 
 $L$ is a grammar slot --- pointer to position in grammar of the form$(S \to \alpha \cdot \beta)$, $i$ --- position in input,
-T --- already built SPPF root, $S$ --- current Graph Structured Stack(GSS)~\cite{GSS} node.
+T --- already built SPPF root, $S$ --- current Graph Structured Stack~(GSS)~\cite{GSS} node.
 %We used efficient GSS described in~\cite{afroozeh2015faster}.
 
 In initial state we have descriptors that describe start positions in grammar and input, dummy tree node and bottom of GSS.
@@ -182,7 +169,7 @@ Pseudo code can be found in appendix~\ref{GLLCode}. Note that we do not include 
 
 \section{Extended CFG GLL Parsing}%--------------------------------------------------------------------------------------------------------------------------------------------
 
-In this section we will show an application of Extended Context-Free Grammars(ECFG) in automatons and corresponding GLL-style parsers.
+In this section we will show an application of ECFG in automatons and corresponding GLL-style parsers.
 
 \subsection{Factorization}%--------------------------------------------------------------------------------------------------------------------------------------------
 
