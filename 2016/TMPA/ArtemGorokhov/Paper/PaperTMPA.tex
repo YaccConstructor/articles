@@ -89,34 +89,36 @@ We also show that the modification improves parsing performance as compared to g
 \section{Introduction}%--------------------------------------------------------------------------------------------------------------------------------------------
 
 Static program analysis is usually performed over a structural representation of code and parsing is a classical way to get such representation.
-Parser generators are often used to automate parser creation: these tools allow to derive parser from grammar.
+Parser generators are often used to automata parser creation: these tools allow to derive parser from grammar.
 It decreases amount of efforts required for syntax analyzer creation and maintenance.
 
 Extended Backus-Naur Form~\cite{EBNFISO} is a syntax of expressing context-free grammars. 
 In addition to the Backus-Naur Form syntax it uses the following constructions: alternation $\mid$, option [ ... ], repetition \{ ... \}, and grouping ( ... ).
+
 This form is widely used for grammar specification in technical documentation because it allows to make description of language syntax more expressive and compact. 
 Thus, it is necessary to have a parser generator which supports grammar in EBNF because documentation is one of main source of information for parsers developers.
+Note, that EBNF is a standardized notation for \textit{extended context-free grammars} which can be defined as follows.
 
-Parser generators widely use Extended CFG form: right parts of productions are regular expressions over union alphabet $\Sigma \cup N$. 
 \begin{mydef}
 An \textbf{extended context-free grammar} (ECFG)~\cite{ECFG} is a tuple ($N$, $\Sigma$, $P$, $S$), where $N$
 and $\Sigma$ are finite sets of nonterminals and terminals, $ S\in N$ is the start symbol,
 and $P$ (the productions) is a map from $N$ to regular expressions over alphabet $N \cup \Sigma$.
 \end{mydef}
 
+ECFG is widely used as input formaf for parser generators, but classical parsing algorithms requires CFG, and as a result, parser generators requires conversion to CFG.
 It is possible to transform ECFG to CFG~\cite{ELL}, but this transformation leads to grammar size 
 increase and change in grammar structure: new nonterminals addition is required during transformation.
 As a result, parsing performs not in terms of user defined grammar.
-This fact leads to such problem: parser build structural representation not by the 
-original grammar but by transformed and it may differ from expected.
+This fact leads to the following problem: parser build structural representation not with respect to the 
+original grammar but with respect to transformed.
+As a result, derivation tree may differ from expected.
+
 There are algorithms for parsing ECFG without transformations, based on different classical algorithms: 
 ELL(k) and ELR(k)~\cite{ELL} parsers, Early-style parsers~\cite{!!!}.
 Some of them point out a problem with parsing conflicts~\cite{}, and none of them work with arbitrary ECFG.
-Generalized parsing algorithms can handle arbitrary grammars and in this paper we
-will show how to use them for parsing with arbitrary ECFG.
-
-
+Detailed overview is provided 
 In order to provide ability to process grammar in ELL, ELR~\cite{AttributedELL,ELRR,ECFGparsing,ELLParser,ELL,ECFG,ELALR,ELRParsing} and other can process EBNF but they do not deal with ambiguities in grammars.
+
 
 
 There is a wide range of parsing techniques and algorithms (CYK, LR(k), LALR(k), LL, etc) and parser generation tools, which based on it. 
@@ -135,7 +137,8 @@ Shown, that factorization can reduce memory usage and increase performance which
 Purposed idea can be used for processing grammars in EBNF with exception of same effects.
 
 To summarise, it is possible to simplify language description required for parser generation in case a parser generator is based on generalized algorithm which can handle grammars in ECFG.
-In this work we present modified generalized LL parsing algorithm which handles grammars in ECFG without transformations.
+Generalized parsing algorithms can handle arbitrary grammars and these demonstarte good performance.
+In this work we present modified generalized LL parsing algorithm which handles arbitrary ECFGs without transformations.
 We show that changes of basic algorithm are very native for GLL nature. 
 Also we demonstrate that proposed modifications allow to get parsing performance and memory usage improvement.
 
@@ -205,10 +208,13 @@ Second is much compact and contains much less possible slots,
 so parser creates less descriptors.
 It gives significant performance improvement on some grammars.
 
-\subsection{Automata}
-The idea of factorisation has evolved to use of automatons and their minimization.
+This idea can also be extended to full ECFG support.
+Let us show how to do it.
 
-First, we should define recursive automata~\cite{tellier2006learning}.
+\subsection{Recursive automata}
+The idea of factorisation was evolved to use of automatons and their minimization.
+
+ECFG can be converted to recursive automata~\cite{tellier2006learning}.
 
 \begin{mydef}
     Recursive automaton(RA) $R$ is a tuple $(\Sigma, Q, S, F, \delta)$, where
@@ -223,17 +229,15 @@ The only difference between RA and FSA is that in RA transition can be labeled e
 by terminal ($\in \Sigma$) or by state ($\in Q$). Further in this peper we will call
 transitions by elements from $Q$ as nonterminal transitions and by terminal as terminal transitions.
 
-ECFG can be converted to recursive automata.
-In conversion of ECFG to RA we will use following fact: 
-right parts of ECFG are regular expressions over alphabet of terminals and nonterminals.
+Right parts of ECFG are regular expressions over alphabet of terminals and nonterminals.
 Thus for each right-hand side of grammar productions we can build a finite state automaton 
 using Thompson's method~\cite{Thompson:1968:PTR:363347.363387}. 
-To transform the set of produced automata to RA we need to eliminate $\varepsilon$-transitions and replace
+To transform the set of produced automata we need to eliminate $\varepsilon$-transitions and replace
 transitions by nonterminals with transitions labeled by start states of corresponding to nonterminal FSA.
 An example of constructed recursive automaton for grammar $\Gamma_{0}$(fig.~\ref{fig:grammarG0})
 is given on fig.~\ref{fig:initialAutomatonsForG0}, state 0 is start state.
 
-Decrease of quantity of automaton states decreases number of GLL descriptors, as it was with factorization.
+Decrease of the quantity of the automaton states decreases number of GLL descriptors, as it was with factorization.
 Thus to increase performance of parsing we can minimize the number of states in produced automatons.
 %without loosing the structure of initial grammar.
 
@@ -287,9 +291,9 @@ of automaton. Grammar slot in descriptor changes to state in RA.
 The problem is that in automaton we have nondeterministic choice because there can be 
 many transitions to other states. Consider such significant cases:
 \begin{itemize} 
-\item transition by current input terminal to final state exists
-\item transition by current input terminal exists and it leads to state that is not final 
-\item nonterminal transition exists
+\item there are transition by current input terminal to final state
+\item there are transition by current input terminal to state that is not final
+\item there are nonterminal transition
 \end{itemize}
 
 All of them should be handled and this leads to nondeterminism. 
@@ -328,10 +332,10 @@ for current input terminal, or calls create function when meets nonterminal tran
 
 Result of the parsing process is structural representation of input --- tree, or parse forest for the case of many derivation variants.
 
-First, we should define derivation trees for recursive automatons: it is an ordered tree whose root labeled with start state,
+First, we should define derivation tree for recursive automatons: it is an ordered tree whose root labeled with start state,
 leaf nodes are labeled with a terminals or $\varepsilon$ and interior nodes are labeled with 
 nonterminals $A$ and have a sequence of children that corresponds to transition labels of path in 
-automaton that starts from the state $\Delta(A)$. More formal. 
+automaton that starts from the state $\Delta(A)$. More formal definition provided below. 
 
 \begin{mydef}
 
@@ -350,7 +354,7 @@ $q_i \xrightarrow[]{l_0} \dots \xrightarrow{l_n} q_m$, $q_m \in F$.
 \end{mydef}
 
 RA is ambiguous if there exist string that have more than one derivation trees. 
-We work with arbitrary grammars, thus our RA can be ambiguous and we can define SPPF that can represent all possible derivation trees.
+We work with arbitrary grammars, thus our RA can be ambiguous and we can define Shared Packed parse Forest (SPPF)~\cite{SPPF} that can represent all possible derivation trees.
 It is similar to SPPF for grammars described in~\cite{scott2013gll}. SPPF contains symbol nodes, packed nodes
 and intermediate nodes. 
 
@@ -439,29 +443,28 @@ Table~\ref{expTable} shows that in general minimized version works $19\%$ faster
 Also we use this automaton approach in metagenomic assemblies parsing and it gives visible performance increase.
 A bit more discussion on evaluation.
 
-
 Examples of SPPF.
 May be some nontrivial cases: s -> a* a* and so on
 
 
 \section{Conclusion and Future Work}
 
-Described algorithm implemented in F\# as part of the YaccConstructor project.
-Source code available here:~\cite{YaccConstructor}.
+Described algorithm and parser generator based on it implemented in F\# as part of the YaccConstructor project.
+Source code available here:~\url{https://github.com/YaccConstructor/YaccConstructor}.
 
-Proposed modification can not only increase performance, but also decrease memory usage. 
+As we show in evaluation, proposed modification not only increase performance, but also decrease memory usage. 
 It is critical for big input processing.
 For example, Anastasia Ragozina in her master's thesis~\cite{ragozina} shows that GLL can be used for graph parsing.  
-In some areas graphs can be really huge: assemblies in bioinfomatics ($10^8$...).
-Proposed modification can improve performance not only in case of classical parsing, but in graph parsing too. 
+In some areas graphs can be really huge: metagenomic assemblies in bioinfomatics, social graphs.
+We hope that proposed modification can improve performance not only in case of classical parsing, but in graph parsing too. 
 We perform some tests that shows performance increasing in metagenomic analysis, but full integration with graph parsing and formal description is required.
 
-One of way to specify any useful manipulations on derivation tree (or semantic of language) is an attributed grammars~\cite{!!!}.
-YARD supports it but our algorithm is not.
-So, attributed grammar and semantic calculation is a future work.
+One of way to specify any useful manipulations on derivation tree (or semantic of language) is an attributed grammars, but it is not supported in the algorithm which presented in this article.
+There is number of works on subclasses of attributed ECFGs (for example~\cite{AttributedELL}), however stil no solution for arbitrary ECFGs.
+Thus, arbitrary attributed ECFGs and semantic calculation support is a future work.
 
 Yet another question is possibility of unification our results with tree languages: our definition of derivation tree for ECFG is quite similar to unranked tree and SPPF is similar to automata for unranked trees~\cite{TATA}.
-Theory of tree languages seems more mature than theory of general SPPF manipulations.
+Theory of tree languages seems more mature than theory of general SPPF manipulations and relations between tree languages and SPPF investigation may get interesting results.
 
 
 \bibliographystyle{abbrv}
