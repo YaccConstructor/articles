@@ -92,91 +92,89 @@ We also show that the modification improves parsing performance as compared to g
 \section{Introduction}%--------------------------------------------------------------------------------------------------------------------------------------------
 
 Static program analysis is usually performed over a structural representation of code and parsing is a classical way to get such representation.
-Parser generators are often used to automata parser creation: these tools allow to derive parser from grammar.
-It decreases amount of efforts required for syntax analyzer creation and maintenance.
+Parser generators are often used to automate parser creation: these tools derives parser from grammar.
+It decreases amount of effort required for syntax analyzer development and maintenance.
 
-Extended Backus-Naur Form~\cite{EBNFISO} is a syntax of expressing context-free grammars. 
-In addition to the Backus-Naur Form syntax it uses the following constructions: alternation $\mid$, option [ ... ], repetition \{ ... \}, and grouping ( ... ).
+Extended Backus-Naur Form~\cite{EBNFISO} is a metasyntax for expressing context-free grammars. 
+In addition to the Backus-Naur Form syntax it uses the following constructions: alternation $\mid$, optional symbols [ ... ], repetition \{ ... \}, and grouping ( ... ).
 
-This form is widely used for grammar specification in technical documentation because it allows to make description of language syntax more expressive and compact. 
-Thus, it is necessary to have a parser generator which supports grammar in EBNF because documentation is one of main source of information for parsers developers.
-Note, that EBNF is a standardized notation for \textit{extended context-free grammars} which can be defined as follows.
+This form is widely used for grammar specification in technical documentation because expressive power of EBNF makes syntax specification much more compact and human-readable. 
+Because documentation is one of the main sources of information for parsers developers, it would be helpful to have a parser generator which supports grammar in EBNF.
+Note, that EBNF is a standardized notation for \textit{extended context-free grammars}~\cite{ECFG} which can be defined as follows.
 
 \begin{mydef}
 An \textbf{extended context-free grammar} (ECFG)~\cite{ECFG} is a tuple ($N$, $\Sigma$, $P$, $S$), where $N$
-and $\Sigma$ are finite sets of nonterminals and terminals, $ S\in N$ is the start symbol,
+and $\Sigma$ are finite sets of nonterminals and terminals respectively, $ S\in N$ is the start symbol,
 and $P$ (the productions) is a map from $N$ to regular expressions over alphabet $N \cup \Sigma$.
 \end{mydef}
 
-ECFG is widely used as input format for parser generators, but classical parsing algorithms requires CFG, and as a result, parser generators requires conversion to CFG.
+ECFG is widely used as an input format for parser generators, but classical parsing algorithms often require CFG, and, as a result, parser generators usually require conversion to CFG.
 It is possible to transform ECFG to CFG~\cite{ELL}, but this transformation leads to grammar size 
-increase and change in grammar structure: new nonterminals addition is required during transformation.
-As a result, parsing performs not in terms of user defined grammar.
-This fact leads to the following problem: parser build structural representation not with respect to the 
-original grammar but with respect to transformed.
-As a result, derivation tree may differ from expected.
+increase and change in grammar structure: new nonterminals are added during transformation.
+As a result, parser constructs derivation tree with respect to the transformed grammar, making it harder for a language developer to debug grammar and use parsing result later.
 
-In order to provide ability to process grammar in ECFG there is a wide range of parsing techniques and algorithms~\cite{AttributedELL,ELRR,ECFGparsing,ELLParser,ELL,ECFG,ELALR,ELRParsing}.
-Detailed overview of results and problems in ECFG processing area is provided in the article ``Towards a Taxonomy for ECFG and RRPG Parsing''~\cite{ECFG}. 
+There is a wide range of parsing techniques and algorithms~\cite{AttributedELL,ELRR,ECFGparsing,ELLParser,ELL,ECFG,ELALR,ELRParsing} which are able to process grammar in ECFG.
+Detailed review of results and problems in ECFG processing area is provided in the paper ``Towards a Taxonomy for ECFG and RRPG Parsing''~\cite{ECFG}. 
 We only note that most of algorithms are based on classical LL~\cite{ELLParser,AttributedELL,PredictiveECFG} and LR~\cite{ELRParsing,ELALR,ELRR} techniques, and they can handle only appropriate subclasses of ECFG.
-As a result, parsing techniques for ECFG is actual problem, and there is no solution for handling arbitrary and ambiguous ECFGs.
+As a result, parsing techniques for ECFG is an actual problem, and there is no solution for handling arbitrary (including ambiguous) ECFGs.
 
-The LL-based parsing algorithms is more intuitive than LR-based and can provide better error diagnostic.
-Thus, LL(1) is most practical algorithm, but it is not powerful enough: LL(k) for any $k$ is not enough to process some languages because there are LR, but not LL languages.
-Also left and hidden left recursion in grammars is a problem for LL-based parsers.
-Moreover handling of arbitrary ambiguous grammars is a also problem for LL-based tools.
-All these facts restrict class of grammars which can be handled, which make parser creation difficult. 
-In order to solve these problems generalized LL (GLL)~\cite{scott2010gll} was proposed~\cite{scott2010gll}. 
-This algorithm handles arbitrary context free grammar, even unambiguous and (hidden)left-recursive.
-Worst-case time and space complexity of GLL is cubic in terms of input size and for LL(1) grammars it demonstrates linear time and space complexity.
+The LL-based parsing algorithms are more intuitive than LR-based and can provide better error diagnostic.
+Currently LL(1) seems is be the most practical algorithm.
+Unfortunately, some languages are not LL(k) for any $k$ , and left recursive grammars are a problem for LL-based tools.
+Another restriction for LL parsers is ambiguities in grammar which, being combined with previous flaws, complicates industrial parsers creation.
+Generalized LL, proposed in~\cite{scott2010gll},solves all these problems: it handles arbitrary CFGs, including ambiguous and left recursive.  
+Worst-case time and space complexity of GLL is cubic in terms of input size and, for LL(1) grammars, it demonstrates linear time and space complexity.
 
 In order to improve performance of GLL algorithm, modification for left factorized grammars processing was introduced in~\cite{scott2016structuring}.
-Factorization means that there are no two productions for one nonterminal with equal prefixes (look at fig~\ref{fig:ExampleOfFactorization} for example).
-Shown, that factorization can reduce memory usage and increase performance which achieved by reusing common parts of rules for one nonterminal.
-Purposed idea can be used for processing grammars in EBNF with exception of same effects.
+Factorization transforms grammar so that there are no two productions with same prefixes (see fig~\ref{fig:ExampleOfFactorization} for example).
+It is shown, that factorization can reduce memory usage and increase performance by reusing common parts of rules for one nonterminal.
+Similar idea can be applied to ECFGs processing (module some details).
 
-To summarize, it is possible to simplify language description required for parser generation in case a parser generator is based on generalized algorithm which can handle grammars in ECFG.
-Generalized parsing algorithms can handle arbitrary grammars and these demonstrate good performance.
-In this work we present modified generalized LL parsing algorithm which handles arbitrary ECFGs without transformations.
-We show that changes of basic algorithm are very native for GLL nature. 
-Also we demonstrate that proposed modifications allow to get parsing performance and memory usage improvement.
+To summarize, if it were possible to handle ECFG specification with tools based on generalized parsing algorithm, it would greatly simplify language development.
+In this work we present a modification of generalized LL parsing algorithm which handles arbitrary ECFGs without any transformations.
+Also we demonstrate that proposed modifications improve parsing performance and memory usage.
 
 \section{ECFG Handling with Generalized LL Algorithm}%--------------------------------------------------------------------------------------------------------------------------------------------
 
-In order to provide arbitrary context-free grammars handling, generalized parsing algorithms were purposed.
-Generalized LL algorithm~(GLL)~\cite{scott2010gll} inherits properties of classical LL algorithms: it is more intuitive and allows to perform better syntax error diagnostic then generalized LR algorithms.
-Also, our experience shows that GLR-based solutions is more complex rather GLL-based, which is in good agreement with the observation in~\cite{ECFG} that LR-based ECFG parsers are very complex. 
+The purpose of generalized parsing algorithms is to provide arbitrary context-free grammars handling,.
+Generalized LL algorithm~(GLL)~\cite{scott2010gll} inherits properties of classical LL algorithms: it is more intuitive and provides better syntax error diagnostic than generalized LR algorithms.
+Also, our experience shows that GLR-based solutions are more complex rather then GLL-based, which agrees with the observation in~\cite{ECFG} that LR-based ECFG parsers are very complex. 
 Thus, we choose GLL as a base for our solution.
-In this section GLL-style parser for arbitrary ECFG processing presented.
+In this section we present GLL-style parser for arbitrary ECFG processing.
 
 \subsection{Generalized LL Parsing Algorithm}%--------------------------------------------------------------------------------------------------------------------------------------------
 
-An idea of the GLL algorithm based on descriptors, it allows to handle all possible derivations.
-Descriptor is a four-element tuple $(L, i, T, S)$ that can uniquely define state of parsing process. 
-$L$ is a grammar slot --- pointer to position in grammar of the form~$(S \to \alpha \cdot \beta)$, $i$ --- position in input,
-$T$ --- already built SPPF root, $S$ --- current Graph Structured Stack~(GSS)~\cite{GSS} node.
-%We used efficient GSS described in~\cite{afroozeh2015faster}.
+An idea of the GLL algorithm is based on descriptors which can uniquely define state of parsing process.
+Descriptor is a four-element tuple $(L, i, T, S)$ where elements are defined as fallows: 
+\begin{itemize}
+\item $L$ is a grammar slot --- pointer to position in grammar of the form~$(S \to \alpha \cdot \beta)$;
+\item $i$ --- position in the input;
+\item $T$ --- already built node of parse forest;
+\item $S$ --- current Graph Structured Stack~(GSS)~\cite{GSS} node.
+\end{itemize}
 
-In initial state we have descriptors that describe start positions in grammar and input, dummy tree node and bottom of GSS.
-On each step algorithm processes first descriptor in queue and makes actions depending on the grammar and input.
-If there are any ambiguity algorithm will queue descriptor for all cases to handle them all. 
+In the initial state there is only one descriptor which consists of start positions in grammar ($L = (S \to \cdot \beta)$) and input ($i=0$), dummy tree node and the bottom of GSS.
+Queue is used for descriptors processing control.
+The algorithm dequeues the first descriptor and acts depending on the grammar and input.
+If there is an ambiguity, then algorithm queues descriptors for all cases to handle them later. 
 
-There are table based approach~\cite{ragozina} which allows to generate only tables for given grammar instead of full parser code.
-The idea is similar to one in original article and main function uses same tree construction and stack processing functions.
-Pseudo code can be found in appendix~\ref{GLLCode}. Note that we do not include the check for first/follow sets in this paper.
+There is a table based approach~\cite{ragozina} which generates only tables for given grammar instead of full parser code.
+The idea is similar to the one in the original paper and uses the same tree construction and stack processing routines.
+Pseudocode illustrating this approach can be found in appendix~\ref{GLLCode}. Note, that we do not include check for first/follow sets in this paper.
 
 
 \subsection{Factorization}%--------------------------------------------------------------------------------------------------------------------------------------------
 
-In order to improve performance of GLL Elizabeth Scott and Adrian Johnstone offered support of left-factorized grammars in this parsing algorithm~\cite{scott2016structuring}. 
+In order to improve performance of GLL Elizabeth Scott and Adrian Johnstone offered a support for left-factorized grammars in this parsing algorithm~\cite{scott2016structuring}. 
 
-The basic algorithm creates and queues new descriptors depending on current parse state that we get from dequeued descriptor. 
-In case descriptor has been already created it does not add it to queue. For this purpose we have a set of
-\textbf{all} created descriptors. Thus reducing a number of possible descriptors decreases the parse time
-and required memory.
+The basic algorithm creates and queues new descriptors depending on the current parse state that obtained from dequeued descriptor. 
+A descriptor is enqueued only if it has not been created before.
+Also, all processed descriptors stored to avoid its duplication.
+Thus, by reducing descriptors to process, parse time and the amount of required memory can be decreased.
 
-Grammar factorization decreases the number of grammar slots, which leads to decreasing of total descriptor number. 
-Consider example of grammar and its factorized version the from paper~\cite{scott2016structuring} on fig.~\ref{fig:ExampleOfFactorization}.
+One of the way to decrease the number of descriptors is to reduce the number of grammar slots. 
+This can be achieved by grammar factorization.
+Consider example of grammar and its factorized version from the paper~\cite{scott2016structuring} in fig.~\ref{fig:ExampleOfFactorization}.
 
 \begin{figure}
     \centering
@@ -204,50 +202,44 @@ Consider example of grammar and its factorized version the from paper~\cite{scot
     \label{fig:ExampleOfFactorization}
 \end{figure}
 
-Production $P_0$ transform to $P_0'$ during factorization.
-Second is much compact and contains much less possible slots, so parser creates less descriptors.
+Production $P_0$ transforms to $P_0'$ during factorization.
+Second one is much more compact and contains less possible slots, so parser creates less descriptors.
 It gives significant performance improvement on some grammars.
 
-This idea can also be evolved to full ECFG support.
-Let us show how to do it.
+We can evolve this idea to support ECFG.
+In the next section, we will show how to do it.
 
 \subsection{Recursive automata}
 
-In order to use ideas of grammar factorization for handling ECFGs with GLL we propose to use recursive automata (RA)~\cite{tellier2006learning} for ECFG representation.
+In order to ease adoption of ideas of grammar factorization for handling ECFGs with GLL we use recursive automata (RA)~\cite{tellier2006learning} for ECFG representation.
 We use the following definition of RA.
 
 \begin{mydef}
-    Recursive automaton(RA) $R$ is a tuple $(\Sigma, Q, S, F, \delta)$, where
+    Recursive automaton~(RA) $R$ is a tuple $(\Sigma, Q, S, F, \delta)$, where
     $\Sigma$ is a set of terminals,
-    $Q$ --- set of states of $R$,
+    $Q$ --- set of states,
     $S \in Q$ --- start state,
-    $F \in Q$ --- set of final states,
+    $F \subseteq Q$ --- set of final states,
     $\delta : Q \times (\Sigma \cup Q) \to Q$ --- transition function.
 \end{mydef}
 
-The only difference between RA and FSA is that in RA transition can be labeled either 
-by terminal ($\Sigma$) or by state ($Q$). Further in this paper we will call
-transitions by elements from $Q$ as nonterminal transitions and by terminal as terminal transitions.
+The only difference between Recursive Automaton and Finite State Automaton (FSA) is that transitions in RA are labeled either by terminal ($\Sigma$) or by state ($Q$).
+Further in this paper, we call transitions by elements from $Q$ as \textit{nonterminal transitions} and by terminal as \textit{terminal transitions}.
 
-Right parts of ECFG are regular expressions over alphabet of terminals and nonterminals.
+Right parts of ECFG productions are regular expressions over the alphabet of terminals and nonterminals.
 Thus for each right-hand side of grammar productions we can build a finite state automaton 
 using Thompson's method~\cite{Thompson:1968:PTR:363347.363387}. 
 To transform the set of produced automata we need to eliminate $\varepsilon$-transitions and replace
 transitions by nonterminals with transitions labeled by start states of corresponding to nonterminal FSA.
-An example of constructed recursive automaton for grammar $\Gamma_{0}$(fig.~\ref{fig:grammarG0})
+An example of constructed recursive automata for grammar $\Gamma_{0}$(fig.~\ref{fig:grammarG0})
 is given on fig.~\ref{fig:initialAutomatonsForG0}, state 0 is start state.
 
-Decrease of the quantity of the automaton states decreases number of GLL descriptors, as it was with factorization.
-Thus to increase performance of parsing we can minimize the number of states in produced automatons.
-%without loosing the structure of initial grammar.
+Decrease of the number of the automaton states reduces the number of GLL descriptors, as it was with factorization.
+Thus to increase performance of parsing we can minimize the number of states in produced automaton.
 
 First, RA should be converted to deterministic RA using the algorithm for FSA described in ~\cite{aho1974design}.
 Then John Hopcroft's algorithm~\cite{hopcroft1971n} can be applied to RA to minimize the number of states.
 An example for grammar $G_0$ is shown on fig.~\ref{fig:minimizedAutomatonsForG0}.
-
-%Note: this automatons are not an abstract machines, but just a ``convenient'' representations of grammars.
-Later, in order to build SPPF, we will need not only start state number, but nonterminal names.
-For this purpose we define function $\Delta : Q \to N$ where $N$ is nonterminal name.
 
 \begin{figure}
     \centering
@@ -270,7 +262,7 @@ For this purpose we define function $\Delta : Q \to N$ where $N$ is nonterminal 
         \includegraphics[scale=.46]{pictures/G0minimizedAutomaton.pdf}
         \label{fig:minimizedAutomatonsForG0}
     }
-    \caption{Example of automatons.}
+    \caption{Example of automata}
     \label{fig:fig1}
 \end{figure}
 
@@ -283,13 +275,14 @@ For this purpose we define function $\Delta : Q \to N$ where $N$ is nonterminal 
 
 
 \subsection{Input processing}%--------------------------------------------------------------------------------------------------------------------------------------------
-An GLL idea is to move through grammar and input simultaneously,
-creating multiple descriptors for the case of ambiguity.
 
-Just as we can move through grammar slots we can move through states 
-of automaton. Grammar slot in descriptor changes to state in RA.
-The problem is that in automaton we have nondeterministic choice because there can be 
-many transitions to other states. Consider such significant cases:
+A GLL idea is to traverse through grammar and input simultaneously, creating multiple descriptors for the case of ambiguity.
+
+Just as we can move through grammar slots we can move through states of automaton for grammar.
+We replace grammar slot in descriptor by in constructed RA.
+The problem is that in automaton we have nondeterministic choice because there can be many transitions to other states.
+Consider such significant cases:
+
 \begin{itemize} 
 \item there are transition by current input terminal to final state
 \item there are transition by current input terminal to state that is not final
@@ -298,28 +291,21 @@ many transitions to other states. Consider such significant cases:
 
 All of them should be handled and this leads to nondeterminism. 
 For the last case we just can call create function for each state.
-But for the terminal cases we need to add descriptor that describes
-next position to queue without checking it's existence in descriptor elimination set.
-Thus we use descriptors queue to handle nondeterminism in states, while original algorithm uses it to 
-handle ambiguity in grammars.
-%So we need to prevent creation of descriptors for each nonterminal on outgoing edges. We can generate tables that 
-%tells us what nonterminals can infer strings that starts with current terminal. And add descriptors only for 
-%this edges. Moreover we need to create descriptor for edge that marked with current terminal if such exists.
-
-%In states of parsing we can have a nondeterministic choice because the states of automaton can be final states and outgoing edges can contain nonterminals.
-%If there exist outgoing edge that contains current terminal we need to create intermediate node.
-%But if the next state is final state we also need to create nonterminal node and call \textbf{pop} function.
-%Moreover we need to call \textbf{create} function for edges that contains nonterminal.
-%To handle nondeterminism \textbf{parse} function queues new descriptors for all described cases.
+But for the terminal cases we need to add descriptor that describes next position to queue without checking its existence in descriptor elimination set.
+Thus we use descriptors queue to handle nondeterminism in states, while original algorithm uses it to handle ambiguity in grammars.
 
 \input{add.tex}
-Function \textbf{add} queues descriptor if it was not already created.
+
+Function \textbf{add} queues descriptor if it has not already been created.
+
 \input{create.tex}
 
 Function \textbf{create} is called when we meet nonterminal transition.
 It performs necessary operations with GSS and checks if there are already built SPPF for current
 input position and nonterminal.
+
 \input{pop.tex}
+
 \textbf{Pop} function is called when we reach final state. It queues descriptors for all outgoing edges from current GSS node.
 
 \input{parse.tex}
@@ -329,38 +315,43 @@ for current input terminal, or calls create function when meets nonterminal tran
 
 
 \subsection{Parse forest construction}
+!!!!!!
+Later, in order to build SPPF, we will need not only start state number, but nonterminal names.
+For this purpose we define function $\Delta : Q \to N$ where $N$ is nonterminal name.
 
-Result of the parsing process is structural representation of input --- tree, or parse forest for the case of many derivation variants.
 
-First, we should define derivation tree for recursive automatons: it is an ordered tree whose root labeled with start state,
-leaf nodes are labeled with a terminals or $\varepsilon$ and interior nodes are labeled with 
+Result of the parsing process is structural representation of input --- a derivation tree, or parse forest for the case of many derivation variants.
+
+First, we should define derivation tree for recursive automaton: it is an ordered tree whose root is labeled with start state,
+leaf nodes are labeled with terminals or $\varepsilon$ and interior nodes are labeled with 
 nonterminals $A$ and have a sequence of children that corresponds to transition labels of path in 
-automaton that starts from the state $\Delta(A)$. More formal definition provided below. 
+automaton that starts from the state $\Delta(A)$.
 
 \begin{mydef}
 
 Derivation tree of sentence $\alpha$ for the recursive automaton $R=(\Sigma, Q, S, F, \delta)$:%grammar $G=(\Sigma, N, S, P)$:
 
 \begin{itemize}
-\item Ordered rooted tree. Root labeled with $\Delta(S)$
-\item Leaves are terminals $\in \Sigma$
-\item Nodes are nonterminals $\in \Delta(Q)$
-\item Node with label $N_i \in \Delta(q_i)$ has children $l_0 \dots l_n (l_i \in \Sigma \cup \Delta(Q))$ iff exists
+\item Ordered rooted tree. Root is labeled with $\Delta(S)$
+\item Leaves are terminals $a\in \Sigma$
+\item Nodes are nonterminals $A\in \Delta(Q)$
+\item Node with label $N_i \in \Delta(q_i)$ has children $l_0 \dots l_n (l_i \in \Sigma \cup \Delta(Q))$ iff there exists a
 path
-$q_i \xrightarrow[]{l_0} \dots \xrightarrow{l_n} q_m$, $q_m \in F$. 
+$q_i \xrightarrow[]{l_0} q_{i+1} \xrightarrow[]{l_1} \dots \xrightarrow{l_n} q_m$, $q_m \in F$. 
 %for $\omega = l_0 \cdot l_1 \dots\ l_n\in (\Sigma \cup N)^*$ exists $p \rightarrow M \in P$ such that $\omega \in L(M)$
 \end{itemize}
 
 \end{mydef}
 
-RA is ambiguous if there exist string that have more than one derivation trees. 
-We work with arbitrary grammars, thus our RA can be ambiguous and we can define Shared Packed parse Forest (SPPF)~\cite{SPPF} that can represent all possible derivation trees.
-It is similar to SPPF for grammars described in~\cite{scott2013gll}. SPPF contains symbol nodes, packed nodes
-and intermediate nodes. 
+RA is ambiguous if there exists string that has multiple derivation trees. 
+We work with arbitrary grammars, thus our RA can be ambiguous and we can reuse Shared Packed Parse Forest (SPPF)~\cite{SPPF} that can represent all possible derivation trees.
+It is similar to SPPF for grammars described in~\cite{scott2013gll}.
+SPPF contains symbol nodes, packed nodes and intermediate nodes. 
 
 Packed nodes are of the form $(S, k)$, where $S$ is a state of automaton. 
-Symbol nodes have labels $(X, i, j)$ where $X \in \Sigma \cup \Delta(Q) \cup \varepsilon$. 
-Intermediate nodes have labels $ (S, i, j) $, where $S$ is a state of automaton. $i$ is position in input before leftmost leaf terminal, $j$ --- position after rightmost leaf.
+Symbol nodes have labels $(X, i, j)$ where $X \in \Sigma \cup \Delta(Q) \cup \{\varepsilon\}$. 
+Intermediate nodes have labels $ (S, i, j) $, where $S$ is a state of automaton.
+Position in the input previous to leftmost leaf terminal is denoted by $i$, and position succeeding rightmost leaf --- $j$.
 
 Packed node necessarily has right child --- symbol node, and optional left child --- symbol or intermediate node.
 Nonterminal and intermediate nodes may have several packed children. 
@@ -368,20 +359,20 @@ Terminal symbol nodes are leaves.
 
 Use of intermediate and packed nodes leads to binarization of 
 SPPF and thus provides better sharing. So in general this representation of 
-parse forest requires less memory.
 
 \subsection{SPPF construction functions}
 The function \textbf{getNodeT$(x,i)$} which create terminal nodes is reused without modification from basic algorithm.
 To handle nondeterminism in states we defined function \textbf{getNodes} which checks if the next state of RA
 is final and for that case constructs nonterminal nodes in addition to intermediate.
 It uses modified function \textbf{getNodeP} that takes additional argument: state or nonterminal name.
-Symbol in constructed SPPF node become the value of the argument.
+Symbol in constructed SPPF node becomes the value of the arguments.
 \input{getNodes.tex}
 \input{getNodeP.tex}
+\textbf{function} getNodeT$(x,i)$ was not been changed.
 
 \section{Evaluation}
 
-We have implemented parser generator for purposed algorithm, and
+We have implemented parser generator for proposed algorithm, and
 in this section we show SPPF example and performance comparison 
 with the parser built on factorized grammar.
 
@@ -422,7 +413,7 @@ For input $ aabk $ this parser builds SPPF showed on fig.~\ref{fig:SPPFForG1}.
 
 \subsection{Performance measure}
 
-We have compared our parsers built on factorized grammars and on minimized recursive automatons.
+We have compared our parsers built on factorized grammars and on minimized recursive automaton.
 Grammar $G_2$(fig.~\ref{fig:grammarG2}) was used for the tests,
 it has long tails in alternatives which is not unified with factorization.
 FSA built for this grammar presented on fig.~\ref{fig:automatonForG2}.
