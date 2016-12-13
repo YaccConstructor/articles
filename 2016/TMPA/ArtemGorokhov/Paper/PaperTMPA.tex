@@ -136,37 +136,41 @@ Also we demonstrate that proposed modifications improve parsing performance and 
 
 \section{ECFG Handling with Generalized LL Algorithm}%--------------------------------------------------------------------------------------------------------------------------------------------
 
-In order to provide arbitrary context-free grammars handling, generalized parsing algorithms were purposed.
-Generalized LL algorithm~(GLL)~\cite{scott2010gll} inherits properties of classical LL algorithms: it is more intuitive and allows to perform better syntax error diagnostic then generalized LR algorithms.
-Also, our experience shows that GLR-based solutions is more complex rather GLL-based, which is in good agreement with the observation in~\cite{ECFG} that LR-based ECFG parsers are very complex. 
+The purpose of generalized parsing algorithms is to provide arbitrary context-free grammars handling,.
+Generalized LL algorithm~(GLL)~\cite{scott2010gll} inherits properties of classical LL algorithms: it is more intuitive and provides better syntax error diagnostic than generalized LR algorithms.
+Also, our experience shows that GLR-based solutions are more complex rather then GLL-based, which agrees with the observation in~\cite{ECFG} that LR-based ECFG parsers are very complex. 
 Thus, we choose GLL as a base for our solution.
-In this section GLL-style parser for arbitrary ECFG processing presented.
+In this section we present GLL-style parser for arbitrary ECFG processing.
 
 \subsection{Generalized LL Parsing Algorithm}%--------------------------------------------------------------------------------------------------------------------------------------------
 
-An idea of the GLL algorithm based on descriptors, it allows to handle all possible derivations.
-Descriptor is a four-element tuple $(L, i, T, S)$ that can uniquely define state of parsing process. 
-$L$ is a grammar slot --- pointer to position in grammar of the form~$(S \to \alpha \cdot \beta)$, $i$ --- position in input,
-$T$ --- already built SPPF root, $S$ --- current Graph Structured Stack~(GSS)~\cite{GSS} node.
-%We used efficient GSS described in~\cite{afroozeh2015faster}.
+An idea of the GLL algorithm is based on descriptors which can uniquely define state of parsing process.
+Descriptor is a four-element tuple $(L, i, T, S)$ where elements are defined as fallows: 
+\begin{itemize}
+\item $L$ is a grammar slot --- pointer to position in grammar of the form~$(S \to \alpha \cdot \beta)$;
+\item $i$ --- position in the input;
+\item $T$ --- already built node of parse forest;
+\item $S$ --- current Graph Structured Stack~(GSS)~\cite{GSS} node.
+\end{itemize}
 
-In initial state we have descriptors that describe start positions in grammar and input, dummy tree node and bottom of GSS.
-On each step algorithm processes first descriptor in queue and makes actions depending on the grammar and input.
-If there are any ambiguity algorithm will queue descriptor for all cases to handle them all. 
+In the initial state there is only one descriptor which consists of start positions in grammar ($L = (S \to \cdot \beta)$) and input ($i=0$), dummy tree node and the bottom of GSS.
+Queue is used for descriptors processing control.
+The algorithm dequeues the first descriptor and acts depending on the grammar and input.
+If there is an ambiguity, then algorithm queues descriptors for all cases to handle them later. 
 
-There are table based approach~\cite{ragozina} which allows to generate only tables for given grammar instead of full parser code.
-The idea is similar to one in original article and main function uses same tree construction and stack processing functions.
-Pseudo code can be found in appendix~\ref{GLLCode}. Note that we do not include the check for first/follow sets in this paper.
+There is a table based approach~\cite{ragozina} which generates only tables for given grammar instead of full parser code.
+The idea is similar to the one in the original paper and uses the same tree construction and stack processing routines.
+Pseudocode illustrating this approach can be found in appendix~\ref{GLLCode}. Note, that we do not include check for first/follow sets in this paper.
 
 
 \subsection{Factorization}%--------------------------------------------------------------------------------------------------------------------------------------------
 
-In order to improve performance of GLL Elizabeth Scott and Adrian Johnstone offered support of left-factorized grammars in this parsing algorithm~\cite{scott2016structuring}. 
+In order to improve performance of GLL Elizabeth Scott and Adrian Johnstone offered a support for left-factorized grammars in this parsing algorithm~\cite{scott2016structuring}. 
 
-The basic algorithm creates and queues new descriptors depending on current parse state that we get from dequeued descriptor. 
-In case descriptor has been already created it does not add it to queue. For this purpose we have a set of
-\textbf{all} created descriptors. Thus reducing a number of possible descriptors decreases the parse time
-and required memory.
+The basic algorithm creates and queues new descriptors depending on the current parse state that obtained from dequeued descriptor. 
+A descriptor is enqueued only if it has not been created before.
+Also, all processed descriptors stored to avoid its duplication.
+Thus, by reducing descriptors to process, parse time and the amount of required memory decrease.
 
 Grammar factorization decreases the number of grammar slots, which leads to decreasing of total descriptor number. 
 Consider example of grammar and its factorized version the from paper~\cite{scott2016structuring} on fig.~\ref{fig:ExampleOfFactorization}.
@@ -221,20 +225,15 @@ Thus for each right-hand side of grammar productions we can build a finite state
 using Thompson's method~\cite{Thompson:1968:PTR:363347.363387}. 
 To transform the set of produced automata we need to eliminate $\varepsilon$-transitions and replace
 transitions by nonterminals with transitions labeled by start states of corresponding to nonterminal FSA.
-An example of constructed recursive automaton for grammar $\Gamma_{0}$(fig.~\ref{fig:grammarG0})
+An example of constructed recursive automata for grammar $\Gamma_{0}$(fig.~\ref{fig:grammarG0})
 is given on fig.~\ref{fig:initialAutomatonsForG0}, state 0 is start state.
 
 Decrease of the quantity of the automaton states decreases number of GLL descriptors, as it was with factorization.
-Thus to increase performance of parsing we can minimize the number of states in produced automatons.
-%without loosing the structure of initial grammar.
+Thus to increase performance of parsing we can minimize the number of states in produced automaton.
 
 First, RA should be converted to deterministic RA using the algorithm for FSA described in ~\cite{aho1974design}.
 Then John Hopcroft's algorithm~\cite{hopcroft1971n} can be applied to RA to minimize the number of states.
 An example for grammar $G_0$ is shown on fig.~\ref{fig:minimizedAutomatonsForG0}.
-
-%Note: this automatons are not an abstract machines, but just a ``convenient'' representations of grammars.
-Later, in order to build SPPF, we will need not only start state number, but nonterminal names.
-For this purpose we define function $\Delta : Q \to N$ where $N$ is nonterminal name.
 
 \begin{figure}
     \centering
@@ -257,7 +256,7 @@ For this purpose we define function $\Delta : Q \to N$ where $N$ is nonterminal 
         \includegraphics[scale=.46]{pictures/G0minimizedAutomaton.pdf}
         \label{fig:minimizedAutomatonsForG0}
     }
-    \caption{Example of automatons.}
+    \caption{Example of automata}
     \label{fig:fig1}
 \end{figure}
 
@@ -270,13 +269,14 @@ For this purpose we define function $\Delta : Q \to N$ where $N$ is nonterminal 
 
 
 \subsection{Input processing}%--------------------------------------------------------------------------------------------------------------------------------------------
-An GLL idea is to move through grammar and input simultaneously,
-creating multiple descriptors for the case of ambiguity.
 
-Just as we can move through grammar slots we can move through states 
-of automaton. Grammar slot in descriptor changes to state in RA.
-The problem is that in automaton we have nondeterministic choice because there can be 
-many transitions to other states. Consider such significant cases:
+A GLL idea is to traverse through grammar and input simultaneously, creating multiple descriptors for the case of ambiguity.
+
+Just as we can move through grammar slots we can move through states of automaton for grammar.
+We replace grammar slot in descriptor by in constructed RA.
+The problem is that in automaton we have nondeterministic choice because there can be many transitions to other states.
+Consider such significant cases:
+
 \begin{itemize} 
 \item there are transition by current input terminal to final state
 \item there are transition by current input terminal to state that is not final
@@ -285,28 +285,21 @@ many transitions to other states. Consider such significant cases:
 
 All of them should be handled and this leads to nondeterminism. 
 For the last case we just can call create function for each state.
-But for the terminal cases we need to add descriptor that describes
-next position to queue without checking it's existence in descriptor elimination set.
-Thus we use descriptors queue to handle nondeterminism in states, while original algorithm uses it to 
-handle ambiguity in grammars.
-%So we need to prevent creation of descriptors for each nonterminal on outgoing edges. We can generate tables that 
-%tells us what nonterminals can infer strings that starts with current terminal. And add descriptors only for 
-%this edges. Moreover we need to create descriptor for edge that marked with current terminal if such exists.
-
-%In states of parsing we can have a nondeterministic choice because the states of automaton can be final states and outgoing edges can contain nonterminals.
-%If there exist outgoing edge that contains current terminal we need to create intermediate node.
-%But if the next state is final state we also need to create nonterminal node and call \textbf{pop} function.
-%Moreover we need to call \textbf{create} function for edges that contains nonterminal.
-%To handle nondeterminism \textbf{parse} function queues new descriptors for all described cases.
+But for the terminal cases we need to add descriptor that describes next position to queue without checking its existence in descriptor elimination set.
+Thus we use descriptors queue to handle nondeterminism in states, while original algorithm uses it to handle ambiguity in grammars.
 
 \input{add.tex}
-Function \textbf{add} queues descriptor if it was not already created.
+
+Function \textbf{add} queues descriptor if it has not already been created.
+
 \input{create.tex}
 
 Function \textbf{create} is called when we meet nonterminal transition.
 It performs necessary operations with GSS and checks if there are already built SPPF for current
 input position and nonterminal.
+
 \input{pop.tex}
+
 \textbf{Pop} function is called when we reach final state. It queues descriptors for all outgoing edges from current GSS node.
 
 \input{parse.tex}
@@ -316,10 +309,14 @@ for current input terminal, or calls create function when meets nonterminal tran
 
 
 \subsection{Parse forest construction}
+!!!!!!
+Later, in order to build SPPF, we will need not only start state number, but nonterminal names.
+For this purpose we define function $\Delta : Q \to N$ where $N$ is nonterminal name.
+
 
 Result of the parsing process is structural representation of input --- a derivation tree, or parse forest for the case of many derivation variants.
 
-First, we should define derivation tree for recursive automatons: it is an ordered tree whose root is labeled with start state,
+First, we should define derivation tree for recursive automaton: it is an ordered tree whose root is labeled with start state,
 leaf nodes are labeled with terminals or $\varepsilon$ and interior nodes are labeled with 
 nonterminals $A$ and have a sequence of children that corresponds to transition labels of path in 
 automaton that starts from the state $\Delta(A)$.
@@ -410,7 +407,7 @@ For input $ aabk $ this parser builds SPPF showed on fig.~\ref{fig:SPPFForG1}.
 
 \subsection{Performance measure}
 
-We have compared our parsers built on factorized grammars and on minimized recursive automatons.
+We have compared our parsers built on factorized grammars and on minimized recursive automaton.
 Grammar $G_2$(fig.~\ref{fig:grammarG2}) was used for the tests,
 it has long tails in alternatives which is not unified with factorization.
 FSA built for this grammar presented on fig.~\ref{fig:automatonForG2}.
