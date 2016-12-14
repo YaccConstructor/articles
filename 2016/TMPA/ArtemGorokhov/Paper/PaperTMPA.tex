@@ -14,6 +14,9 @@
 \usepackage{algpseudocode}
 \usepackage{algorithm}
 \usepackage{algorithmicx}
+
+%\captionsetup[figure]{width=.85\textwidth}
+%\captionsetup[subfigure]{width=.45\textwidth}
   
 \newcommand{\keywords}[1]{\par\addvspace\baselineskip
 \noindent\keywordname\enspace\ignorespaces#1}
@@ -157,28 +160,27 @@ In the initial state there is only one descriptor which consists of start positi
 Queue is used for descriptors processing control.
 The algorithm dequeues the first descriptor and acts depending on the grammar and input.
 If there is an ambiguity, then algorithm queues descriptors for all cases to handle them later. 
+To achieve cubic time complexity it is important that descriptor can be enqueued only if it has not been created before.
+To check it global storage of all created descriptors is used.
 
 There is a table based approach~\cite{ragozina} which generates only tables for given grammar instead of full parser code.
 The idea is similar to the one in the original paper and uses the same tree construction and stack processing routines.
 Pseudocode illustrating this approach can be found in appendix~\ref{GLLCode}. Note, that we do not include check for first/follow sets in this paper.
 
 
-\subsection{Factorization}%--------------------------------------------------------------------------------------------------------------------------------------------
+\subsection{Grammar Factorization}%--------------------------------------------------------------------------------------------------------------------------------------------
 
 In order to improve performance of GLL Elizabeth Scott and Adrian Johnstone offered a support for left-factorized grammars in this parsing algorithm~\cite{scott2016structuring}. 
 
-The basic algorithm creates and queues new descriptors depending on the current parse state that obtained from dequeued descriptor. 
-A descriptor is enqueued only if it has not been created before.
-Also, all processed descriptors stored to avoid its duplication.
-Thus, by reducing descriptors to process, parse time and the amount of required memory can be decreased.
-
-One of the way to decrease the number of descriptors is to reduce the number of grammar slots. 
-This can be achieved by grammar factorization.
-Consider example of grammar and its factorized version from the paper~\cite{scott2016structuring} in fig.~\ref{fig:ExampleOfFactorization}.
+From basic GLL algorithm description you can see, that it is possible to decrease parse time and the amount of required memory by reducing descriptors to process.
+One of the way to do it is to reduce the number of grammar slots, and it can be achieved by grammar factorization.
+An example of factorization is provided in fig.~\ref{fig:ExampleOfFactorization}: production $P_0$ transforms to $P_0'$ during factorization.
+This example is discussed in the paper~\cite{scott2016structuring}, and it is shown, that such transformation can gives significant performance improvement on some grammars, because 
+factorized grammar produces less slots.
 
 \begin{figure}
     \centering
-    \subfloat[Production $P_0$]{
+    \subfloat[The original grammar $P_0$]{
         $
         \begin{array}{rl}
         S::=& a a\ B\ c\ d \\
@@ -189,7 +191,7 @@ Consider example of grammar and its factorized version from the paper~\cite{scot
         $
     }
     ~
-    \subfloat[Production $P_0\prime$]{
+    \subfloat[The factorized grammar $P_0\prime$]{
         $
         \begin{array}{rl}
         S::= a\ a\ (& B\ c\ d\ \\
@@ -198,16 +200,11 @@ Consider example of grammar and its factorized version from the paper~\cite{scot
         \end{array}
         $
     }
-    \caption{Example of factorization}
+    \caption{Example of grammar factorization}
     \label{fig:ExampleOfFactorization}
 \end{figure}
 
-Production $P_0$ transforms to $P_0'$ during factorization.
-Second one is much more compact and contains less possible slots, so parser creates less descriptors.
-It gives significant performance improvement on some grammars.
-
-We can evolve this idea to support ECFG.
-In the next section, we will show how to do it.
+We can evolve this idea to support ECFG, and in the next section we will show how to do it.
 
 \subsection{Recursive automata}
 
@@ -357,8 +354,8 @@ Packed node necessarily has right child --- symbol node, and optional left child
 Nonterminal and intermediate nodes may have several packed children. 
 Terminal symbol nodes are leaves.
 
-Use of intermediate and packed nodes leads to binarization of 
-SPPF and thus provides better sharing. So in general this representation of 
+Use of intermediate and packed nodes leads to binarization of SPPF and thus provides better sharing.
+So in general this representation of 
 
 \subsection{SPPF construction functions}
 The function \textbf{getNodeT$(x,i)$} which create terminal nodes is reused without modification from basic algorithm.
@@ -369,6 +366,8 @@ Symbol in constructed SPPF node becomes the value of the arguments.
 \input{getNodes.tex}
 \input{getNodeP.tex}
 \textbf{function} getNodeT$(x,i)$ was not been changed.
+
+
 
 \section{Evaluation}
 
@@ -466,7 +465,7 @@ All tests were run on a PC with the following characteristics:
 
 \input{performancePlots1.tex}
 
-\input{performancePlots2.tex}
+%\input{performancePlots2.tex}
 
 Results of performed experiments approve the fact that on some grammars or approach 
 show better results then parsers built on factorized grammars.
@@ -488,19 +487,20 @@ and $33\%$ less SPPF nodes.
 Described algorithm and parser generator based on it implemented in F\# as part of the YaccConstructor project.
 Source code available here:~\url{https://github.com/YaccConstructor/YaccConstructor}.
 
+
 As we show in evaluation, proposed modification not only increase performance, but also decrease memory usage. 
 It is critical for big input processing.
 For example, Anastasia Ragozina in her master's thesis~\cite{ragozina} shows that GLL can be used for graph parsing.  
-In some areas graphs can be really huge: metagenomic assemblies in bioinfomatics, social graphs.
+In some areas graphs can be really huge, for example metagenomic assemblies in bioinfomatics, and social graphs.
 We hope that proposed modification can improve performance not only in case of classical parsing, but in graph parsing too. 
-We perform some tests that shows performance increasing in metagenomic analysis, but full integration with graph parsing and formal description is required.
+We perform some tests that demonstrate performance increasing in metagenomic analysis, but full integration with graph parsing and formal algorithm description is required.
 
 One of way to specify any useful manipulations on derivation tree (or semantic of language) is an attributed grammars, but it is not supported in the algorithm which presented in this article.
 There is number of works on subclasses of attributed ECFGs (for example~\cite{AttributedELL}), however still no solution for arbitrary ECFGs.
 Thus, arbitrary attributed ECFGs and semantic calculation support is a future work.
 
 Yet another question is possibility of unification our results with tree languages: our definition of derivation tree for ECFG is quite similar to unranked tree and SPPF is similar to automata for unranked trees~\cite{TATA}.
-Theory of tree languages seems more mature than theory of general SPPF manipulations and relations between tree languages and SPPF investigation may get interesting results. For example, relations between tree languages and ECFG discussed here~\cite{TreeLangAndECFG} but mainly in context of XML manipulation.
+Theory of tree languages seems more mature than theory of general SPPF manipulations and relations between tree languages and SPPF investigation may get interesting results. For example, relations between tree languages and ECFG discussed in the paper~\cite{TreeLangAndECFG}, but mainly in context of XML manipulation.
 
 
 \bibliographystyle{abbrv}
