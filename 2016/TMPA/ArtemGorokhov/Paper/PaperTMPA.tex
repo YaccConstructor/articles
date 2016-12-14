@@ -224,10 +224,10 @@ Right parts of ECFG productions are regular expressions over the union alphabet 
 So, our goal is to build RA with minimal number of states for given ECFG, which ca be don by following steps.
 \begin{enumerate} 
 \item For each right-hand side of productions build a FSA using Thompson's method~\cite{Thompson:1968:PTR:363347.363387}.
-\item Union all automata for all rhs. Result is FSA. Create a map $M$ from nonterminal to corresponded start state. This map should keep consistent during all fallows steps.
+\item Union all automata for all rhs. Result is FSA. Create a map $M$ from nonterminal to corresponded start state. This map should kept consistent during all fallows steps. 
 \item Convert FSA from previous step to deterministic FSA without $\varepsilon$-transitions using the algorithm described in~\cite{aho1974design}.
 \item Minimize DFSA by using John Hopcroft's algorithm~\cite{hopcroft1971n}.
-\item Replace transitions by nonterminals with transitions labeled by start states by using map $M$. Result of this step is an required RA.
+\item Replace transitions by nonterminals with transitions labeled by start states by using map $M$. Result of this step is an required RA. Also as a result we define function $\Delta : Q \to N$ where $N$ is nonterminal name.
 \end{enumerate}
 
 An example of ECFG to RA transformation is presented in fig.~\ref{fig:fig1}, where state 0 is start state of result RA.
@@ -299,17 +299,13 @@ for current input terminal, or calls create function when meets nonterminal tran
 
 
 \subsection{Parse Forest Construction}
-!!!!!!
-Later, in order to build SPPF, we will need not only start state number, but nonterminal names.
-For this purpose we define function $\Delta : Q \to N$ where $N$ is nonterminal name.
-
 
 Result of the parsing process is structural representation of input --- a derivation tree, or parse forest for the case of many derivation variants.
 
 First, we should define derivation tree for recursive automaton: it is an ordered tree whose root is labeled with start state,
 leaf nodes are labeled with terminals or $\varepsilon$ and interior nodes are labeled with 
-nonterminals $A$ and have a sequence of children that corresponds to transition labels of path in 
-automaton that starts from the state $\Delta(A)$.
+nonterminals $N$ and have a sequence of children that corresponds to transition labels of path in 
+automaton that starts from the state $q_i$, where $q_i = \Delta(N)$.
 
 \begin{mydef}
 
@@ -327,33 +323,28 @@ $q_i \xrightarrow[]{l_0} q_{i+1} \xrightarrow[]{l_1} \dots \xrightarrow{l_n} q_m
 
 \end{mydef}
 
-RA is ambiguous if there exists string that has multiple derivation trees. 
-We work with arbitrary grammars, thus our RA can be ambiguous and we can reuse Shared Packed Parse Forest (SPPF)~\cite{SPPF} that can represent all possible derivation trees.
-It is similar to SPPF for grammars described in~\cite{scott2013gll}.
-SPPF contains symbol nodes, packed nodes and intermediate nodes. 
+For arbitrary grammars RA can be ambiguous in terms of acceptance paths, and, as a result, it is possible to get more than one derivation tree for input string.
+Shared Packed Parse Forest (SPPF)~\cite{SPPF} can be used for compact representation all possible derivation trees.
+We use the binarized version of SPPF, which proposed in~\cite{brnglr} in order to decrease memory usage.
+Binarized SPPF can be used in GLL~\cite{scott2013gll} and contains the following types of nodes.
+Here $i$ and $j$ are start and end of derived substring in terms of positions in input string.
 
-Packed nodes are of the form $(S, k)$, where $S$ is a state of automaton. 
-Symbol nodes have labels $(X, i, j)$ where $X \in \Sigma \cup \Delta(Q) \cup \{\varepsilon\}$. 
-Intermediate nodes have labels $ (S, i, j) $, where $S$ is a state of automaton.
-Position in the input previous to leftmost leaf terminal is denoted by $i$, and position succeeding rightmost leaf --- $j$.
+\begin{itemize}
+\item Packed nodes are of the form $(S, k)$, where $S$ is a state of automaton. Packed node necessarily has right child --- symbol node, and optional left child --- symbol or intermediate node.
+\item Symbol nodes have labels $(X, i, j)$ where $X \in \Sigma \cup \Delta(Q) \cup \{\varepsilon\}$.
+Terminal symbol nodes ($X \in \Sigma \cup \{\varepsilon\}$) are leaves. 
+Nonterminal nodes ($X \in \Delta(Q)$) may have several packed children. 
+\item Intermediate nodes have labels $ (S, i, j) $, where $S$ is a state of automaton, and may have several packed children. 
+\end{itemize}
 
-Packed node necessarily has right child --- symbol node, and optional left child --- symbol or intermediate node.
-Nonterminal and intermediate nodes may have several packed children. 
-Terminal symbol nodes are leaves.
-
-Use of intermediate and packed nodes leads to binarization of SPPF and thus provides better sharing.
-So in general this representation of 
-
-\subsection{SPPF construction functions}
-The function \textbf{getNodeT$(x,i)$} which create terminal nodes is reused without modification from basic algorithm.
+Let us to describe modifications of original SPPF construction functions.
+The function \textbf{getNodeT$(x,i)$} which creates terminal nodes is reused without modification from basic algorithm.
 To handle nondeterminism in states we defined function \textbf{getNodes} which checks if the next state of RA
 is final and for that case constructs nonterminal nodes in addition to intermediate.
-It uses modified function \textbf{getNodeP} that takes additional argument: state or nonterminal name.
-Symbol in constructed SPPF node becomes the value of the arguments.
+It uses modified function \textbf{getNodeP} that takes not only nonterminal name, but also a state of RA.
+
 \input{getNodes.tex}
 \input{getNodeP.tex}
-\textbf{function} getNodeT$(x,i)$ was not been changed.
-
 
 
 \section{Evaluation}
