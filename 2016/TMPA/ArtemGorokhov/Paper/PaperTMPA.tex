@@ -156,9 +156,9 @@ Descriptor is a four-element tuple $(L, i, T, S)$ where elements are defined as 
 \item $S$ --- current Graph Structured Stack~(GSS)~\cite{afroozeh2015faster} node.
 \end{itemize}
 
+A GLL move through grammar and input simultaneously, creating multiple descriptors for the case of ambiguity, and using queue for descriptors processing control.
 In the initial state there is only one descriptor which consists of start positions in grammar ($L = (S \to \cdot \beta)$) and input ($i=0$), dummy tree node and the bottom of GSS.
-Queue is used for descriptors processing control.
-The algorithm dequeues the first descriptor and acts depending on the grammar and input.
+At each step, the algorithm dequeues the next descriptor and acts depending on the grammar and input.
 If there is an ambiguity, then algorithm queues descriptors for all cases to handle them later. 
 To achieve cubic time complexity it is important that descriptor can be enqueued only if it has not been created before.
 To check it global storage of all created descriptors is used.
@@ -239,8 +239,7 @@ An example of ECFG to RA transformation is presented in fig.~\ref{fig:fig1}, whe
     \subfloat[Grammar $G_0$]{
         $
         \begin{array}[b]{rl}
-            S ::= & a^{+} S\ b^{*} \\
-                  |& c
+            S ::= a^{+} S\ b? \ | \ c \ \ \ 
         \end{array}
         $
         \label{fig:grammarG0}
@@ -262,42 +261,33 @@ An example of ECFG to RA transformation is presented in fig.~\ref{fig:fig1}, whe
 
 \subsection{Input Processing}%--------------------------------------------------------------------------------------------------------------------------------------------
 
-A GLL idea is to traverse through grammar and input simultaneously, creating multiple descriptors for the case of ambiguity.
-
-Just as we can move through grammar slots we can move through states of automaton for grammar.
-We replace grammar slot in descriptor by in constructed RA.
-The problem is that in automaton we have nondeterministic choice because there can be many transitions to other states.
-Consider such significant cases:
+In this section we describe changes required in control functions of basic GLL algorithm to handle ECFG.
+At each step the main function \textbf{parse} dequeues next descriptor to be processed.
+Suppose that current descriptor is a tuple ($C_S, C_U, C_i, C_N$), where $C_S$ --- state of RA, $C_U$ --- GSS node, $C_i$ --- position in input string $\omega$, and $C_N$ --- SPPF node. 
+It is possible to get the following nonexclusive cases during this descriptor processing.
 
 \begin{itemize} 
-\item there are transition by current input terminal to final state
-\item there are transition by current input terminal to state that is not final
-\item there are nonterminal transition
+\item $C_S$ is a final state. Pop, because processing of nonterminal finished.
+\item There is an outgoing edge $e$ from $C_S$, such that tag of $e = \omega.[C_i]$. 
+Create descriptor with ($end of q_1$) and ($j + 1$)
+Queue it without checking its existence.
+\item There are outgoing edges $e$ from $C_S$, such that tag of $e \in Q$. 
+Call \textbf{create} function for each such edge.
+It performs necessary operations with GSS and checks if there are already built SPPF for current
+input position and nonterminal.
 \end{itemize}
 
-All of them should be handled and this leads to nondeterminism. 
-For the last case we just can call create function for each state.
-But for the terminal cases we need to add descriptor that describes next position to queue without checking its existence in descriptor elimination set.
-Thus we use descriptors queue to handle nondeterminism in states, while original algorithm uses it to handle ambiguity in grammars.
-
-%\input{add.tex}
-
-Function \textbf{add} queues descriptor if it has not already been created.
+All required functions presented below.
+Function \textbf{add} queues descriptor if it has not already been created, and this function has not been changed.
 
 \input{create.tex}
 
-Function \textbf{create} is called when we meet nonterminal transition.
-It performs necessary operations with GSS and checks if there are already built SPPF for current
-input position and nonterminal.
-
 \input{pop.tex}
 
-\textbf{Pop} function is called when we reach final state. It queues descriptors for all outgoing edges from current GSS node.
+%\textbf{Pop} function is called when we reach final state. It queues descriptors for all outgoing edges from current GSS node.
 
 \input{parse.tex}
 
-The main function \textbf{parse} handles queued descriptor and checks all transitions from current state to be appropriate
-for current input terminal, or calls create function when meets nonterminal transitions.
 
 
 \subsection{Parse Forest Construction}
@@ -364,7 +354,7 @@ recursive automaton $R_0$(fig.~\ref{fig:RAForG0}) and parser for it.
 Possible trees for input $ aacb $ are shown in fig.~\ref{fig:treesForG0}.
 SPPF build by parser(fig.~\ref{fig:SPPFForG0}) combines all of them.
 
-\begin{figure}[H]
+\begin{figure}[ht]   
     \centering
     \subfloat[Possible derivation trees for $R_0$ and input $ aacb $.]{
         \includegraphics[scale=.5]{pictures/G0trees.pdf}
@@ -387,7 +377,7 @@ Grammar $G_1$(fig.~\ref{fig:grammarG1}) was used for the tests,
 it has long tails in alternatives which are not unified with factorization.
 FSA built for this grammar presented in fig.~\ref{fig:automatonForG1}.
 
-\begin{figure}[H]
+\begin{figure}[ht]   
     \centering
     \subfloat[Grammar $G_1$.]{
         $
@@ -419,7 +409,7 @@ All tests were run on a PC with the following characteristics:
     \item RAM: 32 GB
 \end{itemize}
 
-\begin{table}[h]   
+\begin{table}[ht]   
 \begin{center}
     \begin{tabular}{  c | c | c | c | c | c }
         
