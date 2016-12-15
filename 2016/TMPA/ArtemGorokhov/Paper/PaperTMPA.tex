@@ -14,6 +14,9 @@
 \usepackage{algpseudocode}
 \usepackage{algorithm}
 \usepackage{algorithmicx}
+
+%\captionsetup[figure]{width=.85\textwidth}
+%\captionsetup[subfigure]{width=.45\textwidth}
   
 \newcommand{\keywords}[1]{\par\addvspace\baselineskip
 \noindent\keywordname\enspace\ignorespaces#1}
@@ -136,7 +139,7 @@ Also we demonstrate that proposed modifications improve parsing performance and 
 
 \section{ECFG Handling with Generalized LL Algorithm}%--------------------------------------------------------------------------------------------------------------------------------------------
 
-The purpose of generalized parsing algorithms is to provide arbitrary context-free grammars handling,.
+The purpose of generalized parsing algorithms is to provide arbitrary context-free grammars handling.
 Generalized LL algorithm~(GLL)~\cite{scott2010gll} inherits properties of classical LL algorithms: it is more intuitive and provides better syntax error diagnostic than generalized LR algorithms.
 Also, our experience shows that GLR-based solutions are more complex rather then GLL-based, which agrees with the observation in~\cite{ECFG} that LR-based ECFG parsers are very complex. 
 Thus, we choose GLL as a base for our solution.
@@ -157,61 +160,50 @@ In the initial state there is only one descriptor which consists of start positi
 Queue is used for descriptors processing control.
 The algorithm dequeues the first descriptor and acts depending on the grammar and input.
 If there is an ambiguity, then algorithm queues descriptors for all cases to handle them later. 
+To achieve cubic time complexity it is important that descriptor can be enqueued only if it has not been created before.
+To check it global storage of all created descriptors is used.
 
 There is a table based approach~\cite{ragozina} which generates only tables for given grammar instead of full parser code.
 The idea is similar to the one in the original paper and uses the same tree construction and stack processing routines.
 Pseudocode illustrating this approach can be found in appendix~\ref{GLLCode}. Note, that we do not include check for first/follow sets in this paper.
 
 
-\subsection{Factorization}%--------------------------------------------------------------------------------------------------------------------------------------------
+\subsection{Grammar Factorization}%--------------------------------------------------------------------------------------------------------------------------------------------
 
 In order to improve performance of GLL Elizabeth Scott and Adrian Johnstone offered a support for left-factorized grammars in this parsing algorithm~\cite{scott2016structuring}. 
 
-The basic algorithm creates and queues new descriptors depending on the current parse state that obtained from dequeued descriptor. 
-A descriptor is enqueued only if it has not been created before.
-Also, all processed descriptors stored to avoid its duplication.
-Thus, by reducing descriptors to process, parse time and the amount of required memory can be decreased.
-
-One of the way to decrease the number of descriptors is to reduce the number of grammar slots. 
-This can be achieved by grammar factorization.
-Consider example of grammar and its factorized version from the paper~\cite{scott2016structuring} in fig.~\ref{fig:ExampleOfFactorization}.
+From basic GLL algorithm description you can see, that it is possible to decrease parse time and the amount of required memory by reducing descriptors to process.
+One of the way to do it is to reduce the number of grammar slots, and it can be achieved by grammar factorization.
+An example of factorization is provided in fig.~\ref{fig:ExampleOfFactorization}: production $P_0$ transforms to $P_0'$ during factorization.
+This example is discussed in the paper~\cite{scott2016structuring}, and it is shown, that such transformation can gives significant performance improvement on some grammars, because 
+factorized grammar produces less slots.
 
 \begin{figure}
     \centering
-    \subfloat[Production $P_0$]{
+    \subfloat[The original grammar $P_0$]{
         $
         \begin{array}{rl}
-        S::=& a a\ B\ c\ d \\
-        |& a a\ c\ d \\
-        |& a a\ c\ e \\
-        |& a a
+        S::= a\ a\ B\ c\ d \ | \ a\ a\ c\ d \ | \ a\ a\ c\ e |\ a\ a
         \end{array}
         $
     }
     ~
-    \subfloat[Production $P_0\prime$]{
+    \subfloat[The factorized grammar $P_0'$]{
         $
         \begin{array}{rl}
-        S::= a\ a\ (& B\ c\ d\ \\
-                   |&\ c\ ( d\ |\ e )\ \\
-                   |&\ \varepsilon \ )
+        S::= a\ a\ ( B\ c\ d\ |\ c\ ( d\ |\ e )\ |\ \varepsilon \ )
         \end{array}
         $
     }
-    \caption{Example of factorization}
+    \caption{Example of grammar factorization}
     \label{fig:ExampleOfFactorization}
 \end{figure}
 
-Production $P_0$ transforms to $P_0'$ during factorization.
-Second one is much more compact and contains less possible slots, so parser creates less descriptors.
-It gives significant performance improvement on some grammars.
+We can evolve this idea to support ECFG, and in the next section we will show how to do it.
 
-We can evolve this idea to support ECFG.
-In the next section, we will show how to do it.
+\subsection{Recursive Automata and ECFGs}
 
-\subsection{Recursive automata}
-
-In order to ease adoption of ideas of grammar factorization for handling ECFGs with GLL we use recursive automata (RA)~\cite{tellier2006learning} for ECFG representation.
+In order to ease adoption of ideas of grammar factorization for handling ECFGs with GLL we use recursive automaton (RA)~\cite{tellier2006learning} for ECFG representation.
 We use the following definition of RA.
 
 \begin{mydef}
@@ -226,55 +218,47 @@ We use the following definition of RA.
 The only difference between Recursive Automaton and Finite State Automaton (FSA) is that transitions in RA are labeled either by terminal ($\Sigma$) or by state ($Q$).
 Further in this paper, we call transitions by elements from $Q$ as \textit{nonterminal transitions} and by terminal as \textit{terminal transitions}.
 
-Right parts of ECFG productions are regular expressions over the alphabet of terminals and nonterminals.
-Thus for each right-hand side of grammar productions we can build a finite state automaton 
-using Thompson's method~\cite{Thompson:1968:PTR:363347.363387}. 
-To transform the set of produced automata we need to eliminate $\varepsilon$-transitions and replace
-transitions by nonterminals with transitions labeled by start states of corresponding to nonterminal FSA.
-An example of constructed recursive automata for grammar $\Gamma_{0}$(fig.~\ref{fig:grammarG0})
-is given on fig.~\ref{fig:initialAutomatonsForG0}, state 0 is start state.
+Note that grammar factorization leads to partial minimization of automata in right-hand side of productions.
+Also we can note that grammar slots are equivalent to states of automata which built from right-hand side of productions.
+Right parts of ECFG productions are regular expressions over the union alphabet of terminals and nonterminals.
+So, our goal is to build RA with minimal number of states for given ECFG, which ca be don by following steps.
+\begin{enumerate} 
+\item For each right-hand side of productions build a FSA using Thompson's method~\cite{Thompson:1968:PTR:363347.363387}.
+\item Union all automata for all rhs. Result is FSA. Create a map $M$ from nonterminal to corresponded start state. This map should kept consistent during all fallows steps. 
+\item Convert FSA from previous step to deterministic FSA without $\varepsilon$-transitions using the algorithm described in~\cite{aho1974design}.
+\item Minimize DFSA by using John Hopcroft's algorithm~\cite{hopcroft1971n}.
+\item Replace transitions by nonterminals with transitions labeled by start states by using map $M$. Result of this step is an required RA. Also as a result we define function $\Delta : Q \to N$ where $N$ is nonterminal name.
+\end{enumerate}
 
-Decrease of the number of the automaton states reduces the number of GLL descriptors, as it was with factorization.
-Thus to increase performance of parsing we can minimize the number of states in produced automaton.
-
-First, RA should be converted to deterministic RA using the algorithm for FSA described in ~\cite{aho1974design}.
-Then John Hopcroft's algorithm~\cite{hopcroft1971n} can be applied to RA to minimize the number of states.
-An example for grammar $G_0$ is shown on fig.~\ref{fig:minimizedAutomatonsForG0}.
+An example of ECFG to RA transformation is presented in fig.~\ref{fig:fig1}, where state 0 is start state of result RA.
 
 \begin{figure}
     \centering
-    \subfloat[Grammar $G_0$.]{
+    \subfloat[Grammar $G_0$]{
         $
-        \begin{array}{rll}
-            S ::= &(a&|B)\ a \\
-            B ::= &a& \\
+        \begin{array}[b]{rl}
+            S ::= &(a \ |\ B)\ a \ \  \\
+            B ::= &a
         \end{array}
         $
         \label{fig:grammarG0}
     }
     ~
-    \subfloat[Initial RA.]{
+    \subfloat[FSAs for $G_0$]{
         \includegraphics[scale=.48]{pictures/G0initialAutomatons.pdf}
         \label{fig:initialAutomatonsForG0}
     }
     ~
-    \subfloat[Minimized RA.]{
+    \subfloat[Minimized RA for $G_0$]{
         \includegraphics[scale=.46]{pictures/G0minimizedAutomaton.pdf}
         \label{fig:minimizedAutomatonsForG0}
     }
-    \caption{Example of automata}
+    \caption{Grammar to RA transformation}
     \label{fig:fig1}
 \end{figure}
 
-%\begin{figure}
-%    \centering
-%    \includegraphics[width=4cm]{pictures/SPPFforG0.pdf}
-%    \caption{SPPF for input "aa"}
-%    \label{fig:SPPF}
-%\end{figure}
 
-
-\subsection{Input processing}%--------------------------------------------------------------------------------------------------------------------------------------------
+\subsection{Input Processing}%--------------------------------------------------------------------------------------------------------------------------------------------
 
 A GLL idea is to traverse through grammar and input simultaneously, creating multiple descriptors for the case of ambiguity.
 
@@ -294,7 +278,7 @@ For the last case we just can call create function for each state.
 But for the terminal cases we need to add descriptor that describes next position to queue without checking its existence in descriptor elimination set.
 Thus we use descriptors queue to handle nondeterminism in states, while original algorithm uses it to handle ambiguity in grammars.
 
-\input{add.tex}
+%\input{add.tex}
 
 Function \textbf{add} queues descriptor if it has not already been created.
 
@@ -314,18 +298,14 @@ The main function \textbf{parse} handles queued descriptor and checks all transi
 for current input terminal, or calls create function when meets nonterminal transitions.
 
 
-\subsection{Parse forest construction}
-!!!!!!
-Later, in order to build SPPF, we will need not only start state number, but nonterminal names.
-For this purpose we define function $\Delta : Q \to N$ where $N$ is nonterminal name.
-
+\subsection{Parse Forest Construction}
 
 Result of the parsing process is structural representation of input --- a derivation tree, or parse forest for the case of many derivation variants.
 
 First, we should define derivation tree for recursive automaton: it is an ordered tree whose root is labeled with start state,
 leaf nodes are labeled with terminals or $\varepsilon$ and interior nodes are labeled with 
-nonterminals $A$ and have a sequence of children that corresponds to transition labels of path in 
-automaton that starts from the state $\Delta(A)$.
+nonterminals $N$ and have a sequence of children that corresponds to transition labels of path in 
+automaton that starts from the state $q_i$, where $q_i = \Delta(N)$.
 
 \begin{mydef}
 
@@ -343,29 +323,26 @@ $q_i \xrightarrow[]{l_0} q_{i+1} \xrightarrow[]{l_1} \dots \xrightarrow{l_n} q_m
 
 \end{mydef}
 
-RA is ambiguous if there exists string that has multiple derivation trees. 
-We work with arbitrary grammars, thus our RA can be ambiguous and we can reuse Shared Packed Parse Forest (SPPF)~\cite{SPPF} that can represent all possible derivation trees.
-It is similar to SPPF for grammars described in~\cite{scott2013gll}.
-SPPF contains symbol nodes, packed nodes and intermediate nodes. 
+For arbitrary grammars RA can be ambiguous in terms of acceptance paths, and, as a result, it is possible to get more than one derivation tree for input string.
+Shared Packed Parse Forest (SPPF)~\cite{SPPF} can be used for compact representation all possible derivation trees.
+We use the binarized version of SPPF, which proposed in~\cite{brnglr} in order to decrease memory usage.
+Binarized SPPF can be used in GLL~\cite{scott2013gll} and contains the following types of nodes.
+Here $i$ and $j$ are start and end of derived substring in terms of positions in input string.
 
-Packed nodes are of the form $(S, k)$, where $S$ is a state of automaton. 
-Symbol nodes have labels $(X, i, j)$ where $X \in \Sigma \cup \Delta(Q) \cup \{\varepsilon\}$. 
-Intermediate nodes have labels $ (S, i, j) $, where $S$ is a state of automaton.
-Position in the input previous to leftmost leaf terminal is denoted by $i$, and position succeeding rightmost leaf --- $j$.
+\begin{itemize}
+\item Packed nodes are of the form $(S, k)$, where $S$ is a state of automaton. Packed node necessarily has right child --- symbol node, and optional left child --- symbol or intermediate node.
+\item Symbol nodes have labels $(X, i, j)$ where $X \in \Sigma \cup \Delta(Q) \cup \{\varepsilon\}$.
+Terminal symbol nodes ($X \in \Sigma \cup \{\varepsilon\}$) are leaves. 
+Nonterminal nodes ($X \in \Delta(Q)$) may have several packed children. 
+\item Intermediate nodes have labels $ (S, i, j) $, where $S$ is a state of automaton, and may have several packed children. 
+\end{itemize}
 
-Packed node necessarily has right child --- symbol node, and optional left child --- symbol or intermediate node.
-Nonterminal and intermediate nodes may have several packed children. 
-Terminal symbol nodes are leaves.
-
-Use of intermediate and packed nodes leads to binarization of 
-SPPF and thus provides better sharing. So in general this representation of 
-
-\subsection{SPPF construction functions}
-The function \textbf{getNodeT$(x,i)$} which create terminal nodes is reused without modification from basic algorithm.
+Let us to describe modifications of original SPPF construction functions.
+The function \textbf{getNodeT$(x,i)$} which creates terminal nodes is reused without modification from basic algorithm.
 To handle nondeterminism in states we defined function \textbf{getNodes} which checks if the next state of RA
 is final and for that case constructs nonterminal nodes in addition to intermediate.
-It uses modified function \textbf{getNodeP} that takes additional argument: state or nonterminal name.
-Symbol in constructed SPPF node becomes the value of the arguments.
+It uses modified function \textbf{getNodeP} that takes separately nonterminal which currently processed and a state of RA, instead of grammar slot.
+
 \input{getNodes.tex}
 \input{getNodeP.tex}
 
@@ -421,9 +398,8 @@ FSA built for this grammar presented on fig.~\ref{fig:automatonForG2}.
     \centering
     \subfloat[Grammar $G_2$.]{
         $
-        \begin{array}{rc}
-        S ::=& K\ (K\ K\ K\ K\ K \\
-             &     |a\ K\ K\ K\ K) \\
+        \begin{array}{rl}
+        S ::=& K\ (K\ K\ K\ K\ K \ |\ a\ K\ K\ K\ K) \\
         K ::=& S\ K\ |\ a\ K\ |\ a \\
         \end{array}
         $
@@ -434,7 +410,7 @@ FSA built for this grammar presented on fig.~\ref{fig:automatonForG2}.
         \includegraphics[scale=.5]{pictures/G2automaton.pdf}
         \label{fig:automatonForG2}
     }
-    \caption{Grammar $G_2$ and RA for it.}
+    \caption{Grammar $G_2$ and RA for it}
 \end{figure}
 
 For this grammar parser for RA should create less GSS edges because the tails of alternatives in producions
@@ -465,7 +441,7 @@ All tests were run on a PC with the following characteristics:
 
 \input{performancePlots1.tex}
 
-\input{performancePlots2.tex}
+%\input{performancePlots2.tex}
 
 Results of performed experiments approve the fact that on some grammars or approach 
 show better results then parsers built on factorized grammars.
@@ -487,19 +463,20 @@ and $33\%$ less SPPF nodes.
 Described algorithm and parser generator based on it implemented in F\# as part of the YaccConstructor project.
 Source code available here:~\url{https://github.com/YaccConstructor/YaccConstructor}.
 
+
 As we show in evaluation, proposed modification not only increase performance, but also decrease memory usage. 
 It is critical for big input processing.
 For example, Anastasia Ragozina in her master's thesis~\cite{ragozina} shows that GLL can be used for graph parsing.  
-In some areas graphs can be really huge: metagenomic assemblies in bioinfomatics, social graphs.
+In some areas graphs can be really huge, for example metagenomic assemblies in bioinfomatics, and social graphs.
 We hope that proposed modification can improve performance not only in case of classical parsing, but in graph parsing too. 
-We perform some tests that shows performance increasing in metagenomic analysis, but full integration with graph parsing and formal description is required.
+We perform some tests that demonstrate performance increasing in metagenomic analysis, but full integration with graph parsing and formal algorithm description is required.
 
 One of way to specify any useful manipulations on derivation tree (or semantic of language) is an attributed grammars, but it is not supported in the algorithm which presented in this article.
 There is number of works on subclasses of attributed ECFGs (for example~\cite{AttributedELL}), however still no solution for arbitrary ECFGs.
 Thus, arbitrary attributed ECFGs and semantic calculation support is a future work.
 
 Yet another question is possibility of unification our results with tree languages: our definition of derivation tree for ECFG is quite similar to unranked tree and SPPF is similar to automata for unranked trees~\cite{TATA}.
-Theory of tree languages seems more mature than theory of general SPPF manipulations and relations between tree languages and SPPF investigation may get interesting results. For example, relations between tree languages and ECFG discussed here~\cite{TreeLangAndECFG} but mainly in context of XML manipulation.
+Theory of tree languages seems more mature than theory of general SPPF manipulations and relations between tree languages and SPPF investigation may get interesting results. For example, relations between tree languages and ECFG discussed in the paper~\cite{TreeLangAndECFG}, but mainly in context of XML manipulation.
 
 
 \bibliographystyle{abbrv}
