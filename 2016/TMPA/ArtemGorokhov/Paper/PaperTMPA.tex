@@ -1,18 +1,23 @@
 \documentclass[runningheads,a4paper]{llncs}
 
+\usepackage{mathtools}
 \usepackage{amssymb}
 \setcounter{tocdepth}{3}
 \usepackage{graphicx}
 \usepackage{wrapfig}
+\usepackage[caption=false]{subfig}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.9}
 
 \usepackage{url}
 \usepackage{algpseudocode}
 \usepackage{algorithm}
 \usepackage{algorithmicx}
 
-
-
-\urldef{\mailsa}\path|gorohov.art@gmail.com|    
+%\captionsetup[figure]{width=.85\textwidth}
+%\captionsetup[subfigure]{width=.45\textwidth}
+  
 \newcommand{\keywords}[1]{\par\addvspace\baselineskip
 \noindent\keywordname\enspace\ignorespaces#1}
 
@@ -46,355 +51,387 @@
 \mainmatter  % start of an individual contribution
 
 % first the title is needed
-\title{EBNF in GLL}
+\title{Extended Context-Free Grammars Parsing with Generalized LL}
 
 % a short form should be given in case it is too long for the running head
-\titlerunning{EBNF in GLL}
+\titlerunning{ECFG parsing with GLL}
 
-\author{Artem Gorokhov}
-\authorrunning{Artem Gorokhov}
+\author{Artem Gorokhov \and Semyon Grigorev}
+\authorrunning{Artem Gorokhov, Semyon Grigorev}
 % (feature abused for this document to repeat the title also on left hand pages)
 
-\institute{St. Petersburg State University, Universitetsky prospekt, 28,\\
-           198504 Peterhof, St. Petersburg, Russia\\
-\mailsa}
+\institute{ Saint Petersburg State University\\
+            7/9 Universitetskaya nab.\\
+            St. Petersburg, 199034 Russia\\
+\email{\path|gorohov.art@gmail.com| }
+\\
+\email{\path|semen.grigorev@jetbrains.com|}
+}
 
-\toctitle{EBNF in GLL}
+
+\toctitle{Extended Context-Free Grammars Parsing with Generalized LL}
 \tocauthor{Artem Gorokhov}
 \maketitle
+
+%\tableofcontents
 
 %Authors are invited to submit full papers (not exceeding 12 pages) or short papers (up to 6 pages)
 
 \begin{abstract}
-% Предлагается модификация алгоритма GLL, работающая с грамматиками в форме EBNF. 
-% Это приносит ошутимый прирост производительности в работе с некоторыми грамматиками языков программирования.
+Parsing plays an important role in static program analysis: during this step a structural representation of code is created upon which further analysis is performed. 
+Parser generator tools, being provided with syntax specification, automate parser development. 
+Language documentation often acts as such specification. 
+Documentation usually takes form of ambiguous grammar in Extended Backus-Naur Form which most parser generators fail to process. 
+Automatic grammar transformation generally leads to parsing performance decrease. 
+Some approaches support EBNF grammars natively, but they all fail to handle ambiguous grammars. 
+On the other hand, Generalized LL parsing algorithm admits arbitrary context-free grammars and achieves good performance, but cannot handle EBNF grammars. 
+The main contribution of this paper is a modification of GLL algorithm which can process grammars in a form which is closely related to EBNF (Extended Context-Free Grammar). 
+We also show that the modification improves parsing performance as compared to grammar transformation based approach. 
 
-
-%At least 70 and at most 150 words.
-Parsing is important step of static programm analysis because 
-it allows to get structural representation of code.
-Parser generators a widely used for parser creation. 
-EBNF is very popular for languages syntax description.
-But transformation to more simple form (BNF, CNF) is required for popular tools.
-There are number of works on EBNF processing without transformation.
-But problems.
-Generalized LL, arbitrary grammars in $O(n^s)$, factorization can increase performance...
-Factorization can be improved.
-We propose modification of GLL which can handle arbitrary grammar in EBNF without transformations...
-performance improvements, .....
-
-\keywords{Parsing, GLL, EBNF}
+\keywords{Parsing, Generalized Parsing, Extended Context-Free Grammar, GLL, SPPF, EBNF, ECFG, RRPG, Recursive Automata}
 \end{abstract}
 
 
 \section{Introduction}%--------------------------------------------------------------------------------------------------------------------------------------------
 
-Static program analysis usually performed over structural representation of code and parsing is a classical way to get such representation.
-Parser generators often used for parser creation automation: these tools allow to create parser from grammar of language which should be specified in appropreate format.
-It allows to decrease efforts required for syntax analyzer creation and maintenance.
+Static program analysis is usually performed over a structural representation of code and parsing is a classical way to get such representation.
+Parser generators are often used to automate parser creation: these tools derives parser from grammar.
 
-Extended BNF (EBNF) is a useful format of grammar specification. 
-Expressive and compact description of language sintax. 
-This formalism often used in documentation --- one of main source of information for parsers developers.
+Extended Backus-Naur Form~\cite{EBNFISO} is a metasyntax for expressing context-free grammars. 
+In addition to the Backus-Naur Form syntax it uses the following constructions: alternation $\mid$, optional symbols [ ... ], repetition \{ ... \}, and grouping ( ... ).
 
-There are a wide range of parsing techniques and algorithms: CYK, LR(k), LALR(k), LL, etc. 
-One of he most popular area is generalized parsing: technique which allows to handle ambiguous grammars. 
-It is possible to simplify language description required for parser generation in case if parser generator is based on generalized algorithm.
-LL family is more intutively than LR, can provide better diagnostics, but LL(1) is not enough to process some languages: there are LR, but not LL languages.
-Moreover, left and hidden left recursion in grammars is a problem. 
-In order to solve these problems generalized LL (GLL) was proposed~\cite{!!!}. 
-This algorithm handles arbitrary context free grammar, even anaumbiguos and (hidden)left-recursve.
-Worst-case time and space complexity of GLL is cubic in terms of input size. 
-For LL grammars it demonstartes linear time and space complexity.
+This form is widely used for grammar specification in technical documentation because expressive power of EBNF makes syntax specification more compact and human-readable. 
+Because documentation is one of the main sources of data for parsers developers, it would be helpful to have a parser generator which supports grammar in EBNF.
+Note, that EBNF is a standardized notation for \textit{extended context-free grammars}~\cite{ECFG} which can be defined as follows.
 
-But BNF required for classical parsing algorithms.
-It is possible to convert from EBNF to BNF but ....
+\begin{mydef}
+An \textbf{extended context-free grammar} (ECFG)~\cite{ECFG} is a tuple ($N$, $\Sigma$, $P$, $S$), where $N$
+and $\Sigma$ are finite sets of nonterminals and terminals respectively, $ S\in N$ is the start symbol,
+and $P$ (productions) is a map from $N$ to regular expressions over alphabet $N \cup \Sigma$.
+\end{mydef}
 
-ELL, ELR~\cite{AttributedELL,ELRR,ECFGparsing,ELLParser,ELL,ECFG,ELALR,ELRParsing} and other can process EBNF but what about ambiguities in grammars. It is a problem.
+ECFG is widely used as an input format for parser generators, but classical parsing algorithms often require CFG, and, as a result, parser generators usually require conversion to CFG.
+It is possible to transform ECFG to CFG~\cite{ELL}, but this transformation leads to grammar size 
+increase and change in grammar structure: new nonterminals are added during transformation.
+As a result, parser constructs derivation tree with respect to the transformed grammar, making it harder for a language developer to debug grammar and use parsing result later.
 
-Factorization for GLL, but it is not full support of EBNF.
+There is a wide range of parsing techniques and algorithms~\cite{AttributedELL,ELRR,ECFGparsing,ELLParser,ELL,ECFG,ELALR,ELRParsing} which are able to process grammar in ECFG.
+Detailed review of results and problems in ECFG processing area is provided in the paper ``Towards a Taxonomy for ECFG and RRPG Parsing''~\cite{ECFG}. 
+We only notice that most of algorithms are based on classical LL~\cite{ELLParser,AttributedELL,PredictiveECFG} and LR~\cite{ELRParsing,ELALR,ELRR} techniques, and they admit only restricted subclasses of ECFG.
+Thus, there is no solution for handling arbitrary (including ambiguous) ECFGs.
 
-In this work we present modified generalized LL parsing algorithm which handles grammars in EBNF without transformations.
-Changes are very native for GLL nature.
-Proposed modifications allow to get sufficient parsing performance improvement.
+The LL-based parsing algorithms are more intuitive than LR-based and can provide better error diagnostic.
+Currently LL(1) seems is be the most practical algorithm.
+Unfortunately, some languages are not LL(k) for any $k$, and left recursive grammars are a problem for LL-based tools.
+Another restriction for LL parsers is ambiguities in grammar which, being combined with previous flaws, complicates industrial parsers creation.
+Generalized LL, proposed in~\cite{scott2010gll}, solves all these problems: it handles arbitrary CFGs, including ambiguous and left recursive.  
+Worst-case time and space complexity of GLL is cubic in terms of input size and, for LL(1) grammars, it demonstrates linear time and space complexity.
 
-This article is structurerd as follows.
-We start from .... Extended BNF
-generalized LL algorithm description.
-Blah-blah
+In order to improve performance of GLL algorithm, modification for left factorized grammars processing was introduced in~\cite{scott2016structuring}.
+Factorization transforms grammar so that there are no two productions with same prefixes (see fig~\ref{fig:ExampleOfFactorization} for example).
+It is shown, that factorization can reduce memory usage and increase performance by reusing common parts of rules for one nonterminal.
+Similar idea can be applied to ECFGs processing.
 
+To summarize, if it were possible to handle ECFG specification with tools based on generalized parsing algorithm, it would greatly simplify language development.
+In this work we present a modification of generalized LL parsing algorithm which handles arbitrary ECFGs without any transformations.
+Also we demonstrate that proposed modifications improve parsing performance and memory usage comparing to GLL for factorized grammar.
 
-%Синтаксический анализ программ это широко известная область, ...
-%Проблема в том, что грамматики, используемые в реальной жизни пишутся в форме EBNF. А GLL принимает только BNF.
-%Можно проводить преобразование грамматики из EBNF к BNF, но так она разрастается, что, в некоторых случаях, замедляет процедуру разбора.
-%Предлагается модификация алгоритма GLL, работающая с грамматиками в форме EBNF.
+\section{ECFG Handling with Generalized LL Algorithm}%--------------------------------------------------------------------------------------------------------------------------------------------
 
+The purpose of generalized parsing algorithms is to provide arbitrary context-free grammars handling.
+Generalized LL algorithm~(GLL)~\cite{scott2010gll} inherits properties of classical LL algorithms: it is more intuitive and provides better syntax error diagnostic than generalized LR algorithms.
+Also, our experience shows that GLR-based solutions are more complex than GLL-based, which agrees with the observation in~\cite{ECFG} that LR-based ECFG parsers are very complex. 
+Thus, we choose GLL as a base for our solution.
+In this section we present GLL-style parser for arbitrary ECFG processing.
 
+\subsection{Generalized LL Parsing Algorithm}%--------------------------------------------------------------------------------------------------------------------------------------------
 
-\section{EBNF processing}
-
-EBNF definition
-
-Extended Backus-Naur Form~\cite{iso} is a syntax of expressing context-free grammars. Unlike the Backus-Naur Form it 
-uses such new constructions:
+An idea of the GLL algorithm is based on descriptors which can uniquely define state of parsing process.
+Descriptor is a four-element tuple $(L, i, T, S)$ where: 
 \begin{itemize}
-    \item alternation $\mid$
-    \item option [ ... ]
-    \item repetition \{ ... \}
-    \item grouping ( ... )
+\item $L$ is a grammar slot --- pointer to position in the grammar of the form~$(S \to \alpha \cdot \beta)$;
+\item $i$ --- position in the input;
+\item $T$ --- already built node of parse forest;
+\item $S$ --- current Graph Structured Stack~(GSS)~\cite{afroozeh2015faster} node.
 \end{itemize}
 
-It allows to define grammars in more compact way.
+A GLL move through grammar and input simultaneously, creating multiple descriptors for the case of ambiguity, and using queue to control descriptors processing.
+In the initial state there is only one descriptor which consists of start position in grammar ($L = (S \to \cdot \beta)$), input ($i=0$), dummy tree node, and the bottom of GSS.
+At each step, the algorithm dequeues a descriptor and acts depending on the grammar and the input.
+If there is an ambiguity, then algorithm queues descriptors for all cases to process them later. 
+To achieve cubic time complexity, it is important to enqueue only descriptors which have not been created before.
+Global storage of all created descriptors is used to filter descriptors which should be enqueued.
 
-Regular expression syntax? Look at ``Towards a Taxonomy for ECFG and RRPG Parsing''
+There is a table based approach~\cite{ragozina} for GLL implementation which generates only tables for given grammar instead of full parser code.
+The idea is similar to the one in the original paper and uses the same tree construction and stack processing routines.
+Pseudocode illustrating this approach can be found in appendix~\ref{GLLCode}.
+Note that we do not include check for first/follow sets in this paper.
 
-In this article we will use the next notation: ....
 
-ELL, ELR etc
+\subsection{Grammar Factorization}%--------------------------------------------------------------------------------------------------------------------------------------------
+
+In order to improve performance of GLL, Elizabeth Scott and Adrian Johnstone proposed a support for left-factorized grammars in this parsing algorithm~\cite{scott2016structuring}. 
+
+It is obvious from GLL description, that to decrease parse time and the amount of required memory, it is sufficient to reduce the number descriptors to process.
+One of the way to do it is to reduce the number of grammar slots, and it can be done by grammar factorization.
+An example of factorization is provided in fig.~\ref{fig:ExampleOfFactorization}: grammar $P_0$ transforms to $P_0'$ during factorization.
+This example is discussed in the paper~\cite{scott2016structuring}, and it is shown, that such transformation can give significant performance improvement on some grammars, by producing less slots.
+
+\begin{figure}
+    \centering
+    \subfloat[The original grammar $P_0$]{
+        $
+        \begin{array}{rl}
+        S::= a\ a\ B\ c\ d \ | \ a\ a\ c\ d \ | \ a\ a\ c\ e |\ a\ a
+        \end{array}
+        $
+    }
+    ~
+    \subfloat[The factorized grammar $P_0'$]{
+        $
+        \begin{array}{rl}
+        S::= a\ a\ ( B\ c\ d\ |\ c\ ( d\ |\ e )\ |\ \varepsilon \ )
+        \end{array}
+        $
+    }
+    \caption{Example of grammar factorization}
+    \label{fig:ExampleOfFactorization}
+\end{figure}
+
+We can evolve this idea to support ECFG, and we will show how to do it in the next section.
+
+\subsection{Recursive Automata and ECFGs}
+
+In order to ease adoption of ideas of grammar factorization for handling ECFGs with GLL we use recursive automaton (RA)~\cite{tellier2006learning} for ECFG representation.
+We use the following definition of RA.
+
+\begin{mydef}
+    Recursive automaton~(RA) $R$ is a tuple $(\Sigma, Q, S, F, \delta)$, where $\Sigma$ is a finite set of terminals, $Q$ --- finite set of states, $S \in Q$ --- start state, $F \subseteq Q$ --- set of final states, $\delta : Q \times (\Sigma \cup Q) \to Q$ --- transition function.
+\end{mydef}
+
+The only difference between Recursive Automaton and Finite State Automaton (FSA) is that transitions in RA are labeled either by terminal ($\Sigma$) or by state ($Q$).
+Further in this paper, we call transitions by elements from $Q$ \textit{nonterminal transitions} and by terminal --- \textit{terminal transitions}.
+
+Note that grammar factorization leads to partial minimization of automata in right-hand side of productions.
+Also note that grammar slots are equivalent to states of automata which are built from right-hand side of productions.
+Right parts of ECFG productions are regular expressions over the union alphabet of terminals and nonterminals.
+So, our goal is to build RA with minimal number of states for given ECFG, which can be done by the following steps.
+\begin{enumerate} 
+\item Build a FSA using Thompson's method for each right-hand side of productions~\cite{Thompson:1968:PTR:363347.363387}.
+\item Create a map $M$ from nonterminal to a corresponded start state.
+This map should be kept consistent during all follows steps. 
+\item Convert FSAs from previous step to a deterministic FSAs without $\varepsilon$-transitions using the algorithm described in~\cite{aho1974design}.
+\item Minimize DFSAs, for example, by using John Hopcroft's algorithm~\cite{hopcroft1971n}.
+\item Replace transitions by nonterminals with transitions labeled by start states by using map $M$.
+Result of this step is a required RA. We also use map $M$ to define function $\Delta : Q \to N$ where $N$ is nonterminal name.
+\end{enumerate}
+
+An example of ECFG to RA transformation is presented in fig.~\ref{fig:fig1}, where state 0 is the start state of resulting RA.
+
+\begin{figure}
+    \centering
+    \subfloat[Grammar $G_0$]{
+        $
+        \begin{array}[b]{rl}
+            S ::= a^{+} S\ b? \ | \ c \ \ \ 
+        \end{array}
+        $
+        \label{fig:grammarG0}
+    }
+    ~
+    \subfloat[FSA for $G_0$]{
+        \includegraphics[scale=.5]{pictures/G0initialAutomaton.pdf}
+        \label{fig:initialAutomatonsForG0}
+    }
+    ~
+    \subfloat[RA $R_0$ for $G_0$]{
+        \includegraphics[scale=.5]{pictures/G0minimizedAutomaton.pdf}
+        \label{fig:RAForG0}
+    }
+    \caption{Grammar to RA transformation}
+    \label{fig:fig1}
+\end{figure}
 
 
-\section{Generalized LL Parsing}%--------------------------------------------------------------------------------------------------------------------------------------------
+\subsection{Input Processing}%--------------------------------------------------------------------------------------------------------------------------------------------
 
-Basic GLL algorithm~\cite{scott2010gll} allows to perform syntax analysis of linear input by any context-free 
-grammar. As a result we get Shared Packed Parse Forest(SPPF)~\cite{SPPF} that represents all possible derivations of input string.
+In this section we describe changes required in control functions of basic GLL algorithm to handle ECFG.
+At each step the main function \textbf{parse} dequeues next descriptor to be processed.
+Suppose that current descriptor is a tuple ($C_S, C_U, C_i, C_N$), where $C_S$ --- state of RA, $C_U$ --- GSS node, $C_i$ --- position in input string $\omega$, and $C_N$ --- SPPF node. 
+It is possible to get the following nonexclusive cases during this descriptor processing.
 
-Work of the GLL algorithm based on descriptors. Descriptor is a four-element tuple that can uniquely define state 
-of parsing process. It consists of:
-\begin{itemize}
-    \item \textbf{Slot} --- position in grammar
-    \item \textbf{Position in input} graph
-    \item Already built \textbf{tree root}
-    \item Current \textbf{GSS node}
+\begin{itemize} 
+\item $C_S$ is a final state. Pop, because processing of nonterminal finished.
+\item There is a terminal transition $C_S \xrightarrow[]{\omega.[C_i]} q$. 
+Create descriptor with state $ q $ and position ($ C_i + 1 $).
+Queue it without checking its existence.
+\item There are nonterminal transitions. Call \textbf{create} function for
+each such transition.
+It performs necessary operations with GSS and checks if there are already built SPPF for current
+input position and nonterminal.
 \end{itemize}
 
-and so on about GLL
+All required functions presented below.
+Function \textbf{add} queues descriptor if it has not already been created, and this function has not been changed.
 
-Code in appendix or in original article
-
-\subsection{Factorization}%--------------------------------------------------------------------------------------------------------------------------------------------
-
-In order to improve performance Elizabeth Scott and Adrian Johnstone offered support of factorised grammars in GLL~\cite{scott2016structuring}. 
-
-Description of idea.
-
-But this idea can be extended to full EBNF support without any grammar transformations.
-Let we show how to do it!!!
-
-
-\section{Extended BNF GLL Parsing}%--------------------------------------------------------------------------------------------------------------------------------------------
-
-In this section we will show an application of Extended Backus-Naur Form(EBNF) grammars in automatons and corresponding GLL-style parsers.
-
-GLL allows analysis only by grammars in Backus-Naur Form. When use of EBNF is more common.
-
-Main algorithm creates and queues new descriptors depending on current parse state that we get from unqueued descriptor. 
-In case descriptor was already created it does not add it to queue. For this purpose we have a set of
-\textbf{all} created descriptors. Thus reducing set of possible descriptors decreases the parse time
-and required memory.
-
-Let us spot on \textbf{slots}. Grammar written in EBNF is usually more compact then it's representation in BNF. That means EBNF contains 
-less slots and parser creates less descriptors. Thus support of EBNF in GLL can increase parsing performance. 
-
-
-\subsection{Grammar Transformation}%--------------------------------------------------------------------------------------------------------------------------------------------
-
-There are some basic methods converting regular expressions to nondeterministic finite state automatons. 
-At the same time context-free grammar productions are regular expressions, that can contain as terminals 
-as nonterminals. Thus for each grammar rule we can build a finite state automaton, with edges tagged with 
-terminals, nonterminals or $\varepsilon$-symbols. We used Thompson's method~\cite{Thompson:1968:PTR:363347.363387}. 
-In built automatons nonterminals should be replaced with links to initial states of automaton that stands 
-for this nonterminal. An example of constructed automaton for grammar $\Gamma_{0}$\ref{fig:grammarG0} is given on fig.
-
-Produced $\varepsilon$-NFAs can be converted to DFAs. An algorithm is described in~\cite{aho1974design}.
-
-Minimization of the quantity of the DFA states decreases number of GLL descriptors. John Hopcroft's 
-algorithm~\cite{hopcroft1971n} can be used for it. But we can apply it to all automatons at one time. 
-An algorithm is based on dividing all states on equivalent classes. Initial state of algorithm consist 
-of 2 classes: first contains final states and second contains all other. For our problem we can set an 
-initial state as follow: first class contains all final states of \textbf{all} automatons and second class 
-contains all the other. As an algorithm result we get classes which represent states of minimised DFA and 
-transitions between them.
-Initial state is class that contains initial state of automaton that represents productions of start nonterminal.
-% Надо сказать про то что на самом деле структура грамматики не меняется. Меняется лишь её представление.
-
-Some states have labels: names of nonterminals which productions start in that states.
-
-
-\subsection{Input processing}%--------------------------------------------------------------------------------------------------------------------------------------------
-
-Slots becomes DFA states. And just as we can move through grammar slots we can move through states 
-in DFA. But in DFA we have multiple ways to go because many nonterminals can start with current input symbol. 
-%So we need to prevent creation of descriptors for each nonterminal on out edges. We can generate tables that 
-%tells us what nonterminals can infer strings that starts with current terminal. And add descriptors only for 
-%this edges. Moreover we need to create descriptor for edge that marked with current terminal if such exists.
-
-
-\input{add.tex}
 \input{create.tex}
 
 \input{pop.tex}
 
+%\textbf{Pop} function is called when we reach final state. It queues descriptors for all outgoing edges from current GSS node.
 
-\subsection{SPPF construction}
+\input{parse.tex}
 
-First, we should define derivation trees for DFA's: it is an ordered tree whose root is lable of the start state,
-leaf nodes are labeled with a terminals from DFA's edges or $\varepsilon$ and interior nodes are labeled with 
-nonterminals from DFA's edges($ A $) and have a sequence of children that corresponds to edge labels of path in 
-DFA that starts from the state labeled $ A $. More formal. 
+
+
+\subsection{Parse Forest Construction}
+
+Result of the parsing process is a structural representation of the input --- a derivation tree, or parse forest in case there are multiple derivations.
+
+First, we should define derivation tree for recursive automaton: it is an ordered tree whose root is labeled with start state,
+leaf nodes are labeled with terminals or $\varepsilon$ and interior nodes are labeled with 
+nonterminals $N$ and their children for a sequence of transition labels of path in 
+automaton which starts from the state $q_i$, where $ \Delta(q_i) = N $.
 
 \begin{mydef}
 
-Derivation tree of sentence $\alpha$ in the grammar $G=(\Sigma, N, S, P)$:
+Derivation tree of sentence $\alpha$ for the recursive automaton $R=(\Sigma, Q, S, F, \delta)$:%grammar $G=(\Sigma, N, S, P)$:
 
 \begin{itemize}
-\item Ordered rooted tree. Root labeled with $S$
-\item Leafs are terminals $\in \Sigma$
-\item Nodes is nonterminals
-\item Node with label $N_i$ has childs $l_0, \dots\, l_n$ if and only if for $\omega = l_0 \cdot l_1 \dots\ l_n\in (\Sigma \cup N)^*$ exists $p \rightarrow M \in P$ such that $\omega \in L(M)$
+\item Ordered rooted tree; root is labeled with $\Delta(S)$;
+\item Leaves are terminals $a\in \Sigma$;
+\item Nodes are nonterminals $A\in \Delta(Q)$;
+\item Node with label $N_i \in \Delta(q_i)$ has children $l_0 \dots l_n (l_i \in \Sigma \cup \Delta(Q))$ iff there exists a
+path $q_i \xrightarrow[]{l_0} q_{i+1} \xrightarrow[]{l_1} \dots \xrightarrow{l_n} q_m$, $q_m \in F$. 
 \end{itemize}
 
 \end{mydef}
 
-DFA is ambiguous if there exist string that have more than one derivation trees. Thus, we can define SPPF for DFA. 
-It is similar to SPPF for grammars described in~\cite{scott2013gll}. SPPF contains symbol nodes(like derivation trees), packed nodes
-and intermediate nodes. 
+For arbitrary grammars, RA can be ambiguous in terms of acceptance paths, and, as a result, it is possible to get multiple derivation trees for one input string.
+Shared Packed Parse Forest (SPPF)~\cite{SPPF} can be used as a compact representation of all possible derivation trees.
+We use the binarized version of SPPF, which is proposed in~\cite{brnglr}, in order to decrease memory usage and to achieve cubic worst case time and space complexity.
+Binarized SPPF can be used in GLL~\cite{scott2013gll} and contains the following types of nodes (here $i$ and $j$ are the start and the end of derived substring in terms of positions in input string):
 
-Packed nodes are of the form $(S, k)$, where $S$ is a state of DFA. 
-Symbol nodes have labels $(X, i, j)$ where $X$ is an edge symbol or a nonterminal. 
-Intermediate nodes have labels $ (S, i, j) $, where $S$ is a state of DFA
+\begin{itemize}
+\item Packed nodes are of the form $(S, k)$, where $S$ is a state of automaton, k --- start of derived substring of right child.
+Packed node necessarily has right child --- symbol node, and optional left child --- symbol or intermediate node.
+\item Symbol nodes have labels $(X, i, j)$ where $X \in \Sigma \cup \Delta(Q) \cup \{\varepsilon\}$.
+Terminal symbol nodes ($X \in \Sigma \cup \{\varepsilon\}$) are leaves. 
+Nonterminal nodes ($X \in \Delta(Q)$) may have several packed children. 
+\item Intermediate nodes have labels $ (S, i, j) $, where $S$ is a state of automaton, and may have several packed children. 
+\end{itemize}
 
-A packed node has one or two children right child can be symbol node, left child can be symbol or intermediate node.   
-Nonterminal symbol nodes have packed children nodes of the form $(S, k)$ where $S$ is pop state. 
-Terminal symbol nodes are leafs.
-
- Use of intermediate and packed nodes leads to binarization of SPPF and thus the space complexity is $O(n^{3})$.
-%But in grammars slot defines position,
-%previous and next symbol, when DFA state tells the position only. Thus we can can construct SPPF using 
-%In general, we can't uniquely correspond an original grammar slot to automaton state.
-%We can consider example. For the grammar \ref{fig:grammarG0}, automaton will be represented as showed on fig.\ref{fig:automatonForG0}.
-%SPPF for input "aa" is on fig.\ref{fig:SPPF}.
-
-\begin{figure}
-    \centering
-    \parbox{2.9cm}{
-        \begin{center}
-            $S ::= (aa)|(ab)$
-        \end{center}
-        \caption{Grammar $\Gamma_{0}$}
-        \label{fig:grammarG0}}
-    \qquad
-    \begin{minipage}{4cm}
-        \includegraphics[width=4cm]{pictures/automatonForG0.pdf}
-        \caption{Automaton for $\Gamma_{0}$}
-        \label{fig:automatonForG0}
-    \end{minipage}
-\end{figure}
-
-\begin{figure}
-    \centering
-    \includegraphics[width=4cm]{pictures/SPPFforG0.pdf}
-    \caption{SPPF for input "aa"}
-    \label{fig:SPPF}
-\end{figure}
-
-
-State 1 can be matched with two grammar slots: $S ::= (a \cdot a)|(b$ $a)$ and $S ::= (a$ $a)|(b \cdot a)$. 
-But SPPF represents WHAT???
-
-
-
-
-\textbf{function} getNodeT$(x,i)$ does not change
-
-In states of parsing we can have a nondeterministic choice because the states of DFA can be ``pop'' states.
-In this case we need to create nonterminal node and raise \textbf{pop} function. But if there exist out edges from this state we also need to create intermediate node.
-For this purpose we defined function \textbf{getNodes} which can construct two nodes: intermediate and nonterminal (at least one of them, at most both of them).
-So if current state is ``pop'' state it constructs nonterminal node
+Let us describe modifications of original SPPF construction functions.
+The function \textbf{getNodeT$(x,i)$} which creates terminal nodes is reused without any modification from basic algorithm.
+To handle nondeterminism in states, we define function \textbf{getNodes} which checks if the next state of RA
+is final and, if that is case, constructs nonterminal nodes in addition to the intermediate one.
+It uses modified function \textbf{getNodeP}, instead of grammar slot it takes separately a 
+state of RA and symbol for new SPPF node: current nonterminal or next RA state.
 
 \input{getNodes.tex}
 \input{getNodeP.tex}
-\input{parse.tex}
+
+Let us to demonstrate a SPPF example for ECFG grammar $G_0$(fig.~\ref{fig:grammarG0}).
+It contains constructions (option symbols and repetition) that should be converted with
+use of extra nonterminals to build regular GLL parser. Our generator constructs
+recursive automaton $R_0$(fig.~\ref{fig:RAForG0}) and parser for it.
+Possible trees for input $ aacb $ are shown in fig.~\ref{fig:treesForG0}.
+SPPF build by parser(fig.~\ref{fig:SPPFForG0}) combines all of them.
+
+\begin{figure}[ht]   
+    \centering
+    \subfloat[Possible derivation trees for $R_0$ and input $ aacb $]{
+        \includegraphics[scale=.5]{pictures/G0trees.pdf}
+        \label{fig:treesForG0}
+    }
+    ~
+    \subfloat[SPPF for $R_0$ and input $ aacb $]{
+        \includegraphics[scale=.5]{pictures/G0SPPF.pdf}
+        \label{fig:SPPFForG0}
+    }
+    \caption{Example for input $ aacb $}
+    \label{fig:fig2}
+\end{figure}
 
 
 \section{Evaluation}
 
-Left factorization vs EBNF
+We have compared our parsers built on factorized grammar and on minimized recursive automaton.
+Grammar $G_1$(fig.~\ref{fig:grammarG1}) was used for the tests, it has long tails in alternatives which are not unified with factorization.
+FSA built for this grammar presented in fig.~\ref{fig:automatonForG1}.
 
-Small demo example (message to Scott)
+\begin{figure}[ht]   
+    \centering
+    \subfloat[Grammar $G_1$]{
+        $
+        \begin{array}{rl}
+        S ::=& K\ (K\ K\ K\ K\ K \ |\ a\ K\ K\ K\ K) \\
+        K ::=& S\ K\ |\ a\ K\ |\ a \\
+        \end{array}
+        $
+        \label{fig:grammarG1}
+    }
 
-\begin{figure}[h]
-$$
-\begin{array}{crcl}
-& \mbox{\texttt{ S }} &::=& \mbox{\texttt{ A A A A A A | A a A A A A }} \\
-& \mbox{\texttt{ A }} & ::=& \mbox{\texttt{ S A | a A | a}}\\
-\end{array}
-$$
-\caption{Grammar $G_0$.}
-\label{testGrammar}
+    \subfloat[RA for grammar $G_1$]{
+        \includegraphics[scale=.5]{pictures/G1automaton.pdf}
+        \label{fig:automatonForG1}
+    }
+    \caption{Grammar $G_1$ and RA for it}
 \end{figure}
 
-We have compared our parsers built on factorized grammar and on minimized FSA.
-Grammar $G_0$(fig.~\ref{testGrammar}) was used for the tests.
+For this grammar parser for RA should create less GSS edges because the tails of alternatives in producions
+are represented by the only path in RA. This fact leads to decrease of SPPF nodes and descriptors.
 
-Description of grammar: long ``common tail'' which is not unified with factorization.
+Experiments were performed on inputs of different length and are presented in fig.~\ref{expPlots}.
+Exact values for the input $a^{40}$ shown in table~\ref{expTable}.
 
-FSA built for this grammar presented on fig.~\ref{dfa}.
+All tests were run on a PC with the following characteristics:
+\begin{itemize}
+    \item OS: Microsoft Windows 10 Pro x64
+    \item CPU: Intel(R) Core(TM) i7-4790 CPU @ 3.60GHz, 3601 Mhz, 4 Cores, 4 Logical Processors
+    \item RAM: 32 GB
+\end{itemize}
 
-\begin{wrapfigure}{R}{0.2\textwidth}
-\centering
-\includegraphics[width=0.15\textwidth]{pictures/minimizedDFA.pdf}
-\caption{\label{dfa}Minimized DFA for grammar $G_0$}
-\end{wrapfigure}
-
-Description of input. 
-Short info about PC.
-
-Note: SPPF construction was disabled while testing.
-
-\begin{table}[h]
+\begin{table}[ht]   
 \begin{center}
-  \begin{tabular}{ | l | l | l | l | l | l | l | l | l | }
-\hline
-    Length & \multicolumn{2}{ c| }{Time, seconds} & \multicolumn{2}{ c| }{Descriptors} & \multicolumn{2}{ c| }{GSS Nodes} & \multicolumn{2}{ c| }{GSS Edges} \\ \hline
-     & factorized & minimized & factorized & minimized & factorized & minimized & factorized & minimized \\ \hline
-    100 & 0.206 & 0.127 & 52790 & 38530 & 200 & 200 & 42794 & 28534 \\ \hline
-    200 & 1.909 & 1.54 & 215540 & 157030 & 400 & 400 & 175544 & 117034 \\ \hline
-    300 & 8.844 & 7.125 & 488290 & 355530 & 600 & 600 & 398294 & 265534 \\ \hline
-    400 & 25.876 & 21.707 & 871040 & 634030 & 800 & 800 & 711044 & 474034 \\ \hline
-    500 & 60.617 & 51.245 & 1363790 & 992530 & 1000 & 1000 & 1113794 & 742534 \\ \hline
-    1000 & 842.779 & 768.853 & 5477540 & 3985030 & 2000 & 2000 & 4477544 & 2985034 \\ \hline
-     & \multicolumn{2}{ c| }{Average gain: 19$\%$} & \multicolumn{2}{ c| }{Average gain: 27$\%$} & \multicolumn{2}{ c| }{Average gain: 0$\%$} & \multicolumn{2}{ c| }{Average gain: 33$\%$} \\ \hline
-\end{tabular}
+    \begin{tabular}{ | c | c | c | c | c | c | }
+        \hline
+                           & Time, s & Descriptors & GSS Edges & GSS Nodes & SPPF Nodes   \\ \hline
+        Factorized grammar & 81.814  & 7940        & 6974      & 80        & 111127244  \\ \hline
+        Minimized RA       & 54.637  & 5830        & 4234      & 80        & 74292078  \\ \hline
+    \end{tabular}
 \end{center}
-\caption{Experiments results.}
+\caption{Experiments results for input $a^{40}$}
 \label{expTable}
 \end{table}
 
-Table~\ref{expTable} shows that in general minimized version works $19\%$ faster, uses $27\%$ less descriptors and $33\%$ less GSS edges.
-Also we use this FSA approach in metagenomic assemblies parsing and it gives us visible performance increase. Furthermore we can use EBNF constructions without any conversion.
+\input{performancePlots.tex}
 
-A bit more discussion on evaluation.
-
-
-Examples of SPPF.
-May be some nontrivial cases: s -> a* a* and so on
-
+Results of performed experiments approve the fact that on some grammars or approach 
+show better results then parsers built on factorized grammars.
+With grammar $G_1$ in general minimized RA version works $33\%$ faster, uses $27\%$ less descriptors, $29\%$ less GSS edges
+and $33\%$ less SPPF nodes.
 
 \section{Conclusion and Future Work}
 
-Described allgorithm implemented in F\# as part of the YaccConstructor project.
-Source code available here:\url{!!!}.
+Described algorithm and parser generator based on it are implemented in F\# programming language as a part of the YaccConstructor project.
+Source code is available here:~\url{https://github.com/YaccConstructor/YaccConstructor}.
 
-Proposed modification can not only increase performance, but also decrease memory usage. 
-It is critical for big input processing.
-For example, Anastasia Ragozina in her master's thesis~\cite{!!!} shows that GLL can be used for graph parsing.  
-In some areas graphs can be really huge: assemblies in bioinfomatics ($10^8$...).
-Proposed modification can improve performance not only in case of classical parsing, but in graph parsing too. 
-We perform some tests that shows performance increasing in metagenomic analysis, but full integration with graph parsing and formal description is required.
+As we showed in evaluation, proposed modification not only increases performance, but also decreases memory usage. 
+It is crucial for big input processing.
+For example, Anastasia Ragozina in her master's thesis~\cite{ragozina} shows that GLL can be used for graph parsing.  
+Some areas deal with big graphs, for example, metagenomic assemblies in bioinfomatics and social graphs.
+We hope that using the proposed modification we can improve performance of graph parsing algorithm too. 
+We perform some tests that demonstrate performance increase in metagenomic analysis, but further integration with graph parsing is required.
 
-One of way to specify any useful manipulations on derivation tree (or semantic of language) is an attributed grammars~\cite{!!!}.
-YARD supports it but our algorithm is not.
-So, attributed grammar and semantic calculation is a future work.
+One of way to specify semantic of language is an attributed grammars, but it is not supported in the algorithm which is presented in this article.
+There is a number of works on subclasses of attributed ECFGs (for example~\cite{AttributedELL}), however still there is no solution for arbitrary ECFGs.
+Thus, arbitrary attributed ECFGs and semantic calculation support is a future work.
+
+Another question is a possibility of unification of our results with tree languages theory: our definition of derivation tree for ECFG is quite similar to unranked tree and SPPF is similar to automata for unranked trees~\cite{TATA}.
+Theory of tree languages seems to be more mature than theory of SPPF manipulations in general.
+Moreover some relations between tree languages and ECFG are discussed in the paper~\cite{TreeLangAndECFG}.
+We hope that the investigation of relations between tree languages and SPPF may produce interesting results.
 
 
 \bibliographystyle{abbrv}
