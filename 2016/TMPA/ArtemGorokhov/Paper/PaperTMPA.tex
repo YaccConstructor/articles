@@ -15,6 +15,7 @@
 \usepackage{algorithm}
 \usepackage{algorithmicx}
 
+
 %\captionsetup[figure]{width=.85\textwidth}
 %\captionsetup[subfigure]{width=.45\textwidth}
   
@@ -50,15 +51,14 @@
 
 \mainmatter  % start of an individual contribution
 
-% first the title is needed
+
 \title{Extended Context-Free Grammars Parsing with Generalized LL}
 
-% a short form should be given in case it is too long for the running head
 \titlerunning{ECFG parsing with GLL}
 
 \author{Artem Gorokhov \and Semyon Grigorev}
 \authorrunning{Artem Gorokhov, Semyon Grigorev}
-% (feature abused for this document to repeat the title also on left hand pages)
+
 
 \institute{ Saint Petersburg State University\\
             7/9 Universitetskaya nab.\\
@@ -117,24 +117,25 @@ As a result, parser constructs derivation tree with respect to the transformed g
 
 There is a wide range of parsing techniques and algorithms~\cite{AttributedELL,ELRR,ECFGparsing,ELLParser,ELL,ECFG,ELALR,ELRParsing} which are able to process grammar in ECFG.
 Detailed review of results and problems in ECFG processing area is provided in the paper ``Towards a Taxonomy for ECFG and RRPG Parsing''~\cite{ECFG}. 
-We only notice that most of algorithms are based on classical LL~\cite{ELLParser,AttributedELL,PredictiveECFG} and LR~\cite{ELRParsing,ELALR,ELRR} techniques, and they admit only restricted subclasses of ECFG.
+We only notice that most of algorithms are based on classical LL~\cite{ELLParser,AttributedELL,PredictiveECFG} and
+LR~\cite{ELRParsing,ELALR,ELRR} techniques, but they admit only restricted subclasses of ECFG.
 Thus, there is no solution for handling arbitrary (including ambiguous) ECFGs.
 
 The LL-based parsing algorithms are more intuitive than LR-based and can provide better error diagnostic.
-Currently LL(1) seems is be the most practical algorithm.
+Currently LL(1) seems to be the most practical algorithm.
 Unfortunately, some languages are not LL(k) for any $k$, and left recursive grammars are a problem for LL-based tools.
 Another restriction for LL parsers is ambiguities in grammar which, being combined with previous flaws, complicates industrial parsers creation.
 Generalized LL, proposed in~\cite{scott2010gll}, solves all these problems: it handles arbitrary CFGs, including ambiguous and left recursive.  
 Worst-case time and space complexity of GLL is cubic in terms of input size and, for LL(1) grammars, it demonstrates linear time and space complexity.
 
 In order to improve performance of GLL algorithm, modification for left factorized grammars processing was introduced in~\cite{scott2016structuring}.
-Factorization transforms grammar so that there are no two productions with same prefixes (see fig~\ref{fig:ExampleOfFactorization} for example).
+Factorization transforms grammar so that there are no two productions with same prefixes (see fig.~\ref{fig:ExampleOfFactorization} for example).
 It is shown, that factorization can reduce memory usage and increase performance by reusing common parts of rules for one nonterminal.
 Similar idea can be applied to ECFGs processing.
 
-To summarize, if it were possible to handle ECFG specification with tools based on generalized parsing algorithm, it would greatly simplify language development.
-In this work we present a modification of generalized LL parsing algorithm which handles arbitrary ECFGs without any transformations.
-Also we demonstrate that proposed modifications improve parsing performance and memory usage comparing to GLL for factorized grammar.
+To summarize, possibility of handling ECFG specification with tools based on generalized parsing algorithm would greatly simplify language development.
+In this work we present a modification of generalized LL parsing algorithm which handles arbitrary ECFGs without any transformations(!!!NE PRAVDA!!!).
+Also we demonstrate that on some grammars proposed modifications improve parsing performance and memory usage comparing to GLL for factorized grammar.
 
 \section{ECFG Handling with Generalized LL Algorithm}%--------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -146,7 +147,7 @@ In this section we present GLL-style parser for arbitrary ECFG processing.
 
 \subsection{Generalized LL Parsing Algorithm}%--------------------------------------------------------------------------------------------------------------------------------------------
 
-An idea of the GLL algorithm is based on descriptors which can uniquely define state of parsing process.
+An idea of the GLL algorithm is based on handling of descriptors which can uniquely define state of parsing process.
 Descriptor is a four-element tuple $(L, i, T, S)$ where: 
 \begin{itemize}
 \item $L$ is a grammar slot --- pointer to position in the grammar of the form~$(S \to \alpha \cdot \beta)$;
@@ -156,7 +157,8 @@ Descriptor is a four-element tuple $(L, i, T, S)$ where:
 \end{itemize}
 
 A GLL move through grammar and input simultaneously, creating multiple descriptors for the case of ambiguity, and using queue to control descriptors processing.
-In the initial state there is only one descriptor which consists of start position in grammar ($L = (S \to \cdot \beta)$), input ($i=0$), dummy tree node, and the bottom of GSS.
+In the initial state there is only one descriptor which consists of start position in grammar
+($L = (S \to \cdot \beta)$), input ($i=0$), dummy tree node $ (\$) $, and the bottom of GSS.
 At each step, the algorithm dequeues a descriptor and acts depending on the grammar and the input.
 If there is an ambiguity, then algorithm queues descriptors for all cases to process them later. 
 To achieve cubic time complexity, it is important to enqueue only descriptors which have not been created before.
@@ -222,7 +224,7 @@ So, our goal is to build RA with minimal number of states for given ECFG, which 
 This map should be kept consistent during all follows steps. 
 \item Convert FSAs from previous step to a deterministic FSAs without $\varepsilon$-transitions using the algorithm described in~\cite{aho1974design}.
 \item Minimize DFSAs, for example, by using John Hopcroft's algorithm~\cite{hopcroft1971n}.
-\item Replace transitions by nonterminals with transitions labeled by start states by using map $M$.
+\item Replace transitions by nonterminals with transitions labeled by start states using map $M$.
 Result of this step is a required RA. We also use map $M$ to define function $\Delta : Q \to N$ where $N$ is nonterminal name.
 \end{enumerate}
 
@@ -253,37 +255,6 @@ An example of ECFG to RA transformation is presented in fig.~\ref{fig:fig1}, whe
 \end{figure}
 
 
-\subsection{Input Processing}%--------------------------------------------------------------------------------------------------------------------------------------------
-
-In this section we describe changes required in control functions of basic GLL algorithm to handle ECFG.
-Main loop is similar to basic GLL one: at each step the main function \textbf{parse} dequeues next descriptor to be processed.
-Suppose that current descriptor is a tuple ($C_S, C_U, C_i, C_N$), where $C_S$ --- state of RA,
-$C_U$ --- GSS node, $C_i$ --- position in input string $\omega$, and $C_N$ --- tree node. 
-It is possible to get the following nonexclusive cases during this descriptor processing.
-
-\begin{itemize} 
-\item $C_S$ is a final state. Perform pop action (call \textbf{pop} function), because processing of nonterminal finished.
-\item There is a terminal transition $C_S \xrightarrow[]{\omega.[C_i]} q$. 
-Move right: create descriptor with state $ q $ and position ($ C_i + 1 $).
-Enqueue it without checking its existence.
-\item There are nonterminal transitions from $C_S$.
-It means that processing of new nonterminal should be stared, thus new GSS nodes should be created.
-To do it \textbf{create} function should be called for each such transition.
-It performs necessary operations with GSS and checks if there are already built SPPF for current input position and nonterminal.
-\end{itemize}
-
-All required functions presented below.
-Function \textbf{add} queues descriptor if it has not already been created, and this function has not been changed.
-\input{create.tex}
-
-\input{pop.tex}
-
-%\textbf{Pop} function is called when we reach final state. It queues descriptors for all outgoing edges from current GSS node.
-
-\input{parse.tex}
-
-
-
 \subsection{Parse Forest Construction}
 
 Result of the parsing process is a structural representation of the input --- a derivation tree, or parse forest in case there are multiple derivations.
@@ -298,16 +269,29 @@ automaton which starts from the state $q_i$, where $ \Delta(q_i) = N $.
 Derivation tree of sentence $\alpha$ for the recursive automaton $R=(\Sigma, Q, S, F, \delta)$:%grammar $G=(\Sigma, N, S, P)$:
 
 \begin{itemize}
-\item Ordered rooted tree; root is labeled with $\Delta(S)$;
-\item Leaves are terminals $a\in \Sigma$;
-\item Nodes are nonterminals $A\in \Delta(Q)$;
-\item Node with label $N_i \in \Delta(q_i)$ has children $l_0 \dots l_n (l_i \in \Sigma \cup \Delta(Q))$ iff there exists a
-path $q_i \xrightarrow[]{l_0} q_{i+1} \xrightarrow[]{l_1} \dots \xrightarrow{l_n} q_m$, $q_m \in F$. 
+    \item Ordered rooted tree; root is labeled with $\Delta(S)$;
+    \item Leaves are terminals $a\in (\Sigma \cup \varepsilon)$;
+    \item Nodes are nonterminals $A\in \Delta(Q)$;
+    \item Node with label $N_i = \Delta(q_i)$ has 
+    \begin{itemize}
+        \item children $l_0 \dots l_n (l_i \in \Sigma \cup \Delta(Q))$ iff there exists a
+            path $q_i \xrightarrow[]{l_0} q_{i+1} \xrightarrow[]{l_1} \dots \xrightarrow{l_n} q_m$, where
+            $q_m \in F$, 
+            \[
+            l_i = 
+            \left\{
+            \begin{matrix}
+            k_i, $ if $ k_i \in \Sigma,\\
+            \Delta(k_i), $ if $ k_i \in Q,
+            \end{matrix}
+            \right.
+            \]
+        \item child $\varepsilon$ iff $ q_i \in F $
+    \end{itemize}
 \end{itemize}
-
 \end{mydef}
 
-For arbitrary grammars, RA can be ambiguous in terms of acceptance paths, and, as a result, it is possible to get multiple derivation trees for one input string.
+For arbitrary grammars, RA can be ambiguous in terms of acceptable paths, and, as a result, it is possible to get multiple derivation trees for one input string.
 Shared Packed Parse Forest (SPPF)~\cite{SPPF} can be used as a compact representation of all possible derivation trees.
 We use the binarized version of SPPF, which is proposed in~\cite{brnglr}, in order to decrease memory usage and to achieve cubic worst case time and space complexity.
 Binarized SPPF can be used in GLL~\cite{scott2013gll} and contains the following types of nodes (here $i$ and $j$ are the start and the end of derived substring in terms of positions in input string):
@@ -324,18 +308,19 @@ Nonterminal nodes ($X \in \Delta(Q)$) may have several packed children.
 Let us describe modifications of original SPPF construction functions.
 The function \textbf{getNodeT$(x,i)$} which creates terminal nodes is reused without any modification from basic algorithm.
 To handle nondeterminism in states, we define function \textbf{getNodes} which checks if the next state of RA
-is final and, if that is case, constructs nonterminal nodes in addition to the intermediate one.
-It uses modified function \textbf{getNodeP}, instead of grammar slot it takes separately a 
+is final and in that case constructs nonterminal node in addition to the intermediate one.
+It uses modified function \textbf{getNodeP}, instead of grammar slot it takes a 
 state of RA and symbol for new SPPF node: current nonterminal or next RA state.
 
 \input{getNodes.tex}
 \input{getNodeP.tex}
 
-Let us to demonstrate a SPPF example for ECFG grammar $G_0$~(fig.~\ref{fig:grammarG0}).
-This grammar contains constructions (option symbols and repetition) that should be converted with use of extra nonterminals to build regular GLL parser.
+Let us demonstrate a SPPF example for ECFG grammar $G_0$~(fig.~\ref{fig:grammarG0}).
+This grammar contains constructions (option symbol and repetition) that should be converted
+with use of extra nonterminals to build basic GLL parser.
 Our generator constructs recursive automaton $R_0$~(fig.~\ref{fig:RAForG0}) and parser for it.
 Possible trees for input $aacb$ \ are shown in fig.~\ref{fig:treesForG0}.
-SPPF build by parser~(fig.~\ref{fig:SPPFForG0}) combines all of them.
+A SPPF built by parser~(fig.~\ref{fig:SPPFForG0}) combines all of them.
 
 \begin{figure}[ht]   
     \centering
@@ -345,13 +330,50 @@ SPPF build by parser~(fig.~\ref{fig:SPPFForG0}) combines all of them.
     }
     ~
     \subfloat[SPPF for $R_0$ and input $ aacb $]{
-        \includegraphics[scale=.5]{pictures/G0SPPF.pdf}
+        \includegraphics[scale=.5]{pictures/G0SPPFwithPackedNodes.pdf}
         \label{fig:SPPFForG0}
     }
     \caption{Example for input $ aacb $}
     \label{fig:fig2}
 \end{figure}
 
+\subsection{Input Processing}%--------------------------------------------------------------------------------------------------------------------------------------------
+
+In this section we describe changes required in control functions of basic GLL algorithm to handle ECFG.
+Main loop is similar to basic GLL one: at each step the main function \textbf{parse} dequeues next descriptor
+from queue $R$ to be processed.
+Suppose that current descriptor is a tuple ($C_S, C_U, i, C_N$), where $C_S$ --- state of RA,
+$C_U$ --- GSS node, $i$ --- position in input string $\omega$, and $C_N$ --- SPPF node. 
+It is possible to get the following nonexclusive cases during this descriptor processing.
+
+\begin{itemize} 
+    \item \textbf{$C_S$ is a final state.} The only case here is that $C_S$ --- start state of current nonterminal. 
+    We should build nonterminal node with child $(\varepsilon, i, i)$ and perform pop action
+    (call \textbf{pop} function), because processing of nonterminal is finished.
+    
+    \item \textbf{There is a terminal transition $C_S \xrightarrow[]{\omega.[i]} q$.} 
+    First, build terminal node $ t = (\omega.[i], i, i+1) $ and then call \textbf{getNodes} function
+    to build a parents for $ C_N $ and $ t $, result is a tuple $ (y, N) $, where $N$ is optional nonterminal node.
+    Create descriptor $ (q, C_U, i+1, x) $ and enqueue it regardless of whether it has been created before.
+    If $ N $ is not dummy perform pop action for this node,
+    state $ q $ and position $i + 1 $.
+    
+    \item\textbf{ There are nonterminal transitions from $C_S$.}
+    It means that we should start processing of new nonterminal, thus new GSS nodes should be created.
+    To do it call \textbf{create} function for each such transition.
+    It performs necessary operations with GSS and checks if there are already built
+    SPPF for current input position and nonterminal.
+\end{itemize}
+
+All required functions presented below.
+Function \textbf{add} queues descriptor if it has not already been created, and this function has not been changed.
+\input{create.tex}
+
+\input{pop.tex}
+
+%\textbf{Pop} function is called when we reach final state. It queues descriptors for all outgoing edges from current GSS node.
+
+\input{parse.tex}
 
 \section{Evaluation}
 
