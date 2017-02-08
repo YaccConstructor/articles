@@ -1,3 +1,138 @@
 \appendix
 
-\section{Псевдокод модифицированного GLL}
+\section{Псевдокод модифицированного GLL}\label{gll_code}
+
+%\begin{algorithm}
+%\caption{Основные функции алгоритма}
+\begin{algorithmic}
+\Function{dispatcher}{}
+	\If{$R.Count \neq 0$}  
+		\State{$(C_L, C_u, C_i, C_N) \gets R.Dequeue()$}
+		\State{$C_R \gets \$$}
+		\State{$dispatch \gets false$}
+	\Else \ {$stop \gets true$}
+	\EndIf
+\EndFunction
+	
+\Function{processing}{}
+	\State{$dispatch \gets true$}
+	\Switch{$C_L$}
+	\Case{$(X \rightarrow \alpha \cdot x \beta)$ where $x$ is terminal}
+		\ForAll{$\{ e | e \in input.OutEdges(C_i), e.Tag = x \}$}
+		\State{$C_N' \gets C_N$, }
+		\ {$C_R' \gets C_R$}
+		\If{$C_N' = \$$} 
+			\State {$C_N' \gets \Call{getNodeT}{e}$}
+		\Else 
+			\State {$C_R' \gets \Call{getNodeT}{e}$}
+		\EndIf
+		\State{$C_L \gets (X \rightarrow \alpha x \cdot \beta)$}
+		\If{$C_R' \neq \$$}
+			\State{$C_N' \gets \Call{getNodeP}{C_L, C_N', C_R'}$} 
+		\EndIf
+		\State{\Call{add}{$C_L, C_u, e.Target, C_N'$}}
+		\EndFor
+	\EndCase
+	\Case{$(X \rightarrow \alpha \cdot x \beta)$ where $x$ is nonterminal}
+		\State{$C_u \gets$ \Call{create}{$(X \rightarrow \alpha x \cdot \beta), C_u, C_i, C_N$}}
+		\State{$slots \gets \bigcup_{e \in C_i.OutEdges} pTable[x][e.Token]$}
+		\ForAll{$L \in slots$}
+			\State{\Call{add}{$L, C_u, C_i, \$$}} 
+		\EndFor
+	\EndCase
+	\Case{$(X \rightarrow \alpha \cdot )$}
+		\State{\Call{pop}{$C_u, C_i, C_N$}} 
+	\EndCase
+%	\Case{$\_$}
+%		\State{final result processing and error notification} 
+%	\EndCase
+	\EndSwitch
+\EndFunction
+
+\Function{control}{}
+	\While{not $stop$}  
+		\If{$dispatch$}
+			\ {\Call{dispatcher}{}}
+		\Else
+			\ {\Call{processing}{}}
+		\EndIf
+	\EndWhile
+\EndFunction
+\end{algorithmic}
+%\end{algorithm}
+
+\begin{algorithmic}
+\Function{add}{$L, u, i, N$}
+	\If{$(L, u, i, N) \notin U$}  
+		\State{$U.Add(L, u, i, N)$}
+		\State{$R.Add(L, u, i, N)$}
+	\EndIf
+\EndFunction
+
+\Function{pop}{$u, i, z$}
+	\If{$u \neq u_0$}  
+		\State{$P.Add(u, z)$}
+		\ForAll{$(a, v) \in v.OutEdges$}
+			\State{$y \gets$ \Call{getNodeP}{$u.L, a, z$}}
+			\State{\Call{add}{$u.L,v,i,y$}}
+		\EndFor
+	\EndIf
+\EndFunction
+	
+\\
+\Function{create}{$L, u, i, a$}
+	\If{$(L,i) \notin GSS.Nodes$}  
+		\State{$GSS.Nodes.Add (L,i)$}
+	\EndIf
+	\State{$v \gets$ $GSS.Nodes.Get(L, i)$}
+	\If{$(v,a,u) \notin GSS.Edges$}  
+		\State{$GSS.Edges.Add(v,a,u)$}
+		\ForAll{$(v,z) \in P$}
+			\State{$y \gets$ \Call{getNodeP}{$L, a, z$}}
+			\State{$(\_,\_, k) \gets z.Lbl$}
+			\State{\Call{add}{$L,u,k,y$}}
+		\EndFor
+	\EndIf
+	\Return{$v$}
+\EndFunction
+\end{algorithmic}
+
+\begin{algorithmic}
+\Function{getNodeT}{$e$}
+	\State{$tag \gets e.Tag,\ src \gets e.Source,\ tr \gets e.Target$}
+	\If{$(tag, src, tr) \notin SPPF.Nodes$}
+		\State{$SPPF.Nodes.Add(tag, src, tr)$}
+	\EndIf
+	\State{\Return{$SPPF.Nodes.Get(tag, src, tr)$}}
+\EndFunction
+
+\Function{getNodeP}{$(X \rightarrow \omega_1 \cdot \omega_2), a ,z$}
+	\If{$\omega_1$ is terminal or non-nullable nonterminal and $\omega_2 \neq \varepsilon$}  
+		\State{\Return{$z$}}
+	\Else
+		\If{$\omega_2 = \varepsilon$}  
+			\ {$t \gets X$}
+		\Else
+			\ {$h \gets (X \rightarrow \omega_1 \cdot \omega_2)$}
+		\EndIf
+		\State{$(q,k,i) \gets z.Lbl$}
+		\If{$a \neq \$$}  
+			\State{$(s,j,k) \gets a.Lbl$}
+			\State{$y \gets findOrCreate \ SPPF.Nodes \ (n.Lbl = (t,i,j))$}
+			\If{$y$ does not have a child labeled $(X \rightarrow \omega_1 \cdot \omega_2)$}
+				\State{$y' \gets newPackedNode(a,z)$}
+				\State{$y.Chld.Add \ y'$}
+				\State{\Return{$y$}}
+			\Else
+				\State{$y \gets findOrCreate \ SPPF.Nodes \ (n.Lbl = (t,k,i))$}
+				\If{$y$ does not have a child labeled $(X \rightarrow \omega_1 \cdot \omega_2)$}
+					\State{$y' \gets newPackedNode(z)$}
+					\State{$y.Chld.Add \ y'$}
+					\State{\Return{$y$}}
+				\EndIf
+			\EndIf
+		\EndIf
+	\EndIf
+	\State{\Return{$SPPF.Nodes.Get(x,i,h)$}}
+\EndFunction
+\end{algorithmic}
