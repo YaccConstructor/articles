@@ -1,0 +1,172 @@
+\documentclass{beamer} 
+\usepackage{beamerthemesplit} 
+\usepackage{wrapfig} 
+\usepackage{verbatim} 
+\usetheme{SPbGU} 
+\usepackage{pdfpages} 
+\usepackage{amsmath} 
+\usepackage{cmap} 
+\usepackage[T2A]{fontenc} 
+\usepackage[utf8]{inputenc} 
+\usepackage[english,russian]{babel} 
+\usepackage{indentfirst} 
+\usepackage{amsmath} 
+\usepackage{tikz} 
+\usepackage{multirow} 
+\usepackage[noend]{algpseudocode} 
+\usepackage{algorithm} 
+\usepackage{algorithmicx} 
+\usetikzlibrary{shapes,arrows} 
+\usepackage{fancyvrb} 
+\usepackage{tikz} 
+\usepackage{pgfplots} 
+\usepackage{sidecap} 
+\pgfplotsset{compat=1.9} 
+\newtheorem{rutheorem}{Теорема} 
+\newtheorem{ruproof}{Доказательство} 
+\newtheorem{rudefinition}{Определение} 
+\newtheorem{rulemma}{Лемма} 
+\beamertemplatenavigationsymbolsempty 
+
+\title[]{Extended Context-Free Grammars Parsing with Generalized LL} 
+% То, что в квадратных скобках, отображается в левом нижнем углу. 
+\institute[SPBU]{ 
+	Saint Petersburg State University \\ 
+	Programming Languages and Tools Lab, JetBrains} 
+
+% То, что в квадратных скобках, отображается в левом нижнем углу. 
+\author[Artem Gorokhov]{Artem Gorokhov} 
+\date{4/March/2017} 
+
+\begin{document} 
+	
+	\definecolor{red}{RGB}{255,0,0} 
+	
+	\begin{frame} 
+		\begin{center} 
+			{\includegraphics[width=1.5cm]{pictures/SPbGU_Logo.png}} 
+		\end{center} 
+		\titlepage 
+		%Hello, My name is Artem
+		%Im from Jetbrains programming languages and tools laboratory
+		%I would like to tell you about 
+		%Extended Context-Free Grammars Parsing with Generalized LL Algorithm
+	\end{frame} 
+	
+	\begin{frame} 
+		\frametitle{GLL}
+		GLL is top-down parsing algorithm that parses the input from Left to right, 
+		building Leftmost derivation of the input.
+		But unlike the LL algorithm that admit only subset of context free grammars it
+		allows arbitrary context free grammars
+		thus, in case of ambiguity in grammar, 
+		parser builds parse forest that represent all possible derivations of input
+	\end{frame}
+	
+	\begin{frame} 
+		\frametitle{Motivation} 
+		The problem is that original GLL algorithm admits only BNF grammars: 
+		there should be only alternations of sequences that consists of terminals and nonterminals. 
+		when a most common way to express grammars in documentation is ECFG. In such form
+		right-hand sides of grammar productions are regular expressions under alphabet of terminals and nonterminals. 
+		It is more widely known as EBNF. It is the same form in respect to construction names. 
+		consequence of this problem is grammar transformation 
+		transformation leads to grammar size increase and change in grammar
+		structure: new nonterminals are added during transformation. As a result, parser
+		constructs derivation tree with respect to the transformed grammar, making it
+		harder for a language developer to debug grammar and use parsing result later.
+	\end{frame} 
+	
+	\begin{frame} 
+		\frametitle{Existing solutions} 
+		On the other hand there is a wide range of parsing techniques and algorithms that are able to process ECF grammars. 
+		But most of them are based on classical LL and LR techniques, so they admit only restricted subclasses 
+		of ECFG. Thus, there is no solution for handling arbitrary ECFG. 
+	\end{frame}
+
+	\begin{frame} 
+		\frametitle{Aim} 
+		The aim of our work is to made a modification of GLL that admit any ECF grammar
+	\end{frame}  
+	
+	\begin{frame} 
+		\frametitle{GLL} 
+		GLL parsing is just simultaneous move in grammar and input.
+		And when the algorithm meets ambiguity in grammar is creates
+		extra work branch for every possible derivation path.
+		This idea is based on handling of descriptors from the queue. 
+		Descriptor can uniquely define state of parsing process. 
+		It is a four-element tuple (L; i; T; S)
+		that consist of position in grammar, position in input, already built parse forest root, current stack node
+	\end{frame}
+	
+	\begin{frame} 
+		\frametitle{Recursive Automata and ECFGs} 
+		Definition of RA?? 
+		In terms of our work RA is just FSA which transitions can be not only by terminals, but also by nonterminals 
+		ECFG are grammars who's right-hand sides of productions are regular expressions
+		so we can easily transform ECFG to RA
+		On picture presented RA for ECFG. (description of what is going on)
+	\end{frame} 
+	
+	\begin{frame} 
+		\frametitle{Recursive Automata Minimization}
+		Why RA? Because in fact, we can apply any well known FSA minimization algorithms to RA.
+		%But with minimithation the structure will be the same beccause we just merge equivalent states
+		So we can get minimized (by state number) deterministic RA.
+		And this minimization significantly increase parsing performance 
+	\end{frame}
+	
+	\begin{frame} 
+		\frametitle{Parse Forest for Recursive Automata}
+		Now we have convenient representation of our grammar as RA
+		But we need to define Parse forest for it
+		Firstly we can define tree for RA
+		It is ordered rooted tree which root is labeled with start state
+		leaves are terminals
+		Nodes are nonterminals
+		And nonterminals have sequence of children if there exists path
+		which starts in first state of this nonterminal
+		.....
+		to complicated
+	\end{frame}
+	
+	\begin{frame} 
+		\frametitle{SPPF for Recursive Automata}
+		then we need representation of Parse forest
+		Well known structure is shared-packed parse forest
+		... definition of SPPF
+	\end{frame}
+	
+	\begin{frame} 
+		\frametitle{SPPF for Recursive Automata}
+		Example of SPPF
+	\end{frame}
+	
+	\begin{frame} 
+		\frametitle{Input processing}
+		So, now we have grammar representation and we know what we should construct
+		Firstly, because we changed grammar to RA we need to 
+		represent new descriptor
+		The tuple (S, U, i, N) where S is state of A. other elements doesn't change 
+		
+		Thus the main changes in algorithm are because of changing grammar to RA
+		It brings such consequences:
+		for a position in grammar we have the only way to move. But for the automaton we can have multiple transitions
+		More over current state can be a final state.  
+	\end{frame}
+	
+	\begin{frame} 
+		\frametitle{Evaluation}
+		Eval from paper
+	\end{frame}
+	
+	\begin{frame} 
+		\frametitle{What for? Why the fuck did we make it?} 
+		
+		In real life parsing in, for example, IDEs takes not so much time that our algorithm will show significant performance increase. 
+		But in other areas it might be useful. 
+		For example graph parsing. (table with results for m g a) 
+	\end{frame} 
+	
+\end{document}
