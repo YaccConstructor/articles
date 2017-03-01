@@ -22,12 +22,43 @@
 \usepackage{tikz} 
 \usepackage{pgfplots} 
 \usepackage{sidecap} 
+\usepackage{soul}
+\usepackage{xcolor}
+\usepackage{tabu}
+\usepackage{colortbl}
 \pgfplotsset{compat=1.9} 
 \newtheorem{rutheorem}{Теорема} 
 \newtheorem{ruproof}{Доказательство} 
 \newtheorem{rudefinition}{Определение} 
 \newtheorem{rulemma}{Лемма} 
 \beamertemplatenavigationsymbolsempty 
+
+\newcounter{NoTableEntry}
+\renewcommand*{\theNoTableEntry}{NTE-\the\value{NoTableEntry}}
+
+\newcommand*{\strike}[2]{%
+	\multicolumn{1}{#1}{%
+		\stepcounter{NoTableEntry}%
+		\vadjust pre{\zsavepos{\theNoTableEntry t}}% top
+		\vadjust{\zsavepos{\theNoTableEntry b}}% bottom
+		\zsavepos{\theNoTableEntry l}% left
+		\hspace{0pt plus 1filll}%
+		#2% content
+		\hspace{0pt plus 1filll}%
+		\zsavepos{\theNoTableEntry r}% right
+		\tikz[overlay]{%
+			\draw
+			let
+			\n{llx}={\zposx{\theNoTableEntry l}sp-\zposx{\theNoTableEntry r}sp-\tabcolsep},
+			\n{urx}={\tabcolsep},
+			\n{lly}={\zposy{\theNoTableEntry b}sp-\zposy{\theNoTableEntry r}sp},
+			\n{ury}={\zposy{\theNoTableEntry t}sp-\zposy{\theNoTableEntry r}sp}
+			in
+			(\n{llx}, \n{lly}) -- (\n{urx}, \n{ury})
+			;
+		}% 
+	}%
+}
 
 \title[]{Extended Context-Free Grammars Parsing with Generalized LL} 
 % То, что в квадратных скобках, отображается в левом нижнем углу. 
@@ -37,7 +68,7 @@
 
 % То, что в квадратных скобках, отображается в левом нижнем углу. 
 \author[Artem Gorokhov]{Artem Gorokhov} 
-\date{4/March/2017} 
+\date{March 4 2017} 
 
 \begin{document} 
 	
@@ -52,13 +83,11 @@
 		%Im from Jetbrains programming languages and tools laboratory
 		%I would like to tell you about 
 		%Extended Context-Free Grammars Parsing with Generalized LL Algorithm
-	\end{frame} 
-	
-	
-	\begin{frame} 
-		\frametitle{Motivation} 
+	\end{frame}
+
+	\begin{frame}
 		\begin{center} 
-			{\includegraphics[width=11cm]{pictures/java_grammar.png}} 
+			{\includegraphics[width=12cm]{pictures/java_grammar.png}} 
 		\end{center}
 		\iffalse
 		In documentation most common way to express grammars is different variations of EBNF notation.
@@ -76,36 +105,7 @@
 		constructs derivation tree with respect to the transformed grammar, making it
 		harder for a language developer to debug grammar and use parsing result later.
 		\fi
-	\end{frame} 
-	
-	\begin{frame} 
-		\frametitle{Motivation} 
-		\begin{columns}
-			\begin{column}{6.5cm}
-				\includegraphics[width=6.5cm]{pictures/java_before.png}
-			\end{column}
-			\begin{column}{.7cm}
-				$ \Longrightarrow $
-			\end{column}
-			\begin{column}{5cm}
-				\includegraphics[width=5cm]{pictures/java_after.png}
-			\end{column}
-	    \end{columns}
-		\iffalse
-		If we transform the grammar in BNF it's size will increase and will get completely lost in it.
-		
-		But parsers, like people, are sensitive to grammar size.
-		With grammar size increase, the time of parsing increases as well. 
-		But most of the algorithms are use grammars in BNF.
-		So to use them we need to convert grammar to BNF.
-		Other consequence of such transformation is change in
-		grammar structure, and parser constructs derivation tree
-		with respect to the transformed grammar, making it
-		harder for a language developer to debug grammar and use
-		parsing result later.
-		\fi
 	\end{frame}
-
 
 	\begin{frame} 
 		\frametitle{Extended Context-Free Grammar}
@@ -128,12 +128,77 @@
 		
 		\fi
 	\end{frame}
+	
+	\begin{frame}
+		\begin{columns}
+			\begin{column}{6.1cm}
+				\includegraphics[width=6cm]{pictures/java_before.png}
+			\end{column}
+			\begin{column}{.7cm}
+				$ \Longrightarrow $
+			\end{column}
+			\begin{column}{5cm}
+				\includegraphics[width=4.8cm]{pictures/java_after.png}
+			\end{column}
+	    \end{columns}
+		\iffalse
+		If we transform the grammar in BNF it's size will increase and will get completely lost in it.
+		
+		But parsers, like people, are sensitive to grammar size.
+		With grammar size increase, the time of parsing increases as well. 
+		But most of the algorithms are use grammars in BNF.
+		So to use them we need to convert grammar to BNF.
+		Other consequence of such transformation is change in
+		grammar structure, and parser constructs derivation tree
+		with respect to the transformed grammar, making it
+		harder for a language developer to debug grammar and use
+		parsing result later.
+		\fi
+	\end{frame}
+
+\begin{frame}
+	\begin{center} 
+		\only<1>{\includegraphics[width=12cm]{pictures/java_grammar.png}} 
+		\only<2>{\includegraphics[width=12cm]{pictures/java_grammar_2.png}} 
+	\end{center}
+	\iffalse
+	In documentation most common way to express grammars is different variations of EBNF notation.
+	And it is naturally because it is more human-readable than BNF. 
+	
+	
+	The problem is that original GLL algorithm admits only BNF grammars: 
+	there should be only alternations of sequences that consists of terminals and nonterminals. 
+	when a most common way to express grammars in documentation is ECFG. In such form
+	right-hand sides of grammar productions are regular expressions under alphabet of terminals and nonterminals. 
+	It is more widely known as EBNF. It is the same form in
+	respect to construction names. consequence of this problem is grammar transformation 
+	transformation leads to grammar size increase and change in grammar
+	structure: new nonterminals are added during transformation. As a result, parser
+	constructs derivation tree with respect to the transformed grammar, making it
+	harder for a language developer to debug grammar and use parsing result later.
+	\fi
+\end{frame}
+
+	
 
 	\begin{frame} 
 		\frametitle{Existing solutions} 
 		\begin{itemize}
-			\item Mostly LL(k) and LR(k) algorithms
-			\item \textbf{No} solution for arbitrary ECFG
+			\item<1-> ANTLR, Yacc, Bison
+			 \begin{itemize}
+			 	\item<2-> Can't use ECFG without transformation
+			 	\item<2-> Admit only subclass of ECFG (LL(k), LR(k))
+			 \end{itemize} 
+			\item<3-> Some research on ECFG parsing
+			\begin{itemize}
+				\item<4-> No tools
+				\item<4-> LL(k), LR(k)
+			\end{itemize}
+			\item<5-> \only<5-6>{Generalized LL}\only<7>{\textbf{Generalized LL}}
+			\begin{itemize}
+				\item<6-> Admit arbitrary CFG(including ambiguous)
+				\item<6-> Can't use ECFG without transformation
+			\end{itemize}
 		\end{itemize}
 		\iffalse
 		On the other hand there is a wide range of parsing
@@ -141,17 +206,7 @@
 		But most of them are based on classical LL and LR techniques,
 		so they admit only restricted subclasses of ECFG. Thus, there
 		is no solution for handling arbitrary ECFG. 
-		\fi
-	\end{frame}
-	
-	\begin{frame} 
-		\frametitle{Generalized LL}
-		\begin{itemize}
-			\item<1-> Based on LL
-			\item<1-> Admit arbitrary CFG(including ambiguous)
-			\item<2-> \textbf{Works only with BNF grammars}
-		\end{itemize}
-		\iffalse
+		
 		GLL is top-down parsing algorithm that
 		parses the input from Left to right, 
 		building Leftmost derivation of the input.
@@ -301,8 +356,7 @@
 			\item Descriptor (G, i, U, T) uniquely defines parsing process state
 			\begin{itemize}
 				\item G - \only<1>{position in grammar}
-						  \only<2>{\textbf{position in grammar}}
-						  \only<3>{\textbf{state of RA}}
+						  \only<2>{\st{position in grammar}\ \  state of RA}
 				\item i - position in input
 				\item U - stack node
 				\item T - current parse forest root
@@ -320,25 +374,79 @@
 		\frametitle{Input processing}
 		\begin{columns}
 			\begin{column}{5cm}
-				Input : $\only<1>{\ \ }\only<2->{\bullet} \ b c $ \\
+				Input : $\only<1-2>{\ \ }\only<3->{\bullet} \ b c $ \\
 				\vspace{15pt}
 				Grammar: \\
 				\vspace{5pt}
-				$
+				\only<1>{$$
+					S = \ (a\ |\ b\ |\ S)\ c?
+					$$}
+				\only<2->{$
 				\begin{array}{rl}
-				S =&\only<3->{\bullet} \ a\ C\_opt \\
-				|&\only<3->{\bullet} \ b\ C\_opt \\
-				|&\only<3->{\bullet} \ S\ C\_opt \\
+				S =&\only<3>{\bullet} \ a\ C\_opt \\
+				|&\only<4>{\bullet} \ b\ C\_opt \\
+				|&\only<5>{\bullet} \ S\ C\_opt \\
 				C\_opt =& \varepsilon \ | \ c \\
 				\end{array}
-				$
+				$}
 			\end{column}
 			\begin{column}{5cm}
-				\only<4>{
-					Automaton : \\
-					\vspace{5pt}
-					\includegraphics[width=5cm]{pictures/G2.pdf}
-				}
+				\only<3->{
+				\begin{tabu}{|[3pt]c|[3pt]}
+					\only<5->{$S =\bullet \ S\ C\_opt$, 0, \dots, \dots \\
+					\hline}
+					\only<3-4>{$\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ $ \\}
+					%\strike{|[3pt]c|}{quux} & A & B \\
+					\only<4->{$S =\bullet \ b\ C\_opt$, 0, \dots, \dots \\
+					\hline}
+					\only<3>{$\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ $ \\}
+					\only<3-5>{$S =\bullet \ a\ C\_opt$, 0, \dots, \dots}
+					\only<6>{\cellcolor{blue!25}{ $S =\bullet \ a\ C\_opt$, 0, \dots, \dots}}
+				\end{tabu}
+			}
+			\end{column}
+		\end{columns}
+		\iffalse
+		for such example in initial algorithm state we will have
+		queue consists of 3 descriptors that defines start of input and 
+		start of each of 3 productions
+		
+		Thus the main changes in algorithm are because of changing grammar to RA
+		It brings such consequences:
+		for a position in grammar we have the only way to move. But for the automaton we can have multiple transitions
+		More over current state can be a final state.  
+		
+		
+		for the grammar case it is simple
+		we just move in production if it matches the input, creating 
+		intermediate sppf nodes and when we reach end of production we 
+		construct nonterminal node
+		but for the automaton case things become more complicated
+		we can have different transitions from current state
+		we should handle nonterminal transition and terminal that matches the input token.
+		more over if the next state is final we should construct nonterminal node in addition to intermediate and continue derivation for both cases. 
+		\fi
+	\end{frame}
+	\begin{frame} 
+		\frametitle{Input processing}
+		\begin{columns}
+			\begin{column}{5cm}
+				Input : $\only<1>{\ \ }\only<2->{\bullet} \ b c $ \\
+				\vspace{15pt}
+				Automaton : \\
+				\vspace{5pt}
+				\includegraphics[width=5cm]{pictures/G2.pdf}
+			\end{column}
+			\begin{column}{5cm}
+				\begin{tabu}{|[3pt]c|[3pt]}
+					$S =\bullet \ S\ C\_opt$, 0, \dots, \dots \\
+					\hline
+					%\strike{|[3pt]c|}{quux} & A & B \\
+					
+					$S =\bullet \ b\ C\_opt$, 0, \dots, \dots \\
+					\hline
+					$S =\bullet \ a\ C\_opt$, 0, \dots, \dots
+				\end{tabu}
 			\end{column}
 		\end{columns}
 		\iffalse
