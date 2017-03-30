@@ -1,0 +1,381 @@
+\documentclass{beamer}
+\usepackage{beamerthemesplit}
+\usepackage{wrapfig}
+\usetheme{SPbGU}
+\usepackage{pdfpages}
+\usepackage{amsmath}
+\usepackage{cmap} 
+\usepackage[T2A]{fontenc} 
+\usepackage[utf8]{inputenc}
+\usepackage[english,russian]{babel}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{multirow}
+\usepackage[noend]{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{listings}
+
+\usepackage{epstopdf}
+\usepackage{forest}
+\usetikzlibrary{shapes,arrows}
+\usepackage{fancyvrb}
+\newtheorem{rutheorem}{Theorem}
+\beamertemplatenavigationsymbolsempty
+\lstset{language=ML}
+
+\title[]{Ostap: синтаксическое расширение OCaml для создания парсер-комбинаторов с поддержкой левой рекурсии}
+\institute[СПбГУ]{
+Санкт-Петербургский государственный университет\\
+Лаборатория языковых инструментов JetBrains }
+
+\author[Екатерина Вербицкая]{Екатерина Вербицкая}
+
+\date{05 апреля 2017}
+
+\definecolor{orange}{RGB}{179,36,31}
+
+\begin{document}
+{
+
+\begin{frame}
+  \begin{center}
+  {\includegraphics[width=1cm]{SPbGU_Logo.png}}
+  \end{center}
+  \titlepage
+\end{frame}
+}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Синтаксический анализ}
+  Сопоставление последовательности лексем с грамматикой языка
+  
+  \begin{columns}
+    \begin{column}{8cm}
+  \begin{minipage}[t]{8cm}
+
+\begin{center}
+ $1 + 2 * 3$
+\end{center}
+
+\medskip
+
+
+$$
+\begin{array}{crcl}
+&e & : & e + t \ | \ t \\
+&t & : & t * p \ | \ p \\
+&p & : & 0 \ | \ 1 \ | \ 2 \ | \dots | \ 9
+\end{array}
+$$
+\end{minipage}
+\end{column}
+\begin{column}{5cm}
+\begin{forest}
+  [e[e[t[p[$1$]]]][$+$][t[t[p[$2$]]][$*$][p[$3$]]]]
+\end{forest}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}
+  \transwipe[direction=90]
+  \frametitle{Парсер-комбинаторы}  
+  \begin{itemize}
+  \item Подход к реализации синтаксического анализа в парадигме функционального программирования
+  \item Реализуют нисходящий разбор
+  \item Синтаксический анализатор: функция высшего порядка
+  \item Позволяет считать семантику ``на лету'', без явного построения деревьев разбора
+  \item Анализатор произвольной сложности можно получить путем комбинирования нескольких простых базовых парсеров
+  \item Позволяют разбирать некоторые контекстно-зависимые языки
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[containsverbatim]
+  \transwipe[direction=90]
+  \frametitle{Тип парсер-комбинаторов}
+  
+\begin{lstlisting}[frame=single]  
+type ('a, 'e) tag =
+  Parsed of 'a * 'e option
+| Failed of 'e option
+
+type ('s, 'r, 'e) result = ('r * 's, 'e) tag
+
+and  ('s, 'r, 'e) parse  = 's -> ('s, 'r, 'e) result
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Базовые парсер-комбинаторы}  
+\begin{lstlisting}[frame=single]  
+let empty s = Parsed (((), s), None)
+
+let fail  s = Failed None
+
+let lift  s = Parsed ((s, s), None)
+
+let return x s = Parsed ((x, s), None)
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Комбинатор последовательности}  
+\begin{lstlisting}[frame=single]  
+let seq x y s =
+  match x s with
+  | Parsed ((b, s'), err) ->
+    (match y b s' with
+    | Failed x -> Failed (join err x)
+    | x -> x
+    )
+  | Failed x -> Failed x
+
+let (|>) = seq
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Комбинатор альтернативы}  
+\begin{lstlisting}[frame=single]  
+let alt x y s =
+  match x s with
+  | Failed x ->
+    (match y s with
+    | Failed y -> Failed (join x y)
+    | Parsed (ok, err) -> Parsed (ok, join x err)
+    )
+  | x -> x
+
+let (<|>) = alt
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Пример парсера для языка $\{ a^n \ | \ n \geq 0 \}$}  
+\begin{lstlisting}[frame=single]  
+(* A : epsilon | 'a' A *)
+let rec a s = 
+  alt empty 
+      (seq (terminal 'a') (fun _ -> a)) 
+      s
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Семантические действия}  
+\begin{lstlisting}[frame=single]  
+let map f p s = 
+  match p s with
+  | Parsed ((b, s'), e) -> Parsed ((f b, s'), e)
+  | x -> x
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Вспомогательные парсер-комбинаторы}  
+\begin{lstlisting}[frame=single]  
+let opt p = 
+  alt 
+    (map (fun x -> Some x) p)
+    (return None)
+    
+let rec many p =
+  seq 
+    p 
+    (alt     
+      (fun h -> map (fun t -> h :: t) (many p))
+      (return [])
+    )
+\end{lstlisting}
+
+\begin{lstlisting}[frame=single]  
+let a = many (terminal 'a')
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Синтаксическое расширение}  
+\begin{lstlisting}[frame=single]  
+ostap (
+  e : x:e "+" y:t {`Add (x, y)} 
+    | t; 
+  t : x:t "*" y:p {`Mul (x, y)} 
+    | p;
+  p : (* parse integer *)
+)
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Парсеры высшего порядка: переиспользование кода}  
+\begin{lstlisting}[frame=single]  
+ostap (
+  e : x:e "+" y:t {`Add (x, y)} 
+    | t; 
+  t : x:t "*" y:p {`Mul (x, y)} 
+    | p;
+  p : (* parse integer *)
+)
+\end{lstlisting}
+  
+\begin{lstlisting}[frame=single]  
+ostap (
+  e : x:e "+" y:t {`Add (x, y)} 
+    | t; 
+  t : x:t "*" y:p {`Mul (x, y)} 
+    | p;
+  p : (* parse double *)
+)
+\end{lstlisting}	  
+  
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Парсеры высшего порядка}  
+\begin{lstlisting}[frame=single]  
+ostap (
+  e[p] : x:e[p] "+" y:t[p] {`Add (x, y)} 
+       | t[p]; 
+  t[p] : x:t[p] "*" y:p    {`Mul (x, y)} 
+       | p;
+)
+\end{lstlisting}
+  
+\begin{lstlisting}[frame=single]  
+ostap (
+  e_integer: e[(* parse integer *)]
+)
+\end{lstlisting}
+  
+\begin{lstlisting}[frame=single] 
+ostap (
+  e_double : e[(* parse double  *)]
+)
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Парсер-комбинаторы и левая рекурсия}  
+Являясь реализацией нисходящего анализа, парсер-комбинаторы не способны обрабатывать леворекурсивные правила
+
+\begin{lstlisting}[frame=single]  
+ostap (
+  e[p] : e[p] "+" t[p] (* to apply e, *)
+       | t[p];         (* one needs to apply e... *)
+  t[p] : t[p] "*" p    
+       | p;
+)
+\end{lstlisting}
+
+Удаление левой рекурсии значительно усложняет спецификацию языка и ухудшает композициональность анализаторов
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Поддержка леворекурсивных анализаторов}
+  \begin{itemize}
+    \item Frost R. A., Hafiz R., Callaghan P. Parser combinators for ambiguous leftrecursive grammars
+    \begin{itemize}
+      \item Ограничение количества леворекурсивных вызовов длиной непрочитанной строки
+    \end{itemize}
+    \item Warth A., Douglass J. R., Millstein T. D. Packrat parsers can support left recursion
+    \begin{itemize}
+      \item Использование мемоизации для обеспечения завершаемости
+    \end{itemize}
+
+    \item Требуют, чтобы парсер был первого порядка
+  \end{itemize}
+
+  \begin{itemize}
+    \item Izmaylova	A., Afroozeh A., Tijs van der Storm (???). 
+Practical, general parser combinators
+    \begin{itemize}
+      \item Использование техники CPS для обеспечения завершаемости
+    \end{itemize}
+
+    \item Фиксируют конкретную семантику
+  \end{itemize}  
+
+\end{frame}
+
+%\begin{frame}[fragile]
+%  \transwipe[direction=90]
+%  \frametitle{Полиморфность относительно типа входного потока}
+%\begin{itemize}
+%  \item Позволяет инкорпорировать в себя сканер (лексер)
+%  \item Повышает композиционность еще сильнее
+%  \item Позволяет реализовывать в абстракции входного потока другие полезные фичи
+%\end{itemize}
+
+%\end{frame}
+
+
+\begin{frame}
+  \transwipe[direction=90]
+  \frametitle{Поддержка левой рекурсии в PEG}
+  \begin{itemize}
+    \item Medeiros S., Mascarenhas F., Ierusalimschy R. Left Recursion in Parsing Expression Grammars 
+    \item Динамический поиск наилучшего количества леворекурсивных вызовов
+    \item Использует мемоизацию
+    \item Поддерживает явную, неявную, взаимную рекурсию
+    \item Требуют, чтобы парсер был первого порядка
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Поддержка левой рекурсии в Ostap}
+  \begin{itemize} 
+    \item Используется идея Medeiros et al
+    \item Специальный комбинатор \verb!fix! для поддержки леворекурсивных парсеров высшего порядка
+  \end{itemize}
+\begin{lstlisting}[frame=single]  
+ostap (
+  e[p] : e[p] "+" e[p] 
+       | p;         
+)
+\end{lstlisting}
+
+\begin{lstlisting}[frame=single]  
+ostap (
+  let e p s = fix (fun e -> ostap(e "+" e | p)) s
+)
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Заключение}
+  \begin{itemize} 
+    \item Представлена библиотека парсер-комбинаторов и синтаксическое расширение для языка OCaml
+    \item Реализована поддержка леворекурсивных спецификаций синтаксических анализаторов
+    \begin{itemize}
+      \item Позволяет использование парсеров высшего порядка
+      \item Сложность растет экспоненциально в зависимости от глубины вложенности рекурсии
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+
+\end{document}
