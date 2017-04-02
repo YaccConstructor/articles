@@ -23,7 +23,34 @@
 \usepackage{fancyvrb}
 \newtheorem{rutheorem}{Theorem}
 \beamertemplatenavigationsymbolsempty
-\lstset{language=ML}
+
+\lstdefinelanguage{ocaml}{
+keywords={fresh, let, begin, end, in, match, type, and, fun, function, try, with, when, class, 
+object, method, of, rec, repeat, until, while, not, do, done, as, val, inherit, 
+new, module, sig, deriving, datatype, struct, if, then, else, open, private, virtual, ostap},
+sensitive=true,
+basicstyle=\small,
+commentstyle=\small\itshape\ttfamily,
+keywordstyle=\ttfamily\underbar,
+identifierstyle=\ttfamily,
+basewidth={0.5em,0.5em},
+columns=fixed,
+fontadjust=true,
+literate={->}{{$\;\;\to\;\;$}}1,
+morecomment=[s]{(*}{*)}
+}
+
+\lstset{
+basicstyle=\small,
+identifierstyle=\ttfamily,
+keywordstyle=\bfseries,
+commentstyle=\scriptsize\rmfamily,
+basewidth={0.5em,0.5em},
+fontadjust=true,
+%escapechar=~,
+language=ocaml,
+mathescape=true
+}
 
 \title[]{Ostap: синтаксическое расширение OCaml для создания парсер-комбинаторов с поддержкой левой рекурсии}
 \institute[СПбГУ]{
@@ -95,16 +122,14 @@ $$
 
 \begin{frame}[containsverbatim]
   \transwipe[direction=90]
-  \frametitle{Тип парсер-комбинаторов}
+  \frametitle{Тип парсеров}
   
 \begin{lstlisting}[frame=single]  
-type ('a, 'e) tag =
-  Parsed of 'a * 'e option
-| Failed of 'e option
+type $\alpha$ tag = Parsed of $\alpha$ | Failed
 
-type ('s, 'r, 'e) result = ('r * 's, 'e) tag
+type ($\sigma$, $\rho$) result = ($\rho$ * $\sigma$) tag
 
-and  ('s, 'r, 'e) parse  = 's -> ('s, 'r, 'e) result
+and  ($\sigma$, $\rho$) parse  = $\sigma$ ->   ($\sigma$, $\rho$) result
 \end{lstlisting}
 \end{frame}
 
@@ -113,13 +138,11 @@ and  ('s, 'r, 'e) parse  = 's -> ('s, 'r, 'e) result
   \transwipe[direction=90]
   \frametitle{Базовые парсер-комбинаторы}  
 \begin{lstlisting}[frame=single]  
-let empty s = Parsed (((), s), None)
+let empty s = Parsed ((), s)
 
-let fail  s = Failed None
+let fail  s = Failed 
 
-let lift  s = Parsed ((s, s), None)
-
-let return x s = Parsed ((x, s), None)
+let return x s = Parsed (x, s)
 \end{lstlisting}
 \end{frame}
 
@@ -129,12 +152,8 @@ let return x s = Parsed ((x, s), None)
 \begin{lstlisting}[frame=single]  
 let seq x y s =
   match x s with
-  | Parsed ((b, s'), err) ->
-    (match y b s' with
-    | Failed x -> Failed (join err x)
-    | x -> x
-    )
-  | Failed x -> Failed x
+  | Parsed (b, s') -> y b s'
+  | Failed -> Failed
 
 let (|>) = seq
 \end{lstlisting}
@@ -147,11 +166,7 @@ let (|>) = seq
 \begin{lstlisting}[frame=single]  
 let alt x y s =
   match x s with
-  | Failed x ->
-    (match y s with
-    | Failed y -> Failed (join x y)
-    | Parsed (ok, err) -> Parsed (ok, join x err)
-    )
+  | Failed x -> y s
   | x -> x
 
 let (<|>) = alt
@@ -164,10 +179,7 @@ let (<|>) = alt
   \frametitle{Пример парсера для языка $\{ a^n \ | \ n \geq 0 \}$}  
 \begin{lstlisting}[frame=single]  
 (* A : epsilon | 'a' A *)
-let rec a s = 
-  alt empty 
-      (seq (terminal 'a') (fun _ -> a)) 
-      s
+let rec a s = empty <|> (terminal 'a' |> fun _ -> a) s
 \end{lstlisting}
 \end{frame}
 
@@ -178,7 +190,7 @@ let rec a s =
 \begin{lstlisting}[frame=single]  
 let map f p s = 
   match p s with
-  | Parsed ((b, s'), e) -> Parsed ((f b, s'), e)
+  | Parsed (b, s') -> Parsed (f b, s')
   | x -> x
 \end{lstlisting}
 \end{frame}
@@ -187,18 +199,11 @@ let map f p s =
   \transwipe[direction=90]
   \frametitle{Вспомогательные парсер-комбинаторы}  
 \begin{lstlisting}[frame=single]  
-let opt p = 
-  alt 
-    (map (fun x -> Some x) p)
-    (return None)
+let opt p = map (fun x -> Some x) p <|> return None
     
 let rec many p =
-  seq 
-    p 
-    (alt     
-      (fun h -> map (fun t -> h :: t) (many p))
-      (return [])
-    )
+  p |> (fun h -> map (fun t -> h :: t) (many p) <|> return [])
+    
 \end{lstlisting}
 
 \begin{lstlisting}[frame=single]  
@@ -211,9 +216,9 @@ let a = many (terminal 'a')
   \frametitle{Синтаксическое расширение}  
 \begin{lstlisting}[frame=single]  
 ostap (
-  e : x:e "+" y:t {`Add (x, y)} 
+  e : x:e "+" y:t {Add (x, y)} 
     | t; 
-  t : x:t "*" y:p {`Mul (x, y)} 
+  t : x:t "*" y:p {Mul (x, y)} 
     | p;
   p : (* parse integer *)
 )
@@ -225,9 +230,9 @@ ostap (
   \frametitle{Парсеры высшего порядка: переиспользование кода}  
 \begin{lstlisting}[frame=single]  
 ostap (
-  e : x:e "+" y:t {`Add (x, y)} 
+  e : x:e "+" y:t {Add (x, y)} 
     | t; 
-  t : x:t "*" y:p {`Mul (x, y)} 
+  t : x:t "*" y:p {Mul (x, y)} 
     | p;
   p : (* parse integer *)
 )
@@ -235,9 +240,9 @@ ostap (
   
 \begin{lstlisting}[frame=single]  
 ostap (
-  e : x:e "+" y:t {`Add (x, y)} 
+  e : x:e "+" y:t {Add (x, y)} 
     | t; 
-  t : x:t "*" y:p {`Mul (x, y)} 
+  t : x:t "*" y:p {Mul (x, y)} 
     | p;
   p : (* parse double *)
 )
@@ -251,9 +256,9 @@ ostap (
   \frametitle{Парсеры высшего порядка}  
 \begin{lstlisting}[frame=single]  
 ostap (
-  e[p] : x:e[p] "+" y:t[p] {`Add (x, y)} 
+  e[p] : x:e[p] "+" y:t[p] {Add (x, y)} 
        | t[p]; 
-  t[p] : x:t[p] "*" y:p    {`Mul (x, y)} 
+  t[p] : x:t[p] "*" y:p    {Mul (x, y)} 
        | p;
 )
 \end{lstlisting}
@@ -293,24 +298,24 @@ ostap (
 \begin{frame}[fragile]
   \transwipe[direction=90]
   \frametitle{Поддержка леворекурсивных анализаторов}
-  \begin{itemize}
-    \item Frost R. A., Hafiz R., Callaghan P. Parser combinators for ambiguous leftrecursive grammars
+  \begin{itemize} % СНАЧАЛА СУТЬ, ПОТОМ КРЕДИТ, ПРИ ЭТОМ БЕЗ НАЗВАНИЯ, ТОЛЬКО ГОД
+    \item Ограничение количества леворекурсивных вызовов длиной непрочитанной строки
     \begin{itemize}
-      \item Ограничение количества леворекурсивных вызовов длиной непрочитанной строки
+      \item Frost R. A., Hafiz R., Callaghan P. Parser combinators for ambiguous leftrecursive grammars
     \end{itemize}
-    \item Warth A., Douglass J. R., Millstein T. D. Packrat parsers can support left recursion
+    \item Использование мемоизации для обеспечения завершаемости
     \begin{itemize}
-      \item Использование мемоизации для обеспечения завершаемости
+      \item Warth A., Douglass J. R., Millstein T. D. Packrat parsers can support left recursion
     \end{itemize}
 
     \item Требуют, чтобы парсер был первого порядка
   \end{itemize}
 
   \begin{itemize}
-    \item Izmaylova	A., Afroozeh A., Tijs van der Storm (???). 
-Practical, general parser combinators
+    \item Использование техники CPS для обеспечения завершаемости
     \begin{itemize}
-      \item Использование техники CPS для обеспечения завершаемости
+      \item Izmaylova	A., Afroozeh A., Tijs van der Storm. 
+Practical, general parser combinators
     \end{itemize}
 
     \item Фиксируют конкретную семантику
@@ -351,14 +356,13 @@ Practical, general parser combinators
   \end{itemize}
 \begin{lstlisting}[frame=single]  
 ostap (
-  e[p] : e[p] "+" e[p] 
-       | p;         
+  e[p] : e[p] "+" e[p] | p
 )
 \end{lstlisting}
 
 \begin{lstlisting}[frame=single]  
 ostap (
-  let e p s = fix (fun e -> ostap(e "+" e | p)) s
+  let e p s = fix (fun e -> ostap (e "+" e | p)) s
 )
 \end{lstlisting}
 \end{frame}
