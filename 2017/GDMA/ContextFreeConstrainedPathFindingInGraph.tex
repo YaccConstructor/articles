@@ -1,0 +1,182 @@
+%compile with xelatex --shell-escape ContextFreeConstrainedPathFindingInGraph.tex
+
+% v2-acmtog-sample.tex, dated March 7 2012
+% This is a sample file for ACM Transactions on Graphics
+%
+% Compilation using 'acmtog.cls' - version 1.2 (March 2012), Aptara Inc.
+% (c) 2010 Association for Computing Machinery (ACM)
+%
+% Questions/Suggestions/Feedback should be addressed to => "acmtexsupport@aptaracorp.com".
+% Users can also go through the FAQs available on the journal's submission webpage.
+%
+% Steps to compile: latex, bibtex, latex latex
+%
+% For tracking purposes => this is v1.2 - March 2012
+\documentclass[runningheads,a4paper]{llncs}
+%
+\usepackage{makeidx}  % allows for indexgeneration
+ % V1.2
+
+%\acmVolume{VV}
+%\acmNumber{N}
+%\acmYear{YYYY}
+%\acmMonth{Month}
+%\acmArticleNum{XXX}
+%\acmdoi{10.1145/XXXXXXX.YYYYYYY}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+%\usepackage{gnuplottex}
+\usepackage{tikz}
+\usepackage{mathtools}
+
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{textcomp}
+
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+
+
+\begin{document}
+
+\newtheorem{mytheorem}{Theorem}
+%\newtheorem{lemma}{Lemma}
+
+\algrenewcommand\algorithmicindent{0.5em}
+\algnewcommand\algorithmicswitch{\textbf{switch}}
+\algnewcommand\algorithmiccase{\textbf{case}}
+\algnewcommand\algorithmicassert{\texttt{assert}}
+\algnewcommand\Assert[1]{\State \algorithmicassert(#1)}
+% New "environments"
+\algdef{SE}[SWITCH]{Switch}{EndSwitch}[1]{\algorithmicswitch\ #1\ \algorithmicdo}{\algorithmicend\ \algorithmicswitch}
+\algdef{SE}[CASE]{Case}{EndCase}[1]{\algorithmiccase\ #1}{\algorithmicend\ \algorithmiccase}
+
+\algtext*{EndSwitch}
+\algtext*{EndCase}
+\algtext*{EndWhile}% Remove "end while" text
+\algtext*{EndIf}% Remove "end if" text
+\algtext*{EndFor}% Remove "end for" text
+\algtext*{EndFunction}% Remove "end function" text
+
+\newif\ifboldnumber
+\newcommand{\boldnext}{\global\boldnumbertrue}
+
+% Default definition is \footnotesize#1:
+\algrenewcommand\alglinenumber[1]{%
+  \footnotesize\ifboldnumber\bfseries\fi\global\boldnumberfalse#1:}
+
+
+\makeatletter
+\def\@copyrightspace{\relax}
+\makeatother
+
+%\title{Generalized LL Parsing for Context-Free Constrained Path Search Problem}
+%\title{Structural representation of result for context-free path query problem}
+%\title{Generalized LL for context-free path query problem}
+%\title{Context-free path query with Structural representation of result}
+%\title{Generalized LL for Context-free path query with Structural representation of result}
+\title{Context-Free Path Querying with Structural Representation of Result}
+
+\sloppy
+
+%\numberofauthors{2}
+
+\author{
+%\alignauthor
+       Semyon Grigorev\\
+%       \affaddr{Saint Petersburg State University}\\
+%       \affaddr{7/9 Universitetskaya nab.}\\
+%       \affaddr{St. Petersburg, 199034 Russia}\\
+%       \email{semen.grigorev@jetbrains.com}
+%\alignauthor
+\and
+       Anastasiya Ragozina\\
+%       \affaddr{Saint Petersburg State University}\\
+%       \affaddr{7/9 Universitetskaya nab.}\\
+%       \affaddr{St. Petersburg, 199034 Russia}\\
+%       \email{ragozina.anastasiya@gmail.com}
+}
+
+\institute{Saint Petersburg State University, 7/9 Universitetskaya nab.\\ St. Petersburg, 199034 Russia \\
+\email{semen.grigorev@jetbrains.com},
+\email{ragozina.anastasiya@gmail.com}
+}
+
+\maketitle
+
+\begin{abstract}
+Graph data model and graph databases are very popular in various areas such as bioinformatics, semantic web, and social networks.
+One specific problem in the area is a path querying with constraints formulated in terms of formal grammars.
+The query in this approach is written as grammar, and paths querying is graph parsing with respect to given grammar.
+There are several solutions to it, but how to provide structural representation of query result which is practical for answer processing and debugging is still an open problem.
+In this paper we propose a graph parsing technique which allows one to build such representation with respect to given grammar in polynomial time and space for arbitrary context-free grammar and graph.
+Proposed algorithm is based on generalized LL parsing algorithm, while previous solutions are based mostly on CYK or Earley algorithms, which reduces  time complexity in some cases
+
+\keywords{Graph database, path query, graph parsing, context-free grammar, top-down parsing, GLL, LL}
+
+\end{abstract}
+
+
+% A category with the (minimum) three required fields
+%\category{Information Systems}{Database Management}{Query Languages}
+%A category including the fourth, optional field follows...
+%\category{Theory of computation}{Formal languages and automata theory}{Grammars and context-free languages}
+
+%\terms{Languages, Algorithms}
+
+
+
+\section{Introduction}
+Graph data model and graph data bases are very popular in various areas such as bioinformatics, semantic web, social networks, etc.
+Extraction of paths which satisfy specific constraints may be useful for investigation of graph structured data and for detection of relations between data items.
+One specific problem---path querying with constraints---is usually formulated in terms of formal grammars and is called formal language constrained path problem~\cite{FLCpathProblem}.
+
+Classical parsing techniques can be used to solve formal language constrained path problem.
+It means that such technique can be used for more common problem---graph parsing. 
+Graph parsing may be required in graph data base querying, formal verification, string-embedded language processing, and another areas where graph structured data is used. 
+
+Existing solutions in databases field usually employ such parsing algorithms as CYK or Earley(for example~\cite{ConjCFPathQuery}, ~\cite{GraphQueryWithEarley}). 
+These algorithms have nonlinear time complexity for unambiguous grammars ($O(n^3)$ and $O(n^2)$ respectively).
+Moreover, in case of CYK, the input grammar should be transformed to Chomsky normal form (CNF) which leads to grammar size increase.
+To solve these problems, one can use such parsing algorithms as GLR and GLL which have cubic worst-case time complexity and linear complexity for unambiguous grammars.
+Also there is no need to transform a grammar to CNF for these algorithms.
+These facts allow us to improve performance of parsing in some cases.
+
+Despite the fact that there is a set of path querying solutions~\cite{GraphQueryWithEarley,ConjCFPathQuery,QueryGraphWithData,RegularDBQuery}, query result exploration is still a challenge~\cite{hofman2015separabilityForRegQueryDebugging}, as also a simplification of complex query debugging.
+Structural representation of query result can be used to solve these problems, and classical parsing techniques provide such representation---derivation tree---which contains exhaustive information about parsed sentence structure in terms of specified grammar.
+
+Graph parsing can also be used to analyze dynamically generated strings or string-embedded languages. 
+%String variable in a program may gets multiple values in run time.
+%In order to convey statical analysis, value set of string variable can be over-approximated with regular language which is represented as a finite automaton.
+%Moreover, to check a syntactic correctness of dynamically generated strings, one should check that all generated strings (all paths from start states to final states in the given automaton) are correct with respect to the given context-free grammar. 
+There are solutions to this problem: GLR-based checker of string-embedded SQL queries~\cite{Alvor1,Alvor2},
+ parser of string-embedded languages~\cite{relaxedRNGLR} based on RNGLR parsing algorithm.
+RNGLR-based algorithm allows to construct derivation forest (i.e. the set of derivation trees) for all correct paths in the input automaton.
+
+Contribution of rhis paper
+\begin{enumerate}
+\item Proposed algorithm is based on generalized top-down parsing algorithm---GLL~\cite{scott2010gll}---yes we can use advanced techniques.GLL is topdowt, so yes, we can~\cite{Hellings16}
+\item we propose a graph parsing technique which allows one to construct structural representation of query result with respect to the given grammar.
+This structure can be useful for query debugging and exploration. 
+\item In evaluation we show that advanced techniques allow to increase performance in comparison with CYK-based implamantation
+\end{enumerate}
+
+\input{Preliminaries.tex}
+\input{MotivExample.tex}
+\input{Gll.tex}
+%\input{Complexity.tex}
+\input{Evaluation.tex}
+\input{Conclusion.tex}
+\input{Acknowledgments.tex}
+
+
+\bibliographystyle{abbrv}
+\bibliography{ContextFreeConstrainedPathFindingInGraph}
+
+%\input{appendix}
+
+%\balancecolumns
+
+\end{document}
