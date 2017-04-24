@@ -4,39 +4,39 @@
 
 % Если используется опция 14pt то нужно несколько хаков
 \DeclareOption{14pt}{
-  \def\ignore#1{}
-  % во-первых, класс наследуется от extarticle
-  \def\my@fontsize{14pt}
-  \def\my@baseclass{extarticle}
-  
-  % во-вторых, титульный лист должен набираться так, как будто
-  % используется шрифт 12pt - иначе он выглядит совсем конским
-  % Для этого мы явно загружаем size12.clo, но так как он на такое не рассчитан,
-  % и использует \newcommand для определения всяких \small и \Large
-  % то у нас \newcommand временно превращается в \renewcommand
-  \let\orignewcommand\newcommand
-  \let\origNeedsTeXFormat\NeedsTeXFormat
-  \def\my@title12pt{
-    \let\newcommand\renewcommand
-    \makeatletter
-    \input{size12.clo}%
-    \makeatother  
-    \let\newcommand\orignewcommand
-  }
-  % в-третьих, после того как титульный лист сгенерирован, нужно снова вернуться
-  % к базовому шрифту 14pt. Применяется такой же хак: загрузи size14.clo 
-  % временно переопределив \newcommand => \renewcommand
-  \def\my@body14pt{
-    % отдельное внимание подавлению команды \NeedsTeXFormat, которая требует
-    % чтобы код size14.clo выполнялся в преамбуле (а тут он уже внутри документа)
-    \let\NeedsTeXFormat\ignore
-    \let\newcommand\renewcommand
-    \makeatletter
-    \input{size14.clo}%
-    \makeatother  
-    \let\newcommand\orignewcommand
-    \let\NeedsTeXFormat\origNeedsTeXFormat
-  }
+	\def\ignore#1{}
+	% во-первых, класс наследуется от extarticle
+	\def\my@fontsize{14pt}
+	\def\my@baseclass{extarticle}
+	
+	% во-вторых, титульный лист должен набираться так, как будто
+	% используется шрифт 12pt - иначе он выглядит совсем конским
+	% Для этого мы явно загружаем size12.clo, но так как он на такое не рассчитан,
+	% и использует \newcommand для определения всяких \small и \Large
+	% то у нас \newcommand временно превращается в \renewcommand
+	\let\orignewcommand\newcommand
+	\let\origNeedsTeXFormat\NeedsTeXFormat
+	\def\my@title12pt{
+		\let\newcommand\renewcommand
+		\makeatletter
+		\input{size12.clo}%
+		\makeatother  
+		\let\newcommand\orignewcommand
+	}
+	% в-третьих, после того как титульный лист сгенерирован, нужно снова вернуться
+	% к базовому шрифту 14pt. Применяется такой же хак: загрузи size14.clo 
+	% временно переопределив \newcommand => \renewcommand
+	\def\my@body14pt{
+		% отдельное внимание подавлению команды \NeedsTeXFormat, которая требует
+		% чтобы код size14.clo выполнялся в преамбуле (а тут он уже внутри документа)
+		\let\NeedsTeXFormat\ignore
+		\let\newcommand\renewcommand
+		\makeatletter
+		\input{size14.clo}%
+		\makeatother  
+		\let\newcommand\orignewcommand
+		\let\NeedsTeXFormat\origNeedsTeXFormat
+	}
 }
 \ProcessOptions\relax
 \LoadClass[a4paper,\my@fontsize]{\my@baseclass}
@@ -74,11 +74,11 @@
 %% Аргументы: имя и пояснение под чертой (например, слово "подпись")
 \def\sigspace{\\[3em]}
 \newcommand\sigplace[2]{
-#1\\[1.2em]
-\underline{\hspace{3cm}}\\[-0.2em]
-{\footnotesize #2}
-\def\sigspace{\\[1em]%
-\def\sigspace{\\[3em]}}
+	#1\\[1.2em]
+	\underline{\hspace{3cm}}\\[-0.2em]
+	{\footnotesize #2}
+	\def\sigspace{\\[1em]%
+		\def\sigspace{\\[3em]}}
 }
 
 %% Параметры заполнения титульного листа
@@ -121,174 +121,174 @@
 \define@choicekey*[en]{mytitle}{type}{diploma,coursework,master,bachelor}{\def\my@title@type@en{#1}}
 
 \newcommand\filltitle[2]{
-%% Значения по умолчанию для обоих языков
-    \ifthenelse{\equal{#1}{ru}}
-        {
-        \presetkeys[#1]{mytitle}{
-          university = {Санкт-Петербургский государственный университет},
-          faculty = {},
-          city = {Санкт-Петербург},
-          year = {\the\year},
-          type = {diploma}
-        }{}
-        }
-        {}
-    \ifthenelse{\equal{#1}{en}}
-        {
-        \presetkeys[#1]{mytitle}{
-          university = {SAINT-PETERSBURG STATE UNIVERSITY},
-          faculty = {},
-          city = {Saint-Petersburg},
-          year = {\the\year},
-          type = {diploma}
-        }{}
-        }
-        {}
-    \setkeys[#1]{mytitle}{#2}
+	%% Значения по умолчанию для обоих языков
+	\ifthenelse{\equal{#1}{ru}}
+	{
+		\presetkeys[#1]{mytitle}{
+			university = {Санкт-Петербургский государственный университет},
+			faculty = {},
+			city = {Санкт-Петербург},
+			year = {\the\year},
+			type = {diploma}
+		}{}
+	}
+	{}
+	\ifthenelse{\equal{#1}{en}}
+	{
+		\presetkeys[#1]{mytitle}{
+			university = {SAINT-PETERSBURG STATE UNIVERSITY},
+			faculty = {},
+			city = {Saint-Petersburg},
+			year = {\the\year},
+			type = {diploma}
+		}{}
+	}
+	{}
+	\setkeys[#1]{mytitle}{#2}
 }
 
 %% Титульная страница на русском языке
 \newcommand\maketitleru{
-\fancypagestyle{titleru}{
-    \fancyhf{}  % clear all header and footer fields
-    \renewcommand{\headrulewidth}{0pt}  % remove head ruler
-    %% В верхнем колонтитуле будет университет и кафедра
-    \chead{\large 
-      \my@title@university@ru \\
-      \ifthenelse{\equal{\my@title@faculty@ru}{}}{}{\my@title@faculty@ru \\}  
-      \vskip 1em
-      {\large \my@title@chair@ru \\}
-    }
-    %% В нижнем колонтитуле город и год
-    \cfoot{\large\parbox[b]{\textwidth}{\centering \my@title@city@ru\\ \my@title@year@ru}}
-}
-
-\title{\my@title@title@ru}
-\begin{titlepage}
-\newgeometry{top=20mm,bottom=20mm,left=20mm,right=15mm,nohead,includeheadfoot}
-\thispagestyle{titleru}
-\begin{center}
-    \vspace*{0.25\textheight}
-    {\Large\my@title@author@ru}
-    
-    \vskip 2em
-    {\Huge \@title\\}
-    
-    \vskip 1em
-    {\large 
-    \ifthenelse{\equal{\my@title@type@ru}{coursework}}
-    {Курсовая работа}
-    {\ifthenelse{\equal{\my@title@type@ru}{diploma}}
-    {Дипломная работа}
-    {\ifthenelse{\equal{\my@title@type@ru}{master}}
-    {Магистерская диссертация}
-    {\ifthenelse{\equal{\my@title@type@ru}{bachelor}}
-    {Бакалаврская работа}
-    }}}
-    \\}
-    \vskip 2em
-    \ifthenelse{\equal{\my@title@type@ru}{coursework}}
-    {\normalsize \raggedleft 
-    Научный руководитель:\\
-    \my@title@supervisorPosition@ru\ \my@title@supervisor@ru
-    }
-    {\normalsize \raggedleft 
-    \vskip 5em
-    Научный руководитель:\\
-    \my@title@supervisorPosition@ru\ \my@title@supervisor@ru\sigspace
-    Рецензент:\\
-    \my@title@reviewerPosition@ru\ \my@title@reviewer@ru
-    }
-\end{center}
-\end{titlepage}
+	\fancypagestyle{titleru}{
+		\fancyhf{}  % clear all header and footer fields
+		\renewcommand{\headrulewidth}{0pt}  % remove head ruler
+		%% В верхнем колонтитуле будет университет и кафедра
+		\chead{\large 
+			\my@title@university@ru \\
+			\ifthenelse{\equal{\my@title@faculty@ru}{}}{}{\my@title@faculty@ru \\}  
+			\vskip 1em
+			{\large \my@title@chair@ru \\}
+		}
+		%% В нижнем колонтитуле город и год
+		\cfoot{\large\parbox[b]{\textwidth}{\centering \my@title@city@ru\\ \my@title@year@ru}}
+	}
+	
+	\title{\my@title@title@ru}
+	\begin{titlepage}
+		\newgeometry{top=20mm,bottom=20mm,left=20mm,right=15mm,nohead,includeheadfoot}
+		\thispagestyle{titleru}
+		\begin{center}
+			\vspace*{0.25\textheight}
+			{\Large\my@title@author@ru}
+			
+			\vskip 2em
+			{\Huge \@title\\}
+			
+			\vskip 1em
+			{\large 
+				\ifthenelse{\equal{\my@title@type@ru}{coursework}}
+				{Курсовая работа}
+				{\ifthenelse{\equal{\my@title@type@ru}{diploma}}
+					{Дипломная работа}
+					{\ifthenelse{\equal{\my@title@type@ru}{master}}
+						{Магистерская диссертация}
+						{\ifthenelse{\equal{\my@title@type@ru}{bachelor}}
+							{Выпуская квалификационная работа}
+				}}}
+				\\}
+			\vskip 2em
+			\ifthenelse{\equal{\my@title@type@ru}{coursework}}
+			{\normalsize \raggedleft 
+				Научный руководитель:\\
+				\my@title@supervisorPosition@ru\ \my@title@supervisor@ru
+			}
+			{\normalsize \raggedleft 
+				\vskip 5em
+				Научный руководитель:\\
+				\my@title@supervisorPosition@ru\ \my@title@supervisor@ru\sigspace
+				Рецензент:\\
+				\my@title@reviewerPosition@ru\ \my@title@reviewer@ru
+			}
+		\end{center}
+	\end{titlepage}
 }
 
 %% Титульная страница на английском языке
 \newcommand\maketitleen{
-\fancypagestyle{titleen}{
-    \fancyhf{}  % clear all header and footer fields
-    \renewcommand{\headrulewidth}{0pt}  % remove head ruler
-    %% В верхнем колонтитуле будет университет и кафедра
-    \chead{\large 
-        \my@title@university@en \\ 
-        \ifthenelse{\equal{\my@title@faculty@en}{}}{}{\my@title@faculty@en \\}  
-        \vskip 1em
-        {\large \my@title@chair@en \\}
-    }
-    %% В нижнем колонтитуле город и год
-    \cfoot{\large\parbox[b]{\textwidth}{\centering \my@title@city@en\\ \my@title@year@en}}
-}
-\title{\my@title@title@en}
-\begin{titlepage}%
-\newgeometry{top=20mm,bottom=20mm,left=20mm,right=15mm,nohead,includeheadfoot}
-\thispagestyle{titleen}
-  \begin{center}
-    \vspace*{0.25\textheight}
-    {\Large\my@title@author@en\\}
-    
-    \vskip 2em
-    {\Huge \@title \\}
-    
-    \vskip 1em
-    {\large 
-    \ifthenelse{\equal{\my@title@type@en}{coursework}}
-    {Course Work}
-    {\ifthenelse{\equal{\my@title@type@en}{diploma}}
-    {Graduation Thesis}
-    {\ifthenelse{\equal{\my@title@type@en}{master}}
-    {Master's Thesis}
-    {\ifthenelse{\equal{\my@title@type@en}{bachelor}}
-    {Bachelor's Thesis}
-    }}}
-    \\}
-    \vskip 2em
-    \ifthenelse{\equal{\my@title@type@en}{coursework}}
-    {\normalsize \raggedleft 
-    Scientific supervisor:\\
-    \my@title@supervisorPosition@en\ \my@title@supervisor@en
-    }
-    {\normalsize \raggedleft 
-    \vskip 5em
-    Scientific supervisor:\\
-    \my@title@supervisorPosition@en\ \my@title@supervisor@en\sigspace
-
-    Reviewer:\\
-    \my@title@reviewerPosition@en\ \my@title@reviewer@en
-    }
-  \end{center}
-\end{titlepage}
+	\fancypagestyle{titleen}{
+		\fancyhf{}  % clear all header and footer fields
+		\renewcommand{\headrulewidth}{0pt}  % remove head ruler
+		%% В верхнем колонтитуле будет университет и кафедра
+		\chead{\large 
+			\my@title@university@en \\ 
+			\ifthenelse{\equal{\my@title@faculty@en}{}}{}{\my@title@faculty@en \\}  
+			\vskip 1em
+			{\large \my@title@chair@en \\}
+		}
+		%% В нижнем колонтитуле город и год
+		\cfoot{\large\parbox[b]{\textwidth}{\centering \my@title@city@en\\ \my@title@year@en}}
+	}
+	\title{\my@title@title@en}
+	\begin{titlepage}%
+		\newgeometry{top=20mm,bottom=20mm,left=20mm,right=15mm,nohead,includeheadfoot}
+		\thispagestyle{titleen}
+		\begin{center}
+			\vspace*{0.25\textheight}
+			{\Large\my@title@author@en\\}
+			
+			\vskip 2em
+			{\Huge \@title \\}
+			
+			\vskip 1em
+			{\large 
+				\ifthenelse{\equal{\my@title@type@en}{coursework}}
+				{Course Work}
+				{\ifthenelse{\equal{\my@title@type@en}{diploma}}
+					{Graduation Thesis}
+					{\ifthenelse{\equal{\my@title@type@en}{master}}
+						{Master's Thesis}
+						{\ifthenelse{\equal{\my@title@type@en}{bachelor}}
+							{Graduation Project}
+				}}}
+				\\}
+			\vskip 2em
+			\ifthenelse{\equal{\my@title@type@en}{coursework}}
+			{\normalsize \raggedleft 
+				Scientific supervisor:\\
+				\my@title@supervisorPosition@en\ \my@title@supervisor@en
+			}
+			{\normalsize \raggedleft 
+				\vskip 5em
+				Scientific supervisor:\\
+				\my@title@supervisorPosition@en\ \my@title@supervisor@en\sigspace
+				
+				Reviewer:\\
+				\my@title@reviewerPosition@en\ \my@title@reviewer@en
+			}
+		\end{center}
+	\end{titlepage}
 }
 
 %% Титульный лист генерируется, если для соответствующего языка
 %% определен аргумент title
 %% Счетчик страниц автоматически увеличивается при генерации титульнго листа
 \renewcommand\maketitle{
-%% На титульной странице все кроме полей соответствует \documentclass[12pt]{article}
-\my@title12pt
-
-\newcounter{titlepages}
-\setcounter{titlepages}{1}
-\begin{spacing}{1.0}
-\ifthenelse{\isundefined{\my@title@title@ru}}{}{
-  % fancyhdr set height of the top/bottom headers automatically
-  % so set them to zero to be sure that he does it 
-  \setlength{\headheight}{0pt}
-  \setlength{\footskip}{0pt}
-  \maketitleru\addtocounter{titlepages}{1}
-}
-\ifthenelse{\isundefined{\my@title@title@en}}{}{
-  % fancyhdr already set height of the top/bottom headers on the previous page (titleru) 
-  % but on this page the headers' height might be different
-  % so set them to zero again in order to make fancyhdr to do it
-  \setlength{\headheight}{0pt}
-  \setlength{\footskip}{0pt}
-  \maketitleen\addtocounter{titlepages}{1}
-}
-\end{spacing}
-\setcounter{page}{\value{titlepages}}
-% restore preamble's geometry
-\my@body14pt
-\newgeometry{a4paper,top=20mm,bottom=20mm,left=30mm,right=15mm,nohead,includeheadfoot}
+	%% На титульной странице все кроме полей соответствует \documentclass[12pt]{article}
+	\my@title12pt
+	
+	\newcounter{titlepages}
+	\setcounter{titlepages}{1}
+	\begin{spacing}{1.0}
+		\ifthenelse{\isundefined{\my@title@title@ru}}{}{
+			% fancyhdr set height of the top/bottom headers automatically
+			% so set them to zero to be sure that he does it 
+			\setlength{\headheight}{0pt}
+			\setlength{\footskip}{0pt}
+			\maketitleru\addtocounter{titlepages}{1}
+		}
+		\ifthenelse{\isundefined{\my@title@title@en}}{}{
+			% fancyhdr already set height of the top/bottom headers on the previous page (titleru) 
+			% but on this page the headers' height might be different
+			% so set them to zero again in order to make fancyhdr to do it
+			\setlength{\headheight}{0pt}
+			\setlength{\footskip}{0pt}
+			\maketitleen\addtocounter{titlepages}{1}
+		}
+	\end{spacing}
+	\setcounter{page}{\value{titlepages}}
+	% restore preamble's geometry
+	\my@body14pt
+	\newgeometry{a4paper,top=20mm,bottom=20mm,left=30mm,right=15mm,nohead,includeheadfoot}
 }
 
 %% Каждая глава начинается с новой страницы, введение и заключение не
@@ -296,9 +296,9 @@
 \let\old@section\section
 \def\section{\@ifstar\@section\@@section}
 \def\@section#1{\newpage\old@section*{#1}%
-        \ifthenelse{\equal{#1}{\contentsname}}%
-           {}%
-           {\addcontentsline{toc}{section}{#1}}%
+	\ifthenelse{\equal{#1}{\contentsname}}%
+	{}%
+	{\addcontentsline{toc}{section}{#1}}%
 }
 \def\@@section#1{\newpage\old@section{#1}}
 

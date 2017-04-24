@@ -1,0 +1,166 @@
+\appendix
+
+\section*{Приложение}\label{GLLCode}
+\subsection{Псевдокод Generalized LL алгоритма}
+\begin{algorithmic}
+    \Function{add}{$L,u,i,w$}
+    \If{$(L,u,i,w) \notin U$}  
+    \State $U.add(L,u,i,w)$
+    \State $R.enqueue(L,u,i,w)$
+    \EndIf
+    \EndFunction
+\end{algorithmic}
+
+\begin{algorithmic}    
+    \Function{create}{$L, u, i, w$}
+    \State $(X ::= \alpha A \cdot \beta) \gets L$
+    \If{($\exists$ GSS node labeled $(A, i)$)}  
+    
+    \State $v \gets$ GSS node labeled $(A, i)$
+    
+    \If{(there is no GSS edge from $v$ to $u$ labeled ($L,w$))}
+    \State add GSS edge from $v$ to $u$ labeled ($L,w$)
+    \For{($(v, z) \in \mathcal{P} $)}
+    \State $y \gets$ \textbf{getNodeP}($L,w,z$)
+    \State \textbf{add}($L, u, h, y$) where $h$ is the right extent of $y$
+    \EndFor
+    \EndIf
+    
+    \Else
+    \State $v \gets$ \textbf{new} GSS node labeled ($A, i$)
+    \State create GSS edge from $v$ to $u$ labeled ($L, w$)
+    \For{\textbf{each} alternative $\alpha_{k}$ \textbf{of} $A$}
+    \State \textbf{add}($\alpha_{k}, v, i, \$ $)
+    \EndFor
+    \EndIf
+    \Return{$v$}
+    \EndFunction
+\end{algorithmic}
+
+\begin{algorithmic}   
+    \Function{pop}{$u,i,z$}
+    \If{($(u,z) \notin \mathcal{P}$)}  
+    \State $\mathcal{P}.add(u,z)$
+    \ForAll{GSS edges $(u,L,w,v)$}
+    \State $y \gets$ \textbf{getNodeP}($L, w, z$)
+    \State \textbf{add}($L,v,i,y$)
+    \EndFor
+    \EndIf
+    \EndFunction
+\end{algorithmic}
+
+\begin{algorithmic}   
+    \Function{getNodeT}{$x, i$}
+    \If{($x = \varepsilon$)}  
+    \  $h \gets i$
+    \Else
+    \  $h \gets i + 1$
+    \EndIf
+    
+    \State $y \gets$ find or create SPPF node labelled $(x, i, h)$
+    
+    \Return $y$
+    
+    \EndFunction
+\end{algorithmic}
+
+\begin{algorithmic}   
+    \Function{getNodeP}{$X ::= \alpha \cdot \beta,w, z$}
+    \If{($\alpha$ is a terminal or a non-nullable nontermial) $\&$ ($\beta \neq \varepsilon$)}  
+    \State \Return{$z$}
+    \Else
+    
+    \If{($\beta = \varepsilon$)}
+    \  $L \gets X$
+    \Else
+    \  $L \gets (X ::=\alpha \cdot \beta)$
+    \EndIf
+    
+    \State $(\_, k, i) \gets z$
+    
+    \If{($w \neq \$$)}
+    \State $(\_, j, k) \gets w$
+    
+    \State $y \gets$ find or create SPPF node labelled $(L, j, i)$  
+    
+    \If{($\nexists$ child of $y$ labelled $(X ::=\alpha \cdot \beta, k)$)}
+    \State $y\prime \gets \textbf{new}$ $packedNode(X ::=\alpha \cdot \beta, k)$
+    \State $y\prime.addLeftChild(w)$
+    \State $y\prime.addRightChild(z)$
+    \State $y.addChild(y\prime)$
+    \EndIf
+    
+    \Else
+    \State $y \gets$ find or create SPPF node labelled $(L, k, i)$ 
+    \If{($\nexists$ child of $y$ labelled $(X ::=\alpha \cdot \beta, k)$)}
+    \State $y\prime \gets \textbf{new}$ $packedNode(X ::=\alpha \cdot \beta, k)$
+    \State $y\prime.addRightChild(z)$
+    \State $y.addChild(y\prime)$
+    \EndIf
+    
+    \EndIf
+    
+    \State \Return{$y$}
+    \EndIf
+    \EndFunction
+\end{algorithmic}
+
+
+\begin{algorithmic}
+    \Function{dispatcher}{}
+    \If{$R \neq \varnothing$}  
+    \State{$(C_{L},C_{u},i,C_{N}) \gets R.dequeue()$}
+    \State{$C_{R} \gets \$$}
+    \State{$dispatch \gets false$}
+    \Else
+    \ {$stop \gets true$}
+    \EndIf
+    \EndFunction
+    
+    \Function{processing}{}
+    \State{$dispatch \gets true$}
+    \Switch{$C_{L}$}  
+    \Case{$(X \rightarrow \alpha \cdot x \beta)$ where ($x = input[i]$ $|$ $x = \varepsilon$)}
+    \State{$C_{R} \gets \textbf{getNodeT}(x, i)$}
+    \If{$x \neq \varepsilon$}
+    \ {$i \gets i + 1$}
+    \EndIf
+    \State{$C_{L} \gets (X \rightarrow \alpha x \cdot \beta)$}
+    %\If{$cR \neq \$$}
+    \State{$C_{N} \gets \textbf{getNodeP}(C_{L}, C_{N}, C_{R})$} 
+    %\EndIf
+    \State{$dispatch \gets false$}        
+    \EndCase
+    
+    \Case{$(X \rightarrow \alpha \cdot A \beta)$ where $A$ is nonterminal}
+    %\State{$slots \gets pTable[A][input[i]]$}
+    %\If{$slots \neq \varnothing$}
+    \State{\textbf{create}($(X \rightarrow \alpha A \cdot \beta), C_{u}, i, C_{N}$)}
+    %\EndIf
+    %\ForAll{$L \in slots$}
+    %    \State{\Call{add}{L,u,i,\$}} 
+    %\EndFor
+    \EndCase
+    
+    \Case{$(X \rightarrow \alpha \cdot )$}
+    \State{\textbf{pop}$(C_{u},i,C_{N})$} 
+    \EndCase
+    \EndSwitch
+    \EndFunction
+    
+    \Function{parse}{}
+    \While{not $stop$}  
+    \If{$dispatch$}
+    \ {\textbf{dispatcher}()}
+    \Else
+    \ {\textbf{processing}()}
+    \EndIf
+    \EndWhile
+    \If{SPPF node ($StartNonterminal,0,input.length$) exists}
+    \State return this node
+    \Else
+    \ report failure
+    \EndIf
+    \EndFunction
+    
+\end{algorithmic}
