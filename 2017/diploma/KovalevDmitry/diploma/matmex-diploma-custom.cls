@@ -136,7 +136,7 @@
     \ifthenelse{\equal{#1}{en}}
         {
         \presetkeys[#1]{mytitle}{
-          university = {SAINT-PETERSBURG STATE UNIVERSITY},
+          university = {SAINT PETERSBURG STATE UNIVERSITY},
           faculty = {},
           city = {Saint-Petersburg},
           year = {\the\year},
@@ -183,7 +183,7 @@
     {\ifthenelse{\equal{\my@title@type@ru}{master}}
     {Магистерская диссертация}
     {\ifthenelse{\equal{\my@title@type@ru}{bachelor}}
-    {Бакалаврская работа}
+    {Выпускная квалификационная работа}
     }}}
     \\}
     \vskip 2em
@@ -238,7 +238,7 @@
     {\ifthenelse{\equal{\my@title@type@en}{master}}
     {Master's Thesis}
     {\ifthenelse{\equal{\my@title@type@en}{bachelor}}
-    {Bachelor's Thesis}
+    {Graduation Project}
     }}}
     \\}
     \vskip 2em
