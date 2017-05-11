@@ -1,0 +1,99 @@
+\appendix
+
+\section*{Приложение}
+\label{appendix}
+\subsection*{Псевдокод алгоритма синтаксического анализа графов}
+
+\begin{algorithmic}
+\Function{create}{$S_{call}, S_{next}, u, i, w$}
+	\State $A \gets \Delta(S_{call})$
+	\If{($\exists$ GSS node labeled $(A, i)$)}  
+
+		\State $v \gets$ GSS node labeled $(A, i)$
+		\If{(there is no GSS edge from $v$ to $u$ labeled ($S_{next},w$))}
+			\State add GSS edge from $v$ to $u$ labeled ($S_{next},w$)
+			\For{($(v, z) \in \mathcal{P} $)}
+				\State $(y,N) \gets$ \textbf{getNodes}($S_{next}, u.nonterm, w, z$)
+
+				\State $(\_, \_, h) \gets y$
+				\State \textbf{add}($S_{next} , u, h, y$)
+
+				\If{$N \neq \$$}
+					\State $(\_, \_, h) \gets N$;
+					\textbf{pop}$(u,h,N)$ 
+				\EndIf
+			\EndFor
+		\EndIf
+	\Else
+		\State $v \gets$ \textbf{new} GSS node labeled $(A, i)$
+		\State create GSS edge from $v$ to $u$ labeled ($S_{next}, w$)
+		\State \textbf{add}($S_{call}, v, i, \$ $)
+	\EndIf
+	\Return{$v$}
+\EndFunction
+\end{algorithmic}
+
+\begin{algorithmic}   
+\Function{pop}{$u,i,z$}
+	\If{($(u,z) \notin \mathcal{P}$)}  
+		\State $\mathcal{P}.add(u,z)$
+		\ForAll{GSS edges $(u,S,w,v)$}
+			\State $(y,N) \gets$ \textbf{getNodes}($S, v.nonterm, w, z$)
+			\State \textbf{add}($S,v,i,y$)
+			\If{$N \neq \$$}
+				\ \textbf{pop}$(v,i,N)$ 
+			\EndIf
+		\EndFor
+	\EndIf
+\EndFunction
+\end{algorithmic}
+
+\begin{algorithmic}
+\Function{parse}{}
+	\State $R.enqueue(StartState, new GSSnode(StartNonterminal,0), 0, \$)$
+	\While{$R \neq \varnothing $}
+	\State{$(C_{S},C_{U},i,C_{N}) \gets R.dequeue()$}
+	
+	\If{ ($C_{N} = \$ $) and ($C_{S}$ is final state)}
+		\State $eps \gets \textbf{getNodeT}(\varepsilon, i)$  
+		\State $(\underline{\hspace{0.25cm}}, N) \gets \textbf{getNodes}(C_{S},C_{U}.nonterm, \$, eps)$
+		\State \textbf{pop}$(C_{U},i,N)$ 
+	\EndIf
+	
+	\For{\textbf{each} $transition (C_{S},label,S_{next})$}
+		\Switch{$label$}  
+		\Case{$Terminal(x)$ where ($x = input[i]$)}
+			\State $T \gets \textbf{getNodeT}(x, i)$
+	
+			\State $(y, N) \gets \textbf{getNodes}(S_{next},C_{U}.nonterm, C_{N}, T)$
+			\If{$N \neq \$$}
+				\ \textbf{pop}$(C_{U},i+1,N)$ 
+			\EndIf
+	
+			\If{$S_{next}$ have multiple ingoing transitions}
+				\State $\textbf{add}(S_{next}, C_{U}, i + 1, y)$
+			\Else
+				\State $R.enqueue(S_{next}, C_{U}, i + 1, y)$
+			\EndIf
+		\EndCase
+	
+		\Case{$Nonterminal(S_{call})$}
+	%\State{$slots \gets pTable[A][input[i]]$}
+	%\If{$slots \neq \varnothing$}
+			\State \textbf{create}($S_{call}, S_{next}, C_{U}, i, C_{N}$)
+	%\EndIf
+	%\ForAll{$L \in slots$}
+	%    \State{\Call{add}{L,u,i,\$}} 
+	%\EndFor
+		\EndCase
+		\EndSwitch
+	
+	\EndFor
+	\EndWhile
+	\If{SPPF node ($StartNonterminal,0,input.length$) exists}
+		\State return this node
+	\Else
+		\ report failure
+	\EndIf
+\EndFunction
+\end{algorithmic}
