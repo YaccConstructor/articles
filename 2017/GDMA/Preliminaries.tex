@@ -32,6 +32,10 @@ In order to solve this problem, in this paper, we construct compact data structu
 
 \subsection{Generalized LL Parsing Algorithm}\label{BasicGLL}
 
+%!!!!!!!!!Кажется, нужно сказать несколько высокоуровневых вещей про LL. Что это за зверь, о каком стеке речь -- все такое. Сейчас объяснение алгоритма висит в воздухе. 
+One of widely used classes of parsing algorithms is a LL(k)~\cite{Grune}---top-down algorithms which read input from left to right, build leftmost derivation, and use $k$ symbols for lookahead.
+PDA or recursive-descent --- stack
+
 Classical LL algorithm operates with a pointer to input (position $i$) and with a grammar slot---pointer to grammar in form $N \rightarrow \alpha \cdot x \beta $.
 Parsing may be described as a transition of these pointers from the initial position ($i = 0$, $S \rightarrow \cdot \beta $, where $S$ is start nonterminal) to the final ($i = input.Length$, $s \rightarrow \beta \cdot$).
 At every step, there are four possible cases in processing of these pointers. 
@@ -43,17 +47,18 @@ At every step, there are four possible cases in processing of these pointers.
 \item $S \rightarrow \alpha \cdot $, where $S$ is a start nonterminal of grammar. In this case we should report success if $i = input.Length - 1$ or failure otherwise. 
 \end{enumerate}
 
-In the second case there can be several slots $X \rightarrow \cdot \gamma$, so a strategy on how to choose one of them to continue parsing is needed.
-In LL(k) algorithm lookahead is used, but this strategy is still not good enough because there are context-free languages for which deterministic choice is impossible even for infinite lookahead~\cite{LLnonLL}.
-On the contrary to LL(k), generalized LL does not choose at all, handling all possible variants.
-Note, that instead of immediate processing of all variants, GLL uses descriptors mechanism to store all possible branches and process them sequentially. 
-Descriptor is a quadruple $(L, s, j, a)$ where $L$ is a grammar slot, $s$ is a stack node, $j$ is a position in the input string, and $a$ is a node of derivation tree. 
+In the second case there can be several slots $X \rightarrow \cdot \gamma$ due to the fact that this algorithm is nondeterministic, so a strategy on how to choose one of them to continue parsing is needed.
+In LL(k) algorithm lookahead is used to avoid nondeterminism, but this strategy is still not good enough because there are context-free languages for which deterministic choice is impossible even for infinite lookahead~\cite{LLnonLL}.
+On the contrary to LL(k), generalized LL does not choose at all, handling all possible variants by using descriptors mechanism.
+Descriptor is a quadruple $(L, s, j, a)$ where $L$ is a grammar slot, $s$ is a stack node, $j$ is a position in the input string, and $a$ is a node of derivation tree.
+Each descriptor fully describe one parser state, thus instead of immediate processing of all variants, GLL store all possible branches and process them sequentially late.
 
+%По-моему, у тебя не было никаких функций к этому моменту. 
 The stack in parsing process is used to store return information for the parser---a name of function which will be called when current function finishes computation. 
 As mentioned before, generalized parsers process all possible derivation branches and parser must store it's own stack for every branch. 
 It leads to an infinite stack growth being done naively.  
 Tomita-style graph structured stack (GSS)~\cite{Tomita} combines stacks resolving this problem.
-Each GSS node contains a pair of position in input and a grammar slot in GLL . 
+Each GSS node contains a pair of position in input and a grammar slot in GLL. 
 
 In order to provide termination and correctness, we should avoid duplication of descriptors, and be able to process GSS nodes in arbitrary order. It is necessary to use the following additional sets for this.
 \begin{itemize}
@@ -135,22 +140,18 @@ Generalized LL build all such trees and compact them in a special data structure
 Binarized Shared Packed Parse Forest (SPPF)~\cite{brnglr} compresses derivation trees optimally reusing common nodes and subtrees.
 Version of GLL which uses this structure for parsing forest representation achieves worst-case cubic space complexity~\cite{gllParsingTree}.
 
-
- 
-
-Binarized SPPF can be represented as a graph in which each node has one of four types described below with correspondent graphical notation.
+Binarized SPPF can be represented as a graph in which each node has one of four types described below.
 Let $i$ and $j$ be the start and the end positions of substring, and let us call a tuple $(i,j)$ an \textit{extension} of node.
 
 \begin{itemize}
-    \item Node of rectangle shape labeled with $(i, T, j)$ is a terminal node.     
-    \item Node of oval shape labeled with $(i, N, j)$ is a nonterminal node. 
+    \item \textbf{Terminal node} with label $(i, T, j)$.
+    \item \textbf{Nonterminal node} with label $(i, N, j)$. 
     This node denotes that there is at least one derivation for substring $\alpha=\omega[i..j-1]$ such that $N \Rightarrow^*_G \alpha, \alpha = \omega[i..j-1] $.
-    All derivation trees for the given substring and nonterminal can be extracted from SPPF by left-to-right top-down graph traversal started from respective node. 
-    We use filled shape and label of form $(<\mkern-11mu | \mkern-11mu> (i, N, j))$ to denote that there are multiple derivations from nonterminal $N$ for substring $\omega[i..j-1]$.
-    \item Node of rectangle shape labeled with $(i,t,j)$, where $t$ is a grammar slot, is an intermediate node: a special kind of node used for binarization of SPPF.
-    \item Packed node labeled with $(N \rightarrow \alpha \cdot \beta, k)$. In our pictures, we use dot shape for these nodes and omit labels because they are important only on SPPF constriction stage.
+    All derivation trees for the given substring and nonterminal can be extracted from SPPF by left-to-right top-down graph traversal started from respective node.     
+    \item \textbf{Intermediate node}: a special kind of node used for binarization of SPPF. These nodes are labeled with $(i,t,j)$, where $t$ is a grammar slot.
+    \item \textbf{Packed node} with label $(N \rightarrow \alpha \cdot \beta, k)$. 
     Subgraph with ``root'' in such node is one variant of derivation from nonterminal $N$ in case when the parent is a nonterminal node labeled with $(<\mkern-9mu | \mkern-9mu> (i, N, j))$.
 
 \end{itemize}
 
-In our examples we remove redundant intermediate and packed nodes from the SPPF to simplify it and to decrease the size of structure.
+Example of SPPF presented in figure~\ref{SPPF}. We remove redundant intermediate and packed nodes from the SPPF to simplify it and to decrease the size of structure.
