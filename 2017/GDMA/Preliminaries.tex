@@ -1,6 +1,6 @@
 \section{Preliminaries}
 
-In this work we are focused on the parsing algorithm, and not on the data representation, and we assume that whole input graph can be located in RAM memory in the optimal for our algorithm way.
+In this work we are focused on the parsing algorithm, and not on the data representation, and we assume that whole input graph can be optimally located in RAM memory.
 
 We start by introduction of necessary definitions.
 \begin{itemize}
@@ -8,8 +8,8 @@ We start by introduction of necessary definitions.
   \item $\mathcal{L}(G)$ denotes a language specified by grammar $G$, and is a set of terminal strings derived from start nonterminal of $G$: $L(G) = \{\omega | S \Rightarrow_{G}^{*} \omega\}$.
   \item Directed graph is a triple $M = (V,E,L)$, where $V$ is a set of vertices, $L \subseteq \Sigma$ is a set of labels, and a set of edges $E\subseteq V\times L\times V$. 
   We assume that there are no parallel edges with equal labels: for every $e_1=(v_1,l_1,v_2) \in E, e_2=(u_1,l_2,u_2) \in E$ if $v_1 = u_1$ and $v_2 = u_2$ then $l_1 \neq l_2$.
-  \item $tag: E \rightarrow L$ is a helper function which allows to get tag of edge. $$tag(e = (v_1,l,v_2), e \in E) = l$$
-  \item $\oplus: L^+ \times L^+ \rightarrow L^+$ denotes a tag concatenation operation.
+  \item $tag: E \rightarrow L$ is a helper function which returns a tag of a given edge. $$tag(e = (v_1,l,v_2), e \in E) = l$$
+  \item $\oplus: L^+ \times L^+ \rightarrow L^+$ denotes tag concatenation operation.
 %  \item Path $p$ in graph $M$ is a list of incident edges: 
 %  \begin{align*}
 %   p &= e_0,e_1,\dots,e_{n-1} \\
@@ -25,48 +25,48 @@ We start by introduction of necessary definitions.
   \end{align*}
 \end{itemize}
 
-Using these definitions, we state the context-free language constrained path querying as, given a query in form of grammar $G$, to construct the set of paths $$Q(M,G)=\{p|p \text{ is path in } M, \Omega(p) \in \mathcal{L}(G)\}.$$
+Using these definitions, we define context-free language constrained path querying as, given a query in form of grammar $G$, to construct the set of paths $$Q(M,G)=\{p|p \text{ is path in } M, \Omega(p) \in \mathcal{L}(G)\}.$$
 
-Note that, in some cases, $Q(M,G)$ can be an infinite set, and hence it cannot be represented explicitly. 
-In order to solve this problem, in this paper, we construct compact data structure representation which stores all elements of $Q(M,G)$ in finite amount of space and allows to extract any of them.
+Note that $Q(M,G)$ can be an infinite set, hence it cannot be represented explicitly. 
+In order to solve this problem, we construct compact data structure representation which stores all elements of $Q(M,G)$ in finite space and from which one can extract any of them.
 
 \subsection{Generalized LL Parsing Algorithm}\label{BasicGLL}
 
-One of widely used classes of parsing algorithms is a LL(k)~\cite{Grune}---top-down algorithms which read input from left to right, build leftmost derivation, and use $k$ symbols for lookahead.
+One of widely used classes of parsing algorithms is LL(k)~\cite{Grune}---top-down algorithms which read input from left to right, build leftmost derivation, and use $k$ symbols for lookahead.
 LL(k) parser may be implemented as deterministic pushdown automaton (DPDA).
-On the other hand LL(k) parser may be implemented in recursive-descent manner: each rule transforms to function which can call functions for other rules in order specified by right hand side of corresponded rule.
-In this case stack of DPDA are replaced with functions call stack.
+On the other hand, LL(k) parser may be implemented in recursive-descent manner: each rule transforms to function which can call functions for other rules in order specified by right hand side of corresponded rule.
+In this case, stack of DPDA is replaced with functions call stack. \emph{(Functions call stack functions as a stack of DPDA (haha))}
 
-Classical LL algorithm operates with a pointer to input (position $i$) and with a grammar slot---pointer to grammar in form $N \rightarrow \alpha \cdot x \beta $.
-Parsing may be described as a transition of these pointers from the initial position ($i = 0$, $S \rightarrow \cdot \beta $, where $S$ is start nonterminal) to the final ($i = input.Length$, $s \rightarrow \beta \cdot$).
-At every step, there are four possible cases in processing of these pointers. 
+Classical LL algorithm operates with a pointer to the input (position $i$) and a grammar slot---pointer to the grammar of form $N \rightarrow \alpha \cdot x \beta $.
+Parsing may be described as a transition of these pointers from the initial position ($i = 0$, $S \rightarrow \cdot \beta $, where $S$ is start nonterminal) to the final ($i = input.Length$, $s \rightarrow \beta \cdot$). \emph{(Strange terminology. Can we say it can be described as a transition system for initial state to the final? Maybe even list the following options in a usual for transition systems manner?)}
+At each step, there are four possible cases in processing of these pointers. 
 
 \begin{enumerate}
 \item $N \rightarrow \alpha \cdot x \beta $, when $x$ is a terminal and $x = input[i]$. In this case both pointers should be moved to the right ($i \leftarrow i + 1$, $N \rightarrow \alpha  x \cdot \beta $).
-\item $N \rightarrow \alpha \cdot X \beta $, when $X$ is nonterminal. In this case we push return address $N \rightarrow \alpha X \cdot \beta $ to stack and move pointer in grammar to position $X \rightarrow \cdot \gamma$.\label{itm:2}
-\item $N \rightarrow \alpha \cdot $. This case means that processing of nonterminal $N$ is finished. We should pop return address from stack and use it as new slot.\label{itm:3}
+\item $N \rightarrow \alpha \cdot X \beta $, when $X$ is nonterminal. In this case we push return address $N \rightarrow \alpha X \cdot \beta $ to the stack and move pointer in the grammar to position $X \rightarrow \cdot \gamma$.\label{itm:2}
+\item $N \rightarrow \alpha \cdot $. This case means that processing of nonterminal $N$ is finished. We should pop return address from stack and use it as a new slot.\label{itm:3}
 \item $S \rightarrow \alpha \cdot $, where $S$ is a start nonterminal of grammar. In this case we should report success if $i = input.Length - 1$ or failure otherwise. 
 \end{enumerate}
 
-In the second case there can be several slots $X \rightarrow \cdot \gamma$ due to the fact that this algorithm is nondeterministic, so a strategy on how to choose one of them to continue parsing is needed.
-In LL(k) algorithm lookahead is used to avoid nondeterminism, but this strategy is still not good enough because there are context-free languages for which deterministic choice is impossible even for infinite lookahead~\cite{LLnonLL}.
-On the contrary to LL(k), generalized LL does not choose at all, handling all possible variants by using descriptors mechanism.
-Descriptor is a quadruple $(L, s, j, a)$ where $L$ is a grammar slot, $s$ is a stack node, $j$ is a position in the input string, and $a$ is a node of derivation tree.
-Each descriptor fully describes one parser state, thus instead of immediate processing of all variants, GLL store all possible branches and process them sequentially late.
+There can be several slots $X \rightarrow \cdot \gamma$ in the second case since the algorithm is nondeterministic, so some strategy to choose one of them for furhter parsing is needed.
+Lookahead is used to avoid nondeterminism in LL(k) algorithms, but this strategy is still not perfect because for some context-free languages deterministic choice is impossible even with infinite lookahead~\cite{LLnonLL}.
+On the contrary to LL(k), generalized LL does not choose at all, but instead handles all possible variants by means of descriptors mechanism.
+Descriptor is a quadruple $(L, s, j, a)$ where $L$ is a grammar slot, $s$ is a stack node, $j$ is a position in the input string, and $a$ is a node of derivation tree being constructed.
+Each descriptor fully describes parser state, thus instead of immediate processing of all variants, GLL stores all possible branches and process them \empth{sequentially late (what?)}.
 
-The stack in parsing process is used to store return information for the parser---a state to return for continue after finishing current state processing.
+The stack in parsing process is used to store return information for the parser---a state to return to after current state processing is finished.
 %name of function which will be called when current function finishes computation. 
-As mentioned before, generalized parsers process all possible derivation branches and parser must store it's own stack for every branch. 
-It leads to an infinite stack growth being done naively.  
+As mentioned before, generalized parsers process all possible derivation branches and parser must store its own stack for every branch. 
+Being done naively, it leads to an infinite stack growth.  
 Tomita-style graph structured stack (GSS)~\cite{Tomita} combines stacks resolving this problem.
-Each GSS node contains a pair of position in input and a grammar slot in GLL. 
+Each GSS node contains a pair of a position in input and a grammar slot in GLL. 
 
-In order to provide termination and correctness, we should avoid duplication of descriptors, and be able to process GSS nodes in arbitrary order. It is necessary to use the following additional sets for this.
+In order to provide termination and correctness, we should avoid duplication of descriptors, and be able to process GSS nodes in arbitrary order. The following additional sets are used for these purposees.
 \begin{itemize}
-\item $R$---working set which contains descriptors to be processed. Algorithm terminates whenever $R$ is empty.
-\item $U$---all created descriptors. Each time when we want to add a new descriptor to $R$, we try to find it in this set first.
-This way we process each descriptor only once which guarantee termination of parsing.
-\item $P$---popped nodes. Allows to process descriptors (and GSS nodes) in arbitrary order. 
+\item $R$---working set which contains descriptors to be processed. Algorithm terminates as soon as $R$ is empty.
+\item $U$---all created descriptors. New descriptor is added to $R$, only if it is not in $U$.
+This way each descriptor is processed only once which guarantees termination of the algorithm.
+\item $P$---popped nodes. This set allows to process descriptors (and GSS nodes) in arbitrary order. \emph{(allow smb to do smth --- other way this expression cannot be used. Rephrase)}
 \end{itemize}
 
 %Instead of explicit code generation used in classical algorithm, we use table version of GLL~\cite{TableGLL} in order to simplify adaptation to graph processing.
@@ -133,16 +133,16 @@ This way we process each descriptor only once which guarantee termination of par
 %\end{algorithmic}
 %\end{algorithm}
 
-There can be more than one derivation tree of a string with relation to ambiguous grammar.
-Generalized LL build all such trees and compact them in a special data structure Shared Packed Parse Forest~\cite{SPPF}, which will be described in the following section.
+There can exist several derivation trees for a string with respect to an ambiguous grammar.
+Generalized LL builds all such trees and compacts them in a special data structure Shared Packed Parse Forest~\cite{SPPF} \emph{(And when you wrote about GSS, you used small letters. Make this consistent throughout the paper)}, which is described in the following section.
 
 \subsection{Shared Packed Parse Forest}
 
 Binarized Shared Packed Parse Forest (SPPF)~\cite{brnglr} compresses derivation trees optimally reusing common nodes and subtrees.
-Version of GLL which uses this structure for parsing forest representation achieves worst-case cubic space complexity~\cite{gllParsingTree}.
+Version of GLL which utilizes this structure for parsing forest representation achieves worst-case cubic space complexity~\cite{gllParsingTree}.
 
 Binarized SPPF can be represented as a graph in which each node has one of four types described below.
-Let $i$ and $j$ be the start and the end positions of substring, and let us call a tuple $(i,j)$ an \textit{extension} of node.
+We denote the start and the end positions of substring as $i$ and $j$ respectively, and we call tuple $(i,j)$ an \textit{extension} of a node.
 
 \begin{itemize}
     \item \textbf{Terminal node} with label $(i, T, j)$.
@@ -155,4 +155,4 @@ Let $i$ and $j$ be the start and the end positions of substring, and let us call
 
 \end{itemize}
 
-Example of SPPF presented in figure~\ref{SPPF}. We remove redundant intermediate and packed nodes from the SPPF to simplify it and to decrease the size of structure.
+An example of SPPF is presented in figure~\ref{SPPF}. We remove redundant intermediate and packed nodes from the SPPF to simplify it and to decrease the size of the structure.
