@@ -4,94 +4,93 @@
 \label{appendix}
 \subsection*{Псевдокод алгоритма синтаксического анализа графов}
 
+Пусть $(C_S, C_U, i, l)$ --- текущий дескриптор, где $C_S$ --- состояние рекурсивного автомата, представляющего грамматику, $C_U$ --- вершина GSS, \linebreak $i$ --- вершина входного графа, $l$ --- длина разобранной части строки. Для получения имени нетерминала грамматики, соответствующего состоянию автомата используется функция $\Delta : Q \rightarrow N$. 
+
+Во время работы алгоритма поддерживаются следующие множества: $R$ --- глобальная очередь дескрипторов, $U$ --- множество созданных ранее дескрипторов, $P$ --- множество, хранящее информацию о вызовах функции \textbf{pop}.
+
 \begin{algorithmic}
-\Function{create}{$S_{call}, S_{next}, u, i, w$}
+\Function{add}{$S, u, i, l$}
+	\If{($(S, u, i, l) \notin U$)}
+		\State $U.add(S, u, i, l)$
+		\State $R.enqueue(S, u, i, l)$
+	\EndIf
+\EndFunction
+\end{algorithmic}
+
+\begin{algorithmic}
+\Function{create}{$S_{call}, S_{next}, u, i, l$}
 	\State $A \gets \Delta(S_{call})$
 	\If{($\exists$ GSS node labeled $(A, i)$)}  
-
 		\State $v \gets$ GSS node labeled $(A, i)$
-		\If{(there is no GSS edge from $v$ to $u$ labeled ($S_{next},w$))}
-			\State add GSS edge from $v$ to $u$ labeled ($S_{next},w$)
-			\For{($(v, z) \in \mathcal{P} $)}
-				\State $(y,N) \gets$ \textbf{getNodes}($S_{next}, u.nonterm, w, z$)
-
-				\State $(\_, \_, h) \gets y$
-				\State \textbf{add}($S_{next} , u, h, y$)
-
-				\If{$N \neq \$$}
-					\State $(\_, \_, h) \gets N$;
-					\textbf{pop}$(u,h,N)$ 
+		\If{(there is no GSS edge from $v$ to $u$ labeled ($S_{next}, l$))}
+			\State add GSS edge from $v$ to $u$ labeled ($S_{next}, l$)
+			\For{($(v, j, m) \in P$)}
+				\If{($S_{next}$ is a final state)}
+					\State \Call{pop}{$u, j, (l + m)$}
 				\EndIf
+				\State \Call{add}{$S_{next}, u, j, (l + m)$}
 			\EndFor
 		\EndIf
 	\Else
 		\State $v \gets$ \textbf{new} GSS node labeled $(A, i)$
-		\State create GSS edge from $v$ to $u$ labeled ($S_{next}, w$)
-		\State \textbf{add}($S_{call}, v, i, \$ $)
+		\State create GSS edge from $v$ to $u$ labeled ($S_{next}, l$)
+		\State \Call{add}{$S_{call}, v, i, 0$}
 	\EndIf
-	\Return{$v$}
 \EndFunction
 \end{algorithmic}
 
 \begin{algorithmic}   
-\Function{pop}{$u,i,z$}
-	\If{($(u,z) \notin \mathcal{P}$)}  
-		\State $\mathcal{P}.add(u,z)$
-		\ForAll{GSS edges $(u,S,w,v)$}
-			\State $(y,N) \gets$ \textbf{getNodes}($S, v.nonterm, w, z$)
-			\State \textbf{add}($S,v,i,y$)
-			\If{$N \neq \$$}
-				\ \textbf{pop}$(v,i,N)$ 
+\Function{pop}{$u,i,l$}
+	\If{($(u,i,l) \notin P$)}  
+		\State $P.add(u,i,l)$
+		\ForAll{GSS edges $(u,S,m,v)$}
+			\If{($S$ is a final state)}
+				\State \Call{pop}{$v, i, (l + m)$}
 			\EndIf
+			\State \Call{add}{$S, v, i, (l + m)$}
 		\EndFor
 	\EndIf
 \EndFunction
 \end{algorithmic}
 
 \begin{algorithmic}
-\Function{parse}{}
-	\State $R.enqueue(StartState, new GSSnode(StartNonterminal,0), 0, \$)$
+\Function{parse}{RA, input}
+	\State $GSSroot\gets new GSSnode(RA.StartState, input.StartState) $
+	\State $R.enqueue(RA.StartState, GSSroot, input.StartState, 0)$
 	\While{$R \neq \varnothing $}
-	\State{$(C_{S},C_{U},i,C_{N}) \gets R.dequeue()$}
+		\State{$(C_{S},C_{U},i,l) \gets R.dequeue()$}
 	
-	\If{ ($C_{N} = \$ $) and ($C_{S}$ is final state)}
-		\State $eps \gets \textbf{getNodeT}(\varepsilon, i)$  
-		\State $(\underline{\hspace{0.25cm}}, N) \gets \textbf{getNodes}(C_{S},C_{U}.nonterm, \$, eps)$
-		\State \textbf{pop}$(C_{U},i,N)$ 
-	\EndIf
+		\If{ ($l = 0 $) and ($C_{S}$ is a final state)}
+			\State \Call{pop}{$C_{U},i,0$}
+		\EndIf
 	
-	\For{\textbf{each} $transition (C_{S},label,S_{next})$}
-		\Switch{$label$}  
-		\Case{$Terminal(x)$ where ($x = input[i]$)}
-			\State $T \gets \textbf{getNodeT}(x, i)$
-	
-			\State $(y, N) \gets \textbf{getNodes}(S_{next},C_{U}.nonterm, C_{N}, T)$
-			\If{$N \neq \$$}
-				\ \textbf{pop}$(C_{U},i+1,N)$ 
-			\EndIf
-	
-			\If{$S_{next}$ have multiple ingoing transitions}
-				\State $\textbf{add}(S_{next}, C_{U}, i + 1, y)$
-			\Else
-				\State $R.enqueue(S_{next}, C_{U}, i + 1, y)$
-			\EndIf
-		\EndCase
-	
-		\Case{$Nonterminal(S_{call})$}
-	%\State{$slots \gets pTable[A][input[i]]$}
-	%\If{$slots \neq \varnothing$}
-			\State \textbf{create}($S_{call}, S_{next}, C_{U}, i, C_{N}$)
-	%\EndIf
-	%\ForAll{$L \in slots$}
-	%    \State{\Call{add}{L,u,i,\$}} 
-	%\EndFor
-		\EndCase
-		\EndSwitch
-	
-	\EndFor
+		\For{\textbf{each} $transition (C_{S},label,S_{next})$}
+			\Switch{$label$}
+			\Case{$Terminal(x)$}
+				\For{\textbf{each} (input[i] $\xrightarrow[]{x}$ input[k])}
+					\If{($S_{next}$ is a final state)}
+						\State \Call{pop}{$C_U, k, (l + 1)$}
+					\EndIf
+					\If{$S_{next}$ have multiple ingoing transitions}
+						\State \Call{add}{$S_{next}, C_{U}, k, (l + 1)$}
+					\Else
+						\State $R.enqueue(S_{next}, C_{U}, k, (l + 1))$
+					\EndIf
+				\EndFor
+			\EndCase
+			
+			\Case{$Nonterminal(S_{call})$}
+				\State \Call{create}{$S_{call}, S_{next}, C_{U}, i, l$}
+			\EndCase
+			\EndSwitch
+		\EndFor
 	\EndWhile
-	\If{SPPF node ($StartNonterminal,0,input.length$) exists}
-		\State return this node
+	\State $result \gets \emptyset$
+	\For{\textbf{each} $(u, i, l) \in P$ where $u = GSSroot$, $i = input.FinalState$}
+		\State $result.add(l)$
+	\EndFor
+	\If{$result \neq \emptyset$}
+		\ return $result$
 	\Else
 		\ report failure
 	\EndIf
