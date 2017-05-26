@@ -136,7 +136,7 @@
     \ifthenelse{\equal{#1}{en}}
         {
         \presetkeys[#1]{mytitle}{
-          university = {SAINT PETERSBURG STATE UNIVERSITY},
+          university = {SAINT-PETERSBURG STATE UNIVERSITY},
           faculty = {},
           city = {Saint-Petersburg},
           year = {\the\year},
