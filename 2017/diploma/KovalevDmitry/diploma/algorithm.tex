@@ -1,41 +1,129 @@
 \section{Алгоритм синтаксического анализа \\ контекстно-свободного представления}
 
-\subsection{Описание алгоритма}
+Разработанный алгоритм расширяет подход к синтаксическому анализу графов на основе GLL. На вход алгоритм принимает два рекурсивных автомата, $RA_1$ и $RA_2$, построенных по исходным грамматикам $G_1$ и $G_2$ соответственно, где $G_1$ --- произвольная контекстно-свободная грамматика, а $G_2$, исходя из ограничений разрешимости задачи, --- грамматика, не содержащая непосредственной или скрытой рекурсии.
 
-// ЧЕРНОВИК
+Алгоритм производит обход автоматов, рассматривая три типа ситуаций (финальное состояние, терминальный/нетерминальный переходы) для каждого из их состояний. Автомат, состояние которого обрабатывается в данный момент, будем называть \textit{основным}; другой автомат из пары назовем \textit{побочным}.
 
-Мы пытаемся решать следующую задачу: пусть $G_1 = (N, T, S, P)$ --- произвольная КС-грамматика, $G_2$ --- NSE КС-грамматика. Алгоритм принимает на вход два рекурсивных автомата, $M_1$ и $M_2$, построенных по грамматикам $G_1$ и $G_2$ соотвественно, при этом в автомате $M_2$ левые/правые рекурсивные вызовы заменены на циклы, как в обычном конечном автомате.
+Оригинальный алгоритм синтаксического анализа графов использует один GSS, необходимый для правильного обхода рекурсивного автомата, который является представлением эталонной грамматики. Для работы с двумя рекурсивными автоматами требуется поддерживать одновременно два стека, $GSS_1$ и $GSS_2$. При этом используется модификация GSS с измененной структурой вершин: здесь они представляют собой тройку $(S, i, u)$, где: 
+\begin{itemize}
+	\setlength\itemsep{0em}
+	\item $S$ --- нетерминал;
+	\item $i$ --- состояние побочного автомата;
+	\item $u$ --- вершина стека побочного автомата.
+\end{itemize}
+Пара $(i, u)$ описывает состояние обхода побочного автомата на момент начала разбора нетерминала $S$. В оригинальном алгоритме достаточно было сохранять в вершине GSS лишь состояние входного автомата, так как подразумевалось, что даный автомат относится к классу конечных и для его обхода не используется стек.
 
-Результатом работы алгоритма являются тройки вида $(X, n_1, n_2)$, где $X \in N$, $n_1, n_2$ --- номера состояний автомата $M_2$. 
-Для каждой из таких троек выполняется следующее утверждение: $\exists \, \omega \in T^*$ такая, что $X \rightarrow^* \omega$ в $G_1$ и $\omega \in L(M')$, где $M'$ --- рекурсивный автомат, полученный из $M_2$ путем замены начального и конечного состояния на $n_1$ и $n_2$ соответственно.
+Дескрипторы, которые использует разработанный алгоритм, также отличаются от представленных ранее. Для описания процесса анализа в определенный момент времени теперь необходимо указывать вершины GSS для обоих автоматов. Получаем дескриптор вида $(S_1, S_2, u_1, u_2)$, где $S_1, S_2$ --- состояния автоматов, а $u_1, u_2$ --- вершины соответствующих стеков. Функции \textbf{add}, \textbf{create} и \textbf{pop} были изменены в соответствии с новыми определениями дескрипторов и вершин GSS.
+\begin{algorithm}[H]
+\begin{algorithmic}
+\caption{Функции для работы с GSS и дескрипторами}
+\Function{add}{$S_1, S_2, u_1, u_2$}
+	\If{($(S_1, S_2, u_1, u_2) \notin U$)}
+		\State $U.add(S_1, S_2, u_1, u_2)$
+		\State $R.enqueue(S_1, S_2, u_1, u_2)$
+	\EndIf
+\EndFunction
 
-Получая такие результаты, мы, по сути, отвечаем на вопрос о проверке пустоты пересечения КС-языка и регулярного, представленных в необычных абстракциях. 
-Для КС-языка мы используем рекурсивный автомат, а для регулярного --- нечто среднее между конечным автоматом и NSE грамматикой (это нечто все еще использует стек, но только для обработки нерекурсивных вызовов). 
-Такое представление эквивалентно по выразительности NSE и, следовательно, FA (см. рис. \ref{circle:lang}). 
-%Но неизвестно, к какому классу сложности относится задача (и разрешима ли вообще) о проверке пустоты пересечения регулярного языка, представленного в данной форме, с КС-языком (см. рис. \ref{circle:intersec}).
+\Function{create}{$S_{call}, S_{next}, u, S_i, w$}
+	\State $A \gets \Delta(S_{call})$
+	\If{($\exists$ GSS node labeled $(A, i, w)$)}  
+		\State $v \gets$ GSS node labeled $(A, i)$
+		\If{(there is no GSS edge from $v$ to $u$ labeled $S_{next}$)}
+			\State add GSS edge from $v$ to $u$ labeled $S_{next}$
+			\For{($(v, j) \in P$)}
+				\If{($S_{next}$ is a final state)}
+					\State \Call{pop}{$u, j, w$}
+				\EndIf
+				\State \Call{add}{$S_{next}, S_i, u, w$}
+			\EndFor
+		\EndIf
+	\Else
+		\State $v \gets$ \textbf{new} GSS node labeled $(A, i, w)$
+		\State create GSS edge from $v$ to $u$ labeled $S_{next}$
+		\State \Call{add}{$S_{call}, S_i, v, w$}
+	\EndIf
+\EndFunction
+  
+\Function{pop}{$u,S_i,w$}
+	\If{($(u,i) \notin P$)}  
+		\State $P.add(u,i)$
+		\ForAll{GSS edges $(u,S,v)$}
+			\If{($S$ is a final state)}
+				\State \Call{pop}{$v, S_i, w$}
+			\EndIf
+			\State \Call{add}{$S, S_i, v, w$}
+		\EndFor
+	\EndIf
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
 
-%\begin{figure}[h!]
-%	\begin{subfigure}[t]{0.45\textwidth}
-%		\includegraphics[width=\textwidth]{pictures/lang}
-%		\caption{Выразительность языка, задаваемого абстракцией}
-%		\label{circle:lang}
-%	\end{subfigure}
-%	~
-%	\begin{subfigure}[t]{0.45\textwidth}
-%		\includegraphics[width=\textwidth]{pictures/intersec_problem}
-%		\caption{Класс сложности для задачи о проверке пустоты пересечения с КС-языком}
-%		\label{circle:intersec}
-%	\end{subfigure}
-%	\caption{Красивые круги. Здесь NR --- нерекурсивная грамматика, FA --- конечный автомат, NSE --- грамматика без вложенной рекурсии, X --- наше представление}
-%	\label{circle}
-%\end{figure}
+Обработка терминальных и нетерминальных переходов, а также финальных состояний автомата была вынесена из главного цикла алгоритма в отдельную функцию, которая вызывается для каждого из автоматов.
 
-\subsection{Доказательство корректности}
+\begin{algorithm}[H]
+\begin{algorithmic}
+\caption{Функция для обработки состояния рекурсивного автомата}
+\Function{handleState}{$RA, context$}
+	\State $S_1, S_2, u_1, u_2 \gets$ get values for $RA$ from the $context$
+		\If{($S_1$ is a final state)}
+			\State \Call{pop}{$u_1,S_2,u_2$}
+		\EndIf
+	
+		\For{\textbf{each} $transition (S_1,label,S_{next})$}
+			\Switch{$label$}
+			\Case{$Terminal(x)$}
+				\For{\textbf{each} (input[i] $\xrightarrow[]{x}$ input[k])}
+					\If{($S_{next}$ is a final state)}
+						\State \Call{pop}{$u_1, k, u_2$}
+					\EndIf
+					\If{$S_{next}$ have multiple ingoing transitions}
+						\State \Call{add}{$S_{next}, k, u_1, u_2$}
+					\Else
+						\State $R.enqueue(S_{next}, k, u_1, u_2)$
+					\EndIf
+				\EndFor
+			\EndCase
+			
+			\Case{$Nonterminal(S_{call})$}
+				\State \Call{create}{$S_{call}, S_{next}, u1, S_2, u_2$}
+			\EndCase
+			\EndSwitch
+		\EndFor
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
 
-\begin{theorem}{Завершаемость.}
-	Алгоритм завершает работу за конечное число шагов для произвольных входных данных
-\end{theorem}
+Основная управляющая функция алгоритма, содержащая цикл обработки дескрипторов, представлена в листинге \ref{alg}. Необходимо отметить, что для поиска шаблонов-подстрок обход автомата $RA_2$ запускается из каждой его вершины. Соответствующие стартовые дескрипторы создаются перед входом в цикл.
 
-\begin{theorem}{Корректность.}
-	???
-\end{theorem}
+\begin{algorithm}[H]
+\begin{algorithmic}
+\caption{Алгоритм синтаксического анализа КС-представления}
+\Function{parse}{$RA_1, RA_2$}
+	\For{\textbf{each} $q \in RA_2.States$}
+		\State $v1, v2 \gets (RA_1.StartState, q, \$), (q, RA_1.StartState, \$)$
+		\State add $v1$ to $GSS_1$, $v2$ to $GSS_2$
+		\State $R.enqueue(RA_1.StartState, q, v1, v2)$
+	\EndFor
+	\While{$R \neq \emptyset$}
+		\State $currentContext \gets R.dequeue()$
+		\State \Call{handleState}{$RA_1, currentContext$}
+		\State \Call{handleState}{$RA_2, currentContext$}
+	\EndWhile
+	\State $result \gets \emptyset$
+	\For{\textbf{each} $(u, i) \in P$ where $u = GSS_1.Root$}
+	\State $result.add(i)$
+	\EndFor
+	\If{$result \neq \emptyset$}
+	\ return $result$
+	\Else
+	\ report failure
+	\EndIf
+\EndFunction
+\label{alg}
+\end{algorithmic}
+\end{algorithm}
+
+Результатом работы алгоритма являются пары вида $(n_1, n_2)$, где $n_1, n_2$ --- номера состояний автомата $RA_2$. 
+Для каждой из таких пар выполняется следующее утверждение: $\exists \, \omega \in T^*$ такая, что $\omega \in L(G_1)$ и $\omega \in L(RA')$, где $RA'$ --- рекурсивный автомат, полученный из $RA_2$ путем замены начального и конечного состояний на $n_1$ и $n_2$ соответственно.
+
+\pagebreak
