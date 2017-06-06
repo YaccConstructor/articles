@@ -59,7 +59,7 @@
 %% Теперь у нас будут переносы слов
 \usepackage{polyglossia}
 \setdefaultlanguage{russian}
-
+\setotherlanguage{english}
 
 %% Отступ в первом абзаце
 \usepackage{indentfirst}
@@ -125,7 +125,7 @@
 	\ifthenelse{\equal{#1}{ru}}
 	{
 		\presetkeys[#1]{mytitle}{
-			university = {Санкт-Петербургский государственный университет},
+			university = {Санкт-Петербургский Государственный Университет},
 			faculty = {},
 			city = {Санкт-Петербург},
 			year = {\the\year},
@@ -136,9 +136,9 @@
 	\ifthenelse{\equal{#1}{en}}
 	{
 		\presetkeys[#1]{mytitle}{
-			university = {SAINT-PETERSBURG STATE UNIVERSITY},
+			university = {SAINT PETERSBURG UNIVERSITY},
 			faculty = {},
-			city = {Saint-Petersburg},
+			city = {Saint Petersburg},
 			year = {\the\year},
 			type = {diploma}
 		}{}
