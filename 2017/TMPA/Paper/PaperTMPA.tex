@@ -148,7 +148,7 @@ In this section we present GLL-style parser for arbitrary ECFG processing.
 \subsection{Generalized LL Parsing Algorithm}%--------------------------------------------------------------------------------------------------------------------------------------------
 
 An idea of the GLL algorithm is based on handling of descriptors which can uniquely define state of parsing process.
-Descriptor is a four-element tuple $(L, i, T, S)$ where: 
+Descriptor is a four-element tuple ($L$, $i$, $T$, $S$) where: 
 \begin{itemize}
 \item $L$ is a grammar slot --- pointer to a position in the grammar of the form~$(S \to \alpha \cdot \beta)$;
 \item $i$ --- position in the input;
@@ -223,7 +223,7 @@ So, our goal is to build RA with minimal number of states for given ECFG, which 
 \item Build an FSA using Thompson's method for each right-hand side of productions~\cite{Thompson:1968:PTR:363347.363387}.
 \item Create a map $M$ from each nonterminal to a corresponded start state.
 This map should be kept consistent during all of the following steps. 
-\item Convert FSAs from previous step to a deterministic FSAs without $\varepsilon$-transitions using the algorithm described in~\cite{aho1974design}.
+\item Convert FSAs from first step to a deterministic FSAs without $\varepsilon$-transitions using the algorithm described in~\cite{aho1974design}.
 \item Minimize DFSAs, for example, by using John Hopcroft's algorithm~\cite{hopcroft1971n}.
 \item Replace transitions by nonterminals with transitions labeled by start states using map $M$.
 Result of this step is a required RA. We also use map $M$ to define function $\Delta : Q \to N$ where $N$ is nonterminal name.
@@ -352,7 +352,8 @@ The following nonexclusive cases may arise during this descriptor processing.
     \item \textbf{There is a terminal transition $C_S \xrightarrow[]{\omega.[i]} q$.} 
     First, build terminal node $ t = (\omega.[i], i, i+1) $ and then call \textbf{getNodes} function
     to build parents for $ C_N $ and $ t $. Function \textbf{getNodes} returns a tuple $ (y, N) $, where $N$ is an optional nonterminal node.
-    Create descriptor $ (q, C_U, i+1, y) $ and enqueue it regardless of whether it has been created before.
+    If $q$ has multiple ingoing transitions call \textbf{add}$ (q, C_U, i+1, y) $
+    Otherwise enqueue descriptor $ (q, C_U, i+1, y) $ regardless of whether it has been created before.
     If $ N $ is not dummy, perform pop action for this node, state $ q $ and position $i + 1 $.
     
     \item\textbf{ There are nonterminal transitions from $C_S$.}
@@ -399,8 +400,8 @@ FSA built for this grammar is presented in fig.~\ref{fig:automatonForG1}.
 For this grammar parser for RA creates less GSS edges because tails of alternatives in productions
 are represented by only one path in RA. This fact leads to decrease of SPPF nodes and descriptors.
 
-Experiments were performed on inputs of different length and are presented in fig.~\ref{expPlots}(we use log scale).
-Exact values for the input $a^{40}$ are shown in the table~\ref{expTable}.
+Experiments were performed on inputs of different length and are presented in fig.~\ref{expPlots}.
+Exact values for the input $a^{450}$ are shown in the table~\ref{expTable}.
 
 Note that we chose highly ambiguous grammar to show significant difference between approaches on short inputs, and this is a primary reason why parsing time is huge. 
 
@@ -413,14 +414,18 @@ All tests were run on a PC with the following characteristics:
 
 \begin{table}[ht]   
 \begin{center}
-    \begin{tabular}{ | c | c | c | c | c | c | }
+    \begin{tabular}{ | c | c | c | c | c | c | c |}
         \hline
-                           & Time, s & Descriptors & GSS Edges & GSS Nodes & SPPF Nodes   \\ \hline
-        Factorized grammar & 81.814  & 7940        & 6974      & 80        & 111127244  \\ \hline
-        Minimized RA       & 54.637  & 5830        & 4234      & 80        & 74292078  \\ \hline
+        &&&\multicolumn{2}{|c|}{GSS} &&\\ \cline{4-5}
+                           & Time, s     & Descriptors & Edges & Nodes & SPPF Nodes & Memory usage \\ \hline
+        Factorized &&&&&& \\
+                   grammar & 10 min 13 s & 1104116     & 1004882 & 902       & $195 ^*10^6$& 11818 Mb \\ \hline       %81.814  & 7940        & 6974      & 80        & 111127244  \\ \hline
+        Minimized &&&&&& \\
+        RA                 & 5 min 51 s  & 803281      & 603472  & 902       & $120 ^*10^6$& 8026 Mb  \\ \hline \hline
+        Ratio              &  43$\%$     & 28$\%$      & 40 $\%$ &  0 $\%$   & 39 $\%$    & 33 $\%$ \\ \hline        %54.637  & 5830        & 4234      & 80        & 74292078  \\ \hline
     \end{tabular}
 \end{center}
-\caption{Experiment results for input $a^{40}$}
+\caption{Experiment results for input $a^{450}$}
 \label{expTable}
 \end{table}
 
