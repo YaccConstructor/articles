@@ -1,0 +1,166 @@
+%compile with xelatex --shell-escape ContextFreeConstrainedPathFindingInGraph.tex
+
+% v2-acmtog-sample.tex, dated March 7 2012
+% This is a sample file for ACM Transactions on Graphics
+%
+% Compilation using 'acmtog.cls' - version 1.2 (March 2012), Aptara Inc.
+% (c) 2010 Association for Computing Machinery (ACM)
+%
+% Questions/Suggestions/Feedback should be addressed to => "acmtexsupport@aptaracorp.com".
+% Users can also go through the FAQs available on the journal's submission webpage.
+%
+% Steps to compile: latex, bibtex, latex latex
+%
+% For tracking purposes => this is v1.2 - March 2012
+\documentclass[runningheads,a4paper]{llncs}
+%
+\usepackage{makeidx}  % allows for indexgeneration
+ % V1.2
+
+%\acmVolume{VV}
+%\acmNumber{N}
+%\acmYear{YYYY}
+%\acmMonth{Month}
+%\acmArticleNum{XXX}
+%\acmdoi{10.1145/XXXXXXX.YYYYYYY}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+%\usepackage{gnuplottex}
+\usepackage{tikz}
+\usepackage{mathtools}
+
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{textcomp}
+
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+
+
+\begin{document}
+
+\newtheorem{mytheorem}{Theorem}
+%\newtheorem{lemma}{Lemma}
+
+\algrenewcommand\algorithmicindent{0.5em}
+\algnewcommand\algorithmicswitch{\textbf{switch}}
+\algnewcommand\algorithmiccase{\textbf{case}}
+\algnewcommand\algorithmicassert{\texttt{assert}}
+\algnewcommand\Assert[1]{\State \algorithmicassert(#1)}
+% New "environments"
+\algdef{SE}[SWITCH]{Switch}{EndSwitch}[1]{\algorithmicswitch\ #1\ \algorithmicdo}{\algorithmicend\ \algorithmicswitch}
+\algdef{SE}[CASE]{Case}{EndCase}[1]{\algorithmiccase\ #1}{\algorithmicend\ \algorithmiccase}
+
+\algtext*{EndSwitch}
+\algtext*{EndCase}
+\algtext*{EndWhile}% Remove "end while" text
+\algtext*{EndIf}% Remove "end if" text
+\algtext*{EndFor}% Remove "end for" text
+\algtext*{EndFunction}% Remove "end function" text
+
+\newif\ifboldnumber
+\newcommand{\boldnext}{\global\boldnumbertrue}
+
+% Default definition is \footnotesize#1:
+\algrenewcommand\alglinenumber[1]{%
+  \footnotesize\ifboldnumber\bfseries\fi\global\boldnumberfalse#1:}
+
+
+\makeatletter
+\def\@copyrightspace{\relax}
+\makeatother
+
+%\title{Generalized LL Parsing for Context-Free Constrained Path Search Problem}
+%\title{Structural representation of result for context-free path query problem}
+%\title{Generalized LL for context-free path query problem}
+%\title{Context-free path query with Structural representation of result}
+%\title{Generalized LL for Context-free path query with Structural representation of result}
+\title{Context-Free Path Querying with Structural Representation of Result}
+
+\sloppy
+
+%\numberofauthors{2}
+
+\author{
+       Semyon Grigorev\\
+       \and
+       Anastasiya Ragozina\\
+}
+
+\institute{Saint Petersburg State University, 7/9 Universitetskaya nab.\\ St. Petersburg, 199034 Russia \\
+\email{semen.grigorev@jetbrains.com},
+\email{ragozina.anastasiya@gmail.com}
+}
+
+\maketitle
+
+\begin{abstract}
+Graph data model and graph databases are popular in such areas as bioinformatics, semantic web, and social networks.
+One specific problem in the area is a path querying with constraints formulated in terms of formal grammars.
+The query in this approach is written as a grammar and paths querying is graph parsing with respect to the grammar.
+There are several solutions to it, but they are based mostly on CYK or Earley algorithms which have some restrictions in comparison with other parsing techniques, and usage of advanced parsing techniques for graph parsing is still an open problem.
+In this paper we propose a graph parsing technique which is based on generalized top-down parsing algorithm (GLL) and allows one to build finite structural query result representation with respect to the given grammar in polynomial time and space for arbitrary context-free grammar and graph.
+
+\keywords{Graph database, path query, graph parsing, context-free grammar, top-down parsing, GLL, LL}
+
+\end{abstract}
+
+
+% A category with the (minimum) three required fields
+%\category{Information Systems}{Database Management}{Query Languages}
+%A category including the fourth, optional field follows...
+%\category{Theory of computation}{Formal languages and automata theory}{Grammars and context-free languages}
+
+%\terms{Languages, Algorithms}
+
+
+
+\section{Introduction}
+Graph data model and graph data bases are very popular in such areas as bioinformatics, semantic web, and social networks.
+\emph{(I don't like the next sentence)}
+Extraction of paths which satisfy specific constraints may be useful for investigation of graph structured data and for detection of relations between data items.
+One specific problem---path querying with constraints---is usually formulated in terms of formal grammars and is called formal language constrained path problem~\cite{FLCpathProblem}.
+
+Classical parsing techniques can be used to solve formal language constrained path problem and thus the more common problem---graph parsing. 
+Graph parsing may be required in graph data base querying, formal verification, string-embedded language processing, and any other areas where graph structured data is used. 
+
+%Though constrains formulated in terms of regular languages is widely used, using of more powerful context-free grammars for graph querying is in active research: recent results is context-free extension for SPARQL~\cite{CFGonRDF} and research of Jelle Hellings~(\cite{Hellings16,ConjCFPathQuery}).
+
+Existing solutions in context-free graph querying field usually employ such parsing algorithms as CYK or Earley(for example~\cite{ConjCFPathQuery,CFGonRDF,GraphQueryWithEarley}). 
+These algorithms are simple, but impose restrictions.
+For example, CYK algorithm demands the input grammar to be transformed into Chomsky normal form (CNF) causing perfomance issues, since parsing time depends on grammar size which significantly increases during the transformation.
+Such algorithms as GLR and GLL process arbitrary context-free grammars, thus performance may be improved by employing them for graph parsing problem.
+%Moreover, Earley-based graph parsing algorithm, which proposed in~\cite{GraphQueryWithEarley}, has restrictions on processing graphs with cycles: it is required to specify maximal length of path for parsing termination.
+Other properties of parsing algorithms also affect performance: for example, it may be possible to improve evaluation of queries for a given pair of nodes by using directed parsing algorithm (CYK is undirected) \emph{(we need to rephrase the last bit)}. 
+Thus, we argue that it is required to research the applicability of advanced parsing techniques~\cite{Grune} for graph processing. 
+
+Even though a set of path querying solutions has been developed~\cite{GraphQueryWithEarley,ConjCFPathQuery,QueryGraphWithData,RegularDBQuery}, query result exploration is still a challenge~\cite{hofman2015separabilityForRegQueryDebugging}, as also there is a need for a simplification of complex query debugging, especially for context-free queries. \emph{(The link between this and the next sentence is unclear)}
+In~\cite{Hellings16}, annotated grammars are proposed as a possible solution: this representation is finite for any input data and contains information neccessary for detailed result exploration.
+At the same time, classical parsing techniques provide another representation---derivation tree---which contains exhaustive information about parsed sentence structure in terms of specified grammar, and is more native for grammar based analysis.
+In this work we show that finite derivation forest may be constructed for arbitrary graph and context-free grammar.
+
+We make the following contributions in this paper.
+\begin{enumerate}
+\item We propose a graph parsing algorithm based on generalized top-down parsing algorithm---GLL~\cite{scott2010gll}---and provide its time and space complexity estimations. 
+For graph $M=(V,E,L)$, space complexity is $O(|V|^3 + |E|)$ and time complexity is $O\left(|V|^3*\max\limits_{v \in V}\left(deg^+\left(v\right)\right)\right)$.
+\item \emph{(It still looks ugly)} Questions on possibility of advanced parsing techniques application for graph processing, and on possibility of top-down algorithms utilization for  answering
+queries for a given pair of nodes are stated in~\cite{Hellings16}. We show that all of these are possible.
+%Thus we answer on first and second questions which are stated in~\cite{Hellings16}: yes, we can use advanced parsing techniques for graph parsing, and we can use top-down parsing algorithm for goal-oriented queries evaluation.
+\item We propose a graph parsing algorithm which constructs finite representation of parse forest containing derivation trees for all matched paths in graph. We show how this representation can be used for realistic problems solving.
+\item We implemented proposed algorithm and our evaluation shows that advanced parsing techniques increase performance (up to 1000 times in some cases) as compared to CYK-based implementation, proposed in~\cite{CFGonRDF}.
+\end{enumerate}
+
+\input{Preliminaries.tex}
+\input{Gll.tex}
+\input{MotivExample.tex}
+\input{Evaluation.tex}
+\input{Conclusion.tex}
+\input{Acknowledgments.tex}
+
+
+\bibliographystyle{abbrv}
+\bibliography{ContextFreeConstrainedPathFindingInGraph}
+
+\end{document}
