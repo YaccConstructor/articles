@@ -1,0 +1,66 @@
+\section{GLL-based Graph Parsing Algorithm}
+
+%Our solution is based on generalized LL (GLL)~\cite{scott2010gll,FastPracticalGLL} parsing algorithm which allows to process arbitrary (including left-recursive and ambiguous) context-free grammars with worst-case cubic time %complexity and linear time complexity for LL grammars on a linear input. 
+
+In this section we propose GLL-based algorithm which can solve language constrained path problem.
+In detail, we present such modification of GLL algorithm, that for input graph $M$, set of start vertices $V_s\subseteq V$, set of final vertices $V_f\subseteq V$, and grammar $G_1$, it returns SPPF which contains all derivation trees for all paths $p$ in $M$, such that $\Omega(p) \in L(G_1)$, and $p.start \in V_s,\ p.end \in V_f$.
+
+First of all, note that an input string for a classical parser can be represented as a linear graph, and positions in the input are vertices of this graph.
+This observation can be generalized to arbitrary graph with remark that for every position there is a set of labels of all outgoing edges for given vertex instead of just one next symbol. 
+Thus, in order to use GLL for graph parsing we need to use graph vertices as positions in the input and modify behavior in case 1 from section~\ref{BasicGLL} to process multiple ``next symbols''.
+Small modification is also required for initialization of $R$ set: the set of descriptors for all vertices in $V_s$ should be added to $R$, not only one initial descriptor.
+Also, in the case 4~(\ref{BasicGLL}): we should check that $i \in V_f$, not that $i = input.Length - 1$.
+All other steps (and correspondent functions) are reused from the original algorithm without any changes.
+
+\begin{algorithm}[ht]
+\begin{algorithmic}[1]
+\caption{\textbf{Processing} function modified in order to process arbitrary directed graph}
+\label{modifAlgo}
+\Function{processing}{\ }
+  \State{$dispatch \gets true$}
+  \Switch{$L$}
+  \Case{$(X \rightarrow \alpha \cdot x \beta)$ where $x$ is terminal}
+       \boldnext
+       \ForAll{$\{ e | e \in input.outEdges(i), tag(e) = x \}$}
+       \State{$new\_cN \gets cN$}
+       \If{$new\_cN = dummyAST$} 
+          \State{$new\_cN \gets \Call{getNodeT}{e}$} 
+       \Else 
+          \State{$new\_cR \gets \Call{getNodeT}{e}$}
+       \EndIf
+       \State{$L \gets (X \rightarrow \alpha x \cdot \beta)$}
+       \If{$new\_cR \neq dummy$}
+          \State{$new\_cN \gets \Call{getNodeP}{L, new\_cN, new\_cR}$} 
+       \EndIf
+       \State{\Call{add}{$L,v,target(e),new\_cN$}}
+       \EndFor
+  \EndCase
+  \Case{$(X \rightarrow \alpha \cdot x \beta)$ where $x$ is nonterminal}
+       \State{$v \gets$ \Call{create}{$(X \rightarrow \alpha x \cdot \beta), v, i, cN$}}
+       \boldnext
+       \State{$slots \gets \bigcup_{e \in input.OutEdges(i)} pTable[x][e.Token]$}
+       \ForAll{$L \in slots$}
+          \State{\Call{add}{$L,v,i,dummy$}} 
+       \EndFor
+  \EndCase
+  \Case{$(X \rightarrow \alpha \cdot )$}
+       \State{\Call{pop}{$v,i,cN$}} 
+  \EndCase
+  \Case{$\_$}
+       \State{final result processing and error notification} 
+  \EndCase
+  \EndSwitch
+\EndFunction
+
+\end{algorithmic}
+\end{algorithm}
+
+Our solution handles arbitrary numbers of start and final vertices, which allows one to solve different kinds of problems arising in the field, namely querying of all paths in graph, all paths from specified vertex, all paths between specified vertices. As a result, we can use proposed algorithm for querying paths for two specified vertices, and thus we provide positive answer for a question stated in~\cite{Hellings16}. 
+
+The algorithm has the following properties. Detailed discussion of them can be found in our report~\cite{GrigorevR16}.
+\begin{itemize} 
+\item Proposed algorithm terminates for arbitrary input data.
+\item The worst-case space complexity of proposed algorithm for graph $M=(V,E,L)$ is $O(|V|^3 + |E|)$.
+\item The worst-case runtime complexity of proposed algorithm for graph $M=(V,E,L)$ is $O\left(|V|^3*\max\limits_{v \in V}\left(deg^+\left(v\right)\right)\right).$
+\item Result SPPF size is $O(|V'|^3 + |E'|)$ where $M'=(V',E',L')$ is a subgraph of input graph $M$ which contains only matched paths.
+\end{itemize}
