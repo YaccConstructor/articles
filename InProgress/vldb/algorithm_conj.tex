@@ -1,0 +1,71 @@
+\section{Graph parsing using conjunctive grammars}
+Since the query evaluation using the relational query semantics and conjunctive grammars is undecidable problem~\cite{hellingsRelational} then we propose an algorithm that calculates the over-approximation of all conjunctive relations $R_A$.
+
+\subsection{Reducing graph parsing to transitive closure} \label{section_reducing_conj}
+In this section, we show how the over-approximation of all conjunctive relations $R_A$ can be calculated by computing the transitive closure.
+
+Let $G = (N,\Sigma,P)$ be a conjunctive grammar and $D = (V, E)$ be a graph. We number the nodes of the graph $D$ from 0 to $(|V| - 1)$ and we associate the nodes with their numbers. We initialize $|V| \times |V|$ matrix $b$ with $\emptyset$. Further, for every $i$ and $j$ we set $b_{i,j} = \{A_k~|~((i,x,j) \in E) \wedge ((A_k \rightarrow x) \in P)\}$. Finally, we compute the conjunctive transitive closure $b^{conj} = b^{(1)} \cup b^{(2)} \cup \cdots$ where $b^{(i)} = b^{(i-1)} \cup (b^{(i-1)} \circ b^{(i-1)})$, $i \ge 2$ and $b^{(1)} = b$. For the conjunctive transitive closure $b^{conj}$, the following statements holds.
+
+\begin{lemma}\label{lemma:conj}
+Let $D = (V,E)$ be a graph, let $G =(N,\Sigma,P)$ be a conjunctive grammar. Then for any $i, j$ and for any non-terminal $A \in N$, if $(i,j) \in R_A$ and $i \pi j$, such that there is a derivation tree according to the string $l(\pi)$ and a conjunctive grammar $G_A = (N,\Sigma,P,A)$ of the height $h \leq k$ then $A \in b^{(k)}_{i,j}$.
+\end{lemma}
+\begin{proof}(Proof by Induction)
+
+\textbf{Basis}: Show that the statement of the lemma holds for $k = 1$. For any $i, j$ and for any non-terminal $A \in N$, if $(i,j) \in R_A$ and $i \pi j$, such that there is a derivation tree according to the string $l(\pi)$ and a conjunctive grammar $G_A = (N,\Sigma,P,A)$ of the height $h \leq 1$ then there is edge $e$ from node $i$ to node $j$ and $(A \rightarrow x) \in P$ where $x = l(\pi)$. Therefore $A \in b^{(1)}_{i,j}$ and it has been shown that the statement of the lemma holds for $k = 1$.
+
+\textbf{Inductive step}: Assume that the statement of the lemma holds for any $k \leq (p - 1)$ and show that it also holds for $k = p$ where $p \geq 2$. Let $(i,j) \in R_A$ and $i \pi j$, such that there is a derivation tree according to the string $l(\pi)$ and a conjunctive grammar $G_A = (N,\Sigma,P,A)$ of the height $h \leq p$.
+
+Let $h < p$. Then by the inductive hypothesis $A \in b^{(p-1)}_{i,j}$. Since $b^{(p)} = b^{(p-1)} \cup (b^{(p-1)} \circ b^{(p-1)})$ then $A \in b^{(p)}_{i,j}$ and the statement of the lemma holds for $k = p$.
+
+Let $h = p$. Let $A \rightarrow B_1 C_1~\& \ldots \&~B_m C_m$ be the rule corresponding to the root of the derivation tree from the assumption of the lemma. Therefore the heights of all subtrees corresponding to non-terminals $B_1, C_1, \ldots B_m, C_m$ are less than $p$. Then by the inductive hypothesis $B_x \in b^{(p-1)}_{i,t_x}$ and $C_x \in b^{(p-1)}_{t_x,j}$, for $x = 1\ldots m$ and $t_x \in V$. Let $d$ be a matrix that have subsets of $N \times N$ as elements, where $d_{i,j} = \bigcup^{n}_{t=1}{b^{(p-1)}_{i,t} \times b^{(p-1)}_{t,j}}$. Therefore $(B_x, C_x) \in d_{i,j}$, for $x = 1\ldots m$. Since $b^{(p)} = b^{(p-1)} \cup (b^{(p-1)} \circ b^{(p-1)})$ and $(b^{(p-1)} \circ b^{(p-1)})_{i,j} = \{A~|~\exists (A \rightarrow B_1 C_1~\& \ldots \&~B_m C_m) \in P \text{ such that } (B_k, C_k) \in d_{i,j} \}$ then $A \in b^{(p)}_{i,j}$ and the statement of the lemma holds for $k = p$. This completes the proof of the lemma.
+\end{proof}
+
+\begin{mytheorem}\label{thm:correct_conj}
+ Let $D = (V,E)$ be a graph and let $G =(N,\Sigma,P)$ be a conjunctive grammar. Then for any $i, j$ and for any non-terminal $A \in N$, if $(i,j) \in R_A$ then $A \in b^{conj}_{i,j}$.
+\end{mytheorem}
+\begin{proof}
+
+By the lemma~\ref{lemma:conj}, if $(i,j) \in R_A$ then $A \in b^{(k)}_{i,j}$ for some $k$, such that $i \pi j$ with a derivation tree according to the string $l(\pi)$ and a conjunctive grammar $G_A = (N,\Sigma,P,A)$ of the height $h \leq k$. Since the matrix $b^{conj} = b^{(1)} \cup b^{(2)} \cup \cdots$, then for any $i, j$ and for any non-terminal $A \in N$, if $A \in b^{(k)}_{i,j}$ for some $k \geq 1$ then  $A \in b^{conj}_{i,j}$. Therefore, if $(i,j) \in R_A$ then $A \in b^{conj}_{i,j}$. This completes the proof of the theorem.
+\end{proof}
+
+Thus, we show how the over-approximation of all conjunctive relations $R_A$ can be calculated by computing the conjunctive transitive closure $b^{conj}$ of the matrix $b$.
+
+
+
+\subsection{The algorithm} \label{section_algorithm_conj}
+In this section we introduce an algorithm for calculating the conjunctive transitive closure $b^{conj}$ which was discussed in Section~\ref{section_reducing_conj}.
+
+The following algorithm takes on input a graph $D = (V, E)$ and a conjunctive grammar $G = (N,\Sigma,P)$.
+
+\begin{algorithm}[H]
+\begin{algorithmic}[1]
+\caption{Conjunctive recognizer for graphs}
+\label{alg:graphParse_conj}
+\Function{conjunctiveGraphParsing}{D, G}
+	
+	\State{$n \gets$ a number of nodes in $D$}
+	\State{$E \gets$ the directed edge-relation from $D$}
+	\State{$P \gets$ a set of production rules in $G$}
+	\State{$T \gets$ a matrix $n \times n$ in which each element is $\emptyset$}
+	\ForAll{$(i,x,j) \in E$}
+	\Comment{Matrix initialization}
+	\State{$T_{i,j} \gets T_{i,j} \cup \{A~|~(A \rightarrow x) \in P \}$}
+	\EndFor    
+	\While{matrix $T$ is changing}
+	
+	\State{$T \gets T \cup (T \circ T)$}
+	\Comment{Transitive closure calculation} 
+	\EndWhile
+	\State \Return $T$    
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+Similar to the case of the context-free grammars we can show that the Algorithm~\ref{alg:graphParse_conj} terminates in a finite number of steps. Since each element of the matrix $T$ contains no more than $|N|$ non-terminals, then total number of non-terminals in the matrix $T$ does not exceed $|V|^2|N|$. Therefore, the following theorem holds.
+
+\begin{mytheorem}\label{thm:finite_conj}
+ Let $D = (V,E)$ be a graph and let $G =(N,\Sigma,P)$ be a conjunctive grammar. Algorithm~\ref{alg:graphParse_conj} terminates in a finite number of steps. 
+\end{mytheorem}
+\begin{proof}
+It is sufficient to show, that the operation in line \textbf{9} of the Algorithm~\ref{alg:graphParse_conj} changes the matrix $T$ only finite number of times. Since this operation can only add non-terminals to some elements of the matrix $T$, but not remove them, it can change the matrix $T$ no more than $|V|^2|N|$ times.
+\end{proof}

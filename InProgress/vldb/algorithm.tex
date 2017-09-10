@@ -1,0 +1,236 @@
+\section{Graph parsing by the calculation of transitive closure}
+In this section, we show how the query evaluation using the relational query semantics and context-free grammars can be reduced to the calculation of matrix transitive closure, prove the correctness of this reduction, introduce an algorithm for computing the transitive closure and provide a step-by-step illustration of this algorithm on a small example.
+
+\subsection{Reducing graph parsing to transitive closure} \label{section_reducing}
+In this section, we show how the context-free relations $R_A$ can be calculated by computing the transitive closure.
+
+Let $G = (N,\Sigma,P)$ be a grammar and $D = (V, E)$ be a graph. We number the nodes of the graph $D$ from 0 to $(|V| - 1)$ and we associate the nodes with their numbers. We initialize $|V| \times |V|$ matrix $b$ with $\emptyset$. Further, for every $i$ and $j$ we set $b_{i,j} = \{A_k~|~((i,x,j) \in E) \wedge ((A_k \rightarrow x) \in P)\}$. Finally, we compute the transitive closure $b^+ = b^{(1)} \cup b^{(2)} \cup \cdots$ where $b^{(i)} = b^{(i-1)} \cup (b^{(i-1)} \cdot b^{(i-1)})$, $i \ge 2$ and $b^{(1)} = b$. For the transitive closure $b^+$, the following statements holds.
+
+\begin{lemma}\label{lemma:cf}
+Let $D = (V,E)$ be a graph, let $G =(N,\Sigma,P)$ be a grammar. Then for any $i, j$ and for any non-terminal $A \in N$, $A \in b^{(k)}_{i,j}$ iff $(i,j) \in R_A$ and $i \pi j$, such that there is a derivation tree according to the string $l(\pi)$ and a context-free grammar $G_A = (N,\Sigma,P,A)$ of the height $h \leq k$.
+\end{lemma}
+\begin{proof}(Proof by Induction)
+
+\textbf{Basis}: Show that the statement of the lemma holds for $k = 1$. For any $i, j$ and for any non-terminal $A \in N$, $A \in b^{(1)}_{i,j}$ iff there is $i \pi j$ that consists of a unique edge $e$ from node $i$ to node $j$ and $(A \rightarrow x) \in P$ where $x = l(\pi)$. Therefore $(i,j) \in R_A$ and there is a derivation tree, shown in Figure~\ref{tree1}, according to the string $x$ and a context-free grammar $G_A = (N,\Sigma,P,A)$ of the height $h = 1$. Thus, it has been shown that the statement of the lemma holds for $k = 1$.
+
+\begin{figure}[h!]
+ \centering
+ \includegraphics[width=2cm]{pictures/tree1.pdf}
+ \caption{The derivation tree for the string $x = l(\pi)$ of the height $h = 1$.}
+ \label{tree1}
+\end{figure}
+
+\textbf{Inductive step}: Assume that the statement of the lemma holds for any $k \leq (p - 1)$ and show that it also holds for $k = p$ where $p \geq 2$. Since $b^{(p)} = b^{(p-1)} \cup (b^{(p-1)} \cdot b^{(p-1)})$ then for any $i, j$ and for any non-terminal $A \in N$, $A \in b^{(p)}_{i,j}$ iff $A \in b^{(p-1)}_{i,j}$ or $A \in (b^{(p-1)} \cdot b^{(p-1)})_{i,j}$.
+
+Let $A \in b^{(p-1)}_{i,j}$. By the inductive hypothesis, $A \in b^{(p-1)}_{i,j}$ iff $(i,j) \in R_A$ and there exists $i \pi j$, such that there is a derivation tree according to the string $l(\pi)$ and a context-free grammar $G_A = (N,\Sigma,P,A)$ of the height $h \leq (p-1)$. Since the height $h$ of this tree is also less than or equal to $p$, then the statement of the lemma holds for $k = p$.
+
+Let $A \in (b^{(p-1)} \cdot b^{(p-1)})_{i,j}$. By the definition of the binary operation on arbitrary subsets, $A \in (b^{(p-1)} \cdot b^{(p-1)})_{i,j}$ iff there are $r$, $B \in b^{(p-1)}_{i,r}$ and $C \in b^{(p-1)}_{r,j}$, such that $(A \rightarrow B C) \in P$. Hence, by the inductive hypothesis, there are $i \pi_1 r$ and $r \pi_2 j$, such that $(i,r) \in R_B$ and $(r,j) \in R_C$, and there are the derivation trees $T_B$ and $T_C$ according to the strings $w_1 = l(\pi_1)$, $w_2 = l(\pi_2)$ and the context-free grammars $G_B$, $G_C$ of heights $h_1 \leq (p-1)$ and $h_2 \leq (p-1)$ respectively. Thus, the concatenation of paths $\pi_1$ and $\pi_2$ is $i \pi j$, where $(i,j) \in R_A$ and there is a derivation tree, shown in Figure~\ref{tree2}, according to the string $w = l(\pi)$ and a context-free grammar $G_A$ of the height $h = 1 + max(h_1, h_2)$.
+
+\begin{figure}[h!]
+ \centering
+ \includegraphics[width=5cm]{pictures/tree2.pdf}
+ \caption{The derivation tree for the string $w = l(\pi)$ of the height $h = 1 + max(h_1, h_2)$, where $T_B$ and $T_C$ are the derivation trees for strings $w_1$ and $w_2$ respectively.}
+ \label{tree2}
+\end{figure}
+
+Since the height $h = 1 + max(h_1, h_2) \leq p$, then the statement of the lemma holds for $k = p$ and this completes the proof of the lemma.
+\end{proof}
+
+\begin{mytheorem}\label{thm:correct}
+ Let $D = (V,E)$ be a graph and let $G =(N,\Sigma,P)$ be a grammar. Then for any $i, j$ and for any non-terminal $A \in N$, $A \in b^+_{i,j}$ iff $(i,j) \in R_A$.
+\end{mytheorem}
+\begin{proof}
+
+Since the matrix $b^+ = b^{(1)} \cup b^{(2)} \cup \cdots$, then for any $i, j$ and for any non-terminal $A \in N$, $A \in b^+_{i,j}$ iff there is $k \geq 1$, such that $A \in b^{(k)}_{i,j}$. By the lemma~\ref{lemma:cf}, $A \in b^{(k)}_{i,j}$ iff $(i,j) \in R_A$ and there is $i \pi j$, such that there is a derivation tree according to the string $l(\pi)$ and a context-free grammar $G_A = (N,\Sigma,P,A)$ of the height $h \leq k$. This completes the proof of the theorem.
+\end{proof}
+
+We can, therefore, determine whether $(i,j) \in R_A$ by asking whether $A \in b^+_{i,j}$. Thus, we show how the context-free relations $R_A$ can be calculated by computing the transitive closure $b^+$ of the matrix $b$.
+
+
+
+\subsection{The algorithm} \label{section_algorithm}
+In this section we introduce an algorithm for calculating the transitive closure $b^+$ which was discussed in Section~\ref{section_reducing}.
+
+The following algorithm takes on input a graph $D = (V, E)$ and a grammar $G = (N,\Sigma,P)$.
+
+\begin{algorithm}[H]
+\begin{algorithmic}[1]
+\caption{Context-free recognizer for graphs}
+\label{alg:graphParse}
+\Function{contextFreeGraphParsing}{D, G}
+    
+    \State{$n \gets$ a number of nodes in $D$}
+    \State{$E \gets$ the directed edge-relation from $D$}
+    \State{$P \gets$ a set of production rules in $G$}
+    \State{$T \gets$ a matrix $n \times n$ in which each element is $\emptyset$}
+    \ForAll{$(i,x,j) \in E$}
+    \Comment{Matrix initialization}
+        \State{$T_{i,j} \gets T_{i,j} \cup \{A~|~(A \rightarrow x) \in P \}$}
+    \EndFor    
+    \While{matrix $T$ is changing}
+       
+        \State{$T \gets T \cup (T \cdot T)$}
+        \Comment{Transitive closure calculation} 
+    \EndWhile
+\State \Return $T$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+Note that the matrix initialization in lines \textbf{6-7} of the Algorithm~\ref{alg:graphParse} can handle arbitrary graph $D$. For example, if a graph $D$ contains multiple edges $(i,x_1,j)$ and $(i,x_2,j)$ then both the elements of set $\{A~|~(A \rightarrow x_1) \in P \}$ and the elements of a set $\{A~|~(A \rightarrow x_2) \in P \}$ will be added to $T_{i,j}$.
+
+We need to show that the Algorithm~\ref{alg:graphParse} terminates in a finite number of steps. Since each element of the matrix $T$ contains no more than $|N|$ non-terminals, then total number of non-terminals in the matrix $T$ does not exceed $|V|^2|N|$. Therefore, the following theorem holds.
+
+\begin{mytheorem}\label{thm:finite}
+ Let $D = (V,E)$ be a graph and let $G =(N,\Sigma,P)$ be a grammar. Algorithm~\ref{alg:graphParse} terminates in a finite number of steps. 
+\end{mytheorem}
+\begin{proof}
+It is sufficient to show, that the operation in line \textbf{9} of the Algorithm~\ref{alg:graphParse} changes the matrix $T$ only finite number of times. Since this operation can only add non-terminals to some elements of the matrix $T$, but not remove them, it can change the matrix $T$ no more than $|V|^2|N|$ times.
+\end{proof}
+
+According to Valiant, required the matrix multiplication operation can be calculated in $O(|N|^2 BMM(|V|))$. Denote the number of elementary operations executed by the matrix union operation of two $n \times n$ Boolean matrices as $BMU(n)$. Similarly, it can be shown that the matrix union operation in line \textbf{9} of the Algorithm~\ref{alg:graphParse} can be calculated in $O(|N|^2 BMU(n))$. Since line \textbf{9} of the Algorithm~\ref{alg:graphParse} is executed no more than $|V|^2|N|$ times, then the following theorem holds.
+
+\begin{mytheorem}\label{thm:time}
+ Let $D = (V,E)$ be a graph and let $G =(N,\Sigma,P)$ be a grammar. Algorithm~\ref{alg:graphParse} calculates the transitive closure $b^+$ in $O(|V|^2|N|^3(BMM(|V|) + BMU(|V|)))$.
+\end{mytheorem}
+
+
+
+\subsection{The example} \label{section_example}
+In this section, we provide a step-by-step illustration of the proposed algorithm. For this, we consider the classical \textit{same-generation query}~\cite{FndDB}.
+
+The \textbf{example query} is based on the context-free grammar $G = (N, \Sigma, P)$ where:
+\begin{itemize}
+    \item A set of non-terminals $N = \{S\}$.
+    \item A set of terminals $\Sigma = \{subClassOf, subClassOf^{-1},$ \\ $type, type^{-1}\}$.
+    \item A set of production rules $P$ is presented in Figure~\ref{ProductionRulesExampleQuery}.
+\end{itemize}
+
+\begin{figure}[h]
+   \[
+\begin{array}{rl}
+   0: & S \rightarrow \text{\textit{subClassOf}}^{-1} \ S \ \text{\textit{subClassOf}} \\ 
+   1: & S \rightarrow \text{\textit{type}}^{-1} \ S \ \text{\textit{type}} \\ 
+   2: & S \rightarrow \text{\textit{subClassOf}}^{-1} \ \text{\textit{subClassOf}} \\ 
+   3: & S \rightarrow \text{\textit{type}}^{-1} \ \text{\textit{type}} \\ 
+\end{array}
+\]
+\caption{Production rules for the example query grammar.}
+\label{ProductionRulesExampleQuery}
+\end{figure}
+
+Since the proposed algorithm processes only grammars in Chomsky normal form, we first transform the grammar $G$ into an equivalent grammar $G' = (N', \Sigma', P')$ in normal form, where:
+\begin{itemize}
+    \item A set of non-terminals $N' = \{S, S_1, S_2, S_3, S_4, S_5, S_6\}$.
+    \item A set of terminals $\Sigma' = \{subClassOf, subClassOf^{-1},$ \\ $type, type^{-1}\}$.
+    \item A set of production rules $P'$ is presented in Figure~\ref{ProductionRulesExampleQueryCNF}.
+\end{itemize}
+
+\begin{figure}[h]
+   \[
+\begin{array}{rl}
+   0: & S \rightarrow S_1 \ S_5 \\
+   1: & S \rightarrow S_3 \ S_6 \\
+   2: & S \rightarrow S_1 \ S_2 \\
+   3: & S \rightarrow S_3 \ S_4 \\
+   4: & S_5 \rightarrow S \ S_2 \\
+   5: & S_6 \rightarrow S \ S_4 \\
+   6: & S_1 \rightarrow \text{\textit{subClassOf}}^{-1} \\ 
+   7: & S_2 \rightarrow \text{\textit{subClassOf}} \\ 
+   8: & S_3 \rightarrow \text{\textit{type}}^{-1} \\
+   9: & S_4 \rightarrow \text{\textit{type}} \\ 
+\end{array}
+\]
+\caption{Production rules for the example query grammar in normal form.}
+\label{ProductionRulesExampleQueryCNF}
+\end{figure}
+
+We run the query on a graph presented in Figure~\ref{ExampleQueryGraph}.
+
+\begin{figure}[h]
+\[
+    \includegraphics[width=8cm]{pictures/ExampleGraph.pdf}
+\]
+\caption{An input graph for the example query.}
+\label{ExampleQueryGraph}
+\end{figure}
+
+We provide a step-by-step illustration of the work with the given graph $D$ and grammar $G'$ of the Algorithm~\ref{alg:graphParse}. After the matrix initialization in lines \textbf{6-7} of the Algorithm~\ref{alg:graphParse} we have a matrix $T_0$ presented in Figure~\ref{ExampleQueryInitMatrix}.
+
+\begin{figure}[h]
+\[
+T_0 = \begin{pmatrix}
+    \{S_1\} & \{S_3\} & \emptyset \\ \emptyset & \emptyset & \{S_3\} \\ \{S_2\} & \emptyset & \{S_4\}
+\end{pmatrix}
+\]
+\caption{Initial matrix for the example query.}
+\label{ExampleQueryInitMatrix}
+\end{figure}
+
+We denote $T_i$ as a matrix $T$ after $i$-th loop iteration in lines \textbf{8-9} of the Algorithm~\ref{alg:graphParse}. The calculation of the matrix $T_1$ is shown in Figure~\ref{ExampleQueryFirstIteration}.
+
+\begin{figure}[h]
+\[
+T_0 \cdot T_0 = \begin{pmatrix}
+    \emptyset & \emptyset & \emptyset \\ \emptyset & \emptyset & \{S\} \\ \emptyset & \emptyset & \emptyset
+\end{pmatrix}
+\]
+
+\[
+T_1 = T_0 \cup (T_0 \cdot T_0) = \begin{pmatrix}
+    \{S_1\} & \{S_3\} & \emptyset \\ \emptyset & \emptyset & \{S_3, S\} \\ \{S_2\} & \emptyset & \{S_4\}
+\end{pmatrix}
+\]
+\caption{The first iteration of computing the transitive closure for the example query.}
+\label{ExampleQueryFirstIteration}
+\end{figure}
+
+When the algorithm at some iteration finds new paths in the graph $D$, then it adds corresponding nonterminals to the matrix $T$. For example, after the first loop iteration, non-terminal $S$ is added to the matrix $T$. This non-terminal is added to the element with a row index $i = 1$ and a column index $j = 2$. This means that there is $i\pi j$ (a path $\pi$ from node 1 to node 2), such that $S \xrightarrow{*} l(\pi)$. For example, such a path consists of two edges with labels $type^{-1}$ and $type$, and thus $S \xrightarrow{*} type^{-1} \ type$.
+
+The calculation of the transitive closure is completed after a loop iteration $k$ such that $T_{k-1} = T_k$. For the example query, $k = 6$, since $T_6 = T_5$. The remaining iterations of computing the transitive closure are presented in Figure~\ref{ExampleQueryFinalIterations}.
+
+\begin{figure}[h]
+\[
+T_2 = \begin{pmatrix}
+    \{S_1\} & \{S_3\} & \emptyset \\ \{S_5\} & \emptyset & \{S_3, S, S_6\} \\ \{S_2\} & \emptyset & \{S_4\}
+\end{pmatrix}
+\]
+
+\[
+T_3 = \begin{pmatrix}
+    \{S_1\} & \{S_3\} & \{S\} \\ \{S_5\} & \emptyset & \{S_3, S, S_6\} \\ \{S_2\} & \emptyset & \{S_4\}
+\end{pmatrix}
+\]
+
+\[
+T_4 = \begin{pmatrix}
+    \{S_1, S_5\} & \{S_3\} & \{S, S_6\} \\ \{S_5\} & \emptyset & \{S_3, S, S_6\} \\ \{S_2\} & \emptyset & \{S_4\}
+\end{pmatrix}
+\]
+
+\[
+T_5 = \begin{pmatrix}
+    \{S_1, S_5, S\} & \{S_3\} & \{S, S_6\} \\ \{S_5\} & \emptyset & \{S_3, S, S_6\} \\ \{S_2\} & \emptyset & \{S_4\}
+\end{pmatrix}
+\]
+\caption{Remaining states of the matrix $T$.}
+\label{ExampleQueryFinalIterations}
+\end{figure}
+
+Thus, the result of the Algorithm~\ref{alg:graphParse} for the example query is the matrix $T_5 = T_6$. Now, after constructing the transitive closure, we can construct the context-free relations $R_A$. These relations for each non-terminal of the grammar $G'$ are presented in Figure~\ref{ExampleQueryCFRelations}.
+
+\begin{figure}[h]
+\begin{eqnarray*}
+R_S&=&\{(0,0),(0,2),(1,2)\},\\
+R_{S_1}&=&\{(0,0)\},\\
+R_{S_2}&=&\{(2,0)\}, \\
+R_{S_3}&=&\{(0,1), (1,2)\}, \\
+R_{S_4}&=&\{(2,2)\}, \\
+R_{S_5}&=&\{(0,0), (1,0)\}, \\
+R_{S_6}&=&\{(0,2), (1,2)\}.
+\end{eqnarray*}
+\caption{Resulting context-free relations for the example query.}
+\label{ExampleQueryCFRelations}
+\end{figure}
+
+By the resulting context-free relation $R_S$, we can conclude that there are paths in a graph $D$ only from node 0 to node 0, from node 0 to node 2 or from node 1 to node 2, corresponding to the context-free grammar $G_S$. This conclusion is based on the fact that a grammar $G'_S$ is equivalent to the grammar $G_S$ and $L(G_S) = L(G_S')$.
