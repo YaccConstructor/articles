@@ -1,4 +1,4 @@
-\documentclass{beamer}
+\documentclass[xcolor=table]{beamer}
 \usepackage{beamerthemesplit}
 \usepackage{wrapfig}
 \usetheme{SPbGU}
@@ -29,9 +29,9 @@
 \title[CFPQ]{Структурное представление результата поиска путей с контекстно-свободными ограничениями}
 %\subtitle[YaccConstructor]{Parsing techniques for graph analysis}
 % То, что в квадратных скобках, отображается в левом нижнем углу. 
-\institute[СПбУ]{
+\institute[СПбГУ]{
 JetBrains Research, лаборатория языковых инструментов \\
-Санкт-Петербургский университет
+Санкт-Петербургский государственный университет
 }
 
 % То, что в квадратных скобках, отображается в левом нижнем углу.
@@ -66,12 +66,16 @@ JetBrains Research, лаборатория языковых инструмент
   \transwipe[direction=90]
   \frametitle{Поиск путей в графах}
   \begin{itemize}
-  \item Графовые базы данных
+  \item Анализ графов
+    \begin{itemize}
+        \item Запросы к графовым базам данных
+        \item Анализ сетей (социальных, интернет и т.д.)
+    \end{itemize}
   \item Статический анализ программ
       \begin{itemize}
         \item Анализ алиасов
+        \item Taint analysis
         \item Статический анализ динамически формируемого кода
-        \item ...
       \end{itemize}
    \item ...
   \end{itemize}
@@ -81,11 +85,11 @@ JetBrains Research, лаборатория языковых инструмент
   \transwipe[direction=90]
   \frametitle{Поиск путей с контекстно-свободными ограничениями}
   \begin{itemize}
-  \item $\mathbb{G} = (\Sigma, N, P)$ --- контекстно-свободная грамматика, $L\subseteq \Sigma$
-  \item $p=(v_0,l_0,v_1),\cdots,(v_{n-1},l_{n-1},v_n)$ --- путь в графе $G$
-  \item $\omega(p) = \omega((v_0,l_0,v_1),\cdots,(v_{n-1},l_{n-1},v_n)) = l_0 l_1 \cdots l_{n-1}$
-  \item $G = (V,E,L)$ --- ориентированный граф, $E \subseteq V\times L \times V$
-  \item $R =\{ p | \exists N_i \in N (\omega(p) \in L(\mathbb{G},N_i))\}$
+  \item $\mathbb{G} = (\Sigma, N, P)$ --- контекстно-свободная грамматика
+  \item $p = v_0 \xrightarrow{l_0} v_1 \xrightarrow{l_1} \cdots v_{n-1}\xrightarrow{l_{n-1}}v_n$ --- путь в графе $G$
+  \item $w(p) = w(v_0 \xrightarrow{l_0} v_1 \xrightarrow{l_1} \cdots v_{n-1}\xrightarrow{l_{n-1}}v_n) = l_0 l_1 \cdots l_{n-1}$
+  \item $G = (V,E,L)$ --- ориентированный граф, $E \subseteq V\times L \times V$, $L\subseteq \Sigma$
+  \item $R =\{ p \ | \ \exists N_i \in N (w(p) \in L(\mathbb{G},N_i))\}$
   \begin{itemize}
     \item Стартовый нетерминал можно зафиксировать заранее
     \item \textbf{Проблема:} множество $R$ может быть бесконечным
@@ -95,19 +99,14 @@ JetBrains Research, лаборатория языковых инструмент
 
 \begin{frame}[fragile]
   \transwipe[direction=90]
-  \frametitle{Существующие решения}
-\end{frame}
-
-\begin{frame}[fragile]
-  \transwipe[direction=90]
   \frametitle{Пример}
-\begin{figure}[ht]
-    \centering
-        \includegraphics[width=0.45\textwidth]{pictures/input.pdf}
-        \caption{An example: the map of School (input graph $M$)}
-\end{figure}
-\begin{figure}[ht]
-\centering
+%\begin{figure}[ht]
+Входной граф \\
+\begin{center}
+        \includegraphics[width=0.45\textwidth]{pictures/input.pdf} 
+\end{center}
+Запрос --- грамматика $G$ для языка $L=\{a^n b^n; n \geq 1\}$ с явным выделением середины пути \\
+\begin{center}
    \[
 \begin{array}{rl} 
    0:& S \rightarrow a \ S \ b \\
@@ -115,19 +114,54 @@ JetBrains Research, лаборатория языковых инструмент
    2:& Middle \rightarrow a \ b
 \end{array}
 \]
-   \caption{An example: grammar $G_1$ for language $L=\{a^n b^n; n \geq 1\}$ with additional marker for the middle of a path}
-   \label{grammarG}        
-    \end{figure}
+\end{center}
+\vspace{0.8em}
+Ответ --- бесконечное множество путей
+\begin{itemize}
+\item $p_1 = 0\xrightarrow{a}1\xrightarrow{a}2\xrightarrow{a}0\xrightarrow{b}3\xrightarrow{b}0\xrightarrow{b}3$
+\item $p_2 = 0\xrightarrow{a}1\xrightarrow{a}2\xrightarrow{a}0\xrightarrow{a}1\xrightarrow{a}2\xrightarrow{a}0\xrightarrow{b}3\xrightarrow{b}0\xrightarrow{b}3\xrightarrow{b}0\xrightarrow{b}3\xrightarrow{b}0$
+\item ...
+\end{itemize}
 
 \end{frame}
 
 \begin{frame}[fragile]
   \transwipe[direction=90]
-  \frametitle{Пример: SPPF}
+  \frametitle{Существующие решения}
+  \begin{itemize}
+  \item В качестве основы используют алгоритм CYK
+    \begin{itemize}
+        \item Необходимо преобразовывать грамматику в нормальную форму Хомского
+        \item Только проверка наличия пути (\emph{Zhang X. et al.} ``Context-free path queries on RDF graphs.'' 2016)
+        \item Грамматика в качестве представления результата (\emph{Hellings J.} ``Conjunctive context-free path queries.'' 2014)
+    \end{itemize}
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Алгоритм выполнения КС запросов к графам}
+
+\begin{itemize} 
+\item Основан на обобщённом LL (Generalized GLL, GLL)
+\begin{itemize} 
+  \item \emph{Scott E., Johnstone A.} ``GLL parsing''
+\end{itemize}
+\item Поддерживает произвольные контекстно-свободные граммтики (неоднозначные, леворекурсивные)
+\item Не требует преобразования грамматики в нормальную форму Хомского
+\item Строит сжатое представление леса разбора (Sharep Packed Parse Forest, SPPF) --- конечное представление бесконечного ответа
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Структурное представление результата запроса}
 \begin{figure}[ht]
     \centering
-        \includegraphics[width=0.45\textwidth]{pictures/input.pdf}
-        \caption{An example: the map of School (input graph $M$)}
+        \includegraphics[width=0.45\textwidth]{pictures/input.pdf} \\
+        Входной граф
 \end{figure}
 
 \begin{tabular}{  c  c  c  }
@@ -138,45 +172,106 @@ JetBrains Research, лаборатория языковых инструмент
       \includegraphics[height=4.5cm]{pictures/AnBn_1.pdf}
 
 \\
-sppf
-& дерево
-& дерево
+\small{Результат (SPPF)}
+& \small{Дерево вывода пути $p_1$}
+& \small{Дерево вывода пути $p_2$}
   \end{tabular}
 %\end{center}                
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Пример: извлечение путей}
+\begin{center}
+\begin{tabular}{  c  c  }
+    \includegraphics[width=0.4\textwidth]{pictures/input.pdf}
+    &
+$
+ 
+\begin{array}{rl} 
+   0:& S \rightarrow a \ S \ b \\
+   1:& S \rightarrow Middle \\
+   2:& Middle \rightarrow a \ b
+\end{array}
+
+$
+\end{tabular}
+
+\begin{figure}[ht]
+    \centering
+        \includegraphics[width=0.68\textwidth]{pictures/AnBn_2_m.pdf}      
+\end{figure}
+Путь: $0\xrightarrow{a}1\xrightarrow{a}2\xrightarrow{a}0\xrightarrow{b}3\xrightarrow{b}0\xrightarrow{b}3$
+\end{center}                
 \end{frame}
 
 
 \begin{frame}[fragile]
   \transwipe[direction=90]
-  \frametitle{Алгоритм}
+  \frametitle{Почему это работает}
+Замкнутость КС языков относительно пересечения с регуляными
+\begin{center}
+\begin{tabular}{  c  c  }
+    \includegraphics[width=0.35\textwidth]{pictures/input.pdf}
+    &
+$
+ 
+\begin{array}{rl} 
+   0:& S \rightarrow a \ S \ b \\
+   1:& S \rightarrow Middle \\
+   2:& Middle \rightarrow a \ b
+\end{array}
 
-\begin{itemize} 
-\item Основан на обобщённом LL (GLL)
-\item Не нужна НФХ
-\item Произвольные КС граммтики
-\item SPPF
-\end{itemize}
+$
+\\
+Регулярный язык
+&
+Контекстно-свободный язык
 
+\end{tabular}
 
+\vspace{0.8em}
+\pause
+
+\begin{tabular}{  c  c  }
+    \raisebox{-0.5\totalheight}{\includegraphics[width=0.32\textwidth]{pictures/AnBn_m.pdf}}
+    &
+
+$
+\begin{array}{rl} 
+   (0,S,3) & \rightarrow (0,a,1) \ (1,S,0) \ (0,b,3) \\
+   (1,S,0) & \rightarrow (1,a,2) \ (2,S,3) \ (3,b,0) \\
+   (2,S,3) & \rightarrow (2,a,0) \ (0,S,0) \ (0,b,3) \\
+   (2,S,3) & \rightarrow (2,Middle,3)                \\
+   (0,S,0) & \rightarrow (0,a,1) \ (1,S,3) \ (3,b,0) \\
+   (1,S,3) & \rightarrow (1,a,2) \ (2,S,0) \ (0,b,3) \\
+   (2,S,0) & \rightarrow (2,a,0) \ (0,S,3) \ (3,b,0) \\
+   (0,Middle,3) & \rightarrow (2,a,0) \ (0,b,3)  \\
+\end{array}
+$
+
+\end{tabular}
+\end{center}                
 \end{frame}
+
 
 
 \begin{frame}
   \transwipe[direction=90]
-  \frametitle{Характеристики алгоритма}
+  \frametitle{Свойства алгоритма}
 
 Пусть на входе граф $M=(V,E,L)$, тогда
 \begin{itemize} 
-\item Пространственная сложность предложенного алгоритма равна $O(|V|^3 + |E|)$
-\item Временная сложность предложенного алгоритма равна $O\left(|V|^3*\max\limits_{v \in V}\left(deg^+\left(v\right)\right)\right)$
-\item Результирующий SPPF имеет размер $O(|V'|^3 + |E'|)$ где $M'=(V',E',L')$ --- это подграф $M$ содержащий только искомые пути
+\item Пространственная сложность предложенного алгоритма $O(|V|^3 + |E|)$
+\item Временная сложность предложенного алгоритма $O\left(|V|^3*\max\limits_{v \in V}\left(deg^+\left(v\right)\right)\right)$
+\item Результирующий SPPF имеет размер $O(|V'|^3 + |E'|)$, где $M'=(V',E',L')$ --- подграф $M$, содержащий только искомые пути
 \end{itemize}
 
 \end{frame}
 
 \begin{frame}[fragile]
 \transwipe[direction=90]
-\frametitle{Экспериментальное исследование}
+\frametitle{Экспериментальное исследование: запросы}
 %\centering
 \begin{figure}[ht]
 %   \begin{center}
@@ -185,28 +280,27 @@ sppf
 
    \[
 \begin{array}{rl}
-   0: & S \rightarrow \text{\textit{subClassOf}}^{-1} \ S \ \text{\textit{subClassOf}} \\ 
-   1: & S \rightarrow \text{\textit{type}}^{-1} \ S \ \text{\textit{type}} \\ 
-   2: & S \rightarrow \text{\textit{subClassOf}}^{-1} \ \text{\textit{subClassOf}} \\ 
-   3: & S \rightarrow \text{\textit{type}}^{-1} \ \text{\textit{type}} \\ 
+   0: & \textbf{S} \rightarrow \text{\textit{subClassOf}}^{-1} \ \textbf{S} \ \text{\textit{subClassOf}} \\ 
+   1: & \textbf{S} \rightarrow \text{\textit{type}}^{-1} \ \textbf{S} \ \text{\textit{type}} \\ 
+   2: & \textbf{S} \rightarrow \text{\textit{subClassOf}}^{-1} \ \text{\textit{subClassOf}} \\ 
+   3: & \textbf{S} \rightarrow \text{\textit{type}}^{-1} \ \text{\textit{type}} \\ 
 \end{array}
 \]
-   \caption{Grammar for query 1}
-   \label{grammarQ1}
+   Грамматика для запроса Query 1
    \end{figure}
 \begin{figure}[h]%{0.4\textwidth}
    \centering
 
    \[
 \begin{array}{rl}
-   0: & S \rightarrow B \ \text{\textit{subClassOf}} \\ 
-   1: & S \rightarrow \text{\textit{subClassOf}} \\ 
-   2: & B \rightarrow \text{\textit{subClassOf}}^{-1} \ B \ \text{\textit{subClassOf}} \\
-   3: & B \rightarrow \text{\textit{subClassOf}}^{-1} \ \text{\textit{subClassOf}} \\ 
+   0: & \textbf{S} \rightarrow \textbf{B} \ \text{\textit{subClassOf}} \\ 
+   1: & \textbf{S} \rightarrow \text{\textit{subClassOf}} \\ 
+   2: & \textbf{B} \rightarrow \text{\textit{subClassOf}}^{-1} \ \textbf{B} \ \text{\textit{subClassOf}} \\
+   3: & \textbf{B} \rightarrow \text{\textit{subClassOf}}^{-1} \ \text{\textit{subClassOf}} \\ 
 \end{array}
 \]
-   \caption{Grammar for query 2}
-   \label{grammarQ2}        
+   Грамматика для запроса Query 2
+
    \end{figure}
 
 \end{frame}
@@ -214,38 +308,54 @@ sppf
 
 \begin{frame}[fragile]
 \transwipe[direction=90]
-\frametitle{Экспериментальное исследование}
+\frametitle{Экспериментальное исследование: результаты}
 \centering
-\begin{tabular}{ | c | c | c | c | c | c |}
-\hline
-Ontology & \#triples & \multicolumn{2}{|c|}{Query 1} & \multicolumn{2}{|c|}{Query 2} \\
-\cline{3-6}
-& & \shortstack{time \\ (ms)} & \#results & \shortstack{time \\ (ms)} & \#results \\
+\rowcolors{1}{}{lightgray}
+\begin{tabular}{  c | c | c | c | c | c | c }
+%\hline
+Ontology & \#edg & \multicolumn{3}{c|}{Query 1} & \multicolumn{2}{c}{Query 2} \\
+\cline{3-7}
+& & \shortstack{time \\ CYK (ms)} & \shortstack{time \\ (ms)} & \#result & \shortstack{time \\ (ms)} & \#result \\
 \hline 
 \hline
-skos        & 252 & 10 & 810 & 1 & 1 \\
-generations & 273 & 19 & 2164 & 1 & 0 \\
-travel      & 277 & 24 & 2499 & 1 & 63 \\
-univ-bench  & 293 & 25 & 2540 & 11 & 81 \\
-foaf        & 631 & 39 & 4118 & 2 & 10 \\
-people-pets & 640 & 89 & 9472 & 3 & 37 \\
-funding     & 1086 & 212 & 17634 & 23 & 1158 \\
-atom-primitive & 425 & 255 & 15454 & 66 & 122 \\
-\shortstack{biomedical- \\ measure-primitive} & 459 & 261 & 15156 & 45 & 2871 \\
-pizza       & 1980 & 697 & 56195 & 29 & 1262 \\
-wine        & 1839 & 819 & 66572 & 8 & 133 \\
-\hline
+skos        & 252  & 1044  & 10 & 810 & 1 & 1 \\
+generations & 273  & 6091  & 19 & 2164 & 1 & 0 \\
+travel      & 277  & 13971 & 24 & 2499 & 1 & 63 \\
+univ-bench  & 293  & 20981 & 25 & 2540 & 11 & 81 \\
+foaf        & 631  & --    & 39 & 4118 & 2 & 10 \\
+people-pets & 640  & 82081 & 89 & 9472 & 3 & 37 \\
+funding     & 1086 & --    & 212 & 17634 & 23 & 1158 \\
+atom-primitive & 425 & 515285 & 255 & 15454 & 66 & 122 \\
+\shortstack{biomedical- \\ measure-primitive} & 459 & 420604 & 261 & 15156 & 45 & 2871 \\
+pizza       & 1980 & 3233587 & 697 & 56195 & 29 & 1262 \\
+wine        & 1839 & 4075319 & 819 & 66572 & 8 & 133 \\
+%\hline
 \end{tabular}
 
 \end{frame}
+
+\begin{frame}
+  \transwipe[direction=90]
+  \frametitle{Результаты}
+
+Разработан алгоритм поиска путей с контекстно-свободными ограничениями в графе
+\begin{itemize} 
+\item Строит конечное структурное представление результата
+\item Пространственная сложность $O(|V|^3 + |E|)$
+\item Временная сложность $O\left(|V|^3*\max\limits_{v \in V}\left(deg^+\left(v\right)\right)\right)$
+\item Достаточно производителен для решения практических задач
+\item Может применяться для выполнения запросов к графовым БД, решения задач статического анализа кода и других задач анализа графов
+\end{itemize}
+
+\end{frame}
+
             
 \begin{frame}
 \transwipe[direction=90]
 \frametitle{Контакты}
 \begin{itemize}
-  \item Почта: \url{rsdpisuy@gmail.com}
-  \item Исходный код YaccConstructor: \url{https://github.com/YaccConstructor}
-  \item Google+ сообщество: \url{https://goo.gl/DuPWkM}
+  \item Почта: \url{semen.grigorev@jetbrains.com}
+  \item GitHub-сообщество YaccConstructor: \url{https://github.com/YaccConstructor}
 \end{itemize}
 \end{frame}
 \end{document}
