@@ -1,0 +1,131 @@
+1.
+Hello, my name is Kate, I am from JetBrains Research and Saint Petersburg University. 
+I am going to talk about parsing techniques for graph analysis today. 
+
+2.
+We are working on a problem called language-constrained paths filtering.
+In general it means one need to find paths in some labeled graph which are simultaneously strings in some given language
+
+For example, given a graph pictured on the slide, we can ask the following questions: 
+Is it true that two nodes -- A and B -- are on the same level of hierarchy? 
+Does a path of form n UPs following by n DOWNs exist? 
+Or we can try to find all the paths which start in some predefined node A and are of a particular form. 
+
+Knowing that a finite automaton is basically a directed graph, language-constrained path filtering can also answer if and how some automaton generate phrases in a specific, for example, context-free language. 
+
+By looking for paths in a call graph we can find out if a program can produce some specific chain of subprogram calls. 
+
+3.
+Speaking a little bit more formally, language constrained path filtering is: 
+
+given a context free grammar over the alphabet \Sigma
+and a directed graph with edges labeled by the symbols of that alphabet
+
+one need to find all paths in the graph which are sentences derived from some nonterminal of the grammar.
+
+Here, we haven’t define our grammar to have a specific start nonterminal, in order to have some flexibility to querying the graph. So the query consists of the grammar and some of it’s nonterminals. 
+
+Sometimes the query is formulated not as “please, find all the paths of certain form” but as “please, check if such paths exist...” or “please find me a path of the form...”. There also can be some additional step of postprocessing aimed to more specific filtering of the paths found or retrieving some additional information about them 
+
+
+4.
+There are a bunch of applications for language constrained path filtering starting from the most natural one: graph database querying; to code analysis and then even to more peculiar problems of, for example, bioinformatics. 
+In the domain of code analysis, such problems as alias analysis or points-to analysis, dynamically generated string analysis or multiple input parsing can be enumerated. 
+
+5. 
+There are some approaches in the area, of course, for example works of Hellings, Zhang, and Sevon and Eronen. Unfortunately, they do not tend to utilize the advanced parsing techniques mostly being based on CYK. Since CYK has cubic time complexity, a parsing algorithm for graphs based on it also has cubic time complexity — for linear subgraphs.
+They also don't provide structural representation of the result which is needed for further processing of query results. 
+
+Some of the existing approaches impose restrictions on the input, for example, the approach of Sevon and Eronen which uses algorithm Earley and has better runtime for linear graphs doesn’t process input graph with cycles.
+almost no one provides exact solution in case of the input graph with cycles. 
+Also there is a tendency to consider only certain grammar classes, for example context free grammars even though language constrained paths querying has no such restrictions per ce.
+
+6. 
+Not all the problems arising in the area are solved.
+Can we develop more asymptotically efficient algorithms? 
+What about algorithms that actually run faster? Maybe using GPUs? 
+Is it possible to construct some representation of results which is good for query debugging and further processing? Maybe in terms of derivation structure of the paths found? 
+Also, is there any reason to restrict ourselves to context-free grammars? Some practical applications such as some bioinformatics problems are well described by conjunctive grammars, for example. Is there a way to process these more expressive classes of grammars? 
+Our project is aimed at solving these open problems. 
+
+<Что-нибудь в духе What exactly did I mean by useful structural representation of results?>
+
+
+7. 
+Let's consider this example of language-constrained path filtering. 
+We are given this input graph with two cycles in it and we are querying for all the paths of form n As followed by n Bs. 
+Note that having these two cycles, we of course get an infinite language of sentences of the requested form, so there is no point to just enumerating all the sentences.
+Additionally for some reason we would like to get some specific information on the structure of the paths, for example, the middle of such paths <WHY>
+So, we construct the following grammar and query for paths derived from the nonterminal Middle. 
+
+8.
+One good way to represent the result of querying is Shared Packed Parse Forest used in the generalized parsing algorithms for compact representation of all possible derivations of one string in case of grammar ambiguities. 
+For our query, the following forest can be constructed. This time, we use SPPF not for ambiguities of the grammar but for ambiguities of the input, if I may say. 
+All the possible paths in the input graph which can be successfully parsed by the grammar are in this forest (note this cycle in the graph) and can be extracted if necessary: for example, here we can see one path from the node 0 to the node 3, and a path from the 0 node which walks the a cycle twice and b cycle three times. 
+
+8.5 
+the trees extracted are just derivation trees of the corresponding strings and they yield the paths which we wanted to find. 
+Also, it is very easy to get the data about the paths from this representation, for example, to find the middle of the path, as we requested before. 
+
+9.
+We've been working on this problem for a while now. We have proposed several approaches and I’ll talk in details about each of them. 
+ -- First approach we proposed was employed for the analysis of dynamical SQL queries and was based on Right-nulled Generalized LR algorithm. 
+ -- In this and in the GLL-based solution the result of queries is neatly represented in the form of SPPF, but GLL-based solution achieves better performance. 
+ -- We have also modified a parser combinators library Meerkat to employ combinatory parsing for querying. 
+ -- We aim to make it possible to specify semantic actions to be calculated over the SPPF and the paths directly and to employ the data dependent parsing. 
+ -- We are also working on the matrix multiplication algorithm for language constrained path filtering. 
+ -- We hope to get an efficient implementation for this algorithm for running it on GPUs. 
+
+10. 
+First approach was employed for the analysis of dynamic SQL queries and was based on Right Nulled Generalized LR algorithm. Dynamic SQL can construct SQL queries from string bits by using usual string operations such as concatenations, getting substrings and so on, and what is more important, the construction itself can be quite complex. As in the example here, one can use an if-statement to decide on from what table we want to select values. 
+Sometimes loops are used to construct a final query and in this case there is no way one can enumerate all possible outcomes and parse each of them one by one. 
+So to solve the problem, we proposed to use a modification of RNGLR algorithm which allows to parse a regular approximation of such strings.
+(Relaxed here means that we didn’t report syntactical errors, only constructed parse forest for all correct queries.)
+
+11.
+We presented the previous approach at the Parsing workshop several years ago and then Johnstone proposed to use GLL algorithm as a base instead of RNGLR, since it might be simpler. So... We did it!
+  As the previous one, this is also able to generate a structural representation of result in the form of a Shared Packed Parse Forest. We estimated worst-case space and time complexity for this one in terms of graph characteristics. So, it’s time complexity is V cube times maximum degree of vertices where V — is the number of vertices. As for the space, it takes V cube plus the number of edges in terms of the space. 
+
+12. 
+Then we have thought to ourselves: why not use GPUs for language constrained paths querying? So this lead to the development of a matrix multiplication based algorithm. This one is inspired by how Okhotin and Valiant parse strings by matrix multiplication and runs with the complexity presented on the slide. Note that complexity depends on complexity of matrix multiplication which depends on type of matrix. It is possible to multiply two boolean matrix in less-then-cubic time. More over there are advanced algorithms with better complexity for sparse matrix. It can be useful because representation of real data is often sparse. This algorithm checks for the paths existence, and it does it for every pair of graph vertices and every nonterminal at once. Having the matrix calculated one, one can run queries for any nonterminal as many times at one wishes. Unfortunately, this one doesn’t return the paths themselves, let alone their structural representation. But having the ends of paths found by this algo, one can then construct respective subgraph and analyse them by using other methods.
+
+13. 
+We have also started working at parser combinators based solutions for language constrained path querying. We chose Meerkat parser combinators library since it constructs — guess what — a shared packed parse forest for linear input. The objective for doing this is two things. The first one is to be able to write queries in the code of the target application which is more seamless for the developers. The second one is to support more than context free queries, for example means of data dependent parsing. This is still a work in progress, though. 
+
+14. 
+To test our approaches and compare them to the existing approaches, we run the same-generation query on the set of ontologies — graphs representing structured data for semantic web. The query is presented on the slide, it is context free.
+
+15.
+We compared two of our approaches: the gll-based and matrix multiplication based algorithms and an approach of Zhang et al described in the paper “Context-free path queries on RDF graphs”. On this set of data our algorithms showed to be thousands of times faster that the one by Zhang, and this also showed that matrix multiplication algorithm is much more performant than the GLL one, so it indeed can be used for preprocessing, as I described before. 
+
+16. 
+As for the future, there are two directions. One is moving towards more expressive classes of languages. Here, I am talking about both querying more complex input structures: non-recursive context-free grammars instead of regular languages representation — graphs, and using the more complex queries: for example conjunctive or even boolean grammars instead of context-free. 
+Since language-constrained path querying is just constructing an intersection between two languages, the closedness property of the intersections for classes of grammars gives us hope that it is actually possible.
+
+17. 
+Another direction is proving that the approaches proposed by us are correct. We are going to prove this in coq, and we have already started by proving Bar-Hillel theorem which is fundamental fro CF path querying and making some progress in mechanization of GLL. 
+
+
+18. 
+All right, here are our contact details, our project for historical reasons is named YaccConstructor, it's on github and we welcome us to check it out. 
+
+Thank you, I am happy to answer your questions now. 
+
+
+
+
+
+
+
+Результаты в области/подходы
+
+Хеллингс. Идея близка к CYK. Обещана хорошая асимптотика (O((|N||E|) + (|N||V|)^3), где |N| — кол-во нетерминалов, V, E — вершины и рёбра графа), есть теория для всех 3 семантик (достижимость, один путь, все пути), в качестве результата строит грамматику языка, который получается в пересечении (он же КС, так что можно). Пока не видел реализации (публикации с апробацией)
+Китайцы (которые Zhang, et al. “Context-free path queries on RDF graphs.”). Сложность — “куб от размера графа”, что они понимают под размером графа — не очень ясно. Идея — CYK. Контекстно-свободные запросы для RDF. Интеграция в стандартный язык SparQL. Только достижимость. В теории эксплуатируют идею Хеллингса, на практике — весьма медленно работают (там, где GLL порядка секунды, у них порядка часа).
+Sevon, Eronen. Сложность : O(|V|^3 * m^2), где m — максимальная длина пути. Используют Earley (не требует грамматику в НФХ, на линии в среднем за квадрат, в худшем за куб). Не умеет в циклы (вводит ограничение на максимальную длину пути). Строит подграф.
+Ещё есть бразильцы, которые делают очередной алгоритм для context-free path querying и обещали статью почитать дать, но пока только обмолвились, что у них асимптотика лучше нашего GLL. На сколько я понял, планируют применять его в задачах, связанных с  smart cities, но я так и не понял, как именно.
+Отдельный пласт — логики разной степени выразительности. Datalog и всё такое. Просто отдельное направление, потому пока не сравниваемся.
+Большинство практических реализаций — регулярные + разного рода трюки.
+Асимптотика наших подходов:
+GLL: O(|V|^3 ∗ max(deg+(v))), где max(deg+(v)) — максимальная степень полуисхода (кол-во исходящих рёбер) по всем вершинам.
+Матицы: O(|V|^2 |N|^3 (BMM(|V|) + BMU(|V|))) , где BMM и BMU — boolean matrix multiplication boolean matrix unioin
+
