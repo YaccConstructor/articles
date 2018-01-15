@@ -1,10 +1,14 @@
 \section{Evaluation}
+In this section we present evalution of Meerkat graph parsing. We show its perfomance on a classical ontology graphs for in memory graph and for Neo4j database, show application on may-alias static code analysis problem, and compare with Trails \cite{ScalaGraphParsing} library for graph traversals.
+
+All tests are perfomed on a machine running Fedora 27 with quad-core Intel Core i7 2.5 GHz CPU with 8 GB of memory.
+
 
 \begin{table*}[t]
 \centering
 \begin{tabular}{|l|l|lll|lll|}
 \hline
-\multicolumn{1}{|c|}{\multirow{2}{*}{Ontology}} & \multicolumn{1}{c|}{\multirow{2}{*}{Number of tripples}} & \multicolumn{3}{c|}{Query 1}  & \multicolumn{3}{c|}{Query 1}\\ \cline{3-8} 
+\multicolumn{1}{|c|}{\multirow{2}{*}{Ontology}} & \multicolumn{1}{c|}{\multirow{2}{*}{Number of tripples}} & \multicolumn{3}{c|}{Query 1}  & \multicolumn{3}{c|}{Query 2}\\ \cline{3-8} 
 \multicolumn{1}{|c|}{} & \multicolumn{1}{c|}{}  & \multicolumn{1}{c|}{\begin{tabular}[c]{@{}c@{}}Number of\\  results\end{tabular}} & \multicolumn{1}{c|}{\begin{tabular}[c]{@{}c@{}}In memory graph \\ query time (ms)\end{tabular}} & \multicolumn{1}{c|}{\begin{tabular}[c]{@{}c@{}}DB query \\ time (ms)\end{tabular}} & \multicolumn{1}{c|}{\begin{tabular}[c]{@{}c@{}}Number of\\ results\end{tabular}} & \multicolumn{1}{c|}{\begin{tabular}[c]{@{}c@{}}In memory graph \\ query time (ms)\end{tabular}} & \multicolumn{1}{c|}{\begin{tabular}[c]{@{}c@{}}DB query \\ time (ms)\end{tabular}} \\ \hline
 \hline
 atom-primitive              & 425  & 15454 & 174 & 236 & 122  & 49 & 56 \\
@@ -27,43 +31,71 @@ wine                        & 1839 & 66572 & 578 & 736 & 133  & 5  & 7  \\
 Some experiments on real data and comarison with existing solutions
 
 \subsection{Ontology querying}
+\label{sec:ontology}
 
 One of well-known graph querying problems is a queries for ontologies \cite{FndDB}. We use Meerkat to evaluate
 it on some popular ontologies presented as RDF files from paper \cite{CFGonRDF}. We convert RDF files to a labeled directed graph like the following: for every RDF triple $(subject,\ predicate,\ object)$ we create two edges $(subject,\ predicate,\ object)$ and $(object,\ predicate^{-1},\ subject)$.\\
-On those graphs we apply two queries from the paper \cite{GrigorevR16} which grammars are on Fig. \ref{lst:query1}, and Fig. \ref{lst:query2} in two ways.
-\begin{itemize}
-    \item Convert RDF files to a graph input for meerkat and then directly parse on query 1 and query 2
-    \item Convert RDF files to a Neo4j database and then parse this database on given queries
-\end{itemize} 
-Table \ref{table:rdfs} shows experimental results of those two aproaches over the testing RDF files where $number\ of\ results$ is a number of triples of type $(nonterminal,\ start\ vertex,\ end\ vertex)$
-The perfomance is about $2$ times slower than in \cite{GrigorevR16} and shows the same results. If compare the perfomance of in memory graph querying and database querying, the second one is slower in about $2-4$ times.
-
-
-
-\begin{figure}[t]
+On those graphs we apply two queries from the paper \cite{GrigorevR16} which grammars are on Fig. \ref{fig:query1}, and Fig.  \ref{fig:query2} 
+\begin{figure}[h]
 \begin{align*}
 & S \rightarrow subClassOf^{-1}\ S\ subClassOf\\
 & S \rightarrow type^{-1}\ S\ type\\
 & S \rightarrow subClassOf^{-1}\ subClassOf\\
 & S \rightarrow type^{-1}\ type
 \end{align*}
-\caption{Querry 1 grammar}
-\label{lst:query1}
+\caption{Query 1 grammar}
+\label{fig:query1}
 \end{figure}
 
-\begin{figure}[t]
+\begin{figure}[h]
 \begin{align*}
 & S \rightarrow\ B\ subClassOf\\
 & B \rightarrow subClassOf^{-1}\ B\ subClassOf\\
 & B \rightarrow subClassOf^{-1}\ subClassOf
 \end{align*}
-\caption{Querry 2 grammar}
-\label{lst:query2}
+\caption{Query 2 grammar}
+\label{fig:query2}
 \end{figure}
 
+Meerkat represetaion of those queries in terms of parser combinators is similar to its EBNF form and presnted on Fig. \ref{fig:query1Meerkat} and Fig. \ref{fig:query2Meerkat}
+
+\begin{figure}[h]
+\begin{lstlisting}
+val S: Nonterminal = syn(
+   "subclassof-1" ~~ S ~~ "subclassof" |
+   "type-1" ~~ S ~~ "type" |
+   "subclassof-1" ~~ "subclassof" |
+   "type-1" ~~ "type")
+\end{lstlisting}
+\caption{Meerkat representation of Query 1}
+\label{fig:query1Meerkat}
+\end{figure}
+
+\begin{figure}[h]
+\begin{lstlisting}
+val S: Nonterminal = syn(
+   "subclassof-1" ~~ S ~~ "subclassof" |
+   "subclassof")
+\end{lstlisting}
+\caption{Meerkat representation of Query 2}
+\label{fig:query2Meerkat}
+\end{figure}
+
+The queries applied in two following ways.
+\begin{itemize}
+    \item Convert RDF files to a graph input for meerkat and then directly parse on query 1 and query 2
+    \item Convert RDF files to a Neo4j database and then parse this database on given queries
+\end{itemize} 
+Table \ref{table:rdfs} shows experimental results of those two aproaches over the testing RDF files where $number\ of\ results$ is a number of pairs of nodes $(v_1,\ v_2)$ such that exists S-path from $v_1$ to $v_2$.
+
+The perfomance is about $2$ times slower than in \cite{GrigorevR16} and shows the same results. If compare the perfomance of in memory graph querying and database querying, the second one is slower in about $2-4$ times.
 
 
-Integration with Neo4J
+
+
+
+
+\subsection{Integration with Neo4j}
 
 \subsection{Static code analysis}
 
@@ -114,4 +146,60 @@ gzip-1.8    & 31K  & 120 & 4567 & 1585\\
 
 It may be usefull for tools development.
 
-Comparison with ~\cite{ScalaGraphParsing}
+\subsection{Comparison with GLL}
+
+\subsection{Comparison with Trails}
+Trails ~\cite{ScalaGraphParsing} is a Scala graph combinator library which provides combinators for graph traversals. It provides traversers for describing paths in graphs in terms of parser combinators and allows to get results as a stream (maybe infinite) of all possible paths described by composition of basic traversals. Trails as well as Meerkat support parsing in memory graphs, so we compare perfomance of Trails and Meerkat on the queries from \autoref{sec:ontology}. Query 1 and Query 2 in terms of Trails are on Fig. \ref{fig:query1Trails} and Fig \ref{fig:query2Trails}.
+
+Here queries made in same way as in Meerkat. \lstinline{S} traversal returns pairs $(begin\ node,\ start\ node)$ of S-path. Combine operators \lstinline{~} and \lstinline{~>} in queries made in the way to get only last node from path.
+
+
+\begin{figure}[h]
+\begin{lstlisting}
+val B = (out("type-1") ~> out("type")) |
+   (out("subclassof-1") ~> B ~> out("subclassof")) |
+   (out("type-1") ~> B ~> out("type")) |
+   (out("subclassof-1") ~> out("subclassof"))
+val S = V ~ B
+\end{lstlisting}
+\caption{Trails representation of Query 1}
+\label{fig:query1Trails}
+\end{figure}
+
+\begin{figure}[h]
+\begin{lstlisting}
+val B = out("subclassof") |
+   (out("subclassof-1") ~> B ~> out("subclassof"))
+val S = V ~ B
+\end{lstlisting}
+\caption{Trails representation of Query 2}
+\label{fig:query2Trails}
+\end{figure}
+
+The result of comparation are in table \ref{table:rdfsTrails}. Trails gives the same results as Meeerkat (column $results$ in table \ref{table:rdfs}) but slower than Meerkat
+
+\begin{table}[t]
+\centering
+\begin{tabular}{|l|ll|ll|}
+\hline
+\multicolumn{1}{|c|}{\multirow{2}{*}{Ontology}} & \multicolumn{2}{c|}{Query 1} & \multicolumn{2}{c|}{Query 2} \\ \cline{2-5} 
+\multicolumn{1}{|c|}{} & \multicolumn{1}{c|}{\begin{tabular}[c]{@{}c@{}}Trails\\ time (ms)\end{tabular}} & \multicolumn{1}{c|}{\begin{tabular}[c]{@{}c@{}}Meerkat\\  time (ms)\end{tabular}} & \multicolumn{1}{c|}{\begin{tabular}[c]{@{}c@{}}Trails\\ time (ms)\end{tabular}} & \multicolumn{1}{c|}{\begin{tabular}[c]{@{}c@{}}Meerkat\\ time (ms)\end{tabular}} \\ \hline
+
+\hline
+\hline
+atom-primitive              & 2849 & 174 & 453 & 49 \\
+biomedical-mesure-primitive & 3715 & 328 & 60  & 36 \\
+foaf                        & 432  & 23  & 1   & 1 \\
+funding                     & 367  & 151 & 76  & 18 \\
+generations                 & 9    & 9   & 0   & 0 \\
+people\_pets                & 75   & 68  & 2   & 2 \\
+pizza                       & 7764 & 711 & 905 & 44 \\
+skos                        & 6    & 4   & 0   & 0 \\
+travel                      & 34   & 23  & 1   & 2 \\
+univ-bench                  & 31   & 19  & 2   & 2 \\
+wine                        & 3156 & 578 & 4   & 5 \\
+\hline
+\end{tabular}
+\caption{Trails perfomance comparation wit Meerkat}
+\label{table:rdfsTrails}
+\end{table}
