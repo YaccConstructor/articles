@@ -2,18 +2,18 @@
 
 Parser-Combinators is a way to describe context-free grammar in terms of functions and operations on them. Parser is a function which takes some input and returns either Success with result of parsing or Error in a case of failure. Such parsers are composable which makes it easy to create new parsers from existing ones.
 
-One possible solutions of solution to create queries using parser-combinators is a Trails~\cite{ScalaGraphParsing}. But Trails strugles with left-recursion grammars like presented in Fig.~\ref{fig:exampleGrammar} and also may stuck on some graphs with loops by not yielding some paths in result stream.
+One possible solutions of solution to create queries using parser-combinators is a Trails~\cite{ScalaGraphParsing}. But Trails strugles with left-recursion grammars like and also may stuck on some graphs with loops by not yielding some paths in result stream.
 
 Our work based on Meerkat parser-combinators library which can hadnle left recursion and as result has Shared Packed Parse Forest SPPF~\cite{SPPF} which is a graph stores all possible ways to parse given input. From that SPPF we can get everything we need to know about our paths.
 
-But Meerkat was made to work on a linear input. And we extend input for Meerkat from linear to the graph one. That allows us to get all possible paths in graphs which is described by grammar.
+But Meerkat was made to work on a linear input; so, we extend input for Meerkat from linear to the graph one. That allows us to get all possible paths in graphs which is described by grammar.
 
-Let us introduce an example. Let's assume we have context-free grammar $G$ presented on Fig. ~\ref{fig:exampleGrammar}. It produces a language whcih consists of of words starting with $b$ or $c$ and followed by some $a$'s. Its Meerkat representation is in Fig. ~\ref{fig:exampleGrammarMeerkat}
+Let us introduce an example. Let's assume we have context-free grammar $G$ presented on Fig. ~\ref{fig:exampleGrammar}. It produces so-called same genration query for pair $a$ and $b$. Its Meerkat representation is in Fig. ~\ref{fig:exampleGrammarMeerkat}
 
 \begin{figure}[h]
 \begin{align*}
-& A \rightarrow\ A\ a\ |\ B \\
-& B \rightarrow b
+& S \rightarrow\ \ a\ A\ b\ |\ M \\
+& M \rightarrow a\ b
 \end{align*}
 \caption{Example grammar}
 \label{fig:exampleGrammar}
@@ -22,17 +22,52 @@ Let us introduce an example. Let's assume we have context-free grammar $G$ prese
 
 \begin{figure}[h]
 \begin{lstlisting}
-val A = syn(A ~~ "a" | B)
-val B = syn("b" | "c") 
+val S = syn("a" ~ A ~ "b" | M)
+val M = syn("a" ~ "b") 
 \end{lstlisting}
-\caption{Example grammar in terms of parser combinators}
+\caption{Same-generation query in terms of parser combinators}
 \label{fig:exampleGrammarMeerkat}
 \end{figure}
 
-Let's closely take a look at it. For every nonterminal in our CF grammar we create a val of  \lstinline{Nonterminal} type. \lstinline{syn} is a macro which automaticaly assigns a name of our val to our nonterminal. Inside a \lstinline{syn} macro we've got a defenition of nonterminal. It using two combinators \lstinline{~~} and \lstinline{|}. The first one \lstinline{~~} says that after edge described by left operand we would like to have adjacence edge described by right one. \lstinline{|} is an altenative combinator which have lower priority then \lstinline{~~} and used to describes possible alternativesof paths description. A new combinators can be created using existing ones like for nonterminal on Fig.~\ref{fig:exampleGrammarMeerkat} which makes parser combinators a powerfull technique for describing a paths in graphs.
+Let's closely take a look at it. For every nonterminal in our CF grammar we create a val of  \lstinline{Nonterminal} type. \lstinline{syn} is a macro which creates new nonterminal and automaticaly assigns a name of our val to it. Inside a \lstinline{syn} macro we've got a defenition of nonterminal. It using two combinators \lstinline{~} and \lstinline{|}. The first one \lstinline{~} says that after edge described by left operand we would like to have adjacence edge described by right one. \lstinline{|} is an altenative combinator which have lower priority then \lstinline{~} and used to describes possible alternativesof paths description. A new combinators can be created using existing ones like for nonterminal on Fig.~\ref{fig:exampleGrammarMeerkat} which makes parser combinators a powerfull technique for describing a paths in graphs.
 
+The following table shows the some combinators avalible in Meerkat 
 
-Let's parse graph from Fig.~\ref{fig:graph}
+\begin{table}[h]
+\centering
+\begin{tabular}{|c|c|}
+\hline
+\multicolumn{1}{|c|}{Combinator} & \multicolumn{1}{c|}{Description} \\ \hline
+{\lstinline!a ~ b!} & {\lstinline!a!} and then {\lstinline!b!}   \\
+{\lstinline!a | b!} & {\lstinline!a!} or {\lstinline!b!}         \\
+{\lstinline!a.?!}   & {\lstinline!a!} or nothing   \\
+{\lstinline!a.*!}   & zero or more of {\lstinline!a!} \\
+{\lstinline!a.+!}   & at least one {\lstinline!a!} \\
+\hline
+\end{tabular}
+\caption{Meerkat combinators}
+\label{table:combinators}
+\end{table}
+
+One of the most excited combinators feature is that queries using combinators can be dynamicaly generated. Let's take a look at Fig~\ref{fig:gen}. \lstinline{sameGen} creates a asme generation query for every pair of brackets in \lstinline{bs}. For example, for \lstinline{bs = List(("(", ")"), ("[", "]"))} it would return a parser equvalent to 
+\begin{lstlisting}
+val G = "(" ~  G.? ~ ")" | "[" ~  G.? ~ "]"
+\end{lstlisting}
+\begin{figure}[h]
+\begin{lstlisting}
+def sameGen(bs: List[(Nonterminal, Nonterminal)]) = 
+  syn { bs
+    .map { case (x, y) => x ~ sameGen(bs).? ~ y }
+    .foldLeft(AlternationBuilder.empty)(_ | _)
+  }
+\end{lstlisting}
+\caption{Same generations query generator}
+\label{fig:gen}
+\end{figure}
+
+Armed with that function, let us generate a parser equal to a one presented on Fig.~\ref{fig:exampleGrammar} by calling \lstinline{sameGen(List(("a", "b")))}
+
+And let's fially parse graph from Fig.~\ref{fig:graph} and get all paths described by same-generation grammar from it.
 
 \begin{figure}[h]
 \includegraphics{graph}
@@ -42,6 +77,6 @@ Let's parse graph from Fig.~\ref{fig:graph}
 
 To do it let us use meerkat function \lstinline{parseGraphFromAllPositions(parser,graph)} which applies given parser to given graph and gets from SPPF all pairs of nodes such that exists a path between them described by a parser.
 
-The result for graph in Fig.~\ref{fig:graph} is $\{(3,2), (0,2), (3,1), (0,1)\}$, where $(i,j)$ stands for the path from node with label $i$ to the node with label $j$
+The result for graph in Fig.~\ref{fig:graph} is $\{(1,0), (1,2), (0,0), (2,1), (2,2), (0,2), (0,1), (1,1)\}$, where $(i,j)$ stands for the path from node with label $i$ to the node with label $j$
 
 
