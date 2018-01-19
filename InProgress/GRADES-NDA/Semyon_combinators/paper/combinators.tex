@@ -1,23 +1,47 @@
 \section{Parser-Combitators for Path Querying}
 
-In this section we present our implementation of and describe some details.
+Parser-Combinators is a way to describe context-free grammar in terms of functions and operations on them. Parser is a function which takes some input and returns either Success with result of parsing or Error in a case of failure. Such parsers are composable which makes it easy to create new parsers from existing ones.
 
-Our implenemtation is based on Meerkat library. 
-We need only some steps for generalization.
+One possible solutions of solution to create queries using parser-combinators is a Trails~\cite{ScalaGraphParsing}. But Trails strugles with left-recursion grammars like presented in Fig.~\ref{fig:exampleGrammar} and also may stuck on some graphs with loops by not yielding some paths in result stream.
 
-As far as linear input is a one of case of graph, it is possible to provide input abstraction which 
-make possible to generalize combinators.
+Our work based on Meerkat parser-combinators library which can hadnle left recursion and as result has Shared Packed Parse Forest SPPF~\cite{SPPF} which is a graph stores all possible ways to parse given input. From that SPPF we can get everything we need to know about our paths.
 
-SPPF may be an arbitrary graph in opposite of linear input parsing.
+But Meerkat was made to work on a linear input. And we extend input for Meerkat from linear to the graph one. That allows us to get all possible paths in graphs which is described by grammar.
 
-Let we introduce an example. 
-Graph.
-Grammar.
-In terms of combinators.
+Let us introduce an example. Let's assume we have context-free grammar $G$ presented on Fig. ~\ref{fig:exampleGrammar}. It produces a language whcih consists of of words starting with $b$ or $c$ and followed by some $a$'s. Its Meerkat representation is in Fig. ~\ref{fig:exampleGrammarMeerkat}
+
+\begin{figure}[h]
+\begin{align*}
+& A \rightarrow\ A\ a\ |\ B \\
+& B \rightarrow b
+\end{align*}
+\caption{Example grammar}
+\label{fig:exampleGrammar}
+\end{figure}
 
 
-Interface for Neo4J bata base
+\begin{figure}[h]
+\begin{lstlisting}
+val A = syn(A ~~ "a" | B)
+val B = syn("b" | "c") 
+\end{lstlisting}
+\caption{Example grammar in terms of parser combinators}
+\label{fig:exampleGrammarMeerkat}
+\end{figure}
 
-Extensible solution
+Let's closely take a look at it. For every nonterminal in our CF grammar we create a val of  \lstinline{Nonterminal} type. \lstinline{syn} is a macro which automaticaly assigns a name of our val to our nonterminal. Inside a \lstinline{syn} macro we've got a defenition of nonterminal. It using two combinators \lstinline{~~} and \lstinline{|}. The first one \lstinline{~~} says that after edge described by left operand we would like to have adjacence edge described by right one. \lstinline{|} is an altenative combinator which have lower priority then \lstinline{~~} and used to describes possible alternativesof paths description. A new combinators can be created using existing ones like for nonterminal on Fig.~\ref{fig:exampleGrammarMeerkat} which makes parser combinators a powerfull technique for describing a paths in graphs.
 
-An architecture of the solution.
+
+Let's parse graph from Fig.~\ref{fig:graph}
+
+\begin{figure}[h]
+\includegraphics{graph}
+\caption{Example graph}
+\label{fig:graph}
+\end{figure}
+
+To do it let us use meerkat function \lstinline{parseGraphFromAllPositions(parser,graph)} which applies given parser to given graph and gets from SPPF all pairs of nodes such that exists a path between them described by a parser.
+
+The result for graph in Fig.~\ref{fig:graph} is $\{(3,2), (0,2), (3,1), (0,1)\}$, where $(i,j)$ stands for the path from node with label $i$ to the node with label $j$
+
+
