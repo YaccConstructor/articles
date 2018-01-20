@@ -1,36 +1,51 @@
 \section{Parser-Combitators for Path Querying}
 
-Parser-Combinators is a way to describe context-free grammar in terms of functions and operations on them. Parser is a function which takes some input and returns either Success with result of parsing or Error in a case of failure. Such parsers are composable which makes it easy to create new parsers from existing ones.
+Parser-Combinators is a way to describe context-free grammar in terms of functions and operations on them. 
+Parser is a function which takes some input and returns either Success with result of parsing or Error in a case of failure. 
+Such parsers are composable which makes it easy to create new parsers from existing ones.
+But classical parser combinators libraries can was made to work on a linear input, and Meerkat which we use as a base for our work too.
 
-Our work based on Meerkat parser-combinators library  From that SPPF we can get everything we need to know about our paths.
+We extend input for Meerkat from linear to the graph one.
+It can be done by using an odservation which for (string or graph) parsing we need only to provide function for getting symbols follower by specified position.
+As far as Meerkat based on GLL, termination and correctness for arbitrary input graph and arbitrary context-free grammar is based on GLL generalization for CFPQ, which described in~\cite{GrigorevR16}.
+That allows us to adopt parser combinators technique for context-free path querying.
 
-But Meerkat was made to work on a linear input; so, we extend input for Meerkat from linear to the graph one.
-That allows us to get all possible paths in graphs which is described by grammar.
+Let us introduce an example of same generation query by using Meerkat.
+Context-free grammar $G$ presented in Fig.~\ref{fig:query1} and its Meerkat representation is in Fig.~\ref{fig:query1Meerkat}
 
-Let us introduce an example. Let's assume we have context-free grammar $G$ presented on Fig.~\ref{fig:query1}.
-It produces so-called same genration query for pair $a$ and $b$. Its Meerkat representation is in Fig.~\ref{fig:query1Meerkat}
-%\begin{figure}[h]
-%\begin{align*}
-%& S \rightarrow\ \ a\ A\ b\ |\ M \\
-%& M \rightarrow a\ b
-%\end{align*}
-%\caption{Example grammar}
-%label{fig:exampleGrammar}
-%\end{figure}
+\begin{figure}[h]
+\begin{align*}
+& S \rightarrow subClassOf^{-1}\ S\ subClassOf\\
+& S \rightarrow type^{-1}\ S\ type\\
+& S \rightarrow subClassOf^{-1}\ subClassOf\\
+& S \rightarrow type^{-1}\ type
+\end{align*}
+\caption{Query 1 grammar}
+\label{fig:query1}
+\end{figure}
 
+\begin{figure}[h]
+\begin{lstlisting}
+val S: Nonterminal = syn(
+   "subclassof-1" ~ S ~ "subclassof" |
+   "type-1" ~ S ~ "type" |
+   "subclassof-1" ~ "subclassof" |
+   "type-1" ~ "type")
+\end{lstlisting}
+\caption{Meerkat representation of Query 1}
+\label{fig:query1Meerkat}
+\end{figure}
 
-%\begin{figure}[h]
-%\begin{lstlisting}
-%val S = syn("a" ~ A ~ "b" | M)
-%val M = syn("a" ~ "b") 
-%\end{lstlisting}
-%\caption{Same-generation query in terms of parser combinators}
-%\label{fig:exampleGrammarMeerkat}
-%\end{figure}
+Let's closely take a look at it.
+For every nonterminal in our CF grammar we create a val of  \lstinline{Nonterminal} type.
+Strings are implicitly converted to terminals.
+\lstinline{syn} is a macro which creates new nonterminal and automaticaly assigns a name of our val to it.
+Inside a \lstinline{syn} macro we've got a defenition of nonterminal.
+It using two combinators \lstinline{~} and \lstinline{|}.
+The first one \lstinline{~} says that after edge described by left operand we would like to have adjacence edge described by right one.
+\lstinline{|} is an altenative combinator which have lower priority then \lstinline{~} and used to describes possible alternatives of paths description.
 
-Let's closely take a look at it. For every nonterminal in our CF grammar we create a val of  \lstinline{Nonterminal} type. \lstinline{syn} is a macro which creates new nonterminal and automaticaly assigns a name of our val to it. Inside a \lstinline{syn} macro we've got a defenition of nonterminal. It using two combinators \lstinline{~} and \lstinline{|}. The first one \lstinline{~} says that after edge described by left operand we would like to have adjacence edge described by right one. \lstinline{|} is an altenative combinator which have lower priority then \lstinline{~} and used to describes possible alternativesof paths description. A new combinators can be created using existing ones like for nonterminal on Fig.~\ref{fig:exampleGrammarMeerkat} which makes parser combinators a powerfull technique for describing a paths in graphs.
-
-The following table shows the some combinators avalible in Meerkat 
+The following table shows the some combinators avalible in Meerkat. 
 
 \begin{table}[h]
 \centering
@@ -48,25 +63,31 @@ The following table shows the some combinators avalible in Meerkat
 \label{table:combinators}
 \end{table}
 
-One of the most excited combinators feature is that queries using combinators can be dynamicaly generated. Let's take a look at Fig~\ref{fig:gen}. \lstinline{sameGen} creates a same generation query for every pair of brackets in \lstinline{bs}. For example, for \lstinline{bs = List(("(", ")"), ("[", "]"))} it would return a parser equvalent to 
+One of the most excited combinators feature is that queries using combinators can be used as first class values, which provide high ability for queryes generalization and comosition.
+Let's take a look at Fig~\ref{fig:gen}. \lstinline{sameGen} creates a same generation query for every pair of brackets in \lstinline{brs}.
+This generaization is independent from environment (graph and other parsers), and we can use it for creation of different queries.
+For example, the following application of \lstinline{sameGen} build a query which is equivalents to the query presented in Fig.~\ref{fig:query1Meerkat}:
+
 \begin{lstlisting}
-val G = "(" ~  G.? ~ ")" | "[" ~  G.? ~ "]"
+val query1 = syn( sameGen( List(
+    ("subclassof-1", "subclassof")
+    , ("type-1", "type"))))
 \end{lstlisting}
 
 \begin{figure}[h]
 \begin{lstlisting}
-def sameGen(bs: List[(Symbol[_], Symbol[_])]) =
-  bs.map { case (x, y) => x ~ syn(sameGen(bs).?) ~ y } 
+def sameGen(brs) =
+  bs.map { case (lbr, rbr) => 
+             lbr ~ syn(sameGen(bs).?) ~ rbr } 
   match {
     case x :: Nil => syn(x)
-    case x :: y :: xs => syn(xs.foldLeft(x | y)(_ | _))
+    case x :: y :: xs => 
+      syn(xs.foldLeft(x | y)(_ | _))
   }
 \end{lstlisting}
 \caption{Same generations query generator}
 \label{fig:gen}
 \end{figure}
-
-Armed with that function, let us generate a parser equal to a one presented on Fig.~\ref{fig:exampleGrammar} by calling \lstinline{sameGen(List(("a", "b")))}
 
 And let's fially parse graph from Fig.~\ref{fig:graph} and get all paths described by same-generation grammar from it.
 
