@@ -1,10 +1,19 @@
  \section{Parser Combitators for Path Querying}
 
-Parser combinators provide a way to specify a language syntax in terms of functions and operations on them. A parser in this framework is usually a function which consumes a prefix of an input and returns either a parsing result or an error, if the input is erroneous. Parsers can be composed by using a set of parser combinators to form more complex parsers. A parser combinators library provides with a set of basic combinators (such as sequential application or choice), and there can also be user-defined combinators. Most parser combinators libraries, including the Meerkat library, can only process the linear input --- strings or some kind of streams. We extend the Meerkat library to work on the graph input.
+Parser combinators provide a way to specify a language syntax in terms of functions and operations on them. 
+A parser in this framework is usually a function which consumes a prefix of an input and returns either a parsing result or an error, if the input is erroneous. 
+Parsers can be composed by using a set of parser combinators to form more complex parsers. 
+A parser combinators library provides with a set of basic combinators (such as sequential application or choice), and there can also be user-defined combinators. 
+Most parser combinators libraries, including the Meerkat library, can only process the linear input --- strings or some kind of streams. 
+We extend the Meerkat library to work on the graph input.
 
-Meerkat library is a general parser combinators library; by using memoization, continuation passing style and the ideas of Johnson~\cite{Johnson} it supports arbitrary context free specifications. This library is closely related to the Generalized LL algorithm and since GLL can be generalized for context free path querying~\cite{GrigorevR16}, the adaptation of Meerkat is reasonable too [!!! переформулировать !!!]. 
+Meerkat library is a general parser combinators library; by using memoization, continuation passing style and the ideas of Johnson~\cite{Johnson} it supports arbitrary context free specifications. 
+This library is closely related to the Generalized LL algorithm and since GLL can be generalized for context free path querying~\cite{GrigorevR16}, the adaptation of Meerkat is reasonable too [!!! переформулировать !!!]. 
+It can be done by using an odservation which for (string or graph) parsing we need only to provide function for getting symbols follower by specified position.
 
-The combinators our library provides are presented in table~\ref{table:combinators}. Basic parser combinators for mathching strings are implicitly generated whenever a string is used within a query. The same generation query can be writen using the library as presented in Fig.~\ref{fig:query1Meerkat}.
+The combinators our library provides are presented in table~\ref{table:combinators}. 
+Basic parser combinators for mathching strings are implicitly generated whenever a string is used within a query. 
+The same generation query can be writen using the library as presented in Fig.~\ref{fig:query1Meerkat}.
 
 \begin{table}[h]
 \centering
@@ -32,10 +41,10 @@ val S: Nonterminal = syn(
 \end{figure}
 
 
-It can be done by using an odservation which for (string or graph) parsing we need only to provide function for getting symbols follower by specified position.
-
 The most exciting feature of our library is that queries can be used as first class values, which means greater generalization and comosition. 
-Function \lstinline{sameGen} presented in Fig~\ref{fig:gen} is a generalization of the same generation query [BRACKETS!] which is independent from the environment such as the input graph structure or other parsers. It can be used for creation of different queries, including the one presented in Fig~\ref{fig:query1Meerkat}: it is the result of application of \lstinline{sameGen} to the appropriate ``brackets''.
+Function \lstinline{sameGen} presented in Fig~\ref{fig:gen} is a generalization of the same generation query which is independent from the environment such as the input graph structure or other parsers.
+It can be used for creation of different queries, including the one presented in Fig~\ref{fig:query1Meerkat}: it is the result of application of \lstinline{sameGen} to the appropriate relations (which may be treated  as ``brackets'').
+Another application of the \lstinline{sameGen} can be founded in Fig.~\ref{fig:query2Gen}.
 
 \begin{figure}[h]
 \begin{lstlisting}
@@ -43,7 +52,7 @@ val query1 = syn(sameGen(List(
     ("subclassof-1", "subclassof"),
     ("type-1", "type"))))
 \end{lstlisting}
-\caption{Query~\ref{fig:query1} as an application of \lstinline{sameGen}}
+\caption{Query~\ref{query1Meerkat} as an application of \lstinline{sameGen}}
 \label{fig:query1Gen}
 \end{figure}
 
@@ -62,34 +71,21 @@ def sameGen(brs) =
 \label{fig:gen}
 \end{figure}
 
-Running a query over an input graph retrieves the list of pairs $(i, j)$ where each pair corresponds to the set of paths from the node $i$ to the node $j$. Running the same generation query from Fig.~\ref{fig:query2Gen} over the graph in Fig.~\ref{fig:graph} returns  $\{(1,0), (1,2)\}$ as a result. Interlnally in Meerkat this paths represented as SPPF~\cite{SPPF}. Simplified version of SPPF for this query preseted on Fig.~\ref{fig:sppf} where rounded rectangles represents nonterminals, others rectangles represent productions. Every rectangle contains  nontermonal name or production rule, start and end nodes. Gray rectangels are start nonterminals.
+Running a query over an input graph retrieves the list of pairs $(i, j)$ where each pair corresponds to the set of paths from the node $i$ to the node $j$. 
+Running the same generation query from Fig.~\ref{fig:query2Gen} over the graph in Fig.~\ref{fig:graph} returns  $\{(1,0), (1,2)\}$ as a result. 
+Internally in Meerkat this paths represented as SPPF~\cite{SPPF}. 
+Simplified version of SPPF for this query preseted on Fig.~\ref{fig:sppf} where rounded rectangles represents nonterminals, others rectangles represent productions. 
+Every rectangle contains  nontermonal name or production rule, start and end nodes of thr input graph. 
+Gray rectangels are start nonterminals.
 
 \begin{figure}[h]
-\includegraphics{graph}
-\caption{Example graph. Lables $s$ and $s^{-1}$ stands for $subclassof$ and $subclassof^{-1}$, respectively}
+\includegraphics[width=0.45\textwidth]{graph}
+\caption{Example input graph.}
 \label{fig:graph}
 \end{figure}
 
 \begin{figure}[h]
 \includegraphics[scale=0.5]{sppf}
-\caption{SPPF for same generations query}
+\caption{SPPF: result of application the same generation query~\ref{fig:query2Gen} to the graph~\ref{fig:graph}}
 \label{fig:sppf}
 \end{figure}
-
-
-%Meerkat library consists of 3 main units (Fig. ~\ref{fig:architecture}): the input data unit, the analysis unit, the visualization unit.
-
-%The input data unit can accept two main types: graphs and strings. It is necessary to implement the IGraph interface to analyze graphs with different implementations. There are two implementation of IGraph at the moment: Neo4JGraph and SimpleGraph. Neo4JGraph takes data from the Neo4j graph database. SimpleGraph allows you to describe the graph in the code of the program.
-
-%The analysis unit consists of parser and SPPFLookup. The parser gets the input data and the grammar, which is a input data query.  The parser maps the input data to the input grammar and finds all the paths. The result is added to the SPPFLookup data structure, which contains all the paths in the input data corresponding to the grammar. All nodes in the SPPFLookup are in a single instance and re-used.
-
-%After the analysis is completed, the visualization unit gets SPPFLookup and SPPF query. The unit filters the path and then returns the file in dot format to the user.
-%\begin{figure}
-%\caption{Architecture Meerkat}
-%\label{fig:architecture}
-%\includegraphics[width=0.3\textwidth]{architecture.jpg}
-%\end{figure} 
-
-
-
-
