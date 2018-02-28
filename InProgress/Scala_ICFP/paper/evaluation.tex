@@ -1,0 +1,143 @@
+\section{Evaluation}
+
+In this section, we present an evaluation of our graph querying library.
+We measure its performance on a classical set of ontology graphs~\cite{CFGonRDF}: both when the graph is loaded into the RAM and for the integration with the Neo4j database and compare it with the solution based on the GLL parsing algorithm~\cite{GrigorevR16} and the Trails~\cite{ScalaGraphParsing} library for graph traversals. We also show how may-alias static code analysis can be done by means of the developed library. 
+
+All tests have been performed on a computer running Fedora 27 with quad-core Intel Core i7 2.5 GHz CPU and 8 GB of RAM.
+
+
+\begin{table*}[t]
+\centering
+\begin{tabular}{|l|l|lllll|lllll|}
+\hline
+\multicolumn{1}{|c|}{\multirow{2}{*}{Ontology}} & 
+\multicolumn{1}{c|}{\multirow{2}{*}{\#tripples}} & 
+\multicolumn{5}{c|}{Query 1}  &
+\multicolumn{5}{c|}{Query 2}\\ 
+\cline{3-12} 
+\multicolumn{1}{|c|}{} & 
+\multicolumn{1}{c|}{}  &
+\multicolumn{1}{c|}{\begin{tabular}[c]{@{}c@{}}\#results\end{tabular}} & 
+\multicolumn{1}{c|}{\begin{tabular}[c]{@{}c@{}}In memory \\ graph (ms)\end{tabular}} & 
+\multicolumn{1}{c|}{\begin{tabular}[c]{@{}c@{}}DB query \\ (ms)\end{tabular}} & 
+\multicolumn{1}{c|}{\begin{tabular}[c]{@{}c@{}}Trails\\ (ms)\end{tabular}} & 
+\multicolumn{1}{c|}{\begin{tabular}[c]{@{}c@{}}GLL \\ (ms)\end{tabular}} & 
+\multicolumn{1}{c|}{\begin{tabular}[c]{@{}c@{}}\#results\end{tabular}} &
+\multicolumn{1}{c|}{\begin{tabular}[c]{@{}c@{}}In memory \\ graph (ms)\end{tabular}} &
+\multicolumn{1}{c|}{\begin{tabular}[c]{@{}c@{}}DB query \\ (ms)\end{tabular}} &
+\multicolumn{1}{c|}{\begin{tabular}[c]{@{}c@{}}Trails \\ (ms)\end{tabular}} &
+\multicolumn{1}{c|}{\begin{tabular}[c]{@{}c@{}}GLL \\ (ms)\end{tabular}} \\
+\hline\hline
+atom-primitive              & 425  & 15454 & 112 & 167 & 2849 & 232 & 122  & 49 & 52 & 453 & 19 \\
+\shortstack[l]{biomedical- \\
+ measure-primitive}         & 459  & 15156 & 226 & 247 & 3715 & 482 & 2871 & 34 & 42 & 60  & 26 \\
+foaf                        & 631  & 4118  & 16  & 25  & 432  & 29  & 10   & 1  & 2  & 1   & 1 \\
+funding                     & 1086 & 17634 & 123 & 152 & 367  & 179 & 1158 & 18 & 23 & 76  & 13 \\
+generations                 & 273  & 2164  & 6   & 21  & 9    & 12  & 0    & 0  & 0  & 0   & 0 \\
+people\_pets                & 640  & 9472  & 63  & 84  & 75   & 80  & 37   & 2  & 3  & 2   & 1 \\
+pizza                       & 1980 & 56195 & 544 & 650 & 7764 & 793 & 1262 & 44 & 47 & 905 & 50 \\
+skos                        & 252  & 810   & 4   & 9   & 6    & 6   & 1    & 0  & 1  & 0   & 0 \\
+travel                      & 277  & 2499  & 21  & 55  & 34   & 21  & 63   & 2  & 2  & 1   & 2 \\
+univ-bench                  & 293  & 2540  & 15  & 43  & 31   & 24  & 81   & 2  & 2  & 2   & 1 \\
+wine                        & 1839 & 66572 & 543 & 727 & 3156 & 606 & 133  & 5  & 7   & 4   & 5 \\
+\hline
+\end{tabular}
+\caption{Comparation of Meerkat, Trails and GLL performance on ontologies}
+\label{table:rdfs}
+\end{table*}
+
+
+\subsection{Ontology querying}
+\label{sec:ontology}
+
+Querying for ontologies is a well-known graph querying problem. We evaluate our library on some popular ontologies which are presented as RDF files in the paper~\cite{CFGonRDF}. 
+First, we convert RDF files to a labelled directed graph in the following manner: we create two edges $(subject,\ predicate,\ object)$ and $(object,\ predicate^{-1},\ subject)$ for every RDF triple $(subject,\ predicate,\ object)$. Then the graph is either loaded into the Neo4j database or is loaded directly into the memory. 
+Then we run two queries from the paper~\cite{GrigorevR16} for these graphs. The grammars for the queries are presented in Fig.~\ref{fig:query1Gen} and Fig.~\ref{fig:query2Gen}.
+
+\begin{figure}[h]
+\begin{lstlisting}
+val query2 = syn(
+  sameGen(List(("subclassof-1", "subclassof"))) ~
+   "subclassof")
+\end{lstlisting}
+\caption{Query 2 grammar}
+\label{fig:query2Gen}
+\end{figure}
+
+The performance results are shown in the table~\ref{table:rdfs}. $\#triples$ reflects the size of the RDF file with the corresponding ontology, $\#results$ is a number of pairs of the nodes between which at least one S-path exists. 
+
+The Meerkat-based and the GLL-based~\cite{GrigorevR16} solutions show the same results (column $\#results$) and the Query 1 runs up to two times faster on the Meerkat-based solution than on the GLL-based, meanwhile the GLL-based solution is faster for the Query 2. Querying the database is naturally $2-4$ times slower than querying the graphs located in the RAM.
+
+
+\subsection{Static code analysis}
+
+Alias analysis is a fundamental static analysis problem~\cite{Marlowe}: it checks may-alias relations between code expressions and can be formulated as a context-free language (CFL) reachability problem~\cite{Reps} which is closely related to context-free path querying problem.
+In this analysis, a program is represented as a Program Expression Graph (PEG)~\cite{Zheng}.
+Vertices in a PEG correspond to program expressions and edges are relations between them.
+There are two types of edges possible while analyzing C source code: \textbf{D}-edge and \textbf{A}-edge.
+
+\begin{itemize}
+    \item Pointer dereference edge (\textbf{D}-edge). For each pointer dereference $*e$ there is a directed \textbf{D}-edge from $e$ to $*e$.
+    \item Pointer assignment edge (\textbf{A}-edge). For each assignment $*e_1=e_2$ there is a directed \textbf{A}-edge from $e_2$ to $*e_1$
+\end{itemize}
+
+For the sake of simplicity, we add edges labelled by $\overline{D}$ and $\overline{A}$ which correspond to the reversed \textbf{D}-edge and \textbf{A}-edge, respectively.
+
+The grammar for may-alias problem from~\cite{Zheng} is presented in Fig.~\ref{lst:aliasGrammar}.
+It contains two nonterminals \textbf{M} and \textbf{V} and allows us to make two kinds of queries for each of them.
+
+\begin{itemize}
+    \item \textbf{M}-production means that two l-value expressions are memory aliases i.e. may refer to the same memory location.
+    \item \textbf{V}-production means that two expressions are value aliases i.e. may evaluate to the same pointer value.
+\end{itemize}
+
+We run the \textbf{M} and \textbf{V} queries on some open-source C projects: the results are in table~\ref{table:staticAnalysis}.
+We can conclude that our solution is expressive and performant enough to be used for static analysis problems which can be expressed as CFPQs.
+
+\begin{figure}[t]
+\begin{align*}
+& M \rightarrow\ \overline{D}\ V\ D\\
+& V \rightarrow (M ?\ \overline{A})^{*} \ M?\ (A\ M?)^{*}
+\end{align*}
+\caption{Context-Free grammar for the may-alias problem}
+\label{lst:aliasGrammar}
+\end{figure}
+
+\begin{figure}[h]
+\begin{lstlisting}
+val M  = syn("nd" ~ V ~ "d")
+val V  = syn((M.? ~ "na").* ~ M.? ~ ("a" ~ M.?).*)
+\end{lstlisting}
+\caption{Meerkat representation of may-alias problem grammar}
+\label{fig:aliasMeerkat}
+\end{figure}
+
+
+\begin{table}[t]
+\centering
+\begin{tabular}{|l|l|ll|l|}
+\hline
+\multirow{2}{*}{Program} & \multirow{2}{*}{Code Size (KLOC)} & \multicolumn{2}{c|}{Count of aliases} & \multirow{2}{*}{Time (ms)} \\ \cline{3-4}
+ &  & \multicolumn{1}{c|}{M aliases} & \multicolumn{1}{c|}{V aliases} &  \\ 
+\hline
+\hline
+wc-5.0      & 0.5 & 0   & 174  & 107 \\
+pr-5.0      & 1.7 & 13  & 1131 & 63  \\
+ls-5.0      & 2.8 & 52  & 5682 & 253 \\
+bzip2-1.0.6 & 5.8 & 9   & 813  & 71  \\
+gzip-1.8    & 31  & 120 & 4567 & 227 \\
+\hline
+\end{tabular}
+\caption{Running may-alias queries on Meerkat on some C open-source projects}
+\label{table:staticAnalysis}
+\end{table}
+
+\subsection{Comparison with Trails}
+
+Trails~\cite{ScalaGraphParsing} is a Scala graph combinator library.
+It provides traversers for describing paths in graphs which resemble parser combinators and calculates possibly infinite stream of all possible paths described by the composition of basic traversers.
+Both Trails and Meerkat-based solution support parsing of the graphs located in RAM, so we compare the performance of Trails and Meerkat-based solution on the ontology queries described above: the results are presented in table~\ref{table:rdfs}.
+Trails and Meerkat-based solution compute the same results, but Trails is up to 10 times slower than Meerkat-based solution.
+
+To summarize, we demonstrated that parser combinators are expressive enough to be used for implementing real queries. 
+Our implementation is as performant as the other existing combinators library and is comparable to the GLL-based solution.
