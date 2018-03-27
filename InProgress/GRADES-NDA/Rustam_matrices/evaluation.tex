@@ -1,0 +1,148 @@
+\section{Evaluation}
+\label{section_evaluation}
+
+To show the practical applicability of the proposed algorithm for context-free path querying w.r.t. relational query semantics, we implemented this algorithm with a number of optimizations and applied these implementations to the navigation query problem for some popular ontologies, taken from~\cite{RDF}. We also compared the performance of our implementations with existing analogues from~\cite{GLL,RDF}. These analogues use more complex algorithms, while our algorithm uses only the simple matrix operations.
+
+Since our algorithm works with graphs, each RDF file from a dataset was converted to an edge-labeled directed graph as follows. For each triple $(o,p,s)$ from an RDF file, we added an edge $(o,p,s)$ to the graph. In addition, we added an edge $(s,p^{-1},o)$ to the graph, if $p$ corresponded to the terminals \emph{subClassOf} and \emph{type} of the query grammars. We also constructed synthetic graphs $g_1$, $g_2$ and $g_3$, simply repeating $8$ times the existing graphs for \emph{funding}, \emph{wine} and \emph{pizza}, respectively.
+
+All tests were run on a PC with the following characteristics:
+
+\begin{itemize}
+    \item OS: Microsoft Windows 10 Pro
+    \item System Type: x64-based PC
+    \item CPU: Intel(R) Core(TM) i7-4790 CPU @ 3.60GHz, 3601 Mhz, 4 Core(s), 4 Logical Processor(s)
+    \item RAM: 16 GB
+    \item GPU: NVIDIA GeForce GTX 1070
+    \begin{itemize}
+        \item CUDA Cores:		1920 
+        \item Core clock:		1556 MHz 
+        \item Memory data rate:	8008 MHz
+        \item Memory interface:	256-bit 
+        \item Memory bandwidth:	256.26 GB/s
+        \item Dedicated video memory:	8192 MB GDDR5
+    \end{itemize}
+\end{itemize}
+
+We denote the implementation of the algorithm from a paper~\cite{GLL} as $GLL$. Our algorithm can be easily implemented using the existing libraries for matrix operations calculation on a CPU or on a GPU. We did not find suitable libraries for bit matrix multiplication to implement our Boolean matrix multiplication. Therefore, we used standard libraries for matrix operations. The algorithm, presented in this paper, is implemented in F\# programming language~\cite{fsharp} and is available on GitHub%\footnote{GitHub repository of the YaccConstructor project: \url{https://github.com/YaccConstructor/YaccConstructor}.}
+. We denote our implementations of the proposed algorithm as follows:
+
+\begin{itemize}
+    \item dGPU (dense GPU)~--- an implementation with a row-major matrix representation and a GPU for matrix operation calculation. For the calculations of matrix operations on a GPU, we used a wrapper for the CUBLAS library from the managedCuda\footnote{GitHub repository of the managedCuda library: \url{https://kunzmi.github.io/managedCuda/}.} library.
+    \item sCPU (sparse CPU)~--- an implementation using the CSR format for sparse matrix representation and a CPU for matrix operation calculation. For sparse matrix representation in CSR format we used the Math.Net Numerics\footnote{The Math.Net Numerics WebSite: \url{https://numerics.mathdotnet.com/}.} package.
+    \item sGPU (sparse GPU)~--- an implementation using the CSR format for sparse matrix representation and a GPU for matrix operation calculation. For calculations of the matrix operations on a GPU, where matrices represented in a CSR format, we used a wrapper for the CUSPARSE library from the managedCuda library.
+\end{itemize}
+
+We omit $dGPU$ performance on graphs $g_1$, $g_2$ and $g_3$, since a dense matrix representation leads to a significant performance degradation as the graph size grows. 
+
+We evaluated two classical \emph{same-generation queries}~\cite{FndDB} which, for example, can be used in bioinformatics.
+
+\textbf{Query 1} is based on the grammar $G^1_S$ for retrieving the concepts on the same layer, where:
+\begin{itemize}
+    \item the grammar $G^1 = (N^1, \Sigma^1, P^1)$;
+    \item the set of non-terminals $N^1 = \{S\}$;
+    \item the set of terminals \[\Sigma^1 = \{subClassOf, subClassOf^{-1}, type, type^{-1}\}\]
+    \item the set of production rules $P^1$ is presented on Figure~\ref{ProductionRulesQuery1}.
+\end{itemize}
+
+\begin{figure}[h]
+   \[
+\begin{array}{rccl}
+   0: & S & \rightarrow & \text{\emph{subClassOf}}^{-1} \ S \ \text{\emph{subClassOf}} \\ 
+   1: & S & \rightarrow & \text{\emph{type}}^{-1} \ S \ \text{\emph{type}} \\ 
+   2: & S & \rightarrow & \text{\emph{subClassOf}}^{-1} \ \text{\emph{subClassOf}} \\ 
+   3: & S & \rightarrow & \text{\emph{type}}^{-1} \ \text{\emph{type}} \\ 
+\end{array}
+\]
+\caption{Production rules for the query 1 grammar.}
+\label{ProductionRulesQuery1}
+\end{figure}
+
+\begin{table*}[ht]
+\centering
+\caption{Evaluation results for Query 1}
+\label{tbl1}
+
+\begin{tabular}{ | c | c | c | c | c | c | c | c |}
+\hline
+Ontology & V & E & \#results & GLL(ms) & dGPU(ms) & sCPU(ms) & sGPU(ms)\\
+\hline 
+\hline
+skos        & 144 & 323 & 810 & 10 & 56 & 14 & 12\\
+generations & 129 & 351 & 2164 & 19 & 62 & 20 & 13\\
+travel      & 131 & 397 & 2499 & 24 & 69 & 22 & 30\\
+univ-bench  & 179 & 413 & 2540 & 25 & 81 & 25 & 15\\
+atom-primitive & 291 & 685 & 15454 & 255 & 190 & 92 & 22\\
+biomedical-measure-primitive & 341 & 711 & 15156 & 261 & 266 & 113 & 20\\
+foaf        & 256 & 815 & 4118 & 39 & 154 & 48 & 9\\
+people-pets & 337 & 834 & 9472 & 89 & 392 & 142 & 32\\
+funding     & 778 & 1480 & 17634 & 212 & 1410 & 447 & 36\\
+wine        & 733 & 2450 & 66572 & 819 & 2047 & 797 & 54\\
+pizza       & 671 & 2604 & 56195 & 697 & 1104 & 430 & 24\\
+$g_{1}$     & 6224 & 11840 & 141072 & 1926 & --- & 26957 & 82\\
+$g_{2}$     & 5864 & 19600 & 532576 & 6246 & --- & 46809 & 185\\
+$g_{3}$     & 5368 & 20832 & 449560 & 7014 & --- & 24967 & 127\\
+\hline
+\end{tabular}
+
+\end{table*}
+
+\begin{table*}[h]
+\centering
+\caption{Evaluation results for Query 2}
+\label{tbl2}
+
+\begin{tabular}{ | c | c | c | c | c | c | c | c |}
+\hline
+Ontology & V & E & \#results & GLL(ms) & dGPU(ms) & sCPU(ms) & sGPU(ms)\\
+\hline 
+\hline
+skos        & 144 & 323 & 1 & 1 & 10 & 2 & 1\\
+generations & 129 & 351 & 0 & 1 & 9 & 2 & 0\\
+travel      & 131 & 397 & 63 & 1 & 31 & 7 & 10\\
+univ-bench  & 179 & 413 & 81 & 11 & 55 & 15 & 9\\
+atom-primitive & 291 & 685 & 122 & 66 & 36 & 9 & 2\\
+biomedical-measure-primitive & 341 & 711 & 2871 & 45 & 276 & 91 & 24\\
+foaf        & 256 & 815 & 10 & 2 & 53 & 14 & 3\\
+people-pets & 337 & 834 & 37 & 3 & 144 & 38 & 6\\
+funding     & 778 & 1480 & 1158 & 23 & 1246 & 344 & 27\\
+wine        & 733 & 2450 & 133 & 8 & 722 & 179 & 6\\
+pizza       & 671 & 2604 & 1262 & 29 & 943 & 258 & 23\\
+$g_{1}$     & 6224 & 11840 & 9264 & 167 & --- & 21115 & 38\\
+$g_{2}$     & 5864 & 19600 & 1064 & 46 & --- & 10874 & 21\\
+$g_{3}$     & 5368 & 20832 & 10096 & 393 & --- & 15736 & 40\\
+\hline
+\end{tabular}
+
+\end{table*}
+
+
+The grammar $G^1$ is transformed into an equivalent grammar in normal form, which is necessary for our algorithm. Let $R_S$ be a context-free relation for a start non-terminal in the transformed grammar.
+
+The result of query 1 evaluation is presented in Table~\ref{tbl1}, where $V$ is a number of vertices in the constructed graph, $E$ is a number of edges in the graph, and \#results is a number of pairs $(n,m)$ in the context-free relation $R_S$. We can determine whether $(i,j) \in R_S$ by asking whether $S \in a^{cf}_{i,j}$, where $a^{cf}$ is a transitive closure, calculated by the proposed algorithm. All implementations in Table~\ref{tbl1} have the same \#results and demonstrate up to 1000 times better performance in comparison with the algorithm, presented in~\cite{RDF}. Our implementation $sGPU$ demonstrates a better performance than $GLL$, on almost all graphs. $GLL$ is faster than $sGPU$ only on two small graphs due to a data transfer between CPU and GPU. Also, for this query, the acceleration from the $GPU$ increases with the graph size growth.
+
+\textbf{Query 2} is based on the grammar $G^2_S$ for retrieving concepts on the adjacent layers, where:
+\begin{itemize}
+    \item the grammar $G^2 = (N^2, \Sigma^2, P^2)$;
+    \item the set of non-terminals $N^2 = \{S, B\}$;
+    \item the set of terminals $\Sigma^2 = \{subClassOf, subClassOf^{-1}\}$;
+    \item the set of production rules $P^2$ is presented on Figure~\ref{ProductionRulesQuery2}.
+\end{itemize}
+
+\begin{figure}[h]
+   \[
+\begin{array}{rccl}
+   0: & S & \rightarrow & B \ \text{\emph{subClassOf}} \\ 
+   1: & S & \rightarrow & \text{\emph{subClassOf}} \\ 
+   2: & B & \rightarrow & \text{\emph{subClassOf}}^{-1} \ B \ \text{\emph{subClassOf}} \\ 
+   3: & B & \rightarrow & \text{\emph{subClassOf}}^{-1} \ \text{\emph{subClassOf}} \\ 
+\end{array}
+\]
+\caption{Production rules for the query 2 grammar.}
+\label{ProductionRulesQuery2}
+\end{figure}
+
+The grammar $G^2$ is transformed into an equivalent grammar in normal form. Let $R_S$ be a context-free relation for a start non-terminal in the transformed grammar.
+
+The result of the query 2 evaluation is presented in Table~\ref{tbl2}. All implementations in Table~\ref{tbl2} have the same \#results. On almost all graphs $sGPU$ demonstrates a better performance than $GLL$ implementation, and we also can conclude, that acceleration from the $GPU$ increases with the graph size growth.
+
+As a result, we conclude, that our algorithm can be applied to some real-world problems and allows us to speed up the computations, using GPGPU. Also, our algorithm can be easily implemented using standard libraries for matrix operations calculation. We can also speculate, that the use of bit matrix multiplication algorithms to implement our Boolean matrix multiplication can significantly improve the performance of our algorithm.
