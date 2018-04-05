@@ -1,0 +1,143 @@
+\section{Evaluation}
+In this work, we do not estimate the practical value of the algorithm for the context-free path querying w.r.t. the single-path query semantics, since this algorithm depends significant on the implementation of the path searching. To show the practical applicability of the algorithm for context-free path querying w.r.t. the relational query semantics, we implement this algorithm using a variety of optimizations and apply these implementations to the navigation query problem for a dataset of popular ontologies taken from~\cite{RDF}. We also compare the performance of our implementations with existing analogs from~\cite{GLL,RDF}. These analogs use more complex algorithms, while our algorithm uses only simple matrix operations.
+
+Since our algorithm works with graphs, each RDF file from a dataset was converted to an edge-labeled directed graph as follows. For each triple $(o,p,s)$ from an RDF file, we added edges $(o,p,s)$ and $(s,p^{-1},o)$ to the graph. We also constructed synthetic graphs $g_1$, $g_2$ and $g_3$, simply repeating the existing graphs.
+
+All tests were run on a PC with the following characteristics:
+\begin{itemize}
+    \item OS: Microsoft Windows 10 Pro
+    \item System Type: x64-based PC
+    \item CPU: Intel(R) Core(TM) i7-4790 CPU @ 3.60GHz, 3601 Mhz, 4 Core(s), 4 Logical Processor(s)
+    \item RAM: 16 GB
+    \item GPU: NVIDIA GeForce GTX 1070
+    \begin{itemize}
+        \item CUDA Cores:		1920 
+        \item Core clock:		1556 MHz 
+        \item Memory data rate:	8008 MHz
+        \item Memory interface:	256-bit 
+        \item Memory bandwidth:	256.26 GB/s
+        \item Dedicated video memory:	8192 MB GDDR5
+    \end{itemize}
+\end{itemize}
+
+We denote the implementation of the algorithm from a paper~\cite{GLL} as $GLL$. The algorithm presented in this work is implemented in F\# programming language~\cite{fsharp} and is available on GitHub\footnote{GitHub repository of the YaccConstructor project: \url{https://github.com/YaccConstructor/YaccConstructor}.}. We denote our implementations of the proposed algorithm as follows:
+\begin{itemize}
+    \item dGPU (dense GPU) --- an implementation using row-major order for general matrix representation and a GPU for matrix operations calculation. For calculations of matrix operations on a GPU, we use a wrapper for the CUBLAS library from the managedCuda\footnote{GitHub repository of the managedCuda library: \url{https://kunzmi.github.io/managedCuda/}.} library.
+    \item sCPU (sparse CPU) --- an implementation using CSR format for sparse matrix representation and a CPU for matrix operations calculation. For sparse matrix representation in CSR format, we use the Math.Net Numerics\footnote{The Math.Net Numerics WebSite: \url{https://numerics.mathdotnet.com/}.} package.
+    \item sGPU (sparse GPU) --- an implementation using the CSR format for sparse matrix representation and a GPU for matrix operations calculation. For calculations of the matrix operations on a GPU, where matrices represented in a CSR format, we use a wrapper for the CUSPARSE library from the managedCuda library.
+\end{itemize}
+
+We omit $dGPU$ performance on graphs $g_1$, $g_2$ and $g_3$ since a dense matrix representation leads to a significant performance degradation with the graph size growth. 
+
+We evaluate two classical \textit{same-generation queries}~\cite{FndDB} which, for example, are applicable in bioinformatics.
+
+\textbf{Query 1} is based on the grammar $G^1_S$ for retrieving concepts on the same layer, where:
+\begin{itemize}
+    \item The grammar $G^1 = (N^1, \Sigma^1, P^1)$.
+    \item The set of non-terminals $N^1 = \{S\}$.
+    \item The set of terminals $$\Sigma^1 = \{subClassOf, subClassOf^{-1}, type, type^{-1}\}.$$
+    \item The set of production rules $P^1$ is presented in Figure~\ref{ProductionRulesQuery1}.
+\end{itemize}
+
+\begin{figure}[h]
+   \[
+\begin{array}{rccl}
+   0: & S & \rightarrow & \text{\textit{subClassOf}}^{-1} \ S \ \text{\textit{subClassOf}} \\ 
+   1: & S & \rightarrow & \text{\textit{type}}^{-1} \ S \ \text{\textit{type}} \\ 
+   2: & S & \rightarrow & \text{\textit{subClassOf}}^{-1} \ \text{\textit{subClassOf}} \\ 
+   3: & S & \rightarrow & \text{\textit{type}}^{-1} \ \text{\textit{type}} \\ 
+\end{array}
+\]
+\caption{Production rules for the query 1 grammar.}
+\label{ProductionRulesQuery1}
+\end{figure}
+
+\begin{table*}[ht]
+\centering
+\caption{Evaluation results for Query 1 (time in ms)}
+\label{tbl1}
+
+\begin{tabular}{ | c | c | c | c | c | c | c |}
+\hline
+Ontology & \#triples & \#results & GLL & dGPU & sCPU & sGPU \\
+\hline 
+\hline
+skos        & 252 & 810 & 10 & 56 & 14 & 12\\
+generations & 273 & 2164 & 19 & 62 & 20 & 13\\
+travel      & 277 & 2499 & 24 & 69 & 22 & 30\\
+univ-bench  & 293 & 2540 & 25 & 81 & 25 & 15\\
+atom-primitive & 425 & 15454 & 255 & 190 & 92 & 22\\
+biomedical & 459 & 15156 & 261 & 266 & 113 & 20\\
+foaf        & 631 & 4118 & 39 & 154 & 48 & 9\\
+people-pets & 640 & 9472 & 89 & 392 & 142 & 32\\
+funding     & 1086 & 17634 & 212 & 1410 & 447 & 36\\
+wine        & 1839 & 66572 & 819 & 2047 & 797 & 54\\
+pizza       & 1980 & 56195 & 697 & 1104 & 430 & 24\\
+$g_{1}$     & 8688 & 141072 & 1926 & --- & 26957 & 82\\
+$g_{2}$     & 14712 & 532576 & 6246 & --- & 46809 & 185\\
+$g_{3}$     & 15840 & 449560 & 7014 & --- & 24967 & 127\\
+\hline
+\end{tabular}
+
+\end{table*}
+
+\begin{table*}[h]
+\centering
+\caption{Evaluation results for Query 2 (time in ms)}
+\label{tbl2}
+
+\begin{tabular}{ | c | c | c | c | c | c | c |}
+\hline
+Ontology & \#triples & \#results & GLL & dGPU & sCPU & sGPU \\
+\hline 
+\hline
+skos        & 252 & 1 & 1 & 10 & 2 & 1\\
+generations & 273 & 0 & 1 & 9 & 2 & 0\\
+travel      & 277 & 63 & 1 & 31 & 7 & 10\\
+univ-bench  & 293 & 81 & 11 & 55 & 15 & 9\\
+atom-primitive & 425 & 122 & 66 & 36 & 9 & 2\\
+biomedical & 459 & 2871 & 45 & 276 & 91 & 24\\
+foaf        & 631 & 10 & 2 & 53 & 14 & 3\\
+people-pets & 640 & 37 & 3 & 144 & 38 & 6\\
+funding     & 1086 & 1158 & 23 & 1246 & 344 & 27\\
+wine        & 1839 & 133 & 8 & 722 & 179 & 6\\
+pizza       & 1980 & 1262 & 29 & 943 & 258 & 23\\
+$g_{1}$     & 8688 & 9264 & 167 & --- & 21115 & 38\\
+$g_{2}$     & 14712 & 1064 & 46 & --- & 10874 & 21\\
+$g_{3}$     & 15840 & 10096 & 393 & --- & 15736 & 40\\
+\hline
+\end{tabular}
+
+\end{table*}
+
+
+The grammar $G^1$ is transformed into an equivalent grammar in normal form, which is necessary for our algorithm. This transformation is the same as in Section~\ref{section_example}. Let $R_S$ be a context-free relation for a start non-terminal in the transformed grammar.
+
+The result of query 1 evaluation is presented in Table~\ref{tbl1}, where \#triples is a number of triples $(o,p,s)$ in an RDF file, and \#results is a number of pairs $(n,m)$ in the context-free relation $R_S$. We can determine whether $(i,j) \in R_S$ by asking whether $S \in a^{cf}_{i,j}$, where $a^{cf}$ is a transitive closure calculated by the proposed algorithm. All implementations in Table~\ref{tbl1} have the same \#results and demonstrate up to 1000 times better performance as compared to the algorithm presented in~\cite{RDF} for $Q_1$. Our implementation $sGPU$ demonstrates a better performance than $GLL$. We also can conclude that acceleration from the $GPU$ increases with the graph size growth.
+
+\textbf{Query 2} is based on the grammar $G^2_S$ for retrieving concepts on the adjacent layers, where:
+\begin{itemize}
+    \item The grammar $G^2 = (N^2, \Sigma^2, P^2)$.
+    \item The set of non-terminals $N^2 = \{S, B\}$.
+    \item The set of terminals $$\Sigma^2 = \{subClassOf, subClassOf^{-1}\}.$$
+    \item The set of production rules $P^2$ is presented in Figure~\ref{ProductionRulesQuery2}.
+\end{itemize}
+
+\begin{figure}[h]
+   \[
+\begin{array}{rccl}
+   0: & S & \rightarrow & B \ \text{\textit{subClassOf}} \\ 
+   1: & S & \rightarrow & \text{\textit{subClassOf}} \\ 
+   2: & B & \rightarrow & \text{\textit{subClassOf}}^{-1} \ B \ \text{\textit{subClassOf}} \\ 
+   3: & B & \rightarrow & \text{\textit{subClassOf}}^{-1} \ \text{\textit{subClassOf}} \\ 
+\end{array}
+\]
+\caption{Production rules for the query 2 grammar.}
+\label{ProductionRulesQuery2}
+\end{figure}
+
+The grammar $G^2$ is transformed into an equivalent grammar in normal form. Let $R_S$ be a context-free relation for a start non-terminal in the transformed grammar.
+
+The result of the query 2 evaluation is presented in Table~\ref{tbl2}. All implementations in Table~\ref{tbl2} have the same \#results. On almost all graphs $sGPU$ demonstrates a better performance than $GLL$ implementation and we also can conclude that acceleration from the $GPU$ increases with the graph size growth.
+
+As a result, we conclude that our algorithm can be applied to some real-world problems and it allows us to speed up computations by means of GPGPU.
