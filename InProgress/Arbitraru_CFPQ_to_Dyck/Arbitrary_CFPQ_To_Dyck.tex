@@ -8,6 +8,12 @@
 \usepackage{tikz}
 \usetikzlibrary{automata,positioning}
 
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{caption}
+\usepackage{algorithmicx}
+
+
 \newtheorem{theorem}{Theorem}[section]
 \newtheorem{proposition}[theorem]{Proposition}
 \newtheorem{lemma}[theorem]{Lemma}
@@ -50,6 +56,11 @@
 
 \begin{document}
 
+\algtext*{EndWhile}% Remove "end while" text
+\algtext*{EndIf}% Remove "end if" text
+\algtext*{EndFor}% Remove "end for" text
+\algtext*{EndFunction}% Remove "end function" text
+
 \maketitle
 
 This reduction is inspired by the construction described in~\cite{OptimalDLR}.
@@ -81,8 +92,8 @@ Let the input graph is
     (q_0) edge  node {a} (q_1)          
     (q_1) edge  node {a} (q_2)
     (q_2) edge  node {a} (q_0)
-	(q_2) edge  node {c} (q_3)
-	(q_3) edge  node {c} (q_4)
+    (q_2) edge  node {c} (q_3)
+    (q_3) edge  node {c} (q_4)
     (q_4) edge[bend left, above]  node {b} (q_5)
     (q_5) edge[bend left, below]  node {b} (q_4);
 \end{tikzpicture}
@@ -112,7 +123,7 @@ The minimized graph:
 \item And the respective $M_{\mathcal{G}}^v$ for each $v \in V$:
   \begin{itemize}
     \item reattach all edges outgoing from $x^v$ (``start'' vertex of $M_{\mathcal{G}}^v$) to $v$;
-	\item reattach all edges incoming to $y^v$ (``final'' vertex of $M_{\mathcal{G}}^v$) to $v$.	
+    \item reattach all edges incoming to $y^v$ (``final'' vertex of $M_{\mathcal{G}}^v$) to $v$.    
   \end{itemize}
   New input graph is ready:
   
@@ -126,6 +137,40 @@ Now, if $\text{CFPQ}(\mathcal{G'}, G')$ contains a pair $(u'_0, v')$ such that $
 In our example, we can find the following path: $7 \xrightarrow{S_(} 1 \xrightarrow{S_)} 22 \xrightarrow{b_(} 25 \xrightarrow{C_(} 26 \xrightarrow{a_(} 1   
 \xrightarrow{a_)} 2 \xrightarrow{C_)} 33 \xrightarrow{C_(} 34 \xrightarrow{c_(} 2  \xrightarrow{c_)} 3 \xrightarrow{C_)} 43 \xrightarrow{c_(} 3 \xrightarrow{c_)} 4 \xrightarrow{b_)} 5$. 
 Edge $7 \xrightarrow{S_(} 1$ is the extension, so (1,5) should be in $\text{CFPQ}(\mathcal{G}, G)$ and it is true.
+
+
+\section{Modified algorithm}
+
+\begin{algorithm}[!ht]
+\begin{algorithmic}[1]
+\caption{Digraph flat exact paths}
+\label{parsing}
+\Function{Digraph-flat-exact-paths}{$G$}
+  \State{$\{{D_k}^{(-1)}, {D_k}^{(0)}, {D_k}^{(+1)} \} \gets$ \Call{Init-Adjacency-Matrices}{$G$}}
+  \State{$M_1 \gets$ \Call{AGMY-Code-then-Sum}{${D_1}^{(-1)}, {D_1}^{(0)}, {D_1}^{(+1)}$}}
+  \State{$\dots$}
+  \State{$M_k \gets$ \Call{AGMY-Code-then-Sum}{${D_k}^{(-1)}, {D_k}^{(0)}, {D_k}^{(+1)}$}}
+  \State{$n \gets |V|$}
+  \For{$l \in [2 \dots \lceil \text{log} \ n \rceil + 1]$} \Comment{Upper bound should be analized carefully}
+     \State{$M' \gets $ \Call{Markup-Minus-One-Edges}{$M_1$}} \Comment{AGMY, mark $-1$ edges}     
+     \State{$M_1 \gets M' \times M_1$}  \Comment{AGMY, non-Dyck 0 edges are detectable}
+     \State{$\dots$} \Comment{Do for all $M_i$}
+     \State{$M_k \gets M_k \times M_k$}
+     \State{Remove $\pm 1$ edges from all $M_i$}
+     \State{$M_1 \gets$ \Call{Normalize-and-Divide-by-2}{$M_1$}}
+     \State{$\dots$}
+     \State{$M_k \gets$ \Call{Normalize-and-Divide-by-2}{$M_k$}}
+     \State{$Z \gets$ \Call{Get-Zero-Edges}{$M_1$}}
+     \State{$Z \gets Z + $ \Call{Get-Zero-Edges}{$M_2$}}
+     \State{$\dots$}
+     \State{$Z \gets Z + $ \Call{Get-Zero-Edges}{$M_k$}}
+     \State{$M_1 \gets Z \times M_1 \times Z$}  \Comment{AGMY, extend $\pm 1$  and 0 edges for all $M_i$}
+     \State{$\dots$}
+     \State{$M_k \gets Z \times M_k \times Z$}
+  \EndFor
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
 
 
 \begin{thebibliography}{9}
