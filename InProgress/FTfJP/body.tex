@@ -33,21 +33,55 @@ Generalization for arbitrary regular language is a topic for future research.
 \section{Languages Shuffle to SAT}
 
 First, we assume that $ R_1 $ is finite regular language.
-This is possible in assumption that the error can usually be detected in the first iterations of the loops, so at the first step we can approximate general regular language by fixed unrolling of loops.
+This is possible in assumption that the error can usually be detected in the first iterations of the loops,
+so at the first step we can approximate general regular language by fixed unrolling of loops.
 This assumption is used in bounded model checking~\cite{BMC}.%, but here we use the bound on traces language instead of program language.
 
 Then we appeal to the intuition of shuffle operation.
-If the sequence $J$ is in the language $B \odot C$ then there is a split of $J$ of $J_B$ and $J_C$ such that $b_1 c_1 b_2 c_2 ... b_k c_k = J$ where $b_i, c_i \in (\Sigma^* \cup \varepsilon)$
-and $b_1 b_2 ... b_k = J_B, c_1 c_2 ... c_k = J_C$.
-Both $J_B$ and $J_C$ are in the language $J'$ --- the language of lines $J$ with all possible omissions of terminals.
-For the finite automaton $R_2$ the desired language of lines with omissions is described by an automaton $R_2'$ --- an epsilon-closure of $ R_2 $.
+If the string $J$ is in the language $B \odot C$ then there is a split of $J$ on strings $J_B = b_1 b_2 ... b_k \in B$
+and $J_C = c_1 c_2 ... c_k \in C$
+such that $b_1 c_1 b_2 c_2 ... b_k c_k = J$ ($b_i, c_i \in (\Sigma^* \cup \varepsilon)$).
+Both $J_B$ and $J_C$ are contained in a language of lines $J$ with all possible omissions of terminals.
+An example of such language for string "$abc$" is $Y = \{a, b, c, ab, ac, bc, abc, \varepsilon\}$.
+We can narrow the shuffled languages $A$ and $B$ to $A\cap Y$ and $B \cap Y$ since this languages still
+contain the strings needed to parse $J$.
+This reasoning for $J$ can be extended do the automaton $R_1$ since it contains multiple strings
+that we want to check for being in shuffle of $L_{f_1} ... L_{f_n}$. 
+Thus we consider $ L_{f_i}' = L_{f_i} \cap R_1', i \in 1..n$ --- the finite context-free narrowing of languages $ L_{i}$.
+The desired language of strings with omissions is described by an automaton
+$R_1'$ --- an transitive-closure of $ R_1 $ with $\varepsilon$-transitions.
 
-Since the language of $R_2'$ is finite, we can consider the languages
-$ L_{f_i}' = L_{f_i} \cap R_2', i \in 1..n$ --- the finite context-free narrowing of languages $ L_{i}$.
-Thus, we redefine initial problem of language intersection to $(L_{f_1}' \odot L_{f_2}' \odot... \odot L_{f_n}')\cap R_2$.
-All this languages are finite therefore we can generate a SAT problem instance to check intersection emptiness.
+Described language narrowing is based on intersection of context-free and regular languages,
+and this problem can be solved with use of an algorithm described in paper~\cite{Grigorev}.
+This approach is based on Generalised LL (GLL)~\cite{scott2010gll} and utilizes the
+Binarized Shared Packed Parse Forest (SPPF)~\cite{brnglr, SPPF}.
+Binarized SPPF compresses derivation trees optimally reusing common nodes and subtrees, thus 
+utilizing it for parsing forest representation grants worst-case cubic space complexity~\cite{scott2010gll}.
 
-\section{Shuffle to SAT}
+or
+
+Binarized Shared Packed Parse Forest (SPPF)~\cite{brnglr, SPPF} compresses derivation trees optimally reusing common nodes and subtrees.
+Version of GLL~\cite{scott2010gll} which utilizes this structure for parsing forest representation achieves worst-case cubic space complexity~\cite{gllParsingTree}.
+
+Binarized SPPF can be represented as a graph in which each node has one of four types described below.
+We denote the start and the end positions of substring as $i$ and $j$ respectively, and we call tuple $(i,j)$ an \textit{extension} of a node.
+
+\begin{itemize}
+	\item \textbf{Terminal node} with label $(i, T, j)$.
+	\item \textbf{Nonterminal node} with label $(i, N, j)$. 
+	This node denotes that there is at least one derivation for substring $\alpha=\omega[i..j-1]$ such that $N \Rightarrow^*_G \alpha, \alpha = \omega[i..j-1] $.
+	All derivation trees for the given substring and nonterminal can be extracted from SPPF by left-to-right top-down graph traversal started from respective node.     
+	\item \textbf{Intermediate node}: a special kind of node used for binarization of SPPF. These nodes are labeled with $(i,t,j)$, where $t$ is a grammar slot.
+	\item \textbf{Packed node} with label $(N \rightarrow \alpha, k)$. 
+	Subgraph with ``root'' in such node is one possible derivation from nonterminal $N$ in case when the parent is a nonterminal node labeled with $(<\mkern-9mu | \mkern-9mu> (i, N, j))$.
+	
+\end{itemize}
+
+An example of SPPF is presented in figure~\ref{SPPF}. We remove redundant intermediate and packed nodes from the SPPF to simplify it and to decrease the size of the structure.
+
+
+
+
 
 An instance of SAT problem is a boolean formula which is checked by solver for satisfiability. 
 Constructing a formula for the problem defined above requires a more deep inspection of the languages' structure.
@@ -73,28 +107,6 @@ The formula consist of following parts, connected with conjunction.
 \end{itemize}
 
 
-Binarized Shared Packed Parse Forest (SPPF)~\cite{brnglr, SPPF} compresses derivation trees optimally reusing common nodes and subtrees.
-Version of GLL~\cite{scott2010gll} which utilizes this structure for parsing forest representation achieves worst-case cubic space complexity~\cite{gllParsingTree}.
-
-Binarized SPPF can be represented as a graph in which each node has one of four types described below.
-We denote the start and the end positions of substring as $i$ and $j$ respectively, and we call tuple $(i,j)$ an \textit{extension} of a node.
-
-\begin{itemize}
-    \item \textbf{Terminal node} with label $(i, T, j)$.
-    \item \textbf{Nonterminal node} with label $(i, N, j)$. 
-    This node denotes that there is at least one derivation for substring $\alpha=\omega[i..j-1]$ such that $N \Rightarrow^*_G \alpha, \alpha = \omega[i..j-1] $.
-    All derivation trees for the given substring and nonterminal can be extracted from SPPF by left-to-right top-down graph traversal started from respective node.     
-    \item \textbf{Intermediate node}: a special kind of node used for binarization of SPPF. These nodes are labeled with $(i,t,j)$, where $t$ is a grammar slot.
-    \item \textbf{Packed node} with label $(N \rightarrow \alpha, k)$. 
-    Subgraph with ``root'' in such node is one possible derivation from nonterminal $N$ in case when the parent is a nonterminal node labeled with $(<\mkern-9mu | \mkern-9mu> (i, N, j))$.
-
-\end{itemize}
-
-An example of SPPF is presented in figure~\ref{SPPF}. We remove redundant intermediate and packed nodes from the SPPF to simplify it and to decrease the size of the structure.
-
-
-
-\section{Example}
 %Consider functions Add() and Dec() running concurrently. An \textit{error} operator stands the program reach unwanted state.
 %The problem is to define either program can reach the \textit{error} operator. 
 
