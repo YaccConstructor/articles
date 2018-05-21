@@ -7,9 +7,12 @@ A parser combinators library provides with a set of basic combinators (such as s
 Most parser combinators libraries, including the Meerkat library, can only process the linear input --- strings or some kind of streams. 
 We extend the Meerkat library to work on the graph input.
 
-Meerkat library is a general parser combinators library; by using memoization, continuation-passing style and the ideas of Johnson~\cite{Johnson}, it supports arbitrary context-free specifications. 
-As this library is closely related to the Generalized LL algorithm and since GLL can be generalized for context-free path querying~\cite{GrigorevR16}, it is also possible to adapt Meerkat library for graph querying. 
-It can be done by providing a function for retrieving the symbols which follow the specified position and utilizing it in the basic set of combinators.
+
+\subsection{Generic interface}
+
+General input interface, as pointed in Trails
+                             
+\subsection{The set of combinstors}
 
 The basic combinators our library provides are presented in table~\ref{table:combinators}. 
 Parsers for matching strings are implicitly generated whenever a string is used within a query. 
@@ -58,6 +61,26 @@ val query1 = syn(sameGen(List(
 
 \begin{figure}[h]
 \begin{lstlisting}
+
+val g = new AnyRef {
+      val P = syn(E((_: Int) > 0))
+      val N = syn(E((_: Int) < 0))
+      val S: Nonterminal[Int] = syn(P ~ N ~ S | P ~ N)
+    }
+
+ override def createParser: AbstractCPSParsers.AbstractSymbol[String, _, _] = {
+    val num = V((_: String) forall Character.isDigit)
+    syn(num ~ "+" ~ num)
+  }
+
+\end{lstlisting}
+\caption{Example of predicates usage}
+\label{fig:gen}
+\end{figure}
+
+
+\begin{figure}[h]
+\begin{lstlisting}
 def sameGen(brs) =
   bs.map { case (lbr, rbr) => 
              lbr ~ syn(sameGen(bs).?) ~ rbr } 
@@ -71,6 +94,8 @@ def sameGen(brs) =
 \label{fig:gen}
 \end{figure}
 
+\subsection{An Example}
+
 Running a query over an input graph retrieves the list of pairs $(i, j)$ where each pair corresponds to the set of paths from the node $i$ to the node $j$. 
 Running the same generation query from Fig.~\ref{fig:query2Gen} over the graph in Fig.~\ref{fig:graph} results with $\{(1,0), (1,2)\}$. 
 Internally, these paths are represented as SPPF. 
@@ -79,7 +104,18 @@ Every rectangle contains a nonterminal name or a production rule, as well as sta
 Gray rectangles are start nonterminals.
 
 \begin{figure}[h]
-\includegraphics[width=0.45\textwidth]{graph}
+%\includegraphics[width=0.45\textwidth]{graph}
+\begin{tikzpicture}[shorten >=1pt,node distance=3cm,on grid,auto] 
+   \node[state] (q_0)   {$0$}; 
+   \node[state] (q_1) [right=of q_0] {$1$}; 
+   \node[state] (q_2) [right=of q_1] {$2$}; 
+    \path[->] 
+    (q_0) edge[bend left, above]  node {$\text{subclassof}^{-1}$} (q_1)          
+    (q_1) edge[bend left, below]  node {$\text{subclassof}^{-1}$} (q_0)
+    (q_1) edge[bend left, above]  node {$\text{subclassof}$} (q_2)
+    (q_2) edge[bend left, below]  node {$\text{subclassof}$} (q_1);
+\end{tikzpicture}
+
 \caption{Example input graph}
 \label{fig:graph}
 \end{figure}
