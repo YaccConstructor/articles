@@ -12,21 +12,26 @@ We extend the Meerkat library to work on the graph input.
 
 General input interface, as pointed in Trails
                              
-\subsection{The set of combinstors}
+\subsection{The set of combinators}
 
 The basic combinators our library provides are presented in table~\ref{table:combinators}. 
 Parsers for matching strings are implicitly generated whenever a string is used within a query. 
 The classical same generation query~\cite{FndDB} can be written using the library as presented in Fig.~\ref{fig:query1Meerkat}.
 
+
 \begin{table}[h]
 \centering
-\begin{tabular}{c|l}
+\begin{tabular}{l@{}|l}
 \multicolumn{1}{c|}{Combinator} & \multicolumn{1}{|c}{Description} \\ \hline
 {\lstinline!a ~ b!} & sequential parsing: {\lstinline!a!} then {\lstinline!b!}   \\
 {\lstinline!a | b!} & choice: {\lstinline!a!} or {\lstinline!b!}         \\
-{\lstinline!a.?!}   & optional parsing: {\lstinline!a!} or nothing   \\
-{\lstinline!a.*!}   & repetition of zero or more {\lstinline!a!} \\
-{\lstinline!a.+!}   & repetition of at least one {\lstinline!a!} \\
+{\lstinline!a ?!}   & optional parsing: {\lstinline!a!} or nothing   \\
+{\lstinline!a *!}   & repetition of zero or more {\lstinline!a!} \\
+{\lstinline!a +!}   & repetition of at least one {\lstinline!a!} \\
+{\lstinline!a ^ f!} & apply {\lstinline!f!} function to {\lstinline!a!} if  {\lstinline!a!} is a token \\
+{\lstinline!a ^^!}  & capture output of {\lstinline!a!} if {\lstinline!a!} is a token    \\
+{\lstinline!a & f!} & apply {\lstinline!f!} function to {\lstinline!a!} if  {\lstinline!a!} is a parser \\
+{\lstinline!a &&!}  & capture output of {\lstinline!a!} if {\lstinline!a!} is a parser    \\
 \end{tabular}
 \caption{Meerkat combinators}
 \label{table:combinators}
@@ -95,33 +100,72 @@ def sameGen(brs) =
 \end{figure}
 
 \subsection{An Example}
+Let's assume we have a graph which consists of vertices of two types: movie vertex labeled with a movie's title and actor vertex labeled with actor's name. An actor can stars in a movie. This relation shown in graph as an edge with label $stars\_in$. Such graph is shown on \ref{fig:graph}. Let us capture one movie and one actor: Indiana Jones, and Harrison Ford, respectively. Now having that graph and two fixed vertices we would like to know all actors such they stars in Indiana Jones movie and also have at least another one common movie with Harrison Ford. In a terms of combinators we can define such query as the following: 
 
-Running a query over an input graph retrieves the list of pairs $(i, j)$ where each pair corresponds to the set of paths from the node $i$ to the node $j$. 
-Running the same generation query from Fig.~\ref{fig:query2Gen} over the graph in Fig.~\ref{fig:graph} results with $\{(1,0), (1,2)\}$. 
-Internally, these paths are represented as SPPF. 
+\begin{figure}[h]
+\begin{lstlisting}
+val actors  = syn(fixedActor ~ starsIn ~ fixedMovie ~ 
+   hasActor ~ actor ~ starsIn ~ 
+   movie ~ hasActor ~ fixedActor)
+\end{lstlisting}
+\caption{Actor combinator}
+\label{fig:exampleQuery}
+\end{figure}
+
+Here \lstinline{actor} and \lstinline{movie} is a vertex combinator which parses a vertex which is a actor or movie which is not captured one, respectively. And \lstinline{fixedActor}, \lstinline{fixedMovie} combinators stands for captured one. Also,\lstinline{starsIn} and \lstinline{hasActor} are edge combinators which parses edges with corresponding label on them. Those combinator can be defined the following way:
+
+\begin{figure}[h]
+\begin{lstlisting}
+val actor = syn(V(e => e.ntype == "actor" &&
+  e.value() != "Harrison Ford"))
+val movie = syn(V(e => e.ntype == "movie" && 
+  e.value() != "Indiana Jones"))
+val starsIn = syn(E(e => e.value() == "stars_in"))
+val hasActor = syn(E(e => e.value() == "has_actor"))
+val fixedActor = syn(V(e => e.ntype == "actor" &&
+  e.value() == "Harrison Ford"))
+val fixedMovie = syn(V(e => e.ntype == "movie" &&
+  e.value() == "Indiana Jones"))
+\end{lstlisting}
+\caption{Combinators implementation}
+\label{fig:combImpl}
+\end{figure}
+
+Now we would like, to get from our query only \lstinline{actor} combinator result. For that purpose let us modify it to make return result. In out library we have a \lstinline{^^} and \lstinline{&&} functions for that. Then we will have the following definition of our combinators:
+\begin{figure}[h]
+\begin{lstlisting}
+val actor = syn(V(e => ...)^^)
+val actors = syn((fixedActor ~ ... ~ fixedActor)&&)
+\end{lstlisting}
+\caption{Fixed combinators}
+\label{fig:fixedAtor}
+\end{figure}
+
+Now we execute our query. For the graph presented on fig. \ref{fig:graph} we will get the only actor which satisfies given criteria Julian Glover.
+
 A simplified SPPF for this query is presented in Fig.~\ref{fig:sppf}: rounded rectangles represent nonterminals and other rectangles represent productions. 
 Every rectangle contains a nonterminal name or a production rule, as well as start and end nodes of the path in the input graph derived from the corresponding rectangle. 
 Gray rectangles are start nonterminals.
 
 \begin{figure}[h]
-%\includegraphics[width=0.45\textwidth]{graph}
-\begin{tikzpicture}[shorten >=1pt,node distance=3cm,on grid,auto] 
-   \node[state] (q_0)   {$0$}; 
-   \node[state] (q_1) [right=of q_0] {$1$}; 
-   \node[state] (q_2) [right=of q_1] {$2$}; 
-    \path[->] 
-    (q_0) edge[bend left, above]  node {$\text{subclassof}^{-1}$} (q_1)          
-    (q_1) edge[bend left, below]  node {$\text{subclassof}^{-1}$} (q_0)
-    (q_1) edge[bend left, above]  node {$\text{subclassof}$} (q_2)
-    (q_2) edge[bend left, below]  node {$\text{subclassof}$} (q_1);
-\end{tikzpicture}
+\includegraphics[width=0.45\textwidth]{graph}
+% \begin{tikzpicture}[shorten >=1pt,node distance=3cm,on grid,auto] 
+%    \node[state] (q_0)   {$0$}; 
+%    \node[state] (q_1) [right=of q_0] {$1$}; 
+%    \node[state] (q_2) [right=of q_1] {$2$}; 
+%     \path[->] 
+%     (q_0) edge[bend left, above]  node {$\text{subclassof}^{-1}$} (q_1)          
+%     (q_1) edge[bend left, below]  node {$\text{subclassof}^{-1}$} (q_0)
+%     (q_1) edge[bend left, above]  node {$\text{subclassof}$} (q_2)
+%     (q_2) edge[bend left, below]  node {$\text{subclassof}$} (q_1);
+% \end{tikzpicture}
 
-\caption{Example input graph}
+\caption{Example Input graph}
 \label{fig:graph}
 \end{figure}
 
 \begin{figure}[h]
 \includegraphics[scale=0.5]{sppf}
-\caption{SPPF: result of applying the same generation Query 2 to the graph~\ref{fig:graph}}
+\caption{SPPF: result of applying actor/movie query to the graph~\ref{fig:graph}}
 \label{fig:sppf}
 \end{figure}
