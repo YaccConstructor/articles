@@ -8,15 +8,35 @@ Most parser combinators libraries, including the Meerkat library, can only proce
 We extend the Meerkat library to work on the graph input.
 
 
-\subsection{Generic interface}
+\subsection{Generic interface for input}
+Combinators is a way to describe a query. When we have a query we may want to execute that query on some graph considering it as an input for our query. The cool thing is that that input can be generalized to achive flexibility of all possible application of graph combinators and support a wide range of data sources. The idea is to present the input as two functions, one for working with edges and one for vertices. The first one would allow to get all edges outcoming from current vertex and also satisfies given predicate. The second one will allow to check if current vertex satisfies given predicate. That interface is presented on Fig .\ref{fig:input}. We have implementation of that input for: 
+\begin{itemize}
+    \item Neo4jInput --- input source for working with graph database Neo4J
+    \item GraphxInput --- input source for working with graph presented in memory using GraphX library
+    \item LinearInput --- input source for working with linear input data like strings
+\end{itemize}
 
-General input interface, as pointed in Trails
-                             
+\begin{figure}[h]
+\begin{lstlisting}
+trait Input[+L, +N] {
+  def filterEdges(nodeId: Int, 
+      predicate: L => Boolean): Seq[(L, Int)]
+  def checkNode(nodeId: Int, 
+      predicate: N => Boolean): Option[N]
+}
+
+\end{lstlisting}
+\caption{Generalized input interface}
+\label{fig:input}
+\end{figure}
+
+
 \subsection{The set of combinators}
 
-The basic combinators our library provides are presented in table~\ref{table:combinators}. 
+The basic combinators our library provides are presented in table~\ref{table:combinators}. It consists of two kind of combinators. The first kind creates new parsers from existing ones, meanwhile the second one allows mapping parsers result.
 Parsers for matching strings are implicitly generated whenever a string is used within a query. 
 The classical same generation query~\cite{FndDB} can be written using the library as presented in Fig.~\ref{fig:query1Meerkat}.
+
 
 
 \begin{table}[h]
@@ -38,110 +58,64 @@ The classical same generation query~\cite{FndDB} can be written using the librar
 \end{table}
 
 
+
+
+
+\subsection{An Example}
+Let's assume we have a graph which consists of cities as vertices and every cite has a name belongs to a country. There can be a road from one city to another, this relation is shown in graph as an edge with label $road\_to$. Such graph is shown on \ref{fig:graph}. Let us capture one city, let's say city $a$. Now having that graph and captured vertex we would like to know all paths such if as $i$ city from begining of our path we visit country $X$ then as $i$ city from end of our path we visit country $X$ too. And also the middle city in our path is our captured city $a$.
+In a terms of combinators we can define our path as shown on Fig. \ref{fig:pathQuery}. Here \lstinline{reduceAsOr} is a function which transforms a list of queries to one query which is formed by reducing given list with \lstinline{|} combinator. The \lstinline{pathPart} combinator recursively defines a path of our way. Also, \lstinline{middleCity} is a vertex combinator which parses our captured city $a$ and \lstinline{roadTo} combinator parses a roadTo edge.
+
 \begin{figure}[h]
 \begin{lstlisting}
-val S: Nonterminal = syn(
-   "subclassof-1" ~ S.? ~ "subclassof" |
-   "type-1" ~ S.? ~ "type")
+val countriesList = List("X", "Y")
+val path = 
+  (reduceAsOr(countriesList.map(pathPart)) | middleCity)
+def pathPart(country: String) =
+  syn(city(country) ~ roadTo ~ path ~ roadTo ~ city(country))
+
+val middleCity = V(_.value() == "a")
+val roadTo = E(_.value() == "road_to")
+def city(country: String) =
+  V(_.country == country)
 \end{lstlisting}
-\caption{The same generation query (Query 1) in Meerkat}
-\label{fig:query1Meerkat}
+\caption{Path query}
+\label{fig:pathQuery}
 \end{figure}
 
 
 The most exciting feature of our library is that queries can be used as first-class values which means greater generalization and composition. 
-The function \lstinline{sameGen} presented in Fig~\ref{fig:gen} is a generalization of the same generation query and is independent of the environment such as the input graph structure or other parsers.
-It can be used for the creation of other queries, including the one presented in Fig~\ref{fig:query1Meerkat}: it is the result of the application of \lstinline{sameGen} to the appropriate relations (which can be treated as opening and closing brackets).
-Another application of the \lstinline{sameGen} is a Query 2, which can be founded in Fig.~\ref{fig:query2Gen}.
+The function \lstinline{reduceAsOr} presented in Fig~\ref{fig:reduceAsOr} is a generalization of bracket sequence query and is independent of the environment such as the input graph structure or other parsers.
+It can be used for the creation of other queries, including the one presented in Fig~\ref{fig:pathQuery}: it is the result of the application of \lstinline{reduceAsOr} to the appropriate relations (which can be treated as opening and closing brackets).
 
 \begin{figure}[h]
 \begin{lstlisting}
-val query1 = syn(sameGen(List(
-    ("subclassof-1", "subclassof"),
-    ("type-1", "type"))))
-\end{lstlisting}
-\caption{Query 1 as an application of \lstinline{sameGen}}
-\label{fig:query1Gen}
-\end{figure}
-
-\begin{figure}[h]
-\begin{lstlisting}
-
-val g = new AnyRef {
-      val P = syn(E((_: Int) > 0))
-      val N = syn(E((_: Int) < 0))
-      val S: Nonterminal[Int] = syn(P ~ N ~ S | P ~ N)
-    }
-
- override def createParser: AbstractCPSParsers.AbstractSymbol[String, _, _] = {
-    val num = V((_: String) forall Character.isDigit)
-    syn(num ~ "+" ~ num)
-  }
-
-\end{lstlisting}
-\caption{Example of predicates usage}
-\label{fig:gen}
-\end{figure}
-
-
-\begin{figure}[h]
-\begin{lstlisting}
-def sameGen(brs) =
-  bs.map { case (lbr, rbr) => 
-             lbr ~ syn(sameGen(bs).?) ~ rbr } 
-  match {
-    case x :: Nil => syn(x)
+def reduceAsOr(xs: List[Nonterminal]) = 
+  xs match {
+    case x :: Nil     => x
     case x :: y :: xs => 
       syn(xs.foldLeft(x | y)(_ | _))
   }
 \end{lstlisting}
-\caption{Generic function for the same generations query}
-\label{fig:gen}
-\end{figure}
-
-\subsection{An Example}
-Let's assume we have a graph which consists of vertices of two types: movie vertex labeled with a movie's title and actor vertex labeled with actor's name. An actor can stars in a movie. This relation shown in graph as an edge with label $stars\_in$. Such graph is shown on \ref{fig:graph}. Let us capture one movie and one actor: Indiana Jones, and Harrison Ford, respectively. Now having that graph and two fixed vertices we would like to know all actors such they stars in Indiana Jones movie and also have at least another one common movie with Harrison Ford. In a terms of combinators we can define such query as the following: 
-
-\begin{figure}[h]
-\begin{lstlisting}
-val actors  = syn(fixedActor ~ starsIn ~ fixedMovie ~ 
-   hasActor ~ actor ~ starsIn ~ 
-   movie ~ hasActor ~ fixedActor)
-\end{lstlisting}
-\caption{Actor combinator}
-\label{fig:exampleQuery}
-\end{figure}
-
-Here \lstinline{actor} and \lstinline{movie} is a vertex combinator which parses a vertex which is a actor or movie which is not captured one, respectively. And \lstinline{fixedActor}, \lstinline{fixedMovie} combinators stands for captured one. Also,\lstinline{starsIn} and \lstinline{hasActor} are edge combinators which parses edges with corresponding label on them. Those combinator can be defined the following way:
-
-\begin{figure}[h]
-\begin{lstlisting}
-val actor = syn(V(e => e.ntype == "actor" &&
-  e.value() != "Harrison Ford"))
-val movie = syn(V(e => e.ntype == "movie" && 
-  e.value() != "Indiana Jones"))
-val starsIn = syn(E(e => e.value() == "stars_in"))
-val hasActor = syn(E(e => e.value() == "has_actor"))
-val fixedActor = syn(V(e => e.ntype == "actor" &&
-  e.value() == "Harrison Ford"))
-val fixedMovie = syn(V(e => e.ntype == "movie" &&
-  e.value() == "Indiana Jones"))
-\end{lstlisting}
 \caption{Combinators implementation}
-\label{fig:combImpl}
+\label{fig:reduceAsOr}
 \end{figure}
 
-Now we would like, to get from our query only \lstinline{actor} combinator result. For that purpose let us modify it to make return result. In out library we have a \lstinline{^^} and \lstinline{&&} functions for that. Then we will have the following definition of our combinators:
+Now we would like, to get from our query only \lstinline{city} combinator result. For that purpose let us modify it to make return result. In out library we have a \lstinline{^} and \lstinline{&} functions for that. Then we will have the following definition of our combinators:
 \begin{figure}[h]
 \begin{lstlisting}
-val actor = syn(V(e => ...)^^)
-val actors = syn((fixedActor ~ ... ~ fixedActor)&&)
+val middleCity = 
+  syn(V(_.value() == "a") ^^) & (List(_))
+def pathPart(country: String) = syn(
+  (city(country) ~ roadTo ~ 
+    path ~ roadTo ~ city(country) & {
+      case a ~ (b: List[_]) ~ Entity => 
+        a +: b :+ c })
 \end{lstlisting}
 \caption{Fixed combinators}
 \label{fig:fixedAtor}
 \end{figure}
 
-Now we execute our query. For the graph presented on fig. \ref{fig:graph} we will get the only actor which satisfies given criteria Julian Glover.
+Now we execute our query. For the graph presented on fig. \ref{fig:graph} we will get paths which satisfies given criteria \lstinline{a, b->a->d, c->b->a->d->e}
 
 A simplified SPPF for this query is presented in Fig.~\ref{fig:sppf}: rounded rectangles represent nonterminals and other rectangles represent productions. 
 Every rectangle contains a nonterminal name or a production rule, as well as start and end nodes of the path in the input graph derived from the corresponding rectangle. 
@@ -149,17 +123,6 @@ Gray rectangles are start nonterminals.
 
 \begin{figure}[h]
 \includegraphics[width=0.45\textwidth]{graph}
-% \begin{tikzpicture}[shorten >=1pt,node distance=3cm,on grid,auto] 
-%    \node[state] (q_0)   {$0$}; 
-%    \node[state] (q_1) [right=of q_0] {$1$}; 
-%    \node[state] (q_2) [right=of q_1] {$2$}; 
-%     \path[->] 
-%     (q_0) edge[bend left, above]  node {$\text{subclassof}^{-1}$} (q_1)          
-%     (q_1) edge[bend left, below]  node {$\text{subclassof}^{-1}$} (q_0)
-%     (q_1) edge[bend left, above]  node {$\text{subclassof}$} (q_2)
-%     (q_2) edge[bend left, below]  node {$\text{subclassof}$} (q_1);
-% \end{tikzpicture}
-
 \caption{Example Input graph}
 \label{fig:graph}
 \end{figure}
