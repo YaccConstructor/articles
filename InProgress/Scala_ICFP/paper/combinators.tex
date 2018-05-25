@@ -8,8 +8,24 @@ Most parser combinators libraries, including the Meerkat library, can only proce
 We extend the Meerkat library to work on the graph input.
 
 
-\subsection{The set of combinators}
-For creating queries we need to work with edges and vertices. There are two main combinators for that:
+\subsection{The Set of Combinators}
+
+First we introduce a small example graph which represent a map~\ref{fig:graph}.
+There can be a road from one city to another, this relation is shown in graph as an edge with label $road\_to$.
+Each city has name belongs to a country. 
+
+{it may be useful to add types decalration for edge and vrt lables. Properties access (like .name, .country) will bw more evident}
+
+And let we try to extract some information from this map.
+
+\begin{figure}[h]
+\includegraphics[width=0.45\textwidth]{graph}
+\caption{Example Input Graph of Roads}
+\label{fig:graph}
+\end{figure}
+
+First of all, for creating queries we need to work with edges and vertices.
+There are two main functions for that:
 \begin{itemize}
     \item \lstinline{V[L](predicate: L => Boolean)} combinator for working with vertices. Accepts a predicate and parses only vertices which satisfies that predicate
     \item \lstinline{E[N](predicate: N => Boolean)} combinator for working with edges. Accepts a predicate and parses only edges which satisfies that predicate  
@@ -21,13 +37,23 @@ For creating queries we need to work with edges and vertices. There are two main
 \label{fig:sppf}
 \end{figure}
 
-(Write sth about syn macro)
+(Write sth about syn macro \\ I think it should be in section 2 in Meerkat description)
 
-Let's assume we have a city graph. In that graph vertices are cities. There can be a road from one city to another, this relation is shown in graph as an edge with label $road\_to$. Every city belongs to a country. Such graph is shown on \ref{fig:graph}. Now we would like to get all cities from our graph which belongs to some country. For that we will write \lstinline{V[L]((e: Entity) => e.country = "County Name")}. Here \lstinline{Entity} is a property container for graph entities: edges and vertices. Also, for the sake of simplicity, we will not explicitly specify \lstinline{Entity} type for predicates. Now let us build a query which gets all roads from city in $country0$ to city in $country$. For that we can use a sequentialital combinator \lstinline{~}. It allows to create queries which sequentialy applies two queries one after another. When we have subquery for retrieving a vertex with specific city, let's call it \lstinline{city(name: String)} and a subquery \lstinline{roadTo} for retrieving road edges. Let's finally build a query \lstinline{city("city0") ~ roadTo ~ city("city1")}. The full query with subqueries is shown on Fig. \ref{fig:simpleQuery}.
+
+Suppose that we would like to select cities from our graph which belongs to some country. 
+For that we use function \lstinline{V}: \lstinline{V[L]((e: Entity) => e.country = "County Name")}.
+Here \lstinline{Entity} is a property container for graph entities: edges and vertices. 
+Also, for the sake of simplicity, we will not explicitly specify \lstinline{Entity} type for predicates. 
+Now let us build a query which gets all roads from city in $country0$ to city in $country$. 
+For that we can use a sequentialital combinator \lstinline{~}. 
+It allows to create queries which sequentialy applies two queries one after another. 
+When we have subquery for retrieving a vertex with specific city, let's call it \lstinline{city(name: String)} and a subquery \lstinline{roadTo} for retrieving road edges. 
+Let's finally build a query \lstinline{city("city0") ~ roadTo ~ city("city1")} which !!!!!.
+The full query with subqueries is shown on fig. \ref{fig:simpleQuery}.
 
 \begin{figure}[h]
 \begin{lstlisting}
-def city(name: String) =
+def city(country: String) =
   V(e.name == name)
 val roadTo = E(_.value() == "road_to")
 val ourPath = 
@@ -39,7 +65,15 @@ val ourPath =
 
 
 
-Now we would like to get all pair of cities which have a road between them. So we need to transform our query to use semantic actions which is described in \ref{sec:semanticActions} section. Now let us specify what we want from every our query. From the \lstinline{city} query we want only city name, so we need to map a result of basic vertex combinator. For that case we have a \lstinline{^} combinator we can write \lstinline{def city(name: String) = syn(V(e.value() == name) ^ (_.value))} to achive that. In \lstinline{ourPath} query we need first and second cities to be represented as a pair. For that we have a \lstinline{&} combinator which will map our sequence to a pair of strings. The final representation is shown on \ref{fig:simpleQueryV2}. Now then we run that query we will get a list which consists of all pairs of city's names which have a road between.
+Now we would like to get all pair of cities which have a road between them. 
+So we need to transform our query to use semantic actions which is described in \ref{sec:semanticActions} section. 
+Now let us specify what we want from every our query. 
+From the \lstinline{city} query we want only city name, so we need to map a result of basic vertex combinator. 
+For that case we have a \lstinline{^} combinator we can write \lstinline{def city(name: String) = syn(V(e.value() == name) ^ (_.value))} to achive that. 
+In \lstinline{ourPath} query we need first and second cities to be represented as a pair. 
+For that we have a \lstinline{&} combinator which will map our sequence to a pair of strings.
+The final representation is shown on \ref{fig:simpleQueryV2}. 
+Now when we execute that query we will get a list which consists of all pairs of city's names which have a road between.
 
 \begin{figure}[h]
 \begin{lstlisting}
@@ -55,7 +89,8 @@ val ourPath =
 \end{figure}
 
 
-The whole set of basic combinators our library provides are presented in table~\ref{table:combinators}. It consists of two kind of combinators. The first kind creates new parsers from existing ones, meanwhile the second one allows mapping parsers result.
+The whole set of basic combinators our library provides are presented in table~\ref{table:combinators}. 
+It consists of two kind of combinators. The first kind creates new parsers from existing ones, meanwhile the second one allows mapping parsers result.
 Parsers for matching strings are implicitly generated whenever a string is used within a query. 
 The classical same generation query~\cite{FndDB} can be written using the library as presented in Fig.~\ref{fig:query1Meerkat}.
 
@@ -82,13 +117,21 @@ The classical same generation query~\cite{FndDB} can be written using the librar
 
 
 \subsection{Generic interface for input}
-Combinators is a way to describe a query. When we have a query we may want to execute that query on some graph considering it as an input for our query. The cool thing is that that input can be generalized to achive flexibility of all possible application of graph combinators and support a wide range of data sources. The idea is to present the input as two functions, one for working with edges and one for vertices. The first one would allow to get all edges outcoming from current vertex and also satisfies given predicate. The second one will allow to check if current vertex satisfies given predicate. That interface is presented on Fig .\ref{fig:input}. We have implementation of that input for: 
+Combinators is a way to describe a query. 
+When we have a query we may want to execute that query on some graph considering it as an input for our query. 
+The cool thing is that that input can be generalized to achive flexibility of all possible application of graph combinators and support a wide range of data sources. 
+The idea is to present the input as two functions, one for working with edges and one for vertices. 
+The first one would allow to get all edges outcoming from current vertex and also satisfies given predicate. 
+The second one will allow to check if current vertex satisfies given predicate. That interface is presented on fig~.\ref{fig:input}.
+We have implementation of that input for the next data sources: 
 
 \begin{itemize}
-    \item Neo4jInput --- input source for working with graph database Neo4J
-    \item GraphxInput --- input source for working with graph presented in memory using GraphX library
-    \item LinearInput --- input source for working with linear input data like strings
+    \item Neo4jInput --- input source for working with graph database Neo4J;
+    \item GraphxInput --- input source for working with graph presented in memory using GraphX library;
+    \item LinearInput --- input source for working with linear input data like strings.
 \end{itemize}
+
+
 \begin{figure}[h]
 \begin{lstlisting}
 trait Input[+L, +N] {
