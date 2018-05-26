@@ -8,15 +8,92 @@ Most parser combinators libraries, including the Meerkat library, can only proce
 We extend the Meerkat library to work on the graph input.
 
 
-\subsection{Generic interface}
+\subsection{The Set of Combinators}
 
-General input interface, as pointed in Trails
-                             
-\subsection{The set of combinators}
+First we introduce a small example graph which represent a map~\ref{fig:graph}.
+There can be a road from one city to another, this relation is shown in graph as an edge with label $road\_to$.
+Each city has name belongs to a country. 
 
-The basic combinators our library provides are presented in table~\ref{table:combinators}. 
+{it may be useful to add types decalration for edge and vrt lables. Properties access (like .name, .country) will bw more evident}
+
+And let we try to extract some information from this map.
+
+\begin{figure}[h]
+\includegraphics[width=0.45\textwidth]{graph}
+\caption{Example Input Graph of Roads}
+\label{fig:graph}
+\end{figure}
+
+First of all, for creating queries we need to work with edges and vertices.
+There are two main functions for that:
+\begin{itemize}
+    \item \lstinline{V[L](predicate: L => Boolean)} combinator for working with vertices. Accepts a predicate and parses only vertices which satisfies that predicate
+    \item \lstinline{E[N](predicate: N => Boolean)} combinator for working with edges. Accepts a predicate and parses only edges which satisfies that predicate  
+\end{itemize}
+
+\begin{figure}[h]
+\includegraphics[scale=0.38]{sppf}
+\caption{SPPF: result of applying actor/movie query to the graph~\ref{fig:graph}}
+\label{fig:sppf}
+\end{figure}
+
+(Write sth about syn macro \\ I think it should be in section 2 in Meerkat description)
+
+
+Suppose that we would like to select cities from our graph which belongs to some country. 
+For that we use function \lstinline{V}: \lstinline{V[L]((e: Entity) => e.country = "County Name")}.
+Here \lstinline{Entity} is a property container for graph entities: edges and vertices. 
+Also, for the sake of simplicity, we will not explicitly specify \lstinline{Entity} type for predicates. 
+Now let us build a query which gets all roads from city in $country0$ to city in $country$. 
+For that we can use a sequentialital combinator \lstinline{~}. 
+It allows to create queries which sequentialy applies two queries one after another. 
+When we have subquery for retrieving a vertex with specific city, let's call it \lstinline{city(name: String)} and a subquery \lstinline{roadTo} for retrieving road edges. 
+Let's finally build a query \lstinline{city("city0") ~ roadTo ~ city("city1")} which !!!!!.
+The full query with subqueries is shown on fig. \ref{fig:simpleQuery}.
+
+\begin{figure}[h]
+\begin{lstlisting}
+def city(country: String) =
+  V(e.name == name)
+val roadTo = E(_.value() == "road_to")
+val ourPath = 
+  city("country0") ~ roadTo ~ city("country1")
+\end{lstlisting}
+\caption{Path query}
+\label{fig:simpleQuery}
+\end{figure}
+
+
+
+Now we would like to get all pair of cities which have a road between them. 
+So we need to transform our query to use semantic actions which is described in \ref{sec:semanticActions} section. 
+Now let us specify what we want from every our query. 
+From the \lstinline{city} query we want only city name, so we need to map a result of basic vertex combinator. 
+For that case we have a \lstinline{^} combinator we can write \lstinline{def city(name: String) = syn(V(e.value() == name) ^ (_.value))} to achive that. 
+In \lstinline{ourPath} query we need first and second cities to be represented as a pair. 
+For that we have a \lstinline{&} combinator which will map our sequence to a pair of strings.
+The final representation is shown on \ref{fig:simpleQueryV2}. 
+Now when we execute that query we will get a list which consists of all pairs of city's names which have a road between.
+
+\begin{figure}[h]
+\begin{lstlisting}
+def city(country: String) =
+  syn(V(e.country() == country) ^ (_.name))
+val roadTo = E(_.value() == "road_to")
+val ourPath = 
+  syn(city("city0") ~ roadTo ~ city("city1") &
+    {case c0 ~ c1 => (c1, c2)}
+\end{lstlisting}
+\caption{Path query}
+\label{fig:simpleQueryV2}
+\end{figure}
+
+
+The whole set of basic combinators our library provides are presented in table~\ref{table:combinators}. 
+It consists of two kind of combinators. The first kind creates new parsers from existing ones, meanwhile the second one allows mapping parsers result.
 Parsers for matching strings are implicitly generated whenever a string is used within a query. 
 The classical same generation query~\cite{FndDB} can be written using the library as presented in Fig.~\ref{fig:query1Meerkat}.
+
 
 
 \begin{table}[h]
@@ -32,140 +109,101 @@ The classical same generation query~\cite{FndDB} can be written using the librar
 {\lstinline!a ^^!}  & capture output of {\lstinline!a!} if {\lstinline!a!} is a token    \\
 {\lstinline!a & f!} & apply {\lstinline!f!} function to {\lstinline!a!} if  {\lstinline!a!} is a parser \\
 {\lstinline!a &&!}  & capture output of {\lstinline!a!} if {\lstinline!a!} is a parser    \\
+\hline
 \end{tabular}
 \caption{Meerkat combinators}
 \label{table:combinators}
 \end{table}
 
 
-\begin{figure}[h]
-\begin{lstlisting}
-val S: Nonterminal = syn(
-   "subclassof-1" ~ S.? ~ "subclassof" |
-   "type-1" ~ S.? ~ "type")
-\end{lstlisting}
-\caption{The same generation query (Query 1) in Meerkat}
-\label{fig:query1Meerkat}
-\end{figure}
+\subsection{Generic interface for input}
+Combinators is a generic way to describe a query and when we have a query we want to execute that query on some graph considering it as an input for our query.
+The cool thing is that query execution mechanism may be fully separated from graph representatoin.
+We need only to have access to two very low-level functions, one for working with edges and one for vertices. 
+The first one would allow to get all edges outcoming from current vertex and also satisfies given predicate. 
+The second one will allow to check if current vertex satisfies given predicate.
+That interface is presented on fig~.\ref{fig:input}.
+It has two type perameters: \lstinline{L} for edge labels and \lstinline{N} for nodes.
+We have implementation of that input for the next data sources: 
 
-
-The most exciting feature of our library is that queries can be used as first-class values which means greater generalization and composition. 
-The function \lstinline{sameGen} presented in Fig~\ref{fig:gen} is a generalization of the same generation query and is independent of the environment such as the input graph structure or other parsers.
-It can be used for the creation of other queries, including the one presented in Fig~\ref{fig:query1Meerkat}: it is the result of the application of \lstinline{sameGen} to the appropriate relations (which can be treated as opening and closing brackets).
-Another application of the \lstinline{sameGen} is a Query 2, which can be founded in Fig.~\ref{fig:query2Gen}.
-
-\begin{figure}[h]
-\begin{lstlisting}
-val query1 = syn(sameGen(List(
-    ("subclassof-1", "subclassof"),
-    ("type-1", "type"))))
-\end{lstlisting}
-\caption{Query 1 as an application of \lstinline{sameGen}}
-\label{fig:query1Gen}
-\end{figure}
+\begin{itemize}
+    \item Neo4jInput --- input source for working with graph database Neo4J;
+    \item GraphxInput --- input source for working with graph presented in memory using GraphX library;
+    \item LinearInput --- input source for working with linear input data like strings.
+\end{itemize}
 
 \begin{figure}[h]
 \begin{lstlisting}
-
-val g = new AnyRef {
-      val P = syn(E((_: Int) > 0))
-      val N = syn(E((_: Int) < 0))
-      val S: Nonterminal[Int] = syn(P ~ N ~ S | P ~ N)
-    }
-
- override def createParser: AbstractCPSParsers.AbstractSymbol[String, _, _] = {
-    val num = V((_: String) forall Character.isDigit)
-    syn(num ~ "+" ~ num)
-  }
+trait Input[+L, +N] {
+  def filterEdges(nodeId: Int, 
+      predicate: L => Boolean): Seq[(L, Int)]
+  def checkNode(nodeId: Int, 
+      predicate: N => Boolean): Option[N]
+}
 
 \end{lstlisting}
-\caption{Example of predicates usage}
-\label{fig:gen}
+\caption{Generalized input interface}
+\label{fig:input}
 \end{figure}
 
+As far as requred functions is very simple, we hope that this interface can be implemented for arbitrary storage of graph-structured data.
+Note, that crrenly we use \lstinline{Int} as unic identifier for nodes (the \lstinline{nodeId} parameter).
+It may be a technical restriction by the next two reason.
+\begin{itemize}
+\item It is impossible to use our library for correct processing of graph with more then \lstinline{MAX_INT} nodes). 
+\item It is necessary to provide such identifiers. Many systems use unique identifiers by default, but in some cases it may be necessary to implemet required functionality manualy.
+\end{itemize}
 
-\begin{figure}[h]
+
+
+\subsection{Semantic Actions}
+\label{sec:semanticActions}
+Each path query produces a parse result stored in SPPF. This representation is very rich but hard to use and understand.
+That is why our library provides a mechanism which allows you to extract and process any useful data stored in parse result.
+This mechanism is called semantic actions.
+In general, they give you an opportunity to apply any function to parsed token or sequence.
+Now, let's understand how actions can be used in queries and how they are implemented in our library.
+
+There are two main semantic action binders \lstinline{^} and \lstinline{&}.
+First of them is used when we need to perform some action on primitive tokens such as vertices or edges.
 \begin{lstlisting}
-def sameGen(brs) =
-  bs.map { case (lbr, rbr) => 
-             lbr ~ syn(sameGen(bs).?) ~ rbr } 
-  match {
-    case x :: Nil => syn(x)
-    case x :: y :: xs => 
-      syn(xs.foldLeft(x | y)(_ | _))
-  }
+// Defined in Terminal[+L] (edge) parser
+def ^[U](f: L => U) = 
+  new SymbolWithAction[L, Nothing, U] {...
+  
+// Defined in Vertex[+N] parser
+def ^[U](f: N => U) = 
+  new SymbolWithAction[Nothing, N, U] {...
 \end{lstlisting}
-\caption{Generic function for the same generations query}
-\label{fig:gen}
-\end{figure}
 
-\subsection{An Example}
-Let's assume we have a graph which consists of vertices of two types: movie vertex labeled with a movie's title and actor vertex labeled with actor's name. An actor can stars in a movie. This relation shown in graph as an edge with label $stars\_in$. Such graph is shown on \ref{fig:graph}. Let us capture one movie and one actor: Indiana Jones, and Harrison Ford, respectively. Now having that graph and two fixed vertices we would like to know all actors such they stars in Indiana Jones movie and also have at least another one common movie with Harrison Ford. In a terms of combinators we can define such query as the following: 
-
-\begin{figure}[h]
+Second is used when we need to process a result of combination of parsers.
 \begin{lstlisting}
-val actors  = syn(fixedActor ~ starsIn ~ fixedMovie ~ 
-   hasActor ~ actor ~ starsIn ~ 
-   movie ~ hasActor ~ fixedActor)
+// Defined in Symbol[+L, +N, +V] parser
+def &[U](f: V => U) = 
+  new SymbolWithAction[L, N, U] {...
 \end{lstlisting}
-\caption{Actor combinator}
-\label{fig:exampleQuery}
-\end{figure}
 
-Here \lstinline{actor} and \lstinline{movie} is a vertex combinator which parses a vertex which is a actor or movie which is not captured one, respectively. And \lstinline{fixedActor}, \lstinline{fixedMovie} combinators stands for captured one. Also,\lstinline{starsIn} and \lstinline{hasActor} are edge combinators which parses edges with corresponding label on them. Those combinator can be defined the following way:
+But actually, they both have the same behaviour, they produce a new parser that has the same parsing possibilities as an original parser but also have a binded function.
+Then, every SPPF node that will be produced by parser with binded function will have a reference to this function too.
 
-\begin{figure}[h]
-\begin{lstlisting}
-val actor = syn(V(e => e.ntype == "actor" &&
-  e.value() != "Harrison Ford"))
-val movie = syn(V(e => e.ntype == "movie" && 
-  e.value() != "Indiana Jones"))
-val starsIn = syn(E(e => e.value() == "stars_in"))
-val hasActor = syn(E(e => e.value() == "has_actor"))
-val fixedActor = syn(V(e => e.ntype == "actor" &&
-  e.value() == "Harrison Ford"))
-val fixedMovie = syn(V(e => e.ntype == "movie" &&
-  e.value() == "Indiana Jones"))
-\end{lstlisting}
-\caption{Combinators implementation}
-\label{fig:combImpl}
-\end{figure}
+So, these operations in composition with other combinators provides an instrument for data processing on which most queries are based. 
+For example, \lstinline{^} can extract some data from tokens and \lstinline{&} applyed to sequence of tokens can collect and process data returned by terminal parsers.
 
-Now we would like, to get from our query only \lstinline{actor} combinator result. For that purpose let us modify it to make return result. In out library we have a \lstinline{^^} and \lstinline{&&} functions for that. Then we will have the following definition of our combinators:
-\begin{figure}[h]
-\begin{lstlisting}
-val actor = syn(V(e => ...)^^)
-val actors = syn((fixedActor ~ ... ~ fixedActor)&&)
-\end{lstlisting}
-\caption{Fixed combinators}
-\label{fig:fixedAtor}
-\end{figure}
+The main idea of execution of semantic actions remained the same as in the original Meerkat library excepting one aspect.
+For each node we still just execute all actions of its children, collect results and pass them as argument to current function.
+But what should executor do if SPPF has ambiguous nodes? 
+Previous implementation just throws an exception in that case and it is reasonable because 
+original library is written for linear parsing and most grammars allows disambiguation in that case.
+However, even unambiguous grammar can produce ambiguous derivations during parsing of graphs.
+That's why we provide a feature that makes it possible to extract all derivations stored in SPPF.
+In the best case each parsed path corresponds to one derivation.
 
-Now we execute our query. For the graph presented on fig. \ref{fig:graph} we will get the only actor which satisfies given criteria Julian Glover.
+But there is a problem with derivations extraction that need to be carefully solved.
+The number of path deriving from given grammar can be infinite, for example, when graph has cycles.
+So we can't use greedy algorithms of extraction such as deep first traversal.
+Our solution is based on breadth first search that yields an unambiguous SPPF corresponding to some derivation immediately after it was found.
+This way of search produces a lazy stream of derivations that allows to take as much of them as you need.
 
-A simplified SPPF for this query is presented in Fig.~\ref{fig:sppf}: rounded rectangles represent nonterminals and other rectangles represent productions. 
-Every rectangle contains a nonterminal name or a production rule, as well as start and end nodes of the path in the input graph derived from the corresponding rectangle. 
-Gray rectangles are start nonterminals.
-
-\begin{figure}[h]
-\includegraphics[width=0.45\textwidth]{graph}
-% \begin{tikzpicture}[shorten >=1pt,node distance=3cm,on grid,auto] 
-%    \node[state] (q_0)   {$0$}; 
-%    \node[state] (q_1) [right=of q_0] {$1$}; 
-%    \node[state] (q_2) [right=of q_1] {$2$}; 
-%     \path[->] 
-%     (q_0) edge[bend left, above]  node {$\text{subclassof}^{-1}$} (q_1)          
-%     (q_1) edge[bend left, below]  node {$\text{subclassof}^{-1}$} (q_0)
-%     (q_1) edge[bend left, above]  node {$\text{subclassof}$} (q_2)
-%     (q_2) edge[bend left, below]  node {$\text{subclassof}$} (q_1);
-% \end{tikzpicture}
-
-\caption{Example Input graph}
-\label{fig:graph}
-\end{figure}
-
-\begin{figure}[h]
-\includegraphics[scale=0.5]{sppf}
-\caption{SPPF: result of applying actor/movie query to the graph~\ref{fig:graph}}
-\label{fig:sppf}
-\end{figure}
+Composition of derivations extraction and semantic action execution gives us a function that we called
+\lstinline{executeQuery}. It parses graph from all positions producing a list of SPPF roots, then it
+extracts all derivations from all roots, executes semantic actions and returns a stream of results.
