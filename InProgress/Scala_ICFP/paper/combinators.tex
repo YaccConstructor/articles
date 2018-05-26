@@ -158,9 +158,49 @@ It may be a technical restriction by the next two reason.
 
 \subsection{Semantic Actions}
 \label{sec:semanticActions}
+Each path query produces a parse result stored in SPPF. This representation is very rich but hard to use and understand.
+That is why our library provides a mechanism which allows you to extract and process any useful data stored in parse result.
+This mechanism is called semantic actions.
+In general, they give you an opportunity to apply any function to parsed token or sequence.
+Now, let's understand how actions can be used in queries and how they are implemented in our library.
 
-Semantic actios !!!!!!
-!!!!!!
+There are two main semantic action binders \lstinline{^} and \lstinline{&}.
+First of them is used when we need to perform some action on primitive tokens such as vertices or edges.
+\begin{lstlisting}
+// Defined in Terminal[+L] (edge) parser
+def ^[U](f: L => U) = 
+  new SymbolWithAction[L, Nothing, U] {...
+  
+// Defined in Vertex[+N] parser
+def ^[U](f: N => U) = 
+  new SymbolWithAction[Nothing, N, U] {...
+\end{lstlisting}
 
-More  actions!
-!!!!!!!!!
+Second is used when we need to process a result of combination of parsers.
+\begin{lstlisting}
+// Defined in Symbol[+L, +N, +V] parser
+def &[U](f: V => U) = 
+  new SymbolWithAction[L, N, U] {...
+\end{lstlisting}
+
+But actually, they both have the same behaviour, they produce a new parser that has the same parsing possibilities as an original parser but also have a binded function.
+Then, every SPPF node that will be produced by parser with binded function will have a reference to this function too.
+
+So, these operations in composition with other combinators provides an instrument for data processing on which most queries are based. 
+For example, \lstinline{^} can extract some data from tokens and \lstinline{&} applyed to sequence of tokens can collect and process data returned by terminal parsers.
+
+The main idea of execution of semantic actions remained the same as in the original Meerkat library excepting one aspect.
+For each node we still just execute all actions of its children, collect results and pass them as argument to current function.
+But what should executor do if SPPF has ambiguous nodes? 
+Previous implementation just throws an exception in that case and it is reasonable because 
+original library is written for linear parsing and most grammars allows disambiguation in that case.
+However, even unambiguous grammar can produce ambiguous derivations during parsing of graphs.
+That's why we provide a feature that makes it possible to extract all derivations stored in SPPF.
+In the best case each parsed path corresponds to one derivation.
+Applying this transformation lets us use previously implemented action executor to get a set of query results.
+
+But there is a problem with derivations extraction that need to be carefully solved.
+The number of path deriving from given grammar can be infinite, for example, when graph has cycles.
+So we can't use greedy algorithms of extraction such as deep first traversal.
+Our solution is based on breadth first search that yields an unambiguous SPPF immediately after it was found.
+This way of search produces a lazy stream of derivations that allows to take as much of them as you need.
