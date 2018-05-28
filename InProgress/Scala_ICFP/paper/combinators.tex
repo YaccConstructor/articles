@@ -10,11 +10,10 @@ We extend the Meerkat library to work on the graph input.
 
 \subsection{The Set of Combinators}
 
-First we introduce a small example graph which represent a map~\ref{fig:graph}.
-There can be a road from one city to another, this relation is shown in graph as an edge with label $road\_to$.
-Each city has name belongs to a country. 
+First we introduce a small example graph which represent a map~\ref{fig:graph}. Here we have some cities which can have road between them and this relation is shown in graph as an edge with label $road\_to$.
+Each city labeled with name and with a country it belongs to.
 
-{it may be useful to add types decalration for edge and vrt lables. Properties access (like .name, .country) will bw more evident}
+
 
 And let we try to extract some information from this map.
 
@@ -37,18 +36,19 @@ There are two main functions for that:
 \label{fig:sppf}
 \end{figure}
 
+
 (Write sth about syn macro \\ I think it should be in section 2 in Meerkat description)
 
 
 Suppose that we would like to select cities from our graph which belongs to some country. 
 For that we use function \lstinline{V}: \lstinline{V[L]((e: Entity) => e.country = "County Name")}.
-Here \lstinline{Entity} is a property container for graph entities: edges and vertices. 
+Here \lstinline{Entity} is a property container for graph entities: edges and vertices. All properties usings (like \lstinline{(e: Entity).country}) are converted to the corresponding graph entity properties using Scala's \lstinline{Dynamic} trait.
 Also, for the sake of simplicity, we will not explicitly specify \lstinline{Entity} type for predicates. 
-Now let us build a query which gets all roads from city in $country0$ to city in $country$. 
+Now let us build a query which gets all roads from city in country $X$ to the city in country $Y$. 
 For that we can use a sequentialital combinator \lstinline{~}. 
 It allows to create queries which sequentialy applies two queries one after another. 
 When we have subquery for retrieving a vertex with specific city, let's call it \lstinline{city(name: String)} and a subquery \lstinline{roadTo} for retrieving road edges. 
-Let's finally build a query \lstinline{city("city0") ~ roadTo ~ city("city1")} which !!!!!.
+Let us finally build a query \lstinline{city("X") ~ roadTo ~ city("Y")} which will give us requested set of paths from our graph.
 The full query with subqueries is shown on fig. \ref{fig:simpleQuery}.
 
 \begin{figure}[h]
@@ -57,7 +57,7 @@ def city(country: String) =
   V(e.name == name)
 val roadTo = E(_.value() == "road_to")
 val ourPath = 
-  city("country0") ~ roadTo ~ city("country1")
+  city("X") ~ roadTo ~ city("Y")
 \end{lstlisting}
 \caption{Path query}
 \label{fig:simpleQuery}
@@ -81,8 +81,8 @@ def city(country: String) =
   syn(V(e.country() == country) ^ (_.name))
 val roadTo = E(_.value() == "road_to")
 val ourPath = 
-  syn(city("city0") ~ roadTo ~ city("city1") &
-    {case c0 ~ c1 => (c1, c2)}
+  syn(city("X") ~ roadTo ~ city("Y") &
+    { case c0 ~ c1 => (c1, c2) }
 \end{lstlisting}
 \caption{Path query}
 \label{fig:simpleQueryV2}
@@ -92,7 +92,6 @@ val ourPath =
 The whole set of basic combinators our library provides are presented in table~\ref{table:combinators}. 
 It consists of two kind of combinators. The first kind creates new parsers from existing ones, meanwhile the second one allows mapping parsers result.
 Parsers for matching strings are implicitly generated whenever a string is used within a query. 
-The classical same generation query~\cite{FndDB} can be written using the library as presented in Fig.~\ref{fig:query1Meerkat}.
 
 
 
@@ -118,12 +117,12 @@ The classical same generation query~\cite{FndDB} can be written using the librar
 
 \subsection{Generic interface for input}
 Combinators is a generic way to describe a query and when we have a query we want to execute that query on some graph considering it as an input for our query.
-The cool thing is that query execution mechanism may be fully separated from graph representatoin.
+The cool thing is that query execution mechanism may be fully separated from graph representation.
 We need only to have access to two very low-level functions, one for working with edges and one for vertices. 
 The first one would allow to get all edges outcoming from current vertex and also satisfies given predicate. 
 The second one will allow to check if current vertex satisfies given predicate.
 That interface is presented on fig~.\ref{fig:input}.
-It has two type perameters: \lstinline{L} for edge labels and \lstinline{N} for nodes.
+It has two type parameters: \lstinline{L} for edge labels and \lstinline{N} for nodes.
 We have implementation of that input for the next data sources: 
 
 \begin{itemize}
@@ -146,12 +145,12 @@ trait Input[+L, +N] {
 \label{fig:input}
 \end{figure}
 
-As far as requred functions is very simple, we hope that this interface can be implemented for arbitrary storage of graph-structured data.
-Note, that crrenly we use \lstinline{Int} as unic identifier for nodes (the \lstinline{nodeId} parameter).
+As far as required functions is very simple, we hope that this interface can be implemented for arbitrary storage of graph-structured data.
+Note, that currently we use \lstinline{Int} as unique identifier for nodes (the \lstinline{nodeId} parameter).
 It may be a technical restriction by the next two reason.
 \begin{itemize}
 \item It is impossible to use our library for correct processing of graph with more then \lstinline{MAX_INT} nodes). 
-\item It is necessary to provide such identifiers. Many systems use unique identifiers by default, but in some cases it may be necessary to implemet required functionality manualy.
+\item It is necessary to provide such identifiers. Many systems use unique identifiers by default, but in some cases it may be necessary to implement required functionality manually.
 \end{itemize}
 
 
@@ -187,7 +186,7 @@ But actually, they both have the same behaviour, they produce a new parser that 
 Then, every SPPF node that will be produced by parser with binded function will have a reference to this function too.
 
 So, these operations in composition with other combinators provides an instrument for data processing on which most queries are based. 
-For example, \lstinline{^} can extract some data from tokens and \lstinline{&} applyed to sequence of tokens can collect and process data returned by terminal parsers.
+For example, \lstinline{^} can extract some data from tokens and \lstinline{&} applied to sequence of tokens can collect and process data returned by terminal parsers.
 
 The main idea of execution of semantic actions remained the same as in the original Meerkat library excepting one aspect.
 For each node we still just execute all actions of its children, collect results and pass them as argument to current function.
