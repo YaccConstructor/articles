@@ -7,11 +7,19 @@ A parser combinators library provides with a set of basic combinators (such as s
 Most parser combinators libraries, including the Meerkat library, can only process the linear input --- strings or some kind of streams. 
 We extend the Meerkat library to work on the graph input.
 
-Generalization is based on some common ideas.
+Extension is based on some common ideas.
 \begin{itemize}
-\item  
-\item 
-\item 
+\item Intersection of context-free language and regular one is a context-free language and there are different constructive prooves of this fact.
+Proposed solution is a yet another constructive proove and SPPF is a just user-friendly representation of result context-free grammar.
+\item Linear input is a simple case of graph: positions are vertices and tokens are edges labels.
+Each edge is going from position (vertex) $i$ to position (vertex) $i+1$.
+\item Step from positin $i$ to position $i+1$ --- from current to ``next''.
+In the graph there are more then one ``next'' position. 
+\item We can treet the fact thet token in input matches wtih required token fron grammar as a predicate.
+This observation may be generalized: we can pass through  edge if its label satisfies some predicate.
+This way we can flrxibly handle lables of arbitrary types.
+\item Vertex may be converted to edge: all incoming edges are convert to oncoming into source of new edge, all outgoing are convert to outgoung from target of new edge.
+This way we can handle vertex and edge labelled graphs as edge labelled.
 \end{itemize}
 
 
@@ -165,7 +173,8 @@ It may be a technical restriction by the next two reason.
 
 \subsection{Semantic Actions}
 \label{sec:semanticActions}
-Each path query produces a parse result stored in SPPF. This representation is very rich but hard to use and understand.
+Each path query produces a parse result stored in SPPF.
+This representation is very rich but hard to use and understand.
 That is why our library provides a mechanism which allows you to extract and process any useful data stored in parse result.
 This mechanism is called semantic actions.
 In general, they give you an opportunity to apply any function to parsed token or sequence.
@@ -199,18 +208,13 @@ For example, \lstinline{^} can extract some data from tokens and \lstinline{&} a
 The main idea of execution of semantic actions remained the same as in the original Meerkat library excepting one aspect.
 For each node we still just execute all actions of its children, collect results and pass them as argument to current function.
 But what should executor do if SPPF has ambiguous nodes? 
-Previous implementation just throws an exception in that case and it is reasonable because 
-original library is written for linear parsing and most grammars allows disambiguation in that case.
+Previous implementation just throws an exception in that case and it is reasonable because original library is written for linear parsing and most grammars allows disambiguation in that case.
+
 However, even unambiguous grammar can produce ambiguous derivations during parsing of graphs.
-That's why we provide a feature that makes it possible to extract all derivations stored in SPPF.
-In the best case each parsed path corresponds to one derivation.
-
-But there is a problem with derivations extraction that need to be carefully solved.
+That's why we provide a feature that makes it possible to extract ``all'' trees stored in SPPF.
 The number of path deriving from given grammar can be infinite, for example, when graph has cycles.
-So we can't use greedy algorithms of extraction such as deep first traversal.
+This reason we can provide only a lazy stream of trees that allows to take as much of them as you need.
 Our solution is based on breadth first search that yields an unambiguous SPPF corresponding to some derivation immediately after it was found.
-This way of search produces a lazy stream of derivations that allows to take as much of them as you need.
 
-Composition of derivations extraction and semantic action execution gives us a function that we called
-\lstinline{executeQuery}. It parses graph from all positions producing a list of SPPF roots, then it
-extracts all derivations from all roots, executes semantic actions and returns a stream of results.
+Composition of trees extraction and semantic action execution gives us a function that we called \lstinline{executeQuery}.
+It parses graph from all positions producing a list of SPPF roots, then it extracts all derivations from all roots, executes semantic actions and returns a stream of results.
