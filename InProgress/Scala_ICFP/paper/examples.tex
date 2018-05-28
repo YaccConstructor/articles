@@ -1,7 +1,7 @@
 \section{Examples}
 
 In this section we introduce and describe some examples of our library usage.
-We show thet combinators are expressive enouth for realistic queryes and allows to create generic queryes easely.
+We show that combinators are expressive enough for realistic queries and allows to create generic queries easely.
 
 \subsection{Complicated Query to Map}
 
@@ -10,7 +10,7 @@ Let us capture one city, let's say city with name $a$.
 Now having a city graph and captured vertex we would like to know all paths such if as $i$ city from begining of our path we visit country $X$ then as $i$ city from end of our path we visit country $X$ too. 
 And also the middle city in our path is our captured city $a$.
 In a terms of combinators we can define our path as shown on fig.~\ref{fig:pathQuery}.
-Here \lstinline{reduceAsOr} is a function which transforms a list of queries to one query which is formed by reducing given list with \lstinline{|} combinator.
+Here \lstinline{reduceChoice} is a function which transforms a list of queries to one query which is formed by reducing given list with \lstinline{|} combinator.
 The \lstinline{pathPart} query recursively defines a path of our way.
 Also, \lstinline{middleCity} is a vertex query which parses our captured city $a$ and \lstinline{roadTo} query parses a \emph{roadTo} edge.
 
@@ -18,7 +18,7 @@ Also, \lstinline{middleCity} is a vertex query which parses our captured city $a
 \begin{lstlisting}
 val countriesList = List("X", "Y")
 val path = 
-  (reduceAsOr(countriesList.map(pathPart)) | 
+  (reduceChoice(countriesList.map(pathPart)) | 
     middleCity)
 def pathPart(country: String) =
   syn(city(country) ~ roadTo ~ path ~ 
@@ -33,27 +33,23 @@ def city(country: String) =
 \label{fig:pathQuery}
 \end{figure}
 
-
-The most exciting feature of our library is that queries can be used as first-class values which means greater generalization and composition. 
-The function \lstinline{reduceAsOr} presented in fig~\ref{fig:reduceAsOr} is a !!!!!! WTF!!!!
-
 \begin{figure}[h]
 \begin{lstlisting}
-def reduceAsOr(xs: List[Nonterminal]) = 
+def reduceChoice(xs: List[Nonterminal]) = 
   xs match {
     case x :: Nil     => x
     case x :: y :: xs => 
       syn(xs.foldLeft(x | y)(_ | _))
   }
 \end{lstlisting}
-\caption{Combinators implementation}
-\label{fig:reduceAsOr}
+\caption{Reduce choice function implementation}
+\label{fig:reduceChoice}
 \end{figure}
 
 Now we would like, to get from our query only \lstinline{city} combinator result. 
 For that purpose let us modify it to make return result. 
 In our library we have a \lstinline{^} and \lstinline{&} functions for that. 
-Then we will have definition of our combinators as presented in fig.~\ref{fig:fixedAtor}.
+Then we will have definition of our combinators as presented in fig.~\ref{fig:fixedPathQ}.
 
 \begin{figure}[h]
 \begin{lstlisting}
@@ -65,11 +61,11 @@ def pathPart(country: String) = syn(
       case a ~ (b: List[_]) ~ Entity => 
         a +: b :+ c })
 \end{lstlisting}
-\caption{Fixed combinators}
-\label{fig:fixedAtor}
+\caption{Fixed queries}
+\label{fig:fixedPathQ}
 \end{figure}
 
-Now we execute our query. It is evidente that for the graph presented on fig.~\ref{fig:graph} we can get only three paths which satisfies given criteria:
+Now we execute our query. It is evident that for the graph presented on fig.~\ref{fig:graph} we can get only three paths which satisfies given criteria:
 \begin{itemize}
 \item single-vertex path $a$;
 \item $b \rightarrow a \rightarrow d$
@@ -82,8 +78,8 @@ Gray rectangles are start nonterminals.
 
 \subsection{Same Generation Query}
 
-Yet another example of first order functions usage is generaligation of classical same generation query which is one of basyc context-free path queries.
-One of application of such quries is hierarchy analysing in RDF storages~\cite{RDF}.
+Yet another example of first order functions usage is generalisation o.f classical same generation query which is one of basic context-free path queries.
+One of application of such queries is hierarchy analysing in RDF storages~\cite{CFGonRDF}.
 Let suppose that we have RDF graphs with two pairs of relation (each pair is relation and its revers): (\emph{subClassOf}; $\text{\emph{subClassOf}}^{-1}$) and (\emph{type}; $\text{\emph{type}}^{-1}$).
 We want to evaluate two queries which detect all pairs of nodes which are connected by path derivable in grammars $G_1$~(Fig.~\ref{grammarQ1}) and $G_2$ respectively~(Fig.~\ref{grammarQ2}). 
 
@@ -98,7 +94,7 @@ We want to evaluate two queries which detect all pairs of nodes which are connec
    3: & S \rightarrow \text{\textit{type}}^{-1} \ \text{\textit{type}} \\ 
 \end{array}
 \]
-   \caption{Contex-free grammar $G_1$ for query 1}
+   \caption{Context-free grammar $G_1$ for query 1}
    \label{grammarQ1}
    \end{figure}
 
@@ -116,7 +112,7 @@ We want to evaluate two queries which detect all pairs of nodes which are connec
    \label{grammarQ2}        
    \end{figure}
 
-   Of course, these queryes can be written in Meerkat easely because it supports context-free queryes: code is presented in Fig.~\ref{fig:query1Meerkat} and Fig.~\ref{fig:query2Meerkat}.
+   Of course, these queries can be written in Meerkat easely because it supports context-free queries: code is presented in Fig.~\ref{fig:query1Meerkat} and Fig.~\ref{fig:query2Meerkat}.
 
 \begin{figure}[h]
 \begin{lstlisting}
@@ -135,14 +131,14 @@ val S = syn(
   "subclassof-1" ~ S ~ "subclassof")
 val query2 = syn(S ~"subclassof")
 \end{lstlisting}
-\caption{Query 2 grammar}
+\caption{The same generation query (Query 2) in Meerkat}
 \label{fig:query2Meerkat}
 \end{figure}
 
-As you can see, grammars and code representations for these two quries looks pretty similar.
+As you can see, grammars and code representations for these two queries looks pretty similar.
 May we avoid code duplication and generalize them? 
 Yes, we can and not only for these two queries.
-The function \lstinline{sameGen} presented in Fig~\ref{fig:gen} is a generalization of the same generation query and is independent of the environment such as the input graph structure or other parsers.
+The function \lstinline{sameGen} presented in Fig~\ref{fig:gen} is a generalization of the same generation query and is independent of the environment such as the input graph structure or other parsers and also uses a function \lstinline{reduceChoice} presented in \ref{fig:reduceChoice}.
 It can be used for the creation of other queries, including the one presented in Fig~\ref{fig:query1Meerkat}: it is the result of the application of \lstinline{sameGen} to the appropriate relations (which can be treated as opening and closing brackets).
 Another application of the \lstinline{sameGen} is a Query 2, which can be founded in Fig.~\ref{fig:query2Gen}.
 
@@ -150,13 +146,9 @@ Another application of the \lstinline{sameGen} is a Query 2, which can be founde
 \begin{figure}[h]
 \begin{lstlisting}
 def sameGen(brs) =
-  bs.map { case (lbr, rbr) => 
-             lbr ~ syn(sameGen(bs).?) ~ rbr } 
-  match {
-    case x :: Nil => syn(x)
-    case x :: y :: xs => 
-      syn(xs.foldLeft(x | y)(_ | _))
-  }
+  reduceChoice(
+    bs.map { case (lbr, rbr) => 
+      lbr ~ syn(sameGen(bs).?) ~ rbr }) 
 \end{lstlisting}
 \caption{Generic function for the same generations query}
 \label{fig:gen}
@@ -186,7 +178,7 @@ val query2 = syn(
 
 
 We show that parser combinators provide a simple and safe way to creation of generic queries.
-By using this ability, it may be possible to create a library of \ ``standard templates'' for most popular generic queryes like same generatoin query or for domain specific queryes (for example, for specific static code analysis problem).
+By using this ability, it may be possible to create a library of \ ``standard templates'' for most popular generic queries like same generation query or for domain specific queries (for example, for specific static code analysis problem).
 
 
 \subsection{Classical Movies Queries}
