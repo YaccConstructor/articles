@@ -9,22 +9,44 @@ We extend the Meerkat library to work on the graph input.
 
 Extension is based on some common ideas.
 \begin{itemize}
-\item Intersection of context-free language and regular one is a context-free language and there are different constructive prooves of this fact.
-Proposed solution is a yet another constructive proove and SPPF is a just user-friendly representation of result context-free grammar.
+\item Intersection of context-free language and regular one is a context-free language and there are different constructive proves of this fact.
+Proposed solution is a yet another constructive prove and SPPF is a just user-friendly representation of result context-free grammar.
 \item Linear input is a simple case of graph: positions are vertices and tokens are edges labels.
 Each edge is going from position (vertex) $i$ to position (vertex) $i+1$.
-\item Parser can move pointer in input from positin $i$ to position $i+1$ and create new state when token between $i$ to position $i+1$ matches with required in grammar.
+\item Parser can move pointer in input from position $i$ to position $i+1$ and create new state when token between $i$ to position $i+1$ matches with required in grammar.
 In case of graph processing there are more then one ways to go from current vertex $i$ and it is possible to get more then one new state.
 Generalized parsing is designed to optimally handle steps which produce multiple new states and can handle help to handle this situation.
-\item We can treet the fact thet token in input matches wtih required token fron grammar as a predicate.
+\item We can treat the fact that token in input matches with required token from grammar as a predicate.
 This observation may be generalized: we can pass through  edge if its label satisfies some predicate.
-This way we can flrxibly handle lables of arbitrary types.
-\item Vertex may be converted to edge: all incoming edges are convert to oncoming into source of new edge, all outgoing are convert to outgoung from target of new edge.
+This way we can flexibly handle labels of arbitrary types.
+\item Vertex may be converted to edge: all incoming edges are convert to oncoming into source of new edge, all outgoing are convert to outgoing from target of new edge.
 This way we can handle vertex and edge labelled graphs as edge labelled.
 \end{itemize}
 
+\subsection{Library Structure}
+
+Querying process in our library consists of two subprocesses listed below.
+\begin{itemize}
+\item Applying a query to the graph and representation it as SPPF
+\item Applying semantic actions to SPPF which will allow us to retrieve all information we need from our SPPF. 
+The specification we need to retrieve from SPPF also described in a terms of combinators using mapping combinators \lstinline{^} and \lstinline{&}.
+In details semantic action execution is described in section~\label{sec:semanticActions} .
+\end{itemize}
+
+There are two main types of queries.
+\begin{itemize}
+\item Graph's edge and vertex is two main building blocks of queries. 
+It is represented as a \lstinline{Edge[N]} and \lstinline{Vertex[L]} type where \lstinline{N} and \lstinline{L} is a type parameters of edge and vertex type, respectively. 
+In a terms of CF-grammar edges and vertices are terminals.
+There are two combinators \lstinline{E[N]} and \lstinline{V[L]} for working with basic primitives described in section \ref{sec:combinators}.
+\item A complete query has a \lstinline{Query[L, N]} type.
+Query is a nonterminal in a terms of CF-grammars.
+For transforming an arbitrary query to a Query we have a \lstinline{syn} macro which also gives it the same name as corresponding value.
+Later this naming will be used in SPPF.
+\end{itemize}
 
 \subsection{The Set of Combinators}
+\label{sec:combinators}
 
 First we introduce a small example graph which represent a map and presented in fig.~\ref{fig:graph}.
 Here we have some cities which can have road between them and this relation is shown in graph as an edge with label $road\_to$.
@@ -32,9 +54,27 @@ Each city labeled with name and with a country it belongs to.
 
 And let we try to extract some information from this map.
 
+% \begin{figure}[h]
+% \includegraphics[width=0.45\textwidth]{graph}
+% \caption{Example Input Graph of Roads}
+% \label{fig:graph}
+% \end{figure}
+
 \begin{figure}[h]
-\includegraphics[width=0.45\textwidth]{graph}
-\caption{Example Input Graph of Roads}
+\begin{tikzpicture}[shorten >=1pt,node distance=2cm,on grid,auto] 
+   \node[state] (a) [fill={rgb:black,1;white,2}]  {$a(X)$}; 
+   \node[state] (b) [right=of a] {$b (Y)$}; 
+   \node[state] (c) [right=of b] {$c (X)$}; 
+   \node[state] (d) [left=of a] {$d (X)$};
+   \node[state] (e) [left=of d] {$e (Y)$};
+    \path[->] 
+    (a) edge [bend left, above] node [above] {$road\_to$} (c)          
+    (b) edge  node {$road\_to$} (a)
+    (c) edge  node {$road\_to$} (b)
+    (a) edge  node {$road\_to$} (d)
+    (d) edge  node {$road\_to$} (e);
+\end{tikzpicture}
+\caption{Example Input Graph of Roads. Vertex labels in a form of "city-name (country-name)"}
 \label{fig:graph}
 \end{figure}
 
@@ -46,13 +86,12 @@ There are two main functions for that:
 \end{itemize}
 
 \begin{figure}[h]
-\includegraphics[scale=0.38]{sppf}
-\caption{SPPF: result of applying actor/movie query to the graph~\ref{fig:graph}}
+\includegraphics[scale=0.45]{sppf}
+\caption{SPPF: result of applying cities query to the graph~\ref{fig:graph}}
 \label{fig:sppf}
 \end{figure}
 
 
-(Write sth about syn macro \\ I think it should be in section 2 in Meerkat description)
 
 
 Suppose that we would like to select cities from our graph which belongs to some country. 
