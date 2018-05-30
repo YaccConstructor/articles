@@ -24,27 +24,10 @@ This way we can flexibly handle labels of arbitrary types.
 This way we can handle vertex and edge labelled graphs as edge labelled.
 \end{itemize}
 
-\subsection{Library Structure}
-
-Querying process in our library consists of two subprocesses listed below.
-\begin{itemize}
-\item Applying a query to the graph and representation it as SPPF
-\item Applying semantic actions to SPPF which will allow us to retrieve all information we need from our SPPF. 
-The specification we need to retrieve from SPPF also described in a terms of combinators using mapping combinators \lstinline{^} and \lstinline{&}.
-In details semantic action execution is described in section~\label{sec:semanticActions} .
-\end{itemize}
-
-There are two main types of queries.
-\begin{itemize}
-\item Graph's edge and vertex is two main building blocks of queries. 
-It is represented as a \lstinline{Edge[N]} and \lstinline{Vertex[L]} type where \lstinline{N} and \lstinline{L} is a type parameters of edge and vertex type, respectively. 
-In a terms of CF-grammar edges and vertices are terminals.
-There are two combinators \lstinline{E[N]} and \lstinline{V[L]} for working with basic primitives described in section \ref{sec:combinators}.
-\item A complete query has a \lstinline{Query[L, N]} type.
-Query is a nonterminal in a terms of CF-grammars.
-For transforming an arbitrary query to a Query we have a \lstinline{syn} macro which also gives it the same name as corresponding value.
-Later this naming will be used in SPPF.
-\end{itemize}
+Querying process in our library fully inherited from generalized parsers and consists from two steps.
+The first step is a ``parsing'': query execution without semantic actions handling.
+Result of tis step is SPPF which contains derivation trees of all paths which satisfy syntactic conditions.
+The second step is a applying semantic actions to SPPF which will allow us to retrieve all information we need from SPPF. 
 
 \subsection{The Set of Combinators}
 \label{sec:combinators}
@@ -83,10 +66,12 @@ And let we try to extract some information from this map.
 \end{figure}
 
 First of all, for creating queries we need to work with edges and vertices.
-There are two main functions for that:
+There are two main functions for that.
 \begin{itemize}
-    \item \lstinline{V[L](predicate: L => Boolean)} combinator for working with vertices. Accepts a predicate and parses only vertices which satisfies that predicate
-    \item \lstinline{E[N](predicate: N => Boolean)} combinator for working with edges. Accepts a predicate and parses only edges which satisfies that predicate  
+    \item \lstinline{V[L](predicate: L => Boolean)} combinator for working with vertices where \lstinline{N} is a type of node label. 
+    Accepts a predicate and parses only vertices which satisfies that predicate.
+    \item \lstinline{E[N](predicate: N => Boolean)} combinator for working with edges where \lstinline{L} is a type edge label. 
+    Accepts a predicate and parses only edges which satisfies that predicate.  
 \end{itemize}
 
 \begin{figure}[h]
@@ -100,14 +85,15 @@ There are two main functions for that:
 
 Suppose that we would like to select cities from our graph which belongs to some country. 
 For that we use function \lstinline{V}: \lstinline{V[L]((e: Entity) => e.country = "County Name")}.
-Here \lstinline{Entity} is a property container for graph entities: edges and vertices. All properties usings (like \lstinline{(e: Entity).country}) are converted to the corresponding graph entity properties using Scala's \lstinline{Dynamic} trait.
+Here \lstinline{Entity} is a property container for graph entities: edges and vertices. 
+All properties usings (like \lstinline{(e: Entity).country}) are converted to the corresponding graph entity properties using Scala's \lstinline{Dynamic} trait.
 Also, for the sake of simplicity, we will not explicitly specify \lstinline{Entity} type for predicates. 
 Now let us build a query which gets all roads from city in country $X$ to the city in country $Y$. 
 For that we can use a sequentialital combinator \lstinline{~}. 
 It allows to create queries which sequentialy applies two queries one after another. 
 When we have subquery for retrieving a vertex with specific city, let's call it \lstinline{city(name: String)} and a subquery \lstinline{roadTo} for retrieving road edges. 
 Let us finally build a query \lstinline{city("X") ~ roadTo ~ city("Y")} which will give us requested set of paths from our graph.
-The full query with subqueries is shown on fig. \ref{fig:simpleQuery}.
+The full query with subqueries is shown on fig.~\ref{fig:simpleQuery}.
 
 \begin{figure}[h]
 \begin{lstlisting}
