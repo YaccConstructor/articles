@@ -183,10 +183,64 @@ By using this ability, it may be possible to create a library of \ ``standard te
 
 \subsection{Classical Movies Queries}
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+Now let's examine how our library handles regular queries in comparison with Neo4j Cypher query processor.
+There is a traditional dataset for graph databases consisting of more than 60000 nodes which represent
+movies, actors, directors, users and relationships between them.
+So, we have implemented a few queries which are provided as examples for this database.
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+All of them can be found on a Neo4j tutorial page describing this dataset.
+????????????? should here be the link ????????????
 
-Mov!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+Let's look at one of these examples written using Cypher language and how it transforms into Meerkat query
+(fig.~\ref{fig:cypher_movie_query}).
 
-MovMovMov! Mov! Mov! Mov! Mov! Mov! Mov! Mov! Mov! Mov! Mov! Mov! Mov!!!!!!!!!!!!!!!!!!!
+\begin{figure}[h]
+\begin{lstlisting}
+MATCH (u:User {login: 'adilfulara'})-[:FRIEND]->
+	  (f:Person)-[r:RATED]->(m:Movie)
+WHERE r.stars > 3
+RETURN f.name, m.title, r.stars, r.comment
+\end{lstlisting}
+\caption{Mutual Friend recommendations (Cypher query)}
+\label{fig:cypher_movie_query}
+\end{figure}
+
+Firstly, we should define parsers that correspond to persons, movies and specific user.
+Secondly, we should also create parsers corresponding to relations.
+Then, we can get a full path parser using combination of previously defined primitives.
+Finally, adding semantic action that extracts all needed data we get a complete path query.
+Result is shown on fig.~\ref{fig:meerkat_movie_query}.
+Using similar transformations we can write the most queries which can be defined using Cypher.
+
+\begin{figure}[h]
+\begin{lstlisting}
+//TODO: THEY DON'T FIT
+
+val adilfulara = syn(V((e: Entity) => e.hasLabel("User") 
+			    && e.login == "adilfulara"))
+val friend = syn(E((e: Entity) => e.value() == "FRIEND"))
+val person = syn(V((e: Entity) => e.hasLabel("Person")) ^^)
+val rated = syn(E((e: Entity) => e.value() == "RATED") ^^)
+val movie = syn(V((e: Entity) => e.hasLabel("Movie")) ^^)
+
+val query = syn((adilfulara ~ friend ~ person ~ rated ~ movie) &
+  {case p ~ r ~ m => (p.name, m.title, r.stars.asInstanceOf[Int],
+                      if (r.hasProperty("comment")) r.comment else "")})
+
+executeQuery(query, input)
+  .filter({case (_, _, s, _) => s > 3})
+\end{lstlisting}
+\caption{Mutual Friend recommendations (Meerkat query)}
+\label{fig:meerkat_movie_query}
+\end{figure}
+
+Note that Meerkat provides only path querying interface, all additional logic such as
+filtering, sorting or grouping must be implemented manually.
+Also, our library doesn't support incoming edges parsing.
+But in all other cases Meerkat can handle any regular query.
+
+However, when our library is used to execute regular query there appears another serious problem.
+Meerkat has more complicated and general parsing algorithm than regular path query engines.
+It allows to parse context-free grammars but gives an overhead on regular ones.
+
+Perfomance comparison results are given in the ``Evaluation'' section.
