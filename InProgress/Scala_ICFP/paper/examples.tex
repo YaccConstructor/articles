@@ -189,6 +189,113 @@ semantic actions usage we preovide some examples of classical queries to movie d
 represents movies, actors, directors, users and relationships between them.
 All of queries can be found on a Neo4j tutorial page~\footnote{The set of classical queries to movie dataset in Cypher language: \url{https://neo4j.com/developer/movie-database/}. Access date: 16.01.2018.}.
 
+First of all, we need to introduce some helpers for nodes and edges porcessing simplification.
+They are builded upon basic combinators from our library and presented in figure~\ref{fig:helpers}.
+
+\begin{figure}[h]
+\begin{lstlisting}
+def LV(labels: String*) = V((e: Entity) => labels.forall(e.hasLabel))
+def outLE(label: String) = outE((e: Entity) => e.label() == label)
+def inLE(label: String) = inE((e: Entity) => e.label() == label)
+\end{lstlisting}
+\caption{Helpers for edges and nodes processing}
+\label{fig:helpers}
+\end{figure}
+
+\begin{figure}[h]
+\begin{lstlisting}
+
+val query = syn((LV("Movie") :: V((_:Entity).title == "Forrest Gump")) ~ inLE("ACTS_IN") ~
+                      syn(LV("Actor") ^ (_.getProperty[String]("name"))) &&)
+
+    executeQuery(query, input).foreach(println)
+
+
+
+    ========================
+val query = syn((syn(LV("Actor") ^^) ~ outLE("ACTS_IN") ~ LV("Movie")) &
+      ((a: Entity) => (a.getProperty[String]("name"), a.id.asInstanceOf[String].toInt)))
+
+    executeQuery(query, input)
+      .groupBy({case (a, i) => i})
+      .toIndexedSeq
+      .map({case (i, ms) => (ms.head._1, ms.length)})
+      .sortBy({case (a, mc) => -mc})
+      .take(10)
+      .foreach({case (a, mc) => println(a, mc)})
+
+
+==========================
+
+val directors = syn((syn(LV("Actor", "Director") ^^) ~ outLE("Directed") ~ LV("Movie"))
+                    & (d  => d.id.asInstanceOf[String].toInt))
+
+    val directorsMap = executeQuery(directors, input)
+      .groupBy(i => i)
+      .map({case (i, ms) => (i, ms.length)})
+      .filter({case (_, ms) => ms >= 2})
+
+    val actor_prof_director = syn(LV("Actor", "Director") :: V((e: Entity) => directorsMap.contains(e.id.asInstanceOf[String].toInt)) ^^)
+
+    val acts = syn((actor_prof_director ~ outLE("ACTS_IN") ~ LV("Movie")) &
+      (a => (a.getProperty[String]("name"), a.id.asInstanceOf[String].toInt)))
+
+    executeQuery(acts, input)
+      .groupBy({case (a, i) => i})
+      .toStream
+      .map({case (i, ms) => (i, ms.head._1, ms.length)})
+      .filter({case (i, a, mc) => mc >= 10})
+      .foreach({case (i, a, mc) => println((a, mc, directorsMap(i)))})
+
+===========================================
+
+    val adilfulara = syn(LV("User") :: V((_: Entity).login == "adilfulara"))
+
+    val query = syn((adilfulara ~ (outLE("FRIEND") | inLE("Friend")) ~ syn(LV("Person") ^^) ~
+                                 syn(outLE("RATED") ^^) ~ syn(LV("Movie") ^^)) &
+      {case p ~ r ~ m => (p.getProperty[String]("name"), m.title, r.stars.asInstanceOf[Int],
+                          if (r.hasProperty("comment")) r.comment else "")})
+
+    executeQuery(query, input)
+      .filter({case (_, _, s, _) => s > 3})
+      .foreach(println)
+
+
+      =======================================
+
+      MATCH (m:Movie {title: 'Forrest Gump'})<-[:ACTS_IN]-(a:Actor)
+
+RETURN a.name, a.birthplace
+======================
+MATCH (a:Actor)-[:ACTS_IN]->(m:Movie)
+
+RETURN a, count(*)
+
+ORDER BY count(*) DESC LIMIT 10;
+================================
+MATCH (a:Actor)-[:ACTS_IN]->(m:Movie)
+
+WITH a, count(m) AS acted
+
+WHERE acted >= 10
+
+WITH a, acted
+
+MATCH (a:Director)-[:DIRECTED]->(m:Movie)
+
+WITH a, acted, collect(m.title) AS directed
+
+WHERE length(directed) >= 2
+
+RETURN a.name, acted, directed
+
+ORDER BY length(directed) DESC, acted DESC;
+\end{lstlisting}
+\caption{Mutual Friend recommendations query in Cypher}
+\label{fig:cypher_movie_query}
+\end{figure}
+
+
 Let's look at one of these examples written using Cypher language and how it transforms into Meerkat query
 (fig.~\ref{fig:cypher_movie_query}).
 
