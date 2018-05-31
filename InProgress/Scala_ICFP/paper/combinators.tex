@@ -47,18 +47,15 @@ We can generalize this observation allowing matching of an edge label of an arbi
 %This way we can handle vertex and edge labelled graphs as edge labelled.
 %\end{itemize}
 
-Querying process in our library fully inherited from generalized parsers and consists from two steps.
-The first step is a ``parsing'': query execution without semantic actions handling.
-Result of tis step is SPPF which contains derivation trees of all paths which satisfy syntactic conditions.
-The second step is a applying semantic actions to SPPF which will allow us to retrieve all information we need from SPPF. 
+Querying process in our library is inherited from generalized parsing and is done in two steps.
+The first step is ``parsing'': the construction of the SPPF which contains all derivation trees for the paths satisfying syntactic constraints.
+The second step is semantic actions application which retrieves the necessary additional data about the paths from the SPPF.
 
 \subsection{The Set of Combinators}
 
-First we introduce a small example graph which represent a map and presented in fig.~\ref{fig:graph}.
-Here we have some cities which can have road between them and this relation is shown in graph as an edge with label $road\_to$.
-Each city labeled with name and with a country it belongs to.
-
-And let we try to extract some information from this map.
+We will demonstrate the set of combinators by the example: the input graph, which represent a map, is presented in fig.~\ref{fig:graph}.
+There are some cities connected by one-way roads represented by the edges labeled $road\_to$.
+Each city is labeled by its name and a country it belongs to.
 
 % \begin{figure}[h]
 % \includegraphics[width=0.45\textwidth]{graph}
@@ -73,8 +70,8 @@ And let we try to extract some information from this map.
    \node[state] (a) [fill={rgb:black,1;white,2}]  {$a(X)$}; 
    \node[state] (b) [right=of a] {$b (Y)$}; 
    \node[state] (c) [right=of b] {$c (X)$}; 
-   \node[state] (d) [left=of a] {$d (Y)$};
-   \node[state] (e) [left=of d] {$e (X)$};
+   \node[state] (d) [left=of a] {$d (X)$};
+   \node[state] (e) [left=of d] {$e (Y)$};
     \path[->] 
     (a) edge [bend left, above] node [above] {$road\_to$} (c)          
     (b) edge  node {$road\_to$} (a)
@@ -83,17 +80,16 @@ And let we try to extract some information from this map.
     (d) edge  node {$road\_to$} (e);
 \end{tikzpicture}
 }
-\caption{Example Input Graph of Roads. Vertex labels in a form of "city-name (country-name)"}
+\caption{Example graph. Vertex labels are in the form "city-name (country-name)"}
 \label{fig:graph}
 \end{figure}
 
-First of all, for creating queries we need to work with edges and vertices.
-There are two main functions for that.
+Two basic building blocks of queries are the combinators for dealing with edges and vertices.
 \begin{itemize}
-    \item \lstinline{V[L](predicate: L => Boolean)} combinator for working with vertices where \lstinline{N} is a type of node label. 
-    Accepts a predicate and parses only vertices which satisfies that predicate.
-    \item \lstinline{E[N](predicate: N => Boolean)} combinator for working with edges where \lstinline{L} is a type edge label. 
-    Accepts a predicate and parses only edges which satisfies that predicate.  
+    \item \lstinline{V[L](predicate: L => Boolean)} the conbinator for processing vertices, where \lstinline{N} is a type of the node label. 
+    Parsing with this combinator succeeds iff the vertex satisfies the predicate.
+    \item \lstinline{E[N](predicate: N => Boolean)} the conbinator for processing edges, where \lstinline{L} is a type of the edge label. 
+    Parsing with this combinator succeeds iff the edge satisfies the predicate.  
 \end{itemize}
 
 \begin{figure}[h]
@@ -102,20 +98,15 @@ There are two main functions for that.
 \label{fig:sppf}
 \end{figure}
 
-
-
-
-Suppose that we would like to select cities from our graph which belongs to some country. 
-For that we use function \lstinline{V}: \lstinline{V[L]((e: Entity) => e.country = "County Name")}.
-Here \lstinline{Entity} is a property container for graph entities: edges and vertices. 
-All properties usings (like \lstinline{(e: Entity).country}) are converted to the corresponding graph entity properties using Scala's \lstinline{Dynamic} trait.
-Also, for the sake of simplicity, we will not explicitly specify \lstinline{Entity} type for predicates. 
-Now let us build a query which gets all roads from city in country $X$ to the city in country $Y$. 
-For that we can use a sequentialital combinator \lstinline{~}. 
-It allows to create queries which sequentialy applies two queries one after another. 
-When we have subquery for retrieving a vertex with specific city, let's call it \lstinline{city(name: String)} and a subquery \lstinline{roadTo} for retrieving road edges. 
-Let us finally build a query \lstinline{city("X") ~ roadTo ~ city("Y")} which will give us requested set of paths from our graph.
-The full query with subqueries is shown on fig.~\ref{fig:simpleQuery}.
+To select cities which belong to some country, we can use the function \lstinline{V}: \lstinline{V[L]((e: Entity) => e.country = "County Name")}.
+Here \lstinline{Entity} is a property container for both edges and vertices. 
+By using the \lstinline{Dynamic} trait, all accesses to properties (like \lstinline{(e: Entity).country}) are converted to the accesses to the properties of either a vertex or an edge.
+For the sake of simplicity, we will omit \lstinline{Entity} type specifications for predicates. 
+To query the graph for the paths from a city in the country $X$ to a city in the country $Y$, we need to sequencially compose the combinators for selecting the appropriate cities. 
+A sequentialital combinator \lstinline{~} does just that: it sequentialy applies two queries one after the other. 
+Let us denote a query for retrieving a city from the specific country \lstinline{city(name: String)} and a query for retriving road edges \lstinline{roadTo}. 
+With this denotation, a query \lstinline{city("X") ~ roadTo ~ city("Y")} returns the requested set of paths from the graph.
+The complete query with all needed subqueries is shown on fig.~\ref{fig:simpleQuery}.
 
 \begin{figure}[h]
 \begin{lstlisting}
@@ -129,17 +120,22 @@ val ourPath =
 \label{fig:simpleQuery}
 \end{figure}
 
+Having the query written, the next thing is to write a function to retrieve the actual data about the paths.
+If we care only about the names of the cities, we can return a pair of the cities for each path.
+First, we modify the query for vertices by adding the semantic action to it using the combinator \lstinline{^}: \lstinline{def city(name: String) = syn(V(e.value() == name) ^ (_.value))}.
+Then we need to actually map a path to a pair of cities: this is done with the combinator \lstinline{&}.
+The complete query is in fig.~\ref{fig:simpleQueryV2}.
+The result is the sequence of pairs of cities with the road between them.
 
-
-Now we would like to get all pair of cities which have a road between them. 
-So we need to transform our query to use semantic actions which is described in \ref{sec:semanticActions} section. 
-Now let us specify what we want from every our query. 
-From the \lstinline{city} query we want only city name, so we need to map a result of basic vertex combinator. 
-For that case we have a \lstinline{^} combinator we can write \lstinline{def city(name: String) = syn(V(e.value() == name) ^ (_.value))} to achive that. 
-In \lstinline{ourPath} query we need first and second cities to be represented as a pair. 
-For that we have a \lstinline{&} combinator which will map our sequence to a pair of strings.
-The final representation is shown on \ref{fig:simpleQueryV2}. 
-Now when we execute that query we will get a list which consists of all pairs of city's names which have a road between.
+%Now we would like to get all pair of cities which have a road between them. 
+%So we need to transform our query to use semantic actions which is described in \ref{sec:semanticActions} section. 
+%Now let us specify what we want from every our query. 
+%From the \lstinline{city} query we want only city name, so we need to map a result of basic vertex combinator. 
+%For that case we have a \lstinline{^} combinator we can write \lstinline{def city(name: String) = syn(V(e.value() == name) ^ (_.value))} to achive that. 
+%In \lstinline{ourPath} query we need first and second cities to be represented as a pair. 
+%For that we have a \lstinline{&} combinator which will map our sequence to a pair of strings.
+%The final representation is shown on \ref{fig:simpleQueryV2}. 
+%Now when we execute that query we will get a list which consists of all pairs of city's names which have a road between.
 
 \begin{figure}[h]
 \begin{lstlisting}
@@ -155,11 +151,9 @@ val ourPath =
 \end{figure}
 
 
-The whole set of basic combinators our library provides are presented in table~\ref{table:combinators}. 
-It consists of two kind of combinators. The first kind creates new parsers from existing ones, meanwhile the second one allows mapping parsers result.
-Parsers for matching strings are implicitly generated whenever a string is used within a query. 
-
-
+The whole set of basic combinators, which our library provides, is presented in the table~\ref{table:combinators}. 
+There are two kind of combinators the first kind combines parsers to form new parsers, meanwhile the second one is dedicated to the processing of the query result.
+Whenever a string is used withing a query, a parser which matches that string is implicitly generated.
 
 \begin{table}[h]
 \centering
@@ -182,19 +176,27 @@ Parsers for matching strings are implicitly generated whenever a string is used 
 
 
 \subsection{Generic interface for input}
-Combinators is a generic way to describe a query and when we have a query we want to execute that query on some graph considering it as an input for our query.
-The cool thing is that query execution mechanism may be fully separated from graph representation.
-We need only to have access to two very low-level functions, one for working with edges and one for vertices. 
-The first one would allow to get all edges outcoming from current vertex and also satisfies given predicate. 
-The second one will allow to check if current vertex satisfies given predicate.
-That interface is presented on fig~.\ref{fig:input}.
-It has two type parameters: \lstinline{L} for edge labels and \lstinline{N} for nodes.
-We have implementation of that input for the next data sources: 
+The combinators in our library are independent of the input representation. 
+It is enough to specify two basic combinators which handle vertices and edges. 
+Vertex handling is checking wether the vertex satisfies the given predicate.
+In case of the edges, one needs to check which of the outgoing from the given vertex edges satisfy the given predicate. 
+These two functions form the trait for the input.
+It has two type parameters: the type of edge labels \lstinline{L} and the type of vertices labels \lstinline{N}.
+We supported several different input sources:
+
+%Combinators is a generic way to describe a query and when we have a query we want to execute that query on some graph considering it as an input for our query.
+%The cool thing is that query execution mechanism may be fully separated from graph representation.
+%We need only to have access to two very low-level functions, one for working with edges and one for vertices. 
+%The first one would allow to get all edges outcoming from current vertex and also satisfies given predicate. 
+%The second one will allow to check if current vertex satisfies given predicate.
+%That interface is presented on fig~.\ref{fig:input}.
+%It has two type parameters: \lstinline{L} for edge labels and \lstinline{N} for nodes.
+%We have implementation of that input for the next data sources: 
 
 \begin{itemize}
-    \item Neo4jInput --- input source for working with graph database Neo4J;
-    \item GraphxInput --- input source for working with graph presented in memory using GraphX library;
-    \item LinearInput --- input source for working with linear input data like strings.
+    \item Neo4jInput --- input source for the graph database Neo4J;
+    \item GraphxInput --- input source for the graph presented in memory using GraphX library;
+    \item LinearInput --- input source for the linear input data such as the ordinary strings.
 \end{itemize}
 
 \begin{figure}[h]
@@ -211,27 +213,40 @@ trait Input[+L, +N] {
 \label{fig:input}
 \end{figure}
 
-As far as required functions is very simple, we hope that this interface can be implemented for arbitrary storage of graph-structured data.
-Note, that currently we use \lstinline{Int} as unique identifier for nodes (the \lstinline{nodeId} parameter).
-It may be a technical restriction by the next two reason.
-\begin{itemize}
-\item It is impossible to use our library for correct processing of graph with more then \lstinline{MAX_INT} nodes. 
-\item It is necessary to provide such identifiers. Many systems use unique identifiers by default, but in some cases it may be necessary to implement required functionality manually.
-\end{itemize}
+Since the required functions are simple, we believe it is possible to support most storages of graph-structured data.
+Note, there are two technical limitations which arise from our decision to use values of the type \lstinline{Int} as unique identifiers for vertices (the \lstinline{nodeId} parameter).
+It is imposible to correctly query the input graph with more than \lstinline{MAX_INT} vertices. 
+Also there should be a way to provide such unique identifiers. Most systems already use unique identifiers by default, in other cases this feature can be implemented by the user.
+
+%As far as required functions is very simple, we hope that this interface can be implemented for arbitrary storage of graph-structured data.
+%Note, that currently we use \lstinline{Int} as unique identifier for nodes (the \lstinline{nodeId} parameter).
+%It may be a technical restriction by the next two reason.
+%\begin{itemize}
+%\item It is impossible to use our library for correct processing of graph with more then \lstinline{MAX_INT} nodes. 
+%\item It is necessary to provide such identifiers. Many systems use unique identifiers by default, but in some cases it may be necessary to implement required functionality manually.
+%\end{itemize}
 
 
 
 \subsection{Semantic Actions}
 \label{sec:semanticActions}
-Each path query produces a parse result stored in SPPF.
-This representation is very rich but hard to use and understand.
-That is why our library provides a mechanism which allows you to extract and process any useful data stored in parse result.
-This mechanism is called semantic actions.
-In general, they give you an opportunity to apply any function to parsed token or sequence.
-Now, let's understand how actions can be used in queries and how they are implemented in our library.
 
-There are two main semantic action binders \lstinline{^} and \lstinline{&}.
-First of them is used when we need to perform some action on primitive tokens such as vertices or edges.
+Every path, which the query produces, has a derivation tree stored in the SPPF. 
+The derivation tree is a very reach structure which can be hard to understand. 
+To retrieve the actually useful for the user data, the library provides a mechanism of semantic actions. 
+It is a way to apply some function to a parsed token or a subsequence. 
+
+%Each path query produces a parse result stored in SPPF.
+%This representation is very rich but hard to use and understand.
+%That is why our library provides a mechanism which allows you to extract and process any useful data stored in parse result.
+%This mechanism is called semantic actions.
+%In general, they give you an opportunity to apply any function to parsed token or sequence.
+%Now, let's understand how actions can be used in queries and how they are implemented in our library.
+
+Semantic action binder for the tokens---vertices and edges alike---is \lstinline{^}. The most common use for it is to extract properties from the token and combine them in some fashion. 
+
+%There are two main semantic action binders \lstinline{^} and \lstinline{&}.
+%First of them is used when we need to perform some action on primitive tokens such as vertices or edges.
 \begin{lstlisting}
 // Defined in Terminal[+L] (edge) parser
 def ^[U](f: L => U) = 
@@ -242,29 +257,42 @@ def ^[U](f: N => U) =
   new SymbolWithAction[Nothing, N, U] {...
 \end{lstlisting}
 
-Second is used when we need to process a result of combination of parsers.
+For the combination of parsers there is a \lstinline{&} binder. Being  applied to a sequence of tokens, it can collect and process the data returned by the terminal parsers.
+%Second is used when we need to process a result of combination of parsers.
 \begin{lstlisting}
 // Defined in Symbol[+L, +N, +V] parser
 def &[U](f: V => U) = 
   new SymbolWithAction[L, N, U] {...
 \end{lstlisting}
 
-But actually, they both have the same behaviour, they produce a new parser that has the same parsing possibilities as an original parser but also have a binded function.
-Then, every SPPF node that will be produced by parser with binded function will have a reference to this function too.
+They both produce a new parser that parses the input exactly like the given parser but also have a binded function.
+The function is referenced in each SPPF node produced by the corresponding parser.
 
-So, these operations in composition with other combinators provides an instrument for data processing on which most queries are based. 
-For example, \lstinline{^} can extract some data from tokens and \lstinline{&} applied to sequence of tokens can collect and process data returned by terminal parsers.
+%But actually, they both have the same behaviour, they produce a new parser that has the same parsing possibilities as an original parser but also have a binded function.
+%Then, every SPPF node that will be produced by parser with binded function will have a reference to this function too.
 
-The main idea of execution of semantic actions remained the same as in the original Meerkat library excepting one aspect.
-For each node we still just execute all actions of its children, collect results and pass them as argument to current function.
-But what should executor do if SPPF has ambiguous nodes? 
-Previous implementation just throws an exception in that case and it is reasonable because original library is written for linear parsing and most grammars allows disambiguation in that case.
+%These binders along with the other combinators 
 
-However, even unambiguous grammar can produce ambiguous derivations during parsing of graphs.
-That's why we provide a feature that makes it possible to extract ``all'' trees stored in SPPF.
-The number of path deriving from given grammar can be infinite, for example, when graph has cycles.
-This reason we can provide only a lazy stream of trees that allows to take as much of them as you need.
-Our solution is based on breadth first search that yields an unambiguous SPPF corresponding to some derivation immediately after it was found.
+%So, these operations in composition with other combinators provides an instrument for data processing on which most queries are based. 
+%For example, \lstinline{^} can extract some data from tokens and \lstinline{&} applied to sequence of tokens can collect and process data returned by terminal parsers.
 
-Composition of trees extraction and semantic action execution gives us a function that we called \lstinline{executeQuery}.
-It parses graph from all positions producing a list of SPPF roots, then it extracts all derivations from all roots, executes semantic actions and returns a stream of results.
+The way semantic actions are executed has mostly remained the same as in the original Meerkat library: semantic actions are first executed for the children of the current node, collected and passed to a semantic action of the current node. 
+If there are ambiguous nodes in the SPPF, the original Meerkat library just throws an exception. 
+In our case, ambiguity can arise not only when there are multiple derivations of a string but ambiguous nodes can also represent several different subpaths which are derived from the respective nonterminal.
+We chose to provide a way to extract ``all'' derivation trees from the SPPF---lazily, since the number of the paths can be infinite. 
+Unambiguous trees are yielded with a breadth-first search.
+
+
+%The main idea of execution of semantic actions remained the same as in the original Meerkat library excepting one aspect.
+%For each node we still just execute all actions of its children, collect results and pass them as argument to current function.
+%But what should executor do if SPPF has ambiguous nodes? 
+%Previous implementation just throws an exception in that case and it is reasonable because original library is written for linear parsing and most grammars allows disambiguation in that case.
+
+%However, even unambiguous grammar can produce ambiguous derivations during parsing of graphs.
+%That's why we provide a feature that makes it possible to extract ``all'' trees stored in SPPF.
+%The number of path deriving from given grammar can be infinite, for example, when graph has cycles.
+%This reason we can provide only a lazy stream of trees that allows to take as much of them as you need.
+%Our solution is based on breadth first search that yields an unambiguous SPPF corresponding to some derivation immediately after it was found.
+
+The composition of the extraction of trees and the semantic action execution is called \lstinline{executeQuery}.
+It parses the input graph from all positions, produces a list of SPPF roots, extracts all derivations from every root, executes semantic actions and returns a lazy stream of results.
