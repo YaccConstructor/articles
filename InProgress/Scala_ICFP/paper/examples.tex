@@ -2,7 +2,7 @@
 \label{sec:examples}
 
 In this section, we describe some examples of queries written with the library proposed.
-We show that the combinatros are expressive enough for realistic queries and also ease their creation.
+We show that the combinators are expressive enough for realistic queries and also ease their creation.
 
 %In this section we introduce and describe some examples of our library usage.
 %We show that combinators are expressive enough for realistic queries and allows to create generic queries easely.
@@ -49,10 +49,10 @@ def city(country: String) =
 \begin{lstlisting}
 def reduceChoice(xs: List[Nonterminal]) =
   xs match {
-    case x :: Nil     => x
-    case x :: y :: xs =>
+   case x :: Nil => x
+   case x :: y :: xs =>
       syn(xs.foldLeft(x | y)(_ | _))
-  }
+ }
 \end{lstlisting}
 \caption{Reduce choice function implementation}
 \label{fig:reduceChoice}
@@ -72,8 +72,8 @@ val middleCity =
 def pathPart(country: String) = syn(
   (city(country) ~ roadTo ~
     path ~ roadTo ~ city(country) & {
-      case a ~ (b: List[_]) ~ Entity =>
-        a +: b :+ c })
+     case a ~ (b: List[_]) ~ c =>
+        a +: b :+ c})
 \end{lstlisting}
 \caption{Fixed queries}
 \label{fig:fixedPathQ}
@@ -172,8 +172,8 @@ Another application of the \lstinline{sameGen} is the Query 2, presented in fig.
 \begin{lstlisting}
 def sameGen(brs) =
   reduceChoice(
-    bs.map { case (lbr, rbr) =>
-      lbr ~ syn(sameGen(bs).?) ~ rbr })
+    bs.map {case (lbr, rbr) =>
+      lbr ~ syn(sameGen(bs).?) ~ rbr})
 \end{lstlisting}
 \caption{Generic function for the same generations query}
 \label{fig:gen}
@@ -208,7 +208,7 @@ It is possible to create a library of \ ``standard templates'' for most popular 
 
 \subsection{Classical Movies Queries}
 
-We also implemented some queries to the movie database used in the Neo4j tutorial~\footnote{The set of classical queries to movie dataset in Cypher language: \url{https://neo4j.com/developer/movie-database/}. }
+We also implemented some queries to the movie database used in the Neo4j tutorial~\footnote{The set of classical queries to movie dataset in Cypher language: \url{https://neo4j.com/developer/movie-database/}.}
 The database contains the data about movies, actors, directors and the relations between them.
 In this set of queries we demonstrate more semantic actions for the results processing. 
 
@@ -226,20 +226,21 @@ They are built upon the basic combinators and are presented in fig.~\ref{fig:hel
 \begin{figure}[h]
 \begin{lstlisting}
 def LV(labels: String*) = 
-    V((e: Entity) => labels.forall(e.hasLabel))
+  V(e => labels.forall(e.hasLabel))
 def outLE(label: String) = 
-    outE((e: Entity) => e.label() == label)
+  outE(_.label() == label)
 def inLE(label: String) = 
-    inE((e: Entity) => e.label() == label)
+  inE(_.label() == label)
 \end{lstlisting}
 \caption{Helpers for edges and nodes processing}
 \label{fig:helpers}
 \end{figure}
 
-Now we can start to build queries. 
-First query is a pretty symple qury for selecting actors who played in some film.
-Let compare Cypher (figure~\ref{fig:Q1_C}) and Meerkat versions (figure~\ref{fig:Q1_M}) of this query.
-Structure of both versions are similar: first part is path specification and second part is a specification of value to return, in the Meerkat version we use semantic actions to calculate it.
+%Now we can start to build queries. 
+Having the helper functions implemented, we can start building queries. 
+The first query is selects \emph{actors who played in some film}.
+Let us compare the Cypher (figure~\ref{fig:Q1_C}) and the Meerkat versions (figure~\ref{fig:Q1_M}) of this query.
+The structure of them both is similar: the first part is a path specification and the second part is a specification of the value to return; in the Meerkat version we use semantic actions to calculate it.
 
 \begin{figure}[h]
 \begin{lstlisting}
@@ -247,7 +248,7 @@ MATCH (m:Movie {title: 'Forrest Gump'})
       <-[:ACTS_IN]-(a:Actor)
 RETURN a.name, a.birthplace;
 \end{lstlisting}
-\caption{The query ``Actors who played in some film'' in Cypher}
+\caption{The query \emph{actors who played in some film} in Cypher}
 \label{fig:Q1_C}
 \end{figure}
 
@@ -255,24 +256,24 @@ RETURN a.name, a.birthplace;
 \begin{figure}[h]
 \begin{lstlisting}
 val query = 
-    syn(((LV("Movie") :: 
-        V((_:Entity).title == "Forrest Gump")) ~ 
+  syn((
+    (LV("Movie")::V(_.title == "Forrest Gump")) ~ 
     inLE("ACTS_IN") ~
-    syn(LV("Actor") ^ 
-         ((e: Entity) => 
-            (e.getProperty[String]("name"),
-             if (e.hasProperty("birthplace")) 
-                 e.birthplace 
-             else "")))) &&)
+    syn(
+      LV("Actor") ^ (e => 
+        (e.name,
+          if (e.hasProperty("birthplace")) 
+            e.birthplace 
+          else "")))) &&)
  
 executeQuery(query, input).foreach(println)
 \end{lstlisting}
-\caption{The query ``Actors who played in some film'' in Meerkat}
+\caption{The query \emph{actors who played in some film} in Meerkat}
 \label{fig:Q1_M}
 \end{figure}
 
 
-In the most profilic actors query (figure~\ref{fig:Q2_C}) we need to use paths set postprocessing in order to express ordering: \lstinline{executeQuery} returns a lazy set of paths which can be presecce dy using standart Scala functions as showed in figure~\ref{fig:Q2_C}.
+In the \emph{most prolific actors} query (figure~\ref{fig:Q2_C}) we need to use the postprocessing of the paths set to express ordering: \lstinline{executeQuery} returns a lazy set of paths which can be processed by using standard Scala functions as shown in fig.~\ref{fig:Q2_C}.
 
 \begin{figure}[h]
 \begin{lstlisting}
@@ -280,7 +281,7 @@ MATCH (a:Actor)-[:ACTS_IN]->(m:Movie)
 RETURN a, count(*)
 ORDER BY count(*) DESC LIMIT 10
 \end{lstlisting}
-\caption{The query ``Most profilic actors'' in Cypher}
+\caption{The query \emph{most prolific actors} in Cypher}
 \label{fig:Q2_C}
 \end{figure}
 
@@ -288,29 +289,28 @@ ORDER BY count(*) DESC LIMIT 10
 \begin{figure}[h]
 \begin{lstlisting}
 val query = 
-    syn((syn(LV("Actor") ^^) ~ outLE("ACTS_IN") ~ 
-        LV("Movie")) &
-        ((a: Entity) => 
-            (a.getProperty[String]("name"), 
-             a.id.asInstanceOf[String].toInt)))
+  syn((
+    syn(LV("Actor") ^^) ~ 
+    outLE("ACTS_IN") ~ 
+    LV("Movie")) & (a => (a.name, a.toInt)))
  
 executeQuery(query, input)
-  .groupBy({case (a, i) => i})
+  .groupBy {case (a, i) => i}
   .toIndexedSeq
-  .map({case (i, ms) => (ms.head._1, ms.length)})
-  .sortBy({case (a, mc) => -mc})
+  .map {case (i, ms) => (ms.head._1, ms.length)}
+  .sortBy {case (a, mc) => -mc}}
   .take(10)
-  .foreach({case (a, mc) => println(a, mc)})
+  .foreach(println)
   
 \end{lstlisting}
-\caption{The query ``Most profilic actors'' in Meerkat}
+\caption{The query \emph{most prolific actors} in Meerkat}
 \label{fig:Q2_C}
 \end{figure}
 
-For query which is presented in figure~\ref{fig:Q4_C} we need to use subqueries.
-Firt of all we specify \lstinline{user} subquery to find user with specific login.
-Secondly we specify \lstinline{friendsWith} subquery.
-Finally we use these subqueries to combine the result query.
+For query presented in fig.~\ref{fig:Q4_C} it is necessary to use subqueries.
+First of all, we specify the \lstinline{user} subquery to find the user with the specific login.
+Then we specify the \lstinline{friendsWith} subquery.
+Finally, we combine these subqueries to form the resulting query.
 
 \begin{figure}[h]
 \begin{lstlisting}
@@ -319,45 +319,44 @@ MATCH (u:User {login: 'adilfulara'})-
 WHERE r.stars > 3
 RETURN f.name, m.title, r.stars, r.comment;
 \end{lstlisting}
-\caption{The query ``Mutual friend recommendations'' in Cypher}
+\caption{The query \emph{mutual friend recommendations} in Cypher}
 \label{fig:Q4_C}
 \end{figure}
 
 
 \begin{figure}[h]
 \begin{lstlisting}
-val user = 
-    syn(LV("User") :: 
-        V((_: Entity).login == "adilfulara"))
+val user = syn(
+  LV("User")::V(_.login == "adilfulara"))
 
 val friendsWith = 
-    syn(inLE("FRIEND") | outLE("FRIEND"))
+  syn(inLE("FRIEND") | outLE("FRIEND"))
 
-val query = 
-    syn((user ~ friendsWith ~ syn(LV("Person") ^^) ~
-        syn(outLE("RATED") ^^) ~ syn(LV("Movie") ^^)) &
-        {case p ~ r ~ m => 
-           (p.getProperty[String]("name"), 
-            m.title, 
-            r.stars.asInstanceOf[Int],
-            if (r.hasProperty("comment")) r.comment 
-            else "")})
+val query = syn((
+  user ~ friendsWith ~ syn(LV("Person") ^^) ~
+  syn(outLE("RATED") ^^) ~ syn(LV("Movie") ^^)) &
+    {case p ~ r ~ m => 
+       (p.name, 
+        m.title, 
+        r.stars.toInt,
+        if (r.hasProperty("comment")) r.comment 
+        else "")})
  
 executeQuery(query, input)
-  .filter({case (_, _, s, _) => s > 3})
+  .filter {case (_, _, s, _) => s > 3} 
   .foreach(println)
 
 \end{lstlisting}
-\caption{The query ``Mutual friend recommendations'' in Meerkat}
+\caption{The query \emph{mutual friend recommendations} in Meerkat}
 \label{fig:Q4_M}
 \end{figure}
 
-
-Finally we present composition of all abilities.
-In order to express query which is presented in figure~\ref{fig:Q3_C} we need to use not only postprocessing but also subquerying with postprocessing.
-As a first patr we evaluate \lstinline{directors} subquery and build \lstinline{directorsMap} which furthe uses in semantic actions in \lstinline{actor_prof_director} subquery.
-In the posprocessing of \lstinline{directors} subquery we inmplement filtering which relates to \lstinline{WHERE length(directed) >= 2} condition of Cypher query.
-In order to get final result we also need to use postprocessing as far as it is necessary to implement filtering and sorting.
+%Finally we present composition of all abilities.
+We also can compose all of the features used in the last two queries. 
+To express query presented in fig.~\ref{fig:Q3_C}, we need to use not only postprocessing but also subquerying with postprocessing.
+First, we evaluate the \lstinline{directors} subquery and build \lstinline{directorsMap} which is further used in the semantic actions for the \lstinline{actor_prof_director} subquery.
+In the posprocessing step of the \lstinline{directors} subquery, we implement the filtering which relates to \lstinline{WHERE length(directed) >= 2} condition of the Cypher query.
+In order to get the final result, we also need to use postprocessing as far as it is necessary to implement the filtering and sorting.
 
 \begin{figure}[h]
 \begin{lstlisting}
@@ -370,45 +369,42 @@ WITH a, acted, collect(m.title)
 RETURN a.name, acted, directed
 ORDER BY length(directed) DESC, acted DESC;
 \end{lstlisting}
-\caption{The query ``Directed more than 2 films, acted in more than 10'' in Cypher}
+\caption{The query \emph{Directed more than 2 films, acted in more than 10} in Cypher}
 \label{fig:Q3_C}
 \end{figure}
 
 
 \begin{figure}[h]
 \begin{lstlisting}
-val directors = 
-    syn((syn(LV("Actor", "Director") ^^) ~ 
-        outLE("DIRECTED") ~ LV("Movie"))
-        & (d  => d.id.asInstanceOf[String].toInt))
+val directors = syn((
+  syn(LV("Actor", "Director") ^^) ~ 
+  outLE("DIRECTED") ~ LV("Movie")) & (_.id.toInt))
  
 val directorsMap = executeQuery(directors, input)
   .groupBy(i => i)
-  .map({case (i, ms) => (i, ms.length)})
-  .filter({case (_, ms) => ms >= 2})
+  .map {case (i, ms) => (i, ms.length)}
+  .filter {case (_, ms) => ms >= 2}
  
-val actor_prof_director = 
-    syn(LV("Actor", "Director") :: V((e: Entity) =>
-        directorsMap.contains(
-          e.id.asInstanceOf[String].toInt)) ^^)
+val actor_prof_director =  syn(
+  LV("Actor", "Director") ::
+    V(e => directorsMap.contains(e.id.toInt)) ^^)
  
-val acts = 
-    syn((actor_prof_director ~ outLE("ACTS_IN") ~ 
-         LV("Movie")) &
-        (a => (a.getProperty[String]("name"), 
-               a.id.asInstanceOf[String].toInt)))
+val acts = syn(
+  (actor_prof_director ~ outLE("ACTS_IN") ~ 
+    LV("Movie")) & (a => 
+      (a.name, a.id.toInt)))
  
 executeQuery(acts, input)
-  .groupBy({case (a, i) => i})
+  .groupBy {case (a, i) => i} 
   .toStream
-  .map({case (i, ms) => (i, ms.head._1, ms.length)})
-  .filter({case (i, a, mc) => mc >= 10})
-  .map({case (i, a, mc) => (a, mc, directorsMap(i))})
-  .sortBy({case (a, mc, dc) => (-dc, -mc)})
+  .map {case (i, ms) => (i, ms.head._1, ms.length)} 
+  .filter {case (i, a, mc) => mc >= 10}
+  .map {case (i, a, mc) => (a, mc, directorsMap(i))}
+  .sortBy {case (a, mc, dc) => (-dc, -mc)}
   .foreach(println)
     
 \end{lstlisting}
-\caption{The query ``Directed more than 2 films, acted in more than 10'' in Meerkat}
+\caption{The query \emph{Directed more than 2 films, acted in more than 10} in Meerkat}
 \label{fig:helpers}
 \end{figure}
 
