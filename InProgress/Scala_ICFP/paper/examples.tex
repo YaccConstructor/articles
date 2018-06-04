@@ -2,7 +2,7 @@
 \label{sec:examples}
 
 In this section, we describe some examples of queries written with the library proposed.
-We show that the combinatros are expressive enough for realistic queries and also ease their creation.
+We show that the combinators are expressive enough for realistic queries and also ease their creation.
 
 %In this section we introduce and describe some examples of our library usage.
 %We show that combinators are expressive enough for realistic queries and allows to create generic queries easely.
@@ -49,10 +49,10 @@ def city(country: String) =
 \begin{lstlisting}
 def reduceChoice(xs: List[Nonterminal]) =
   xs match {
-    case x :: Nil     => x
-    case x :: y :: xs =>
+   case x :: Nil => x
+   case x :: y :: xs =>
       syn(xs.foldLeft(x | y)(_ | _))
-  }
+ }
 \end{lstlisting}
 \caption{Reduce choice function implementation}
 \label{fig:reduceChoice}
@@ -72,8 +72,8 @@ val middleCity =
 def pathPart(country: String) = syn(
   (city(country) ~ roadTo ~
     path ~ roadTo ~ city(country) & {
-      case a ~ (b: List[_]) ~ Entity =>
-        a +: b :+ c })
+     case a ~ (b: List[_]) ~ c =>
+        a +: b :+ c})
 \end{lstlisting}
 \caption{Fixed queries}
 \label{fig:fixedPathQ}
@@ -172,8 +172,8 @@ Another application of the \lstinline{sameGen} is the Query 2, presented in fig.
 \begin{lstlisting}
 def sameGen(brs) =
   reduceChoice(
-    bs.map { case (lbr, rbr) =>
-      lbr ~ syn(sameGen(bs).?) ~ rbr })
+    bs.map {case (lbr, rbr) =>
+      lbr ~ syn(sameGen(bs).?) ~ rbr})
 \end{lstlisting}
 \caption{Generic function for the same generations query}
 \label{fig:gen}
@@ -208,7 +208,7 @@ It is possible to create a library of \ ``standard templates'' for most popular 
 
 \subsection{Classical Movies Queries}
 
-We also implemented some queries to the movie database used in the Neo4j tutorial~\footnote{The set of classical queries to movie dataset in Cypher language: \url{https://neo4j.com/developer/movie-database/}. }
+We also implemented some queries to the movie database used in the Neo4j tutorial~\footnote{The set of classical queries to movie dataset in Cypher language: \url{https://neo4j.com/developer/movie-database/}.}
 The database contains the data about movies, actors, directors and the relations between them.
 In this set of queries we demonstrate more semantic actions for the results processing. 
 
@@ -226,11 +226,11 @@ They are built upon the basic combinators and are presented in fig.~\ref{fig:hel
 \begin{figure}[h]
 \begin{lstlisting}
 def LV(labels: String*) = 
-    V((e: Entity) => labels.forall(e.hasLabel))
+  V(e => labels.forall(e.hasLabel))
 def outLE(label: String) = 
-    outE((e: Entity) => e.label() == label)
+  outE(_.label() == label)
 def inLE(label: String) = 
-    inE((e: Entity) => e.label() == label)
+  inE(_.label() == label)
 \end{lstlisting}
 \caption{Helpers for edges and nodes processing}
 \label{fig:helpers}
@@ -256,15 +256,15 @@ RETURN a.name, a.birthplace;
 \begin{figure}[h]
 \begin{lstlisting}
 val query = 
-    syn(((LV("Movie") :: 
-        V((_:Entity).title == "Forrest Gump")) ~ 
+  syn((
+    (LV("Movie")::V(_.title == "Forrest Gump")) ~ 
     inLE("ACTS_IN") ~
-    syn(LV("Actor") ^ 
-         ((e: Entity) => 
-            (e.getProperty[String]("name"),
-             if (e.hasProperty("birthplace")) 
-                 e.birthplace 
-             else "")))) &&)
+    syn(
+      LV("Actor") ^ (e => 
+        (e.name,
+          if (e.hasProperty("birthplace")) 
+            e.birthplace 
+          else "")))) &&)
  
 executeQuery(query, input).foreach(println)
 \end{lstlisting}
@@ -289,19 +289,18 @@ ORDER BY count(*) DESC LIMIT 10
 \begin{figure}[h]
 \begin{lstlisting}
 val query = 
-    syn((syn(LV("Actor") ^^) ~ outLE("ACTS_IN") ~ 
-        LV("Movie")) &
-        ((a: Entity) => 
-            (a.getProperty[String]("name"), 
-             a.id.asInstanceOf[String].toInt)))
+  syn((
+    syn(LV("Actor") ^^) ~ 
+    outLE("ACTS_IN") ~ 
+    LV("Movie")) & (a => (a.name, a.toInt)))
  
 executeQuery(query, input)
-  .groupBy({case (a, i) => i})
+  .groupBy {case (a, i) => i}
   .toIndexedSeq
-  .map({case (i, ms) => (ms.head._1, ms.length)})
-  .sortBy({case (a, mc) => -mc})
+  .map {case (i, ms) => (ms.head._1, ms.length)}
+  .sortBy {case (a, mc) => -mc}}
   .take(10)
-  .foreach({case (a, mc) => println(a, mc)})
+  .foreach(println)
   
 \end{lstlisting}
 \caption{The query \emph{most prolific actors} in Meerkat}
@@ -309,7 +308,7 @@ executeQuery(query, input)
 \end{figure}
 
 For query presented in fig.~\ref{fig:Q4_C} it is necessary to use subqueries.
-Firt of all, we specify the \lstinline{user} subquery to find the user with the specific login.
+First of all, we specify the \lstinline{user} subquery to find the user with the specific login.
 Then we specify the \lstinline{friendsWith} subquery.
 Finally, we combine these subqueries to form the resulting query.
 
@@ -327,25 +326,24 @@ RETURN f.name, m.title, r.stars, r.comment;
 
 \begin{figure}[h]
 \begin{lstlisting}
-val user = 
-    syn(LV("User") :: 
-        V((_: Entity).login == "adilfulara"))
+val user = syn(
+  LV("User")::V(_.login == "adilfulara"))
 
 val friendsWith = 
-    syn(inLE("FRIEND") | outLE("FRIEND"))
+  syn(inLE("FRIEND") | outLE("FRIEND"))
 
-val query = 
-    syn((user ~ friendsWith ~ syn(LV("Person") ^^) ~
-        syn(outLE("RATED") ^^) ~ syn(LV("Movie") ^^)) &
-        {case p ~ r ~ m => 
-           (p.getProperty[String]("name"), 
-            m.title, 
-            r.stars.asInstanceOf[Int],
-            if (r.hasProperty("comment")) r.comment 
-            else "")})
+val query = syn((
+  user ~ friendsWith ~ syn(LV("Person") ^^) ~
+  syn(outLE("RATED") ^^) ~ syn(LV("Movie") ^^)) &
+    {case p ~ r ~ m => 
+       (p.name, 
+        m.title, 
+        r.stars.toInt,
+        if (r.hasProperty("comment")) r.comment 
+        else "")})
  
 executeQuery(query, input)
-  .filter({case (_, _, s, _) => s > 3})
+  .filter {case (_, _, s, _) => s > 3} 
   .foreach(println)
 
 \end{lstlisting}
@@ -378,34 +376,31 @@ ORDER BY length(directed) DESC, acted DESC;
 
 \begin{figure}[h]
 \begin{lstlisting}
-val directors = 
-    syn((syn(LV("Actor", "Director") ^^) ~ 
-        outLE("DIRECTED") ~ LV("Movie"))
-        & (d  => d.id.asInstanceOf[String].toInt))
+val directors = syn((
+  syn(LV("Actor", "Director") ^^) ~ 
+  outLE("DIRECTED") ~ LV("Movie")) & (_.id.toInt))
  
 val directorsMap = executeQuery(directors, input)
   .groupBy(i => i)
-  .map({case (i, ms) => (i, ms.length)})
-  .filter({case (_, ms) => ms >= 2})
+  .map {case (i, ms) => (i, ms.length)}
+  .filter {case (_, ms) => ms >= 2}
  
-val actor_prof_director = 
-    syn(LV("Actor", "Director") :: V((e: Entity) =>
-        directorsMap.contains(
-          e.id.asInstanceOf[String].toInt)) ^^)
+val actor_prof_director =  syn(
+  LV("Actor", "Director") ::
+    V(e => directorsMap.contains(e.id.toInt)) ^^)
  
-val acts = 
-    syn((actor_prof_director ~ outLE("ACTS_IN") ~ 
-         LV("Movie")) &
-        (a => (a.getProperty[String]("name"), 
-               a.id.asInstanceOf[String].toInt)))
+val acts = syn(
+  (actor_prof_director ~ outLE("ACTS_IN") ~ 
+    LV("Movie")) & (a => 
+      (a.name, a.id.toInt)))
  
 executeQuery(acts, input)
-  .groupBy({case (a, i) => i})
+  .groupBy {case (a, i) => i} 
   .toStream
-  .map({case (i, ms) => (i, ms.head._1, ms.length)})
-  .filter({case (i, a, mc) => mc >= 10})
-  .map({case (i, a, mc) => (a, mc, directorsMap(i))})
-  .sortBy({case (a, mc, dc) => (-dc, -mc)})
+  .map {case (i, ms) => (i, ms.head._1, ms.length)} 
+  .filter {case (i, a, mc) => mc >= 10}
+  .map {case (i, a, mc) => (a, mc, directorsMap(i))}
+  .sortBy {case (a, mc, dc) => (-dc, -mc)}
   .foreach(println)
     
 \end{lstlisting}
