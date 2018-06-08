@@ -58,7 +58,34 @@
                         %% http://ctan.org/pkg/booktabs
 \usepackage{subcaption} %% For complex figures with subfigures/subcaptions
                         %% http://ctan.org/pkg/subcaption
+\usepackage{listings}
+\usepackage{upquote}
 
+\usepackage{color}
+\definecolor{bluekeywords}{rgb}{0.13,0.13,1}
+\definecolor{greencomments}{rgb}{0,0.5,0}
+\definecolor{redstrings}{rgb}{0.9,0,0}
+
+\lstdefinelanguage{FSharp}%
+{morekeywords={let, new, match, with, rec, open, module, namespace, type, of, member, % 
+and, for, while, true, false, in, do, begin, end, fun, function, return, yield, try, %
+mutable, if, then, else, cloud, async, static, use, abstract, interface, inherit, finally },
+  otherkeywords={ let!, return!, do!, yield!, use!, var, from, select, where, order, by },
+  keywordstyle=\color{bluekeywords},
+  sensitive=true,
+  basicstyle=\ttfamily,
+  breaklines=true,
+  xleftmargin=\parindent,
+  aboveskip=\bigskipamount,
+  tabsize=4,
+  morecomment=[l][\color{greencomments}]{///},
+  morecomment=[l][\color{greencomments}]{//},
+  morecomment=[s][\color{greencomments}]{{(*}{*)}},
+  morestring=[b]",
+  showstringspaces=false,
+  literate={`}{\`}1,
+  stringstyle=\color{redstrings},
+}
 
 \begin{document}
 
@@ -117,13 +144,9 @@
 %% Abstract
 %% Note: \begin{abstract}...\end{abstract} environment must come
 %% before \maketitle command
- \begin{abstract}
- Text of abstract \ldots.
- Text of abstract \ldots.
- Text of abstract \ldots.
- Text of abstract \ldots.
- Text of abstract \ldots.
- \end{abstract}
+\begin{abstract}
+This paper presents a work in progress on enhancing Brahma.FSharp, an F\# to OpenCL C compiler, by allowing the programmer to include and reuse existing OpenCL C source code in F\# in a strongly typed way. The integration is performed with the mechanism of F\# type providers.
+\end{abstract}
 
 
 %% 2012 ACM Computing Classification System (CSS) concepts
@@ -160,13 +183,13 @@
 
 \section{Introduction} % in progress
 
-Graphical processor units (GPUs) are commonly used for fast computations. Their multi-core architecture benefits high-load computations in applied science, computer vision, bioinformatics and other areas. This approach is called General Purpose Graphical Processor Unit, or GPGPU.~\cite{CUDA_to_OpenCL, GPGPU_1}
+General Purpose Graphical Processor Units, or GPGPUs, are commonly used for fast computations. Their multi-core architecture benefits high-load computations in applied science, computer vision, bioinformatics and other areas~\cite{CUDA_to_OpenCL, GPGPU_1}.
 
 Several frameworks for GPGPU programming are known. The most popular one is CUDA, a platform for parallel GPGPU computations developed by Nvidia in 2007~\cite{CUDA}. Another important project is Open Computing Language (OpenCL), an open standard for cross-platform parallel computing on different platforms, including GPGPU~\cite{OpenCL}. CUDA and OpenCL functions execuded on a GPGPU device are called \textit{kernels}.
 
 The technologies mentioned provide special programming languages: CUDA C/C++, OpenCL C/C++. However using higher-level languages, such as C\# or F\#, can be more convenient for GPGPU development for the following reasons: they are used more often for general software development, and they are strongly and statically typed, which, with the help of integrated development environments (IDEs), facilitates development and improves the reliability of software. In this article, in context of GPGPU development, we are going to call programming in special CUDA/OpenCL languages \textit{lower-level development}, and coding in C\#/F\# \textit{higher-level development}.
 
-There are several instruments for higher-level GPGPU development. AleaGPU~\cite{AleaGPU} is a commercial product that allows using C\# and F\# for CUDA programming, and calling a limited number of included lower-level CUDA libraries. The work~\cite{FSCL} presents FSCL, an F\# to OpenCL compiler, which allows developing OpenCL kernels within the .NET environment. Brahma.FSharp~\cite{Brahma_FSharp} is another F\# to OpenCL compiler, but it differs from FSCL in that it translates F\# \textit{quotations}, not regular code. F\# quotations are specific expressions that are not compiled as part of program, but instead are compiled into objects that represent F\# expressions, and can be evaluated later with F\# language tools.
+There are several instruments for higher-level GPGPU development. AleaGPU~\cite{AleaGPU} is a commercial product that allows using C\# and F\# for CUDA programming, and calling a limited number of included lower-level CUDA libraries. The work~\cite{FSCL} presents FSCL, an F\# to OpenCL compiler, which allows developing OpenCL kernels within the .NET environment. A limited subset of F\# language is supported by FSCL compiler. Brahma.FSharp~\cite{Brahma_FSharp} is another F\# to OpenCL compiler, but it differs from FSCL in that it focuses on translating F\# \textit{quotations}, not regular code. F\# quotations are specific expressions that are not compiled as part of program, but instead are compiled into objects that represent F\# expressions, and can be evaluated later with F\# language tools. Moreover, Brahma.FSharp is under active development, while FSCL has not been updated since January, 2016.
 
 There are also tools for managing GPGPU code launches from .NET. As mentioned earlier, Alea GPU allows reusing some CUDA libraries. CUSP~\cite{CUSP} is a C++ library that enhances CUDA development with sparse linear algebra and graph computations. ManagedCUDA~\cite{ManagedCUDA} library allows to run arbitrary pre-compiled CUDA kernels from C\#, however the calls are untyped, which doesn't satisfy the need for a completely type-safe environment.
 
@@ -184,7 +207,7 @@ Type providers also have disadvantages. First of all, testing type providers is 
 
 \section{OpenCL type provider}
 
-Figure~\ref{architecture} summarizes the proposed solution. The type provider library (bundled in Brahma.FSharp package) \textbf{/TODO: is 'package' the right word?/} loads the specified OpenCL C file, performs lexing, parsing and generates an F\# type with static functions that have the same signatures as the original OpenCL functions.
+Figure~\ref{architecture} summarizes the proposed solution: the OpenCL type provider which is implemented as a part of Brahma.FSharp. The type provider loads the specified OpenCL C file, performs lexing, parsing and generates an F\# type with static functions that have the same signatures as the original OpenCL functions.
 
 To use OpenCL type provider in a project, the user has to include the DLL containing the TP. Then, the KernelProvider type should be initialized with the proper static parameters, which there are two:
 
@@ -193,7 +216,7 @@ To use OpenCL type provider in a project, the user has to include the DLL contai
   \item \textit{TreatPointersAsArrays} defines whether the function parameters in OpenCL source code that are pointers are represented in F\# environment with the corresponding array type or reference type (ByRef in F\#).
 \end{itemize}
 
-The generated type provides all funcions from the OpenCL C file as static F\# functions. Figure~\ref{pic:usage} shows an example of TP usage: the file \textit{mygemm.cl} is included, and the function myGEMM1 from that file is generated within the provided type in F\#.
+The generated type provides all funcions from the OpenCL C file as static F\# functions. Listing~\ref{lst:usage} shows an example of TP usage: the file \textit{mygemm.cl} is included, and the function myGEMM1 from that file is generated within the provided type in F\#.
 
 \begin{figure}[h]
 \centering
@@ -202,38 +225,53 @@ The generated type provides all funcions from the OpenCL C file as static F\# fu
 \label{architecture}
 \end{figure}
 
-\begin{figure}[h]
-\centering
-\includegraphics[width=8.5cm]{graphics/example-usage.png}
-\caption{Example: TP usage}
-\label{pic:usage}
-\end{figure}
+% \begin{figure}[h]
+% \centering
+% \includegraphics[width=8.5cm]{graphics/example-usage.png}
+% \caption{Example: TP usage}
+% \label{pic:usage}
+% \end{figure}
+
+\lstset{language=FSharp}
+\begin{lstlisting}[
+  caption={Example of TP usage},
+  label=lst:usage,
+  basicstyle=\footnotesize,%\tiny, %or \small or \footnotesize etc.
+  captionpos=b
+]
+let [<Literal>] clSourcePath = __SOURCE_DIRECTORY__ + "/MyGEMM/mygemm.cl"
+type ProvidedType = KernelProvider<clSourcePath, TreatPointersAsArrays=true>
+let f = ProvidedType.myGEMM1
+\end{lstlisting}
+
+The screenshots below show examples of how the proposed type provider enhances the development process. Type information of the reused code becomes available (figure~\ref{pic:intellisense}), as well as code suggestions (figure~\ref{pic:suggestions}). Compile-time type check of interactions with the reused code is performed (figure~\ref{pic:error}).
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=8.5cm]{graphics/example-suggestion.png}
-\caption{Example: type information in IDE}
+\caption{Type information in IDE}
 \label{pic:intellisense}
 \end{figure}
 
 \begin{figure}[h]
 \centering
+\includegraphics[width=8.5cm]{graphics/example-multiple-suggestions.png}
+\caption{Code suggestions in IDE}
+\label{pic:suggestions}
+\end{figure}
+
+\begin{figure}[h]
+\centering
 \includegraphics[width=8.5cm]{graphics/example-compile-error.png}
-\caption{Example: compile-time type check}
+\caption{Compile-time type check with TP}
 \label{pic:error}
 \end{figure}
 
-TODO: add something else
-
 \section{Discussion}
 
-TODO: do we have an erased or generative TP? Probably erased
+OpenCL is a text-based driver, so OpenCL C source code, both reused and generated with Brahma.FSharp, is passed to it for execution. Therefore, our type provider does not analyze the internals of the loaded files and only parses functions' signatures. The F\# functions generated by the type provider cannot be called, and are intended only for usage in quotations that are translated to OpenCL code via Brahma.FSharp.
 
-The F\# functions generated by the type provider cannot be called, and are intended only for usage in quotations that are translated to OpenCL code via Brahma.FSharp.
-
-TODO: OpenCL as text-based driver; the issue with .h files
-
-TODO --- move restrictions from coursework slides/source code
+Running OpenCL code on different devices requires proper configuration of parameters such as grid size and tile size. Brahma.FSharp allows to set grid parameters, but does not allow to pass arbitrary constants. Therefore, header files (.h) containing \#define preprocessor macros may be requred along with the reused OpenCL C code. In the future we hope to find a way to mitigate this restriction.
 
 %% Acknowledgments
 % \begin{acks}                            %% acks environment is optional
