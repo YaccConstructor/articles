@@ -1,4 +1,4 @@
-  \documentclass[xcolor=table]{beamer}
+\documentclass[xcolor=table]{beamer}
 \usepackage{beamerthemesplit}
 \usepackage{wrapfig}
 \usetheme{SPbGU}
@@ -22,6 +22,8 @@
 %\usepackage{verbments}
 
 \newtheorem{mytheorem}{Theorem}
+\renewcommand{\thealgorithm}{}
+
 
 \beamertemplatenavigationsymbolsempty
 
@@ -62,7 +64,7 @@ Saint Petersburg University
 
 \begin{frame}[fragile]
   \transwipe[direction=90]
-  \frametitle{Language-Constrained Path Filtering}
+  \frametitle{Context-Free Path Querying}
   \begin{minipage}[m]{0.45\linewidth}
 \raisebox{-0.5\totalheight}{\includegraphics[width=\textwidth]{pictures/hierarchical.pdf}}
 \end{minipage}\hfill
@@ -80,12 +82,13 @@ Navigation through a graph
 
 \begin{frame}[fragile]
   \transwipe[direction=90]
-  \frametitle{Language-Constrained Path Filtering: Relational Query Semantics}
+  \frametitle{Context-Free Path Querying: Relational Query Semantics}
   \begin{itemize}
     \item $\mathbb{G} = (\Sigma, N, P)$ --- context-free grammar in normal form
     \begin{itemize}
       \item $A \rightarrow B C$, where $A, B, C \in N$
       \item $A \rightarrow x$, where $A \in N, x \in \Sigma$
+      \item $L(\mathbb{G},A) = \{ \omega \mid A \rightarrow^* \omega \}$
     \end{itemize}
     \item $G = (V,E,L)$ --- directed graph
       \begin{itemize} 
@@ -100,7 +103,7 @@ Navigation through a graph
 
 \begin{frame}[fragile]
   \transwipe[direction=90]
-  \frametitle{Regular language constraints}
+  \frametitle{Regular Language Constraints}
   \begin{itemize}
    \item Widely spread
     \begin{itemize}
@@ -119,7 +122,7 @@ Navigation through a graph
 
 \begin{frame}[fragile]
   \transwipe[direction=90]
-  \frametitle{Context-free language constraints}
+  \frametitle{Context-Free Language Constraints}
   \begin{itemize}
   \item Graph databases and semantic networks (Context-Free Path Querying, CFPQ)
     \begin{itemize}
@@ -218,7 +221,7 @@ Navigation through a graph
 
 \begin{frame}[fragile]
   \transwipe[direction=90]
-  \frametitle{Derivation step}
+  \frametitle{Derivation Step}
 
   \begin{tabular}{p{4cm} p{6cm} }
    \begin{center}
@@ -238,7 +241,7 @@ Navigation through a graph
   
 \begin{frame}
   \transwipe[direction=90]
-  \frametitle{Matrix multiplication}
+  \frametitle{Matrix Multiplication}
   \begin{itemize}
     \item Subset multiplication, $N_1, N_2 \subseteq N$
     \begin{itemize} 
@@ -259,12 +262,42 @@ Navigation through a graph
 
 \begin{frame}
   \transwipe[direction=90]
-  \frametitle{Transitive closure}
+  \frametitle{Transitive Closure}
   \begin{itemize}
     \item $a^{cf} = a^{(1)} \cup a^{(2)} \cup \cdots$
     \item $a^{(1)} = a$
     \item $a^{(i)} = a^{(i-1)} \cup (a^{(i-1)} \times a^{(i-1)}), ~i \ge 2$
   \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \transwipe[direction=90]
+  \frametitle{The algorithm}
+
+\begin{algorithm}[H]
+\begin{algorithmic}[1]
+\caption{Context-free recognizer for graphs}
+\label{alg:graphParse}
+\Function{contextFreePathQuerying}{D, G}
+    
+    \State{$n \gets$ the number of nodes in $D$}
+    \State{$E \gets$ the directed edge-relation from $D$}
+    \State{$P \gets$ the set of production rules in $G$}
+    \State{$T \gets$ the matrix $n \times n$ in which each element is $\varnothing$}
+    \ForAll{$(i,x,j) \in E$}
+    \Comment{Matrix initialization}
+        \State{$T_{i,j} \gets T_{i,j} \cup \{A~|~(A \rightarrow x) \in P \}$}
+    \EndFor    
+    \While{matrix $T$ is changing}
+       
+        \State{$T \gets T \cup (T \times T)$}
+        \Comment{Transitive closure $T^{cf}$ calculation} 
+    \EndWhile
+\State \Return $T$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
 \end{frame}
 
 \begin{frame}
@@ -315,7 +348,7 @@ Input graph: two cycles connected via a shared node
 \end{itemize}
 
 
-  \begin{tabular}{p{3cm} p{7cm} }
+\begin{tabular}{p{3cm} p{7cm} }
 \begin{figure}[h]
 	\[
 	\begin{array}{ccl}
@@ -332,9 +365,260 @@ Input graph: two cycles connected via a shared node
   \includegraphics[height=2cm]{pictures/example_graph.pdf}
 \end{center}
   \end{tabular}
-
 \end{frame}       
        
+\begin{frame}
+  \transwipe[direction=90]
+  \frametitle{The Worst Case: Step by Step}
+\begin{tabular}{p{3cm} p{7cm} }
+\begin{figure}[h]
+   \[
+\begin{array}{ccl}
+    S & \rightarrow & A \ B \\
+      & | & A \ S_1 \\
+    S_1 & \rightarrow & S \ B \\
+    A & \rightarrow & \text{\emph{a}} \\ 
+    B & \rightarrow & \text{\emph{b}} \\ 
+\end{array}
+\]
+\label{ProductionRulesExampleQueryCNF}
+\end{figure}
+  
+&   
+  
+\begin{figure}[h]
+\[
+T_0 = \begin{pmatrix}
+    \varnothing & \{A\}       & \varnothing & \{B\}       \\
+    \varnothing & \varnothing & \{A\}       & \varnothing \\
+    \{A\}       & \varnothing & \varnothing & \varnothing \\
+    \{B\}       & \varnothing & \varnothing & \varnothing \\
+\end{pmatrix}
+\]
+
+\end{figure}
+  \end{tabular}
+\end{frame}     
+ 
+\begin{frame}[noframenumbering]
+  \transwipe[direction=90]
+  \frametitle{The Worst Case: Step by Step}
+\begin{figure}[h]
+\[
+T_0 \times T_0 = \begin{pmatrix}
+	\varnothing & \varnothing & \varnothing & \varnothing \\
+	\varnothing & \varnothing & \varnothing & \varnothing \\
+	\varnothing & \varnothing & \varnothing & \{S\}       \\
+	\varnothing & \varnothing & \varnothing & \varnothing \\
+\end{pmatrix}
+\]
+
+\[
+T_1 = T_0 \cup (T_0 \times T_0) = \begin{pmatrix}
+	\varnothing & \{A\}       & \varnothing & \{B\}       \\
+	\varnothing & \varnothing & \{A\}       & \varnothing \\
+	\{A\}       & \varnothing & \varnothing & \{\pmb{S}\}       \\
+	\{B\}       & \varnothing & \varnothing & \varnothing \\
+\end{pmatrix}
+\]
+\label{ExampleQueryFirstIteration}
+\end{figure}
+\end{frame} 
+
+\begin{frame}[noframenumbering]
+  \transwipe[direction=90]
+  \frametitle{The Worst Case: Step by Step}
+\begin{figure}[h]
+\[ 
+T_2 = \begin{pmatrix}
+    \varnothing & \{A\}       & \varnothing & \{B\}       \\
+    \varnothing & \varnothing & \{A\}       & \varnothing \\
+    \{A, \pmb{S_1}\}  & \varnothing & \varnothing & \{S\}       \\
+    \{B\}       & \varnothing & \varnothing & \varnothing \\
+\end{pmatrix}
+\]
+\label{ExampleQueryFirstIteration}
+\end{figure}
+\end{frame} 
+
+\begin{frame}[noframenumbering]
+  \transwipe[direction=90]
+  \frametitle{The Worst Case: Step by Step}
+\begin{figure}[h]
+\[
+T_3 = \begin{pmatrix}
+\varnothing & \{A\}       & \varnothing & \{B\}       \\
+\{\pmb{S}\}       & \varnothing & \{A\}       & \varnothing \\
+\{A, S_1\}  & \varnothing & \varnothing & \{S\}       \\
+\{B\}       & \varnothing & \varnothing & \varnothing \\
+\end{pmatrix}
+\]
+\label{ExampleQueryFirstIteration}
+\end{figure}
+\end{frame} 
+
+\begin{frame}[noframenumbering]
+  \transwipe[direction=90]
+  \frametitle{The Worst Case: Step by Step}
+\begin{figure}[h]
+\[
+T_4 = \begin{pmatrix}
+\varnothing & \{A\}       & \varnothing & \{B\}       \\
+\{S\}       & \varnothing & \{A\}       & \{\pmb{S_1}\}     \\
+\{A, S_1\}  & \varnothing & \varnothing & \{S\}       \\
+\{B\}       & \varnothing & \varnothing & \varnothing \\
+\end{pmatrix}
+\]
+\label{ExampleQueryFirstIteration}
+\end{figure}
+\end{frame} 
+
+\begin{frame}[noframenumbering]
+  \transwipe[direction=90]
+  \frametitle{The Worst Case: Step by Step}
+\begin{figure}[h]
+\[
+T_5 = \begin{pmatrix}
+\varnothing & \{A\}       & \varnothing & \{B, \pmb{S}\}    \\
+\{S\}       & \varnothing & \{A\}       & \{S_1\}     \\
+\{A, S_1\}  & \varnothing & \varnothing & \{S\}       \\
+\{B\}       & \varnothing & \varnothing & \varnothing \\
+\end{pmatrix}
+\]
+\label{ExampleQueryFirstIteration}
+\end{figure}
+\end{frame} 
+
+\begin{frame}[noframenumbering]
+  \transwipe[direction=90]
+  \frametitle{The Worst Case: Step by Step}
+\begin{figure}[h]
+\[
+T_6 = \begin{pmatrix}
+\{\pmb{S_1}\}     & \{A\}       & \varnothing & \{B, S\}    \\
+\{S\}       & \varnothing & \{A\}       & \{S_1\}     \\
+\{A, S_1\}  & \varnothing & \varnothing & \{S\}       \\
+\{B\}       & \varnothing & \varnothing & \varnothing \\
+\end{pmatrix}
+\]
+\label{ExampleQueryFirstIteration}
+\end{figure}
+\end{frame} 
+
+\begin{frame}[noframenumbering]
+  \transwipe[direction=90]
+  \frametitle{The Worst Case: Step by Step}
+\begin{figure}[h]
+\[
+T_7 = \begin{pmatrix}
+\{S_1\}     & \{A\}       & \varnothing & \{B, S\}    \\
+\{S\}       & \varnothing & \{A\}       & \{S_1\}     \\
+\{A, S_1, \pmb{S}\}  & \varnothing & \varnothing & \{S\}    \\
+\{B\}       & \varnothing & \varnothing & \varnothing \\
+\end{pmatrix}
+\]
+\label{ExampleQueryFirstIteration}
+\end{figure}
+\end{frame} 
+
+\begin{frame}[noframenumbering]
+  \transwipe[direction=90]
+  \frametitle{The Worst Case: Step by Step}
+\begin{figure}[h]
+\[
+T_8 = \begin{pmatrix}
+\{S_1\}     & \{A\}       & \varnothing & \{B, S\}    \\
+\{S\}       & \varnothing & \{A\}       & \{S_1\}     \\
+\{A, S_1, S\}  & \varnothing & \varnothing & \{S, \pmb{S_1}\} \\
+\{B\}       & \varnothing & \varnothing & \varnothing \\
+\end{pmatrix}
+\]
+\label{ExampleQueryFirstIteration}
+\end{figure}
+\end{frame} 
+
+\begin{frame}[noframenumbering]
+  \transwipe[direction=90]
+  \frametitle{The Worst Case: Step by Step}
+\begin{figure}[h]
+\[
+T_9 = \begin{pmatrix}
+\{S_1\}     & \{A\}       & \varnothing & \{B, S\}    \\
+\{S\}       & \varnothing & \{A\}       & \{S_1, \pmb{S}\}     \\
+\{A, S_1, S\}  & \varnothing & \varnothing & \{S, S_1\} \\
+\{B\}       & \varnothing & \varnothing & \varnothing \\
+\end{pmatrix}
+\]
+\label{ExampleQueryFirstIteration}
+\end{figure}
+\end{frame} 
+
+\begin{frame}[noframenumbering]
+  \transwipe[direction=90]
+  \frametitle{The Worst Case: Step by Step}
+\begin{figure}[h]
+\[
+T_{10} = \begin{pmatrix}
+\{S_1\}     & \{A\}       & \varnothing & \{B, S\}    \\
+\{S, \pmb{S_1}\}       & \varnothing & \{A\}       & \{S_1, S\}     \\
+\{A, S_1, S\}  & \varnothing & \varnothing & \{S, S_1\} \\
+\{B\}       & \varnothing & \varnothing & \varnothing \\
+\end{pmatrix}
+\]
+\label{ExampleQueryFirstIteration}
+\end{figure}
+\end{frame} 
+
+\begin{frame}[noframenumbering]
+  \transwipe[direction=90]
+  \frametitle{The Worst Case: Step by Step}
+
+\begin{figure}[h]
+\[
+T_{11} = \begin{pmatrix}
+\{S_1, \pmb{S}\}     & \{A\}       & \varnothing & \{B, S\}    \\
+\{S, S_1\}       & \varnothing & \{A\}       & \{S_1, S\}     \\
+\{A, S_1, S\}  & \varnothing & \varnothing & \{S, S_1\} \\
+\{B\}       & \varnothing & \varnothing & \varnothing \\
+\end{pmatrix}
+\]
+\label{ExampleQueryFirstIteration}
+\end{figure}
+\end{frame} 
+
+\begin{frame}[noframenumbering]
+  \transwipe[direction=90]
+  \frametitle{The Worst Case: Step by Step}
+
+\begin{figure}[h]
+\[
+T_{12} = \begin{pmatrix}
+\{S_1, S\}     & \{A\}       & \varnothing & \{B, S, \pmb{S_1}\}    \\
+\{S, S_1\}       & \varnothing & \{A\}       & \{S_1, S\}     \\
+\{A, S_1, S\}  & \varnothing & \varnothing & \{S, S_1\} \\
+\{B\}       & \varnothing & \varnothing & \varnothing \\
+\end{pmatrix}
+\]
+\label{ExampleQueryFirstIteration}
+\end{figure}
+\end{frame} 
+
+\begin{frame}[noframenumbering]
+  \transwipe[direction=90]
+  \frametitle{The Worst Case: Step by Step}
+
+\begin{figure}[h]
+\[
+T_{13} = \begin{pmatrix}
+\{S_1, S\}     & \{A\}       & \varnothing & \{B, S, S_1\}    \\
+\{S, S_1\}       & \varnothing & \{A\}       & \{S_1, S\}     \\
+\{A, S_1, S\}  & \varnothing & \varnothing & \{S, S_1\} \\
+\{B\}       & \varnothing & \varnothing & \varnothing \\
+\end{pmatrix}
+\]
+\label{ExampleQueryFirstIteration}
+\end{figure}
+\end{frame}        
             
 \begin{frame}
   \transwipe[direction=90]
@@ -373,9 +657,9 @@ Query 2 retrieves concepts on the adjacent layers
    \[
 \begin{array}{ccl}
    S & \rightarrow & B \ \text{\emph{subClassOf}} \\ 
-   S & |           & \text{\emph{subClassOf}} \\ 
+     & |           & \text{\emph{subClassOf}} \\ 
    B & \rightarrow & \text{\emph{subClassOf}}^{-1} \ B \ \text{\emph{subClassOf}} \\ 
-   B & |           & \text{\emph{subClassOf}}^{-1} \ \text{\emph{subClassOf}} \\ 
+     & |           & \text{\emph{subClassOf}}^{-1} \ \text{\emph{subClassOf}} \\ 
 \end{array}
 \]
 \end{figure}
@@ -385,17 +669,17 @@ Query 2 retrieves concepts on the adjacent layers
 \begin{frame}
   \transwipe[direction=90]
   \frametitle{Evaluation: Query 1}         
-\begin{tabular}{ | c | c | c | c | c | c | c | c |}
-\hline
-Ontology & V & E & \#results & GLL(ms) & dGPU(ms) & sCPU(ms) & sGPU(ms)\\
-\hline 
+\begin{tabular}{  c | c | c | c | c | c | c | c }
+%\hline
+Ontology & V & E & \#results & GLL & dGPU & sCPU & sGPU\\
+%\hline 
 \hline
 skos        & 144 & 323 & 810 & 10 & 56 & 14 & 12\\
 generations & 129 & 351 & 2164 & 19 & 62 & 20 & 13\\
 travel      & 131 & 397 & 2499 & 24 & 69 & 22 & 30\\
 univ-bench  & 179 & 413 & 2540 & 25 & 81 & 25 & 15\\
-atom-primitive & 291 & 685 & 15454 & 255 & 190 & 92 & 22\\
-biomedical-measure-primitive & 341 & 711 & 15156 & 261 & 266 & 113 & 20\\
+atom-prim   & 291 & 685 & 15454 & 255 & 190 & 92 & 22\\ %atom-primitive
+biomedical  & 341 & 711 & 15156 & 261 & 266 & 113 & 20\\ % biomedical-measure-primitive
 foaf        & 256 & 815 & 4118 & 39 & 154 & 48 & 9\\
 people-pets & 337 & 834 & 9472 & 89 & 392 & 142 & 32\\
 funding     & 778 & 1480 & 17634 & 212 & 1410 & 447 & 36\\
@@ -404,24 +688,26 @@ pizza       & 671 & 2604 & 56195 & 697 & 1104 & 430 & 24\\
 $g_{1}$     & 6224 & 11840 & 141072 & 1926 & --- & 26957 & 82\\
 $g_{2}$     & 5864 & 19600 & 532576 & 6246 & --- & 46809 & 185\\
 $g_{3}$     & 5368 & 20832 & 449560 & 7014 & --- & 24967 & 127\\
-\hline
+%\hline
 \end{tabular}
+
+\begin{center} time is measured in ms \end{center}
     \end{frame}     
 
 \begin{frame}
   \transwipe[direction=90]
   \frametitle{Evaluation: Query 2}         
-\begin{tabular}{ | c | c | c | c | c | c | c | c |}
-\hline
-Ontology & V & E & \#results & GLL(ms) & dGPU(ms) & sCPU(ms) & sGPU(ms)\\
-\hline 
+\begin{tabular}{ c | c | c | c | c | c | c | c }
+%\hline
+Ontology & V & E & \#results & GLL & dGPU & sCPU & sGPU\\
+%\hline 
 \hline
 skos        & 144 & 323 & 1 & 1 & 10 & 2 & 1\\
 generations & 129 & 351 & 0 & 1 & 9 & 2 & 0\\
 travel      & 131 & 397 & 63 & 1 & 31 & 7 & 10\\
 univ-bench  & 179 & 413 & 81 & 11 & 55 & 15 & 9\\
-atom-primitive & 291 & 685 & 122 & 66 & 36 & 9 & 2\\
-biomedical-measure-primitive & 341 & 711 & 2871 & 45 & 276 & 91 & 24\\
+atom-prim   & 291 & 685 & 122 & 66 & 36 & 9 & 2\\
+biomedical  & 341 & 711 & 2871 & 45 & 276 & 91 & 24\\  % biomedical-measure-primitive
 foaf        & 256 & 815 & 10 & 2 & 53 & 14 & 3\\
 people-pets & 337 & 834 & 37 & 3 & 144 & 38 & 6\\
 funding     & 778 & 1480 & 1158 & 23 & 1246 & 344 & 27\\
@@ -430,15 +716,23 @@ pizza       & 671 & 2604 & 1262 & 29 & 943 & 258 & 23\\
 $g_{1}$     & 6224 & 11840 & 9264 & 167 & --- & 21115 & 38\\
 $g_{2}$     & 5864 & 19600 & 1064 & 46 & --- & 10874 & 21\\
 $g_{3}$     & 5368 & 20832 & 10096 & 393 & --- & 15736 & 40\\
-\hline
+%\hline
 \end{tabular}
+
+\begin{center} time is measured in ms \end{center}
 \end{frame}     
             
             
 \begin{frame}
   \transwipe[direction=90]
-  \frametitle{Pros/Cons}         
-Something about how this algorithm is matrix operations independent and great and stuff
+  \frametitle{Summary}         
+\begin{itemize}
+\item Algorithm for context-free path querying 
+\item Works on any input graph
+\item Supports any context-free constraints 
+\item Is independent of matrix representation
+\item Can utilize GPGPU easily and efficiently 
+\end{itemize}
 \end{frame}           
             
 \begin{frame}
