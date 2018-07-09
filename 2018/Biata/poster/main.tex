@@ -33,7 +33,16 @@
 \usepackage{caption}
 \usepackage{subcaption}
 \usepackage{graphicx}
+\usepackage{listings}
+%\usepackage{verbatimbox}
 %\usepackage{hyperref}
+
+\usepackage{pgf}
+\usepackage{tikz}
+\usepackage[utf8]{inputenc}
+\usetikzlibrary{arrows,automata}
+\usetikzlibrary{positioning}
+
 
 \graphicspath{{figures/}} % Directory in which figures are stored
 
@@ -43,6 +52,17 @@
  \definecolor{headerfontcol}{RGB}{0,0,0} % Text color for the header text in the content boxes
  \definecolor{boxcolor}{RGB}{210,235,250} % Background color for the content in the content boxes
 
+
+\tikzset{
+    state/.style={
+           rectangle,
+           rounded corners,
+           draw=black, very thick,
+           minimum height=2em,
+           inner sep=2pt,
+           text centered,
+           },
+}
 
 \begin{document}
 
@@ -84,17 +104,20 @@ boxshade=plain
 %----------------------------------------------------------------------------------------
 %   INTRODUCTION
 %----------------------------------------------------------------------------------------
-\headerbox{Motivation}{name=introduction,column=0,row=0, span=2}{
+\posterbox {Motivation}{name=introduction,column=0,row=0, span=2}{
 
-Biomedical databases contain huge amount of rich data which can be represented as a labelled graph.
-In order to investigate such data, it may be useful to extract connections with specific constraints.
-One natural way to provide constraints is to specify the language of paths labels which can be done by using of grammars.
-For example, one can use context-free grammars with the productions $\{S \rightarrow a S b; S \rightarrow \varepsilon \}$ to query paths which labels should take form of $ab; aabb; aaabbb; ...$, or, generally, should belong to the language $L = \{a^n b^n, n \geq 0\}$.
-This approach is named \emph{context-free path querying} (or graph parsing) and can be applied to some problems in bioinformatics such as metagenomic assemblies analysis or graph data base querying.
+Algorithms that can efficiently and accurately identify and classify bacterial taxonomic hierarchy have become a focus in computational genetics.
+The idea that secondary structure of genomic sequences is sufficient for solving the detection and classification problems lies at the heart of many tools~\cite{GrammarsRNA, PCFG, meta, LWPCFG}. 
+The secondary structure can be specified in terms of formal grammars. 
+The sequences obtained from the real bacteria usually contain a huge number of mutations and ``noise'' which renders precise methods impractical. 
+Probabilistic grammars and covariance models (CMs) are a way to take the noise into account~\cite{EddyDurbin}.
+For example, CMs are successfully used in the Infernal tool.%~\cite{Infernal}.
+Neural networks is another way to deal with ``noisy'' data. 
+The works~\cite{Humidor, ANN} utilize neural networks for 16s rRNA processing and demonstrate promising results. 
 
 }
 
-\headerbox{Results}{name=results,column=2,row=0, span=2}{
+\posterbox {Results}{name=results,column=2,row=0, span=2}{
 \begin{itemize} 
 \item We propose the graph parsing algorithms based on different parsing techniques~\cite{GraphGLL, RelaxedRNGLR, GraphParsingGPU}.
 \vspace{-0.2cm}
@@ -118,7 +141,7 @@ $g_{3}$     & 15840 & 449560 & 7014 & 127\\
 \end{center}
 }
     
-\headerbox{Future Research}{name=future,column=2,below=results, span=2}{
+\posterbox {Future Research}{name=future,column=2,below=results, span=2}{
 \begin{itemize} 
 \item Currently, we are working on long subsequences of 16s rRNA reconstruction from metagenomic assembly.
 \vspace{-0.2cm}
@@ -126,97 +149,175 @@ $g_{3}$     & 15840 & 449560 & 7014 & 127\\
 \end{itemize}
 }
 
-\headerbox{Context-free path querying}{name=CFParsing,span=2,column=0,row=1,below=introduction}{
+\posterbox{Context-free path querying}{name=CFParsing,span=4,column=0,row=1,below=introduction}{
 
-%\begin{center}
-%\includegraphics[width=0.9\textwidth]{AnBn_r.pdf}
-%\end{center}
+\begin{tikzpicture}[->,>=stealth']
+
+
+\node[state] (grm) 
+ {
+  \textbf{Grammar}
+  \begin{lstlisting}
+    
+s1: stem<s0> any
+
+a_0_7 : any*[2..10]
+
+s0: a_0_7 | a_0_7 stem<s0> s0
+
+any: A | U | C | G
+
+stem1<s>: 
+      A s U 
+    | G s C 
+    | U s A 
+    | C s G
+    
+stem2<s>: stem1<stem1<s>>
+
+stem<s>: 
+      A stem<s> U
+    | U stem<s> A
+    | C stem<s> G
+    | G stem<s> C
+    | stem1<stem2<s>> 
+
+   |
+  
+ \end{lstlisting}
+ };
+
+
+\node[state, 
+      below of=grm,
+      node distance=6.5cm] (sqs) 
+ {\begin{tabular}{l}
+  \textbf{Sequences}\\
+  \parbox{4cm}{
+  \begin{itemize}
+   \item Start
+   \item Parameter $Q$
+   \item Zufallszahl aus \mbox{$[0, 2^Q-1]$} in Slotzhler $SC$
+  \end{itemize}
+  }\\[4em]            
+  \textbf{QueryAdjust}\\
+  \parbox{4cm}{\begin{itemize}
+   \item Variiere Q
+   \item neue Zufallszahl
+  \end{itemize}
+  }
+ \end{tabular}};
+
+
+\node[right of=grm, 
+      node distance=6.5cm](parser)
+{
+!!!!!
+};
+
+\node[state, 
+      right of=parser,
+      node distance=6.5cm] (mtrx) 
+ {\begin{tabular}{l}
+  \textbf{Matrices}\\
+  \parbox{4cm}{
+  \begin{itemize}
+   \item Start
+   \item Parameter $Q$
+   \item Zufallszahl aus \mbox{$[0, 2^Q-1]$} in Slotzhler $SC$
+  \end{itemize}
+  }\\[4em]
+  \textbf{QueryAdjust}\\
+  \parbox{4cm}{\begin{itemize}
+   \item Variiere Q
+   \item neue Zufallszahl
+  \end{itemize}
+  }
+\end{tabular}};
+
+\node[state,
+      right of=mtrx, 
+      node distance=6.5cm](vector)
+{
+Vector
+};
+
+
+\node[right of=vector, 
+      node distance=6.5cm](DNN)
+{
+DNN
+};
+
+
+\node[state,
+      right of=DNN, 
+      node distance=6.5cm](result)
+{
+Result
+};
+
+
+\path (grm) edge[bend left=50]  node[anchor=south,above,text width=4cm]
+                   {
+                   \begin{itemize}
+                    \item Whle Zeile $i$ aus $T_P$
+                    \item sende $RN_{16}$ mit $C_i$
+                   \end{itemize}
+                   } (parser)
+ (sqs) edge                    (parser)
+ (parser) edge (mtrx)
+ (mtrx) edge (vector)
+ (vector) edge (DNN)
+ (DNN) edge (result)
+ ;
+
+\end{tikzpicture}
+
+
 }
 
-\headerbox{Database querying}
-{name=app1,column=0,span=2, below=CFParsing}
+\posterbox {Database querying}
+{name=app1,column=0,span=2, below=future}
 { % To reduce this block to 1 column width, remove 'span=2'
 One of the examples of database querying is an analysis of graphs where vertices correspond to entities and concepts such as gene or phenotype while edges represent the known relationships such as ``codes for'', ``interacts with'', etc.
 
 Example of graph structured data~\cite{Earley} is presented below.
 
-%\begin{center}
-%\includegraphics[width=\textwidth]{gsd.pdf}
-%\end{center}
 Querying paths with special constraints may shed light upon unknown before links between vertices, forming the basis for new hypotheses.
 }
 
 
-\headerbox{Metagenomic assemblies analysis}
+\posterbox {Metagenomic assemblies analysis}
 {name=app2,column=2,span=2, below=future}
 {
 Metagenomic assemblies can be presented as graph structured data.
 Some sequences have specific secondary structure, which can be described in terms of a context-free grammar, and this grammar can be used for searching and classification.
-
-%\begin{center}
-%\includegraphics[width=\textwidth]{secondaryStructure.pdf}
-%\end{center}
 }
-
-
-%\headerbox{Possible application}
-%{name=eval1,column=2,span=2, below=app2}
-%{
-%\begin{table}[ht]
-%\centering
-%\caption{Evaluation results for Query 1}
-
-%\begin{tabular}{ | c | c | c | c | c |}
-%\hline
-%Ontology & \#triples & \#results & GLL(ms) & sGPU(ms) \\
-%\hline 
-%\hline
-%skos        & 252 & 810 & 10 &  12\\
-%generations & 273 & 2164 & 19 & 13\\
-%travel      & 277 & 2499 & 24 & 30\\
-%univ-bench  & 293 & 2540 & 25 & 15\\
-%atom-primitive & 425 & 15454 & 255 & 22\\
-%biomedical & 459 & 15156 & 261 & 20\\
-%foaf        & 631 & 4118 & 39 & 9\\
-%people-pets & 640 & 9472 & 89 & 32\\
-%funding     & 1086 & 17634 & 212 & 36\\
-%wine        & 1839 & 66572 & 819 & 54\\
-%pizza       & 1980 & 56195 & 697 & 24\\
-%$g_{1}$     & 8688 & 141072 & 1926 & 82\\
-%$g_{2}$     & 14712 & 532576 & 6246 & 185\\
-%$g_{3}$     & 15840 & 449560 & 7014 & 127\\
-%\hline
-%\end{tabular}
-
-%\end{table}
-
-%}
-
-
 
 
 %----------------------------------------------------------------------------------------
 %   REFERENCES
 %----------------------------------------------------------------------------------------
 
-\headerbox{References}{name=references,column=0,span=2,below=app1}{
+\posterbox {References}{name=references,column=0,span=2,below=app1}{
 
 \smaller % Reduce the font size in this block
 \renewcommand{\section}[2]{\vskip 0.05em} % Get rid of the default "References" section title
 %\nocite{*} % Insert publications even if they are not cited in the poster
 
 \bibliographystyle{unsrt}
-\bibliographystyle{IEEEtran}
+%\bibliographystyle{IEEEtran}
 \bibliography{biblio} % Use biblio.bib as the bibliography file
 }
 
 
-\headerbox{Acknowledgments}{name=ack,column=2,span=1,below=app2}{
+\posterbox {Acknowledgments}{name=ack,column=2,span=1,below=app2}{
 This work is supported by grant from JetBrains Research.
 \vspace{0.75cm}
 }
     
-\headerbox{Information}{name=info,column=3,span=1,below=app2}{
+\posterbox {Information}{name=info,column=3,span=1,below=app2}{
 All materials available on GitHub: \small{https://github.com/YaccConstructor}
 \vspace{0.34cm}
 }
