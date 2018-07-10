@@ -109,49 +109,27 @@ boxshade=plain
 \headerbox {Motivation}{name=introduction,column=0,row=0, span=2}{
 
 Algorithms that can efficiently and accurately identify and classify bacterial taxonomic hierarchy have become a focus in computational genetics.
-The idea that secondary structure of genomic sequences is sufficient for solving the detection and classification problems lies at the heart of many tools~\cite{GrammarsRNA, PCFG, meta, LWPCFG}. 
+The idea that secondary structure of genomic sequences is sufficient for solving the detection and classification problems lies at the heart of many tools.%~\cite{GrammarsRNA, PCFG, LWPCFG}. 
 The secondary structure can be specified in terms of formal grammars. 
 The sequences obtained from the real bacteria usually contain a huge number of mutations and ``noise'' which renders precise methods impractical. 
 Probabilistic grammars and covariance models (CMs) are a way to take the noise into account~\cite{EddyDurbin}.
 For example, CMs are successfully used in the Infernal tool.%~\cite{Infernal}.
 Neural networks is another way to deal with ``noisy'' data. 
 The works~\cite{Humidor, ANN} utilize neural networks for 16s rRNA processing and demonstrate promising results. 
-
+\vspace{0.17cm}
 }
 
 \headerbox {Results}{name=results,column=2,row=0, span=2}{
 \begin{itemize} 
-\item We propose the graph parsing algorithms based on different parsing techniques~\cite{GraphGLL, RelaxedRNGLR, GraphParsingGPU}.
+\item We combine neural networks and ordinary context-free grammars to classify genomic sequences by using its secondary structure information. We extract features by using the ordinary (not probabilistic) context-free grammar and use the dense neural network for features processing.
 \vspace{-0.2cm}
-\item We solve some problems of existing approaches (such as cycles processing problem,~\cite{Earley}).
+\item We evaluate the proposed approach for 16s rRNA detection. Current accuracy is 90\% for validation set (up to 81000 sequences from NCBI and Green Genes batabases), thus we conclude that our approach is applicable. 
 \vspace{-0.2cm}
-\item Our solution provides an ability to use GPGPU and multi-core systems for graph parsing which can be useful for large biological data analysis.
+\item Our solution provides an ability to use GPGPU and multi-core systems for sequences processing which can be useful for large biological data analysis.
 \end{itemize}
-
-\begin{center}
-\textbf{Performance comparison of context-free querying algorithms}
-\begin{tabular}{ | c | c | c | c | c |}
-\hline
-Graph & \#edges & \#results & GLL(ms) & GPGPU(ms) \\
-\hline 
-\hline
-$g_{1}$     & 8688 & 141072 & 1926 & 82\\
-$g_{2}$     & 14712 & 532576 & 6246 & 185\\
-$g_{3}$     & 15840 & 449560 & 7014 & 127\\
-\hline
-\end{tabular}
-\end{center}
 }
     
-\headerbox {Future Research}{name=future,column=2,below=results, span=2}{
-\begin{itemize} 
-\item Currently, we are working on long subsequences of 16s rRNA reconstruction from metagenomic assembly.
-\vspace{-0.2cm}
-\item We want to find new applications for context-free graph querying techniques and implement required tools.
-\end{itemize}
-}
-
-\headerbox{Context-free path querying}{name=CFParsing,span=4,column=0,row=1,below=introduction}{
+\headerbox{Solution Overview}{name=CFParsing,span=4,column=0,row=1,below=introduction}{
 
 \begin{tikzpicture}[->,>=stealth']
 
@@ -190,12 +168,14 @@ Fixed context-free grammar describes features of secondary structure and can be 
 
 \node[state, 
       below of=grm,
-      node distance=5cm,
+      node distance=5.5cm,
       align = left,
       text width = 7cm] (sqs) 
  {
  \textbf{Sequences}\\
-Genom parts of fixed lengs. Current length is 512. Length is variable parameter and can be changed in order to increase quality of solution.
+  \vspace{0.3cm}
+Genoms parts of fixed lengs. Current length is 512. Length is variable parameter and can be changed in order to increase quality of solution.
+Each sequence is treated as a text in $\{A, U, G, C\}$ alphabet.
  };
 
 
@@ -206,9 +186,11 @@ Genom parts of fixed lengs. Current length is 512. Length is variable parameter 
       text width = 6cm](parser)
 {
 \textbf{Parser}\\
+ \vspace{0.3cm}
 Parser extracts features of secondary strcture.
-Parsing algrithm is based on Okhotin~\cite{Okhotin} algorithm, so the grammar can be extended with cinjunctive rules for pseudocnots description.
-Implementation utilizes GPGPU.
+Parsing algrithm is based on the algorithm~\cite{gsv}, so the grammar can be extended with conjunctive rules~\cite{Okhotin} for pseudocnots description.%~\cite{zier2013rna}.
+Parser performance is a bottleneck of our solution.
+Current implementation utilizes GPGPU and shouldbe optimized in future.
 };
 
 \node[state, 
@@ -218,6 +200,7 @@ Implementation utilizes GPGPU.
       text width = 8.5cm] (mtrx) 
 {
   \textbf{Matrices}\\
+   \vspace{0.3cm}
 {\centering
   \fbox{\includegraphics[width=2.5cm]{figures/mt1.png}}
   \
@@ -236,7 +219,9 @@ Parsing result is boolean (0-1) matrix which represents secondary structure feat
       text width = 7cm](result)
 {
 \textbf{Result of classification}\\
-Currently we implement just binary classifier that separates 16s and non-16s sequences. 
+ \vspace{0.3cm}
+Currently we implement only simple binary classifier that separates 16s and non-16s sequences.
+One of interesting question is may this classyfier be used for chimeric sequences filtering.
 };
 
 
@@ -246,10 +231,12 @@ Currently we implement just binary classifier that separates 16s and non-16s seq
       align = left,
       text width = 9.7cm](DNN)
 {
-\textbf{DNN}\\
+\textbf{Neural Network}\\
+ \vspace{0.3cm}
 \begin{minipage}[t]{5.5cm}
-Dense newral network with 10 dense layers.
-Trained on up to 310000 sequences of length 512: positive (16s rRNA) from NCBI database, negative (non-16s) from Green Genes database.
+We use dense newral network with 14 dense layers.
+Almost all of them are wrapped with dropout (up to 75\%) and batch normalization layers for learning stabilization.
+Our network is trained on up to 310000 sequences of length 512: positive (16s rRNA) from NCBI database, negative (non-16s) from Green Genes database.
 Current accuracy for validation set (up to 81000 sequences) is 90\%. 
 \end{minipage}
 \begin{minipage}[t]{4cm}
@@ -269,7 +256,7 @@ Typical building block:
       text width = 5cm](vector)
 {
 \textbf{Vectors}\\
-Line-by-line compressed matrix representation: sequence of 32 cells is compressed to unsigned integer. Top right triangle of matrix is always empty, so can be ignored.
+Line-by-line compressed matrix representation: sequence of 32 cells (bits) is compressed to unsigned integer. Top right triangle of matrix is always empty, so can be ignored.
 
 };
 
@@ -288,31 +275,22 @@ Line-by-line compressed matrix representation: sequence of 32 cells is compresse
 
 }
 
-\headerbox {Database querying}
+\headerbox {Future Research}
 {name=app1,column=0,span=2, below=CFParsing}
-{ % To reduce this block to 1 column width, remove 'span=2'
-One of the examples of database querying is an analysis of graphs where vertices correspond to entities and concepts such as gene or phenotype while edges represent the known relationships such as ``codes for'', ``interacts with'', etc.
-
-Example of graph structured data~\cite{Earley} is presented below.
-
-Querying paths with special constraints may shed light upon unknown before links between vertices, forming the basis for new hypotheses.
+{ 
+The presented is a work in progress. 
+The ongoing experiment is finding all instances of 16s rRNA in full genomes.
+Also we plan to use the proposed approach for the filtration of chimeric sequences and the classification.
+Composition of our approach with other methods and tools as well as grammar tuning and detailed performance evaluation may improve the applicability for the real data processing.
 }
-
-
-\headerbox {Metagenomic assemblies analysis}
-{name=app2,column=2,span=2, below=CFParsing}
-{
-Metagenomic assemblies can be presented as graph structured data.
-Some sequences have specific secondary structure, which can be described in terms of a context-free grammar, and this grammar can be used for searching and classification.
-}
-
 
 %----------------------------------------------------------------------------------------
 %   REFERENCES
 %----------------------------------------------------------------------------------------
 
-\headerbox {References}{name=references,column=0,span=2,below=app1}{
-
+\headerbox {References}
+{name=app2,column=2,span=2, below=CFParsing}
+{
 \smaller % Reduce the font size in this block
 \renewcommand{\section}[2]{\vskip 0.05em} % Get rid of the default "References" section title
 %\nocite{*} % Insert publications even if they are not cited in the poster
@@ -323,14 +301,15 @@ Some sequences have specific secondary structure, which can be described in term
 }
 
 
-\headerbox {Acknowledgments}{name=ack,column=2,span=1,below=app2}{
-This work is supported by grant from JetBrains Research.
-\vspace{0.75cm}
+
+\headerbox {Acknowledgments}{name=ack,column=0,span=1,below=app1}{
+The research was supported by the Russian Science Foundation grant 18-11-00100 and a grant from JetBrains Research.
+\vspace{0.24cm}
 }
     
-\headerbox {Information}{name=info,column=3,span=1,below=app2}{
+\headerbox {Information}{name=info,column=1,span=1,below=app1}{
 All materials available on GitHub: \small{https://github.com/YaccConstructor}
-\vspace{0.34cm}
+\vspace{0.68cm}
 }
 
 
