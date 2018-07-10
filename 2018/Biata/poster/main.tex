@@ -161,6 +161,7 @@ $g_{3}$     & 15840 & 449560 & 7014 & 127\\
       text width = 7cm] (grm) 
  {
   \textbf{Grammar}\\
+ \vspace{0.3cm}  
 {\ttfamily
 s1: stem<s0> any
 \\
@@ -175,37 +176,39 @@ stem1<s>: A s U | G s C | U s A | C s G
 stem2<s>: stem1< stem1<s> >
 \\
 stem<s>:  \\
-      A stem<s> U \\
-    | U stem<s> A \\
-    | C stem<s> G \\
-    | G stem<s> C \\
-    | stem1< stem2<s> >  \\
+\qquad      A stem<s> U \\
+\qquad    | U stem<s> A \\
+\qquad    | C stem<s> G \\
+\qquad    | G stem<s> C \\
+\qquad    | stem1< stem2<s> >  \\
  } 
-Fixed context-free grammar describes features of secondary structure.
+ \vspace{0.3cm}
+Fixed context-free grammar describes features of secondary structure and can be tuned in order to increase result quality.
  
  };
 
 
 \node[state, 
       below of=grm,
-      node distance=4.5cm,
+      node distance=5cm,
       align = left,
       text width = 7cm] (sqs) 
  {
  \textbf{Sequences}\\
-Genom parts of fixed lengs. Current length is 512.
+Genom parts of fixed lengs. Current length is 512. Length is variable parameter and can be changed in order to increase quality of solution.
  };
 
 
-\node[right of=grm, 
+\node[state,
+      right of=grm, 
       node distance=7.5cm,
       align = left,
       text width = 6cm](parser)
 {
 \textbf{Parser}\\
-Extracts features of secondary strcture.
-Based on Okhotin algorithm, so the grammar can be extended with cinjunctive rules for pseudocnots description.
-Utilize GPGPU.
+Parser extracts features of secondary strcture.
+Parsing algrithm is based on Okhotin~\cite{Okhotin} algorithm, so the grammar can be extended with cinjunctive rules for pseudocnots description.
+Implementation utilizes GPGPU.
 };
 
 \node[state, 
@@ -223,39 +226,51 @@ Utilize GPGPU.
   \fbox{\includegraphics[width=2.5cm]{figures/mt3.png}}
   }
 \\
-Matrix represents secondary structure features for seqence $\omega$: cell $[i,j]$ contains 1 iff $\omega.[i,j]$ is derivale from {\ttfamily s1} and $0$ in other case. 
+Parsing result is boolean (0-1) matrix which represents secondary structure features for seqence $\omega$: cell $[i,j]$ contains 1 iff $\omega.[j,i]$ is derivale from {\ttfamily s1} and $0$ in other case. 
 };
 
 \node[state,
-      below of=mtrx, 
-      node distance=7cm,
-      align = left,
-      text width = 5cm](vector)
-{
-Vectors\\
-Line-by-line compressed matrix representation. Shoulb be treated as vector of features.
-};
-
-
-\node[left of=vector, 
-      node distance=6.5cm,
-      align = left](DNN)
-{
-DNN\\
-Dense newral network with 10 dense layers. Typical building block:
-\\
-\includegraphics[width=3cm]{figures/bb.pdf}
-};
-
-
-\node[state,
-      left of=DNN, 
-      node distance=6.5cm,
+      below of=sqs, 
+      node distance=3cm,
       align = left,
       text width = 7cm](result)
 {
-Result of classification\\
-Currently just binary classifier that separates 16s and non-16s sequences. 
+\textbf{Result of classification}\\
+Currently we implement just binary classifier that separates 16s and non-16s sequences. 
+};
+
+
+\node[state,
+      right of=result, 
+      node distance=9cm,
+      align = left,
+      text width = 9.7cm](DNN)
+{
+\textbf{DNN}\\
+\begin{minipage}[t]{5.5cm}
+Dense newral network with 10 dense layers.
+Trained on up to 310000 sequences of length 512: positive (16s rRNA) from NCBI database, negative (non-16s) from Green Genes database.
+Current accuracy for validation set (up to 81000 sequences) is 90\%. 
+\end{minipage}
+\begin{minipage}[t]{4cm}
+Typical building block:
+\\
+\includegraphics[width=4cm]{figures/bb.pdf}
+\end{minipage}
+
+
+};
+
+
+\node[state,
+      right of=DNN, 
+      node distance=8cm,
+      align = left,
+      text width = 5cm](vector)
+{
+\textbf{Vectors}\\
+Line-by-line compressed matrix representation: sequence of 32 cells is compressed to unsigned integer. Top right triangle of matrix is always empty, so can be ignored.
+
 };
 
 
