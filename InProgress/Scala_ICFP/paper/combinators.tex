@@ -6,9 +6,7 @@ Parser in this framework is a function which consumes a prefix of an input and r
 Parser combinators compose parsers to form more complex parsers.
 A parser combinators library usually provides a set of basic parser combinators, such as a combinator of the sequential application or of the choice, but there can also be user-defined combinators.
 Most parser combinators libraries, including the Meerkat library, can only process the linear input---strings or some kind of streams.
-We modify the Meerkat library to work on the graph input.
-
-The following ideas are at the core of the modification.
+We modify the Meerkat library to work on the graph input. The following ideas are at the core of the modification.
 
 The intersection of a context-free and a regular language is context-free. There are several constructive proofs of this fact.
 The proposed solution is yet another constructive proof with the SPPF as a user-friendly representation of the context-free grammar for the intersection.
@@ -21,6 +19,7 @@ Generalized parsing is designed to optimally handle the production of multiple n
 Matching a token in the input can be viewed as a predicate, for example $p_c (x) = x == c$.
 We can generalize this observation allowing matching of an edge label of an arbitrary type with a predicate of some sort.
 If vertices of the graph contain any data of interest, we can treat them in the similar fashion as the edges.
+The formal definition of the context-free language constrained path querying changes only in a way a string is collected along a path in the input graph: the data stored in the vertices should also be taken into consideration.
 
 Handling cycles in the input graphs imposes two challenges: not to get stuck in an infinite loop while processing the positions and if a new parsing state appears at some position, all paths which pass through this state, should be accounted for.
 Both of these challenges are solved by the Meerkat memoization routine.
@@ -62,9 +61,9 @@ Each city is labeled by its name and a country it belongs to.
 
 Two basic building blocks of queries are the combinators for dealing with edges and vertices.
 \begin{itemize}
-    \item \lstinline{V[L](predicate: L =>   Boolean)} the combinator for processing vertices, where \lstinline{L} is a type of the node label.
+    \item \lstinline{V[N](predicate: N =>   Boolean)} the combinator for processing vertices, where \lstinline{N} is a type of the node label.
     Parsing with this combinator succeeds iff the vertex satisfies the predicate.
-    \item \lstinline{E[N](predicate: N =>   Boolean)} the combinator for processing edges, where \lstinline{N} is a type of the edge label.
+    \item \lstinline{E[L](predicate: L =>   Boolean)} the combinator for processing edges, where \lstinline{L} is a type of the edge label.
     Parsing with this combinator succeeds iff the edge satisfies the predicate.
 \end{itemize}
 
@@ -74,7 +73,7 @@ Two basic building blocks of queries are the combinators for dealing with edges 
 \label{fig:sppf}
 \end{figure}
 
-To select cities which belong to some country, we can use the function \lstinline{V}: \lstinline{V[L]((e: Entity) =>   e.country =   "County Name")}.
+To select cities which belong to some country, we can use the function \lstinline{V}: \lstinline{V[N]((e: Entity) =>   e.country =   "County Name")}.
 Here \lstinline{Entity} is a property container for both edges and vertices.
 By using the \lstinline{Dynamic} trait, all accesses to properties (like \lstinline{(e: Entity).country}) are converted to the accesses to the properties of either a vertex or an edge.
 For the sake of simplicity, we will omit \lstinline{Entity} type specifications for predicates.
@@ -108,14 +107,14 @@ def city(country: String) =
 val roadTo = E(_.value() == "road_to")
 val ourPath =
   syn(city("X") ~ roadTo ~ city("Y") &
-    { case c0 ~ c1 => (c1, c2) })
+    { case c0 ~ c1 => (c0, c1 })
 \end{lstlisting}
 \caption{Path query}
 \label{fig:simpleQueryV2}
 \end{figure}
 
 
-The whole set of basic combinators, which our library provides, is presented in table~\ref{table:combinators}.
+The whole set of basic combinators, which our library provides, is presented in Table~\ref{table:combinators}.
 There are two kinds of combinators: the first kind combines parsers to form new parsers, meanwhile the second one is dedicated to the processing of the query result.
 Whenever a string is used within a query, a parser which matches that string is implicitly generated.
 
