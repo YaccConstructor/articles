@@ -64,9 +64,9 @@ To filter out all the data but the list of the cities on the route, we can add t
 Executing the query for the graph in Fig.~\ref{fig:graph} returns the only three routes, which satisfy our restrictions.
 
 \begin{itemize}
-\item the single-vertex path $a$;
-\item $b \rightarrow a \rightarrow d$
-\item $c \rightarrow b \rightarrow a \rightarrow d \rightarrow e$
+\item The single-vertex path $a$;
+\item $b \rightarrow a \rightarrow d$;
+\item $c \rightarrow b \rightarrow a \rightarrow d \rightarrow e$.
 \end{itemize}
 
 A simplified SPPF for this query is presented in Fig.~\ref{fig:sppf}. Rounded rectangles represent nonterminals,s and other rectangles represent productions.
@@ -115,26 +115,21 @@ val query1: Nonterminal = syn(
    "subclassof-1" ~ query1.? ~ "subclassof" |
    "type-1" ~ query1.? ~ "type")
 \end{lstlisting}
-\caption{The same generation query (Query 1) in Meerkat}
-\label{fig:query1Meerkat}
-\end{figure}
 
-
-\begin{figure}[h]
 \begin{lstlisting}
 val S = syn("subclassof-1" ~ S ~ "subclassof")
 val query2 = syn(S ~ "subclassof")
 \end{lstlisting}
-\caption{The same generation query (Query 2) in Meerkat}
-\label{fig:query2Meerkat}
+\caption{The same generation queries in Meerkat}
+\label{fig:queryMeerkat}
 \end{figure}
 
-These two queries are context-free, so they can be easily written in Meerkat: the code is presented in Fig.~\ref{fig:query1Meerkat} and Fig.~\ref{fig:query2Meerkat}.
+These two queries are context-free, so they can be easily written in Meerkat: the code is presented in Fig.~\ref{fig:queryMeerkat}.
 
 The implementations of the queries are similar, and we can get rid of the code duplication by generalizing them.
 The function \lstinline{sameGen} presented in Fig.~\ref{fig:gen} generalize the same generation query and is independent of the environment such as the input graph structure or other parsers.
-Other queries can be written with this function, including the one presented in Fig.~\ref{fig:query1Meerkat}: it is the result of the application of \lstinline{sameGen} to the appropriate relations (which can be treated as the opening and closing brackets).
-Another application of the \lstinline{sameGen} is the Query 2, presented in Fig.~\ref{fig:query2Gen}.
+Other queries can be written with this function, including the ones presented in Fig.~\ref{fig:queryMeerkat}: they are the result of the application of \lstinline{sameGen} to the appropriate relations (see Fig.~\ref{fig:queryGen}).
+%The relations can be treated as the opening and closing brackets.
 
 \begin{figure}[h]
 \begin{lstlisting}
@@ -153,20 +148,13 @@ def sameGen(brs) =
 val query1 = syn(sameGen(List(
     ("subclassof-1", "subclassof"),
     ("type-1", "type"))))
-\end{lstlisting}
-\caption{Query 1 as an application of \lstinline{sameGen}}
-\label{fig:query1Gen}
-\end{figure}
 
-
-\begin{figure}[h]
-\begin{lstlisting}
 val query2 = syn(
   sameGen(List(("subclassof-1", "subclassof"))) ~
    "subclassof")
 \end{lstlisting}
-\caption{Query 2 as an application of \lstinline{sameGen}}
-\label{fig:query2Gen}
+\caption{Queries 1 and 2 as the applications of \lstinline{sameGen}}
+\label{fig:queryGen}
 \end{figure}
 
 
@@ -180,26 +168,19 @@ We also implemented some queries to the movie database used in the Neo4j tutoria
 The database contains the data about movies, actors, directors and the relations between them.
 In this set of queries, we demonstrate more semantic actions for the results processing.
 
-Several helper functions were implemented to simplify the processing of the nodes and the edges.
-They are built upon the basic combinators and are presented in Fig.~\ref{fig:helpers}.
+Several helper functions were implemented to simplify the processing of the nodes and the edges:
 
-\begin{figure}[h]
 \begin{lstlisting}
 def LV(labels: String*) =
   V(e => labels.forall(e.hasLabel))
-def outLE(label: String) =
-  outE(_.label() == label)
-def inLE(label: String) =
-  inE(_.label() == label)
+def outLE(label: String) = outE(_.label() == label)
+def inLE(label: String) = inE(_.label() == label)
 \end{lstlisting}
-\caption{Helpers for edges and nodes processing}
-\label{fig:helpers}
-\end{figure}
 
 Having the helper functions implemented, we can start building queries.
 The first query selects \emph{actors who played in some film}.
-Let us compare the Cypher (Fig.~\ref{fig:Q1_C}) and the Meerkat versions (Fig.~\ref{fig:Q1_M}) of this query.
-The structure of them both is similar: the first part is a path specification and the second part is a specification of the value to return; in the Meerkat version we use semantic actions to calculate it.
+Compare the Cypher (Fig.~\ref{fig:Q1_C}) and the Meerkat versions (Fig.~\ref{fig:Q1_M}) of the query.
+The structure of them is similar: the first part is a path specification and the second part specifies the value to return; in the Meerkat version we use semantic actions to calculate it.
 
 \begin{figure}[h]
 \begin{lstlisting}
@@ -232,7 +213,7 @@ executeQuery(query, input).foreach(println)
 \end{figure}
 
 
-In the \emph{most prolific actors} query (Fig.~\ref{fig:Q2_C}) we need to use the postprocessing of the paths set to express ordering: \lstinline{executeQuery} returns a lazy set of paths which can be processed by using standard Scala functions as shown in Fig.~\ref{fig:Q2_C}.
+In the \emph{most prolific actors} query (Fig.~\ref{fig:Q2_C}) we need to use the postprocessing of the paths set to express ordering: \lstinline{executeQuery} returns a lazy set of paths which can be processed by using standard Scala functions as shown in Fig.~\ref{fig:Q2_M}.
 
 \begin{figure}[h]
 \begin{lstlisting}
@@ -263,13 +244,13 @@ executeQuery(query, input)
 
 \end{lstlisting}
 \caption{The query \emph{most prolific actors} in Meerkat}
-\label{fig:Q2_C}
+\label{fig:Q2_M}
 \end{figure}
 
 For query presented in Fig.~\ref{fig:Q4_C} it is necessary to use subqueries.
 First of all, we specify the \lstinline{user} subquery to find the user with the specified login.
 Then we define the \lstinline{friendsWith} subquery.
-Finally, we combine these subqueries to form the resulting query.
+Finally, we combine these subqueries to form the resulting query (Fig.~\ref{fig:Q4_M}).
 
 \begin{figure}[h]
 \begin{lstlisting}
@@ -310,13 +291,6 @@ executeQuery(query, input)
 \label{fig:Q4_M}
 \end{figure}
 
-%Finally we present composition of all abilities.
-We also can compose all of the features used in the last two queries.
-To express the query presented in Fig.~\ref{fig:Q3_C}, we need to use not only postprocessing but also subquerying with postprocessing.
-First, we evaluate the \lstinline{directors} subquery and build \lstinline{directorsMap} which is further used in the semantic actions for the \lstinline{actor_prof_director} subquery.
-In the postprocessing step of the \lstinline{directors} subquery, we implement the filtering which relates to \lstinline{WHERE length(directed) >= 2} condition of the Cypher query.
-To get the final result, we also need to use postprocessing as far as it is necessary to implement the filtering and sorting.
-
 \begin{figure}[h]
 \begin{lstlisting}
 MATCH (a:Actor:Director)-[:ACTS_IN]->(m:Movie)
@@ -332,6 +306,13 @@ ORDER BY length(directed) DESC, acted DESC;
 \label{fig:Q3_C}
 \end{figure}
 
+
+%Finally we present composition of all abilities.
+We also can compose all of the features used in the last two queries.
+To express the query presented in Fig.~\ref{fig:Q3_C}, we need to use not only postprocessing but also subquerying with postprocessing.
+First, we evaluate the \lstinline{directors} subquery and build \lstinline{directorsMap} which is further used in the semantic actions for the \lstinline{actor_prof_director} subquery.
+In the postprocessing step of the \lstinline{directors} subquery, we implement the filtering which relates to \lstinline{WHERE length(directed) >= 2} condition of the Cypher query.
+To get the final result, we also need to use postprocessing as far as it is necessary to implement the filtering and sorting (Fig.~\ref{fig:directed}).
 
 \begin{figure}[h]
 \begin{lstlisting}
@@ -363,7 +344,7 @@ executeQuery(acts, input)
 
 \end{lstlisting}
 \caption{The query \emph{Directed more than 2 films, acted in more than 10} in Meerkat}
-\label{fig:helpers}
+\label{fig:directed}
 \end{figure}
 
 It shows that our library is expressive enough to formulate realistic queries.
