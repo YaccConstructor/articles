@@ -2,7 +2,7 @@
 \label{sec:evaluation}
 
 In this section, we present an evaluation of our graph querying library.
-We measure its performance on a classical set of ontology graphs~\cite{CFGonRDF}: both when the graph is loaded into the RAM and for the integration with the Neo4j database and compare it with the solution based on the GLL parsing algorithm~\cite{GrigorevR16} and the Trails~\cite{ScalaGraphParsing} library for graph traversals. We also show how may-alias static code analysis can be done by the means of the library.
+We measure its performance on a classical set of ontology graphs~\cite{CFGonRDF}: both when the graph is loaded into the RAM and for the integration with the Neo4j database and compare it with the solution based on the GLL parsing algorithm~\cite{GrigorevR16} and the Trails~\cite{ScalaGraphParsing} library for graph traversals. We also show how may-alias static code analysis can be done by means of the library.
 
 All tests have been performed on a computer running Fedora 27 with quad-core Intel Core i7 2.5 GHz CPU and 8 GB of RAM.
 
@@ -56,9 +56,9 @@ wine                        & 733 & 2450 & 66572 & 405 & 401 & 3156 & 606 & 133 
 \subsection{Ontology Querying}
 \label{sec:ontology}
 
-Querying for ontologies is a well-known graph querying problem. We evaluate our library on some popular ontologies in form of RDF files from the paper~\cite{CFGonRDF}.
+Querying for ontologies is a well-known graph querying problem. We evaluate our library on some popular ontologies in the form of RDF files from the paper~\cite{CFGonRDF}.
 First, we convert RDF files to a labelled directed graph in the following manner: we create two edges $(subject,\ predicate,\ object)$ and $(object,\ predicate^{-1},\ subject)$ for every RDF triple $(subject,\ predicate,\ object)$. Then the graph is either loaded into the Neo4j database or is loaded directly into the memory.
-Then we run two queries from the paper~\cite{GrigorevR16} for these graphs. The grammars for the queries are presented in Fig.~\ref{fig:query1Gen} and Fig.~\ref{fig:query2Gen}.
+Then we run two queries from the paper~\cite{GrigorevR16} for these graphs. The grammars for the queries are presented in Fig.~\ref{fig:queryGen}.
 
 The performance results are shown in Table~\ref{table:rdfs} where $\#results$ is the number of pairs of the nodes between which exists at least one S-path.
 
@@ -73,18 +73,18 @@ Vertices in a PEG correspond to program expressions and edges are relations betw
 There are two types of edges possible while analyzing source code written in the C programming language: \textbf{D}-edge and \textbf{A}-edge.
 
 \begin{itemize}
-    \item Pointer dereference edge (\textbf{D}-edge). For each pointer dereference $*e$ there is a directed \textbf{D}-edge from $e$ to $*e$.
-    \item Pointer assignment edge (\textbf{A}-edge). For each assignment $*e_1=e_2$ there is a directed \textbf{A}-edge from $e_2$ to $*e_1$
+    \item Pointer dereference edge (\textbf{D}-edge). For each pointer dereference $*e$, there is a directed \textbf{D}-edge from $e$ to $*e$.
+    \item Pointer assignment edge (\textbf{A}-edge). For each assignment $*e_1=e_2$, there is a directed \textbf{A}-edge from $e_2$ to $*e_1$
 \end{itemize}
 
 For the sake of simplicity, we add edges labelled by $\overline{D}$ and $\overline{A}$ which correspond to the reversed \textbf{D}-edge and \textbf{A}-edge, respectively.
 
-The grammar for may-alias problem from~\cite{Zheng} is shown in Fig.~\ref{lst:aliasGrammar}.
-It contains two nonterminals \textbf{M} and \textbf{V}, which we can query for.
+The grammar for the may-alias problem from~\cite{Zheng} and its implementation in Meerkat are shown in Fig.~\ref{fig:aliasMeerkat}.
+There are two nonterminals \textbf{M} and \textbf{V}, which we can query for.
 
 \begin{itemize}
-    \item \textbf{M}-production means that two l-value expressions are memory aliases i.e. may refer to the same memory location.
-    \item \textbf{V}-production means that two expressions are value aliases i.e. may evaluate to the same pointer value.
+    \item \textbf{M}-production means that two l-value expressions are memory aliases, i.e. may refer to the same memory location.
+    \item \textbf{V}-production means that two expressions are value aliases, i.e. may evaluate to the same pointer value.
 \end{itemize}
 
 We run the \textbf{M} and \textbf{V} queries on some open-source C projects.
@@ -97,16 +97,12 @@ We conclude that our solution is expressive and performant enough to be used for
 & M \rightarrow\ \overline{D}\ V\ D\\
 & V \rightarrow (M ?\ \overline{A})^{*} \ M?\ (A\ M?)^{*}
 \end{align*}
-\caption{Context-Free grammar for the may-alias problem}
-\label{lst:aliasGrammar}
-\end{figure}
 
-\begin{figure}[h]
 \begin{lstlisting}
 val M  = syn("nd" ~ V ~ "d")
 val V  = syn((M.? ~ "na").* ~ M.? ~ ("a" ~ M.?).*)
 \end{lstlisting}
-\caption{Meerkat representation of may-alias problem grammar}
+\caption{Context-Free grammar and its Meerkat representation for the may-alias problem}
 \label{fig:aliasMeerkat}
 \end{figure}
 
@@ -140,10 +136,10 @@ gzip-1.8    & 2687 & 7510 & 31  & 111 & 120 & 537 & 4567 & 227 \\
 
 \subsection{Classical Movies Queries}
 
-In order to examine the applicability of our library for the real data processing we evaluate queries presented in the section~\ref{sec:examples} on the classical movie database which contains more than 60000 nodes and more than 100000 edges.
+To examine the applicability of our library for the real data processing, we evaluate queries presented in section~\ref{sec:examples} on the classical movie database which contains more than 60000 nodes and more than 100000 edges.
 
 All queries are performed using the Neo4j database connected to Meerkat.
-During evaluation of these queries, caching in Neo4j was disabled to simplify time measurement.
+During the evaluation of these queries, caching in Neo4j was disabled to simplify time measurement.
 
 \begin{table*}[t]
 \centering
@@ -165,7 +161,7 @@ Actors who played in some film & 89.78 & 11.31 \\
 \end{table*}
 
 Our library implements a general parsing algorithm which supports arbitrary context-free queries.
-Unfortunately, when the queries are regular, there is a big overhead for processing them.
+Unfortunately, when the queries are regular, there is a significant overhead for processing them.
 The queries mentioned in this section are all regular, thus it is not a surprise that our implementation is dramatically slower than the native Neo4j solution. Besides the overhead itself, our library does not take any advantages from the internal Neo4j optimizations.
 
 Despite the seeming failure of this test, we still can conclude that the combinators can process quite big datasets in a reasonable time: 6 times bigger in terms of the number of vertices than the other tests.
