@@ -9,12 +9,9 @@ We show that the combinators are expressive enough for realistic queries and als
 We would like to search for all the routes which pass through a fixed city $a$ such that the countries of the cities on the route form a palindrome.
 This means that if a route starts at the city of the country $X$, then the last visited city should also belong to the country $X$.
 We also demand that the fixed city $a$ is in the middle of the route.
-This query can be written as shown in Fig.~\ref{fig:pathQuery}.
-A combinator \lstinline{reduceChoice} reduces a list of queries to a single query by means of the combinator \lstinline{|}.
-The implementation of the \lstinline{reduceChoice} is straightforward and can be found in Fig.~\ref{fig:reduceChoice}.
+This query can be written as follows.
 A subquery \lstinline{middleCity} matches the fixed city $a$, and a query \lstinline{roadTo} matches a \emph{roadTo} edge.
 
-\begin{figure}[h]
 \begin{lstlisting}
 val countriesList = List("X", "Y")
 val path =
@@ -23,29 +20,24 @@ val path =
 def pathPart(country: String) =
   syn(city(country) ~ roadTo ~ path ~
     roadTo ~ city(country))
-
 val middleCity = V(_.value() == "a")
 val roadTo = E(_.value() == "road_to")
 def city(country: String) = V(_.country == country)
 \end{lstlisting}
-\caption{Path query}
-\label{fig:pathQuery}
-\end{figure}
 
-\begin{figure}[h]
+A combinator \lstinline{reduceChoice} reduces a list of queries to a single query by means of the combinator of choice\lstinline{|}.
+The implementation of the \lstinline{reduceChoice} is straightforward.
+
 \begin{lstlisting}
 def reduceChoice(xs: List[Nonterminal]) =
   xs match {
    case x :: Nil => x
    case x :: y :: xs =>
-      syn(xs.foldLeft(x | y)(_ | _))
- }
+      syn(xs.foldLeft(x | y)(_ | _)) }
 \end{lstlisting}
-\caption{Reduce choice function implementation}
-\label{fig:reduceChoice}
-\end{figure}
 
-\begin{figure}[h]
+To filter out all the data but the list of the cities on the route, we can add the semantic actions.
+
 \begin{lstlisting}
 val middleCity =
   syn(V(_.value() == "a") ^^) & (List(_))
@@ -54,12 +46,6 @@ def pathPart(country: String) = syn(
     path ~ roadTo ~ city(country) & {
      case a ~ (b: List[_]) ~ c => a +: b :+ c})
 \end{lstlisting}
-\caption{Fixed queries}
-\label{fig:fixedPathQ}
-\end{figure}
-
-To filter out all the data but the list of the cities on the route, we can add the semantic actions as shown in Fig.~\ref{fig:fixedPathQ}.
-
 
 Executing the query for the graph in Fig.~\ref{fig:graph} returns the only three routes, which satisfy our restrictions.
 
@@ -69,7 +55,7 @@ Executing the query for the graph in Fig.~\ref{fig:graph} returns the only three
 \item $c \rightarrow b \rightarrow a \rightarrow d \rightarrow e$.
 \end{itemize}
 
-A simplified SPPF for this query is presented in Fig.~\ref{fig:sppf}. Rounded rectangles represent nonterminals,s and other rectangles represent productions.
+A simplified SPPF for this query is presented in Fig.~\ref{fig:sppf}. Rounded rectangles represent nonterminals, and other rectangles represent productions.
 Every rectangle vertex contains a nonterminal name or a production rule, as well as the start and the end nodes in the input graph for the path derived from the corresponding SPPF vertex.
 The start nonterminals are drawn in grey.
 
@@ -78,7 +64,7 @@ The start nonterminals are drawn in grey.
 The generalization of the classical same generation query benefits from utilizing the first-order functions for querying.
 Such a query can be used for the hierarchy analysis in RDF storages~\cite{CFGonRDF}.
 Let's consider RDF graphs which have two pairs of relations between objects: (\emph{subClassOf}; $\text{\emph{subClassOf}}^{-1}$) and (\emph{type}; $\text{\emph{type}}^{-1}$). Each relation has its reverse denoted by the $-1$ superscript.
-To search for the vertices which are on the same level of hierarchy one can use the grammars $G_1$~(Fig.~\ref{grammarQ1}) and $G_2$~(Fig.~\ref{grammarQ2}).
+To search for the vertices which are on the same level of hierarchy one can use the grammars in Fig.~\ref{grammarQ1} and Fig.~\ref{grammarQ2}.
 
 \begin{figure}[h]
    \centering
@@ -86,11 +72,9 @@ To search for the vertices which are on the same level of hierarchy one can use 
 \begin{array}{rlcl}
    & S &  \rightarrow & \text{\textit{subClassOf}}^{-1} \ S? \ \text{\textit{subClassOf}} \\
    &   & |            & \text{\textit{type}}^{-1} \ S? \ \text{\textit{type}} \\
-   % & S \rightarrow \text{\textit{subClassOf}}^{-1} \ \text{\textit{subClassOf}} \\
-   % & S \rightarrow \text{\textit{type}}^{-1} \ \text{\textit{type}} \\
 \end{array}
 \]
-   \caption{Context-free grammar $G_1$ for query 1}
+   \caption{Context-free grammar for query 1}
    \label{grammarQ1}
    \end{figure}
 
@@ -99,56 +83,49 @@ To search for the vertices which are on the same level of hierarchy one can use 
    \[
 \begin{array}{rlcl}
    & S & \rightarrow & B? \ \text{\textit{subClassOf}} \\
-   % & S \rightarrow \text{\textit{subClassOf}} \\
    & B & \rightarrow & \text{\textit{subClassOf}}^{-1} \ B? \ \text{\textit{subClassOf}} \\
-   %  & B \rightarrow \text{\textit{subClassOf}}^{-1} \ \text{\textit{subClassOf}} \\
 \end{array}
 \]
-   \caption{Context-free grammar $G_2$ for query 2}
+   \caption{Context-free grammar for query 2}
    \label{grammarQ2}
    \end{figure}
 
+These two queries are context-free, so they can be easily written in Meerkat.
 
-\begin{figure}[h]
+
 \begin{lstlisting}
-val query1: Nonterminal = syn(
+val query1 = syn(
    "subclassof-1" ~ query1.? ~ "subclassof" |
    "type-1" ~ query1.? ~ "type")
 \end{lstlisting}
 
 \begin{lstlisting}
-val S = syn("subclassof-1" ~ S ~ "subclassof")
-val query2 = syn(S ~ "subclassof")
+val B = syn("subclassof-1" ~ B.? ~ "subclassof")
+val query2 = syn(B.? ~ "subclassof")
 \end{lstlisting}
-\caption{The same generation queries in Meerkat}
-\label{fig:queryMeerkat}
-\end{figure}
-
-These two queries are context-free, so they can be easily written in Meerkat: the code is presented in Fig.~\ref{fig:queryMeerkat}.
 
 The implementations of the queries are similar, and we can get rid of the code duplication by generalizing them.
-The function \lstinline{sameGen} presented in Fig.~\ref{fig:gen} generalize the same generation query and is independent of the environment such as the input graph structure or other parsers.
-Other queries can be written with this function, including the ones presented in Fig.~\ref{fig:queryMeerkat}: they are the result of the application of \lstinline{sameGen} to the appropriate relations (see Fig.~\ref{fig:queryGen}).
-%The relations can be treated as the opening and closing brackets.
+Both the first query and the nonterminal $B$ in the second query denote the languages of nested brackets: the first one has two type of brackets, and the second one---only one.
+We can implement a parser combinator for the nested brackets language, which is parameterized by the bracket pairs.
+The combinator \lstinline{sameGen} is exactly that.
+It generalizes the same generation queries and is independent of the environment such as the input graph structure or other parsers.
+Note that \lstinline{sameGen} does not limit ``brackets'' to be just string literals: one can use arbitrary parsers.
 
-\begin{figure}[h]
+
 \begin{lstlisting}
 def sameGen(brs) =
   reduceChoice(
-    bs.map {case (lbr, rbr) =>
-      lbr ~ syn(sameGen(bs).?) ~ rbr})
+    brs.map {case (lbr, rbr) =>
+      lbr ~ syn(sameGen(brs).?) ~ rbr})
 \end{lstlisting}
-\caption{Generic function for the same generations query}
-\label{fig:gen}
-\end{figure}
 
+Fig.~\ref{fig:queryGen} shows how the same generation queries can be implemented as the application of the \lstinline{sameGen} combinator to the appropriate relations.
 
-\begin{figure}[h]
+\begin{figure}[!h]
 \begin{lstlisting}
 val query1 = syn(sameGen(List(
     ("subclassof-1", "subclassof"),
     ("type-1", "type"))))
-
 val query2 = syn(
   sameGen(List(("subclassof-1", "subclassof"))) ~
    "subclassof")
@@ -165,10 +142,10 @@ It is possible to create a library of \ standard templates for most popular gene
 \subsection{Classical Movies Queries}
 
 We also implemented some queries to the movie database used in the Neo4j tutorial~\footnote{The set of classical queries to movie dataset in Cypher language: \url{https://neo4j.com/developer/movie-database/}.}.
-The database contains the data about movies, actors, directors and the relations between them.
-In this set of queries, we demonstrate more semantic actions for the results processing.
+The database contains data about movies, actors, directors and relations between them.
+In this set of queries, we demonstrate more semantic actions for the processing of results.
 
-Several helper functions were implemented to simplify the processing of the nodes and the edges:
+Several helper functions were implemented to simplify the processing of the nodes and the edges.
 
 \begin{lstlisting}
 def LV(labels: String*) =
@@ -177,23 +154,29 @@ def outLE(label: String) = outE(_.label() == label)
 def inLE(label: String) = inE(_.label() == label)
 \end{lstlisting}
 
-Having the helper functions implemented, we can start building queries.
-The first query selects \emph{actors who played in some film}.
-Compare the Cypher (Fig.~\ref{fig:Q1_C}) and the Meerkat versions (Fig.~\ref{fig:Q1_M}) of the query.
-The structure of them is similar: the first part is a path specification and the second part specifies the value to return; in the Meerkat version we use semantic actions to calculate it.
+A vertex in the Neo4j database can have several labels while an edge can only have one; thus the functions for the handling of vertices and edges accept a different number of arguments.
+The function \lstinline{LV} matches a vertex if it has each of the labels passed as the argument.
+The functions \lstinline{outLE} and \lstinline{inLE} match an edge if its label is the same as the argument.
+The difference between these two functions is in what direction the edge should go to be accepted.
+If the direction of the edge is supposed to coincide with the direction of the path exploration, one should use \lstinline{outLE}, otherwise---\lstinline{inLE}.
 
-\begin{figure}[h]
+Having the helper functions implemented, we can start building queries.
+The first query selects \emph{actors who played in some film}, in our example in ``Forrest Gump''.
+For every actor, the query selects the name and the birthplace.
+Compare the Cypher (Fig.~\ref{fig:Q1_C}) and the Meerkat versions (Fig.~\ref{fig:Q1_M}) of the query.
+The structure of them is similar: the first part is a path specification and the second part specifies the values to return; in the Meerkat version we use semantic actions to calculate it.
+
+\begin{figure}[!h]
 \begin{lstlisting}
 MATCH (m:Movie {title: 'Forrest Gump'})
       <-[:ACTS_IN]-(a:Actor)
 RETURN a.name, a.birthplace;
 \end{lstlisting}
-\caption{The query \emph{actors who played in some film} in Cypher}
+\caption{\emph{Actors who played in some film} query in Cypher}
 \label{fig:Q1_C}
 \end{figure}
 
-
-\begin{figure}[h]
+\begin{figure}[!h]
 \begin{lstlisting}
 val query =
   syn((
@@ -201,77 +184,68 @@ val query =
     inLE("ACTS_IN") ~
     syn(
       LV("Actor") ^ (e =>
-        (e.name,
-          if (e.hasProperty("birthplace"))
-            e.birthplace
-          else "")))) &&)
-
-executeQuery(query, input).foreach(println)
+        (e.name, e.birthplace)))) &&)
+executeQuery(query, input)
 \end{lstlisting}
-\caption{The query \emph{actors who played in some film} in Meerkat}
+\caption{\emph{Actors who played in some film} query in Meerkat}
 \label{fig:Q1_M}
 \end{figure}
 
+The \emph{most prolific actors} query (Fig.~\ref{fig:Q2_C}) returns the ordered list of ten actors, who starred in the largest number of movies.
+Here we need to use the postprocessing of the paths set to express ordering: \lstinline{executeQuery} returns a lazy set of paths which can be processed by using standard Scala functions as shown in Fig.~\ref{fig:Q2_M}.
 
-In the \emph{most prolific actors} query (Fig.~\ref{fig:Q2_C}) we need to use the postprocessing of the paths set to express ordering: \lstinline{executeQuery} returns a lazy set of paths which can be processed by using standard Scala functions as shown in Fig.~\ref{fig:Q2_M}.
-
-\begin{figure}[h]
+\begin{figure}[!h]
 \begin{lstlisting}
 MATCH (a:Actor)-[:ACTS_IN]->(m:Movie)
 RETURN a, count(*)
 ORDER BY count(*) DESC LIMIT 10
 \end{lstlisting}
-\caption{The query \emph{most prolific actors} in Cypher}
+\caption{\emph{Most prolific actors} query in Cypher}
 \label{fig:Q2_C}
 \end{figure}
 
-
-\begin{figure}[h]
+\begin{figure}[!h]
 \begin{lstlisting}
 val query =
   syn((
     syn(LV("Actor") ^^) ~
     outLE("ACTS_IN") ~
     LV("Movie")) & (a => (a.name, a.toInt)))
-
 executeQuery(query, input)
   .groupBy {case (a, i) => i}
   .toIndexedSeq
   .map {case (i, ms) => (ms.head._1, ms.length)}
   .sortBy {case (a, mc) => -mc}}
   .take(10)
-  .foreach(println)
-
 \end{lstlisting}
-\caption{The query \emph{most prolific actors} in Meerkat}
+\caption{\emph{Most prolific actors} query in Meerkat}
 \label{fig:Q2_M}
 \end{figure}
 
-For query presented in Fig.~\ref{fig:Q4_C} it is necessary to use subqueries.
+The query presented in Fig.~\ref{fig:Q4_C} searches for the movies which friends of the fixed user rated above 3 stars.
+Then it composes the recommendatation which consists of the title of the movie, the rate, the name of the friend and the comment they left.
+It is necessary to use subqueries to write this query in Meerkat.
 First of all, we specify the \lstinline{user} subquery to find the user with the specified login.
 Then we define the \lstinline{friendsWith} subquery.
 Finally, we combine these subqueries to form the resulting query (Fig.~\ref{fig:Q4_M}).
 
-\begin{figure}[h]
+\begin{figure}[!h]
 \begin{lstlisting}
 MATCH (u:User {login: 'adilfulara'})-
       [:FRIEND]-(f:Person)-[r:RATED]->(m:Movie)
 WHERE r.stars > 3
 RETURN f.name, m.title, r.stars, r.comment;
 \end{lstlisting}
-\caption{The query \emph{mutual friend recommendations} in Cypher}
+\caption{\emph{Mutual friend recommendations} query in Cypher}
 \label{fig:Q4_C}
 \end{figure}
-
 
 \begin{figure}[h]
 \begin{lstlisting}
 val user = syn(
   LV("User")::V(_.login == "adilfulara"))
-
 val friendsWith =
   syn(inLE("FRIEND") | outLE("FRIEND"))
-
 val query = syn((
   user ~ friendsWith ~ syn(LV("Person") ^^) ~
   syn(outLE("RATED") ^^) ~ syn(LV("Movie") ^^)) &
@@ -281,17 +255,20 @@ val query = syn((
         r.stars.toInt,
         if (r.hasProperty("comment")) r.comment
         else "")})
-
 executeQuery(query, input)
   .filter {case (_, _, s, _) => s > 3}
-  .foreach(println)
-
 \end{lstlisting}
-\caption{The query \emph{mutual friend recommendations} in Meerkat}
+\caption{\emph{Mutual friend recommendations} query in Meerkat}
 \label{fig:Q4_M}
-\end{figure}
+\end{figure} % ============================================
 
-\begin{figure}[h]
+We also can compose all of the features used in the last two queries.
+To express the query presented in Fig.~\ref{fig:Q3_C}, we need to use not only postprocessing but also subquerying with postprocessing.
+First, we evaluate the \lstinline{directors} subquery and build \lstinline{directorsMap} which is further used in the semantic actions for the \lstinline{actor_prof_director} subquery.
+In the postprocessing step of the \lstinline{directors} subquery, we implement the filtering which relates to \lstinline{WHERE length(directed) >= 2} condition of the Cypher query.
+To get the final result, we also need to use postprocessing as far as it is necessary to implement the filtering and sorting (Fig.~\ref{fig:directed}).
+
+\begin{figure}[]
 \begin{lstlisting}
 MATCH (a:Actor:Director)-[:ACTS_IN]->(m:Movie)
 WITH a, count(1) AS acted WHERE acted >= 10
@@ -302,37 +279,25 @@ WITH a, acted, collect(m.title)
 RETURN a.name, acted, directed
 ORDER BY length(directed) DESC, acted DESC;
 \end{lstlisting}
-\caption{The query \emph{Directed more than 2 films, acted in more than 10} in Cypher}
+\caption{\emph{Directed more than 2 films, acted in more than 10} query in Cypher}
 \label{fig:Q3_C}
 \end{figure}
-
-
-%Finally we present composition of all abilities.
-We also can compose all of the features used in the last two queries.
-To express the query presented in Fig.~\ref{fig:Q3_C}, we need to use not only postprocessing but also subquerying with postprocessing.
-First, we evaluate the \lstinline{directors} subquery and build \lstinline{directorsMap} which is further used in the semantic actions for the \lstinline{actor_prof_director} subquery.
-In the postprocessing step of the \lstinline{directors} subquery, we implement the filtering which relates to \lstinline{WHERE length(directed) >= 2} condition of the Cypher query.
-To get the final result, we also need to use postprocessing as far as it is necessary to implement the filtering and sorting (Fig.~\ref{fig:directed}).
 
 \begin{figure}[h]
 \begin{lstlisting}
 val directors = syn((
   syn(LV("Actor", "Director") ^^) ~
   outLE("DIRECTED") ~ LV("Movie")) & (_.id.toInt))
-
 val directorsMap = executeQuery(directors, input)
   .groupBy(i => i)
   .map {case (i, ms) => (i, ms.length)}
   .filter {case (_, ms) => ms >= 2}
-
 val actor_prof_director =  syn(
   LV("Actor", "Director") ::
     V(e => directorsMap.contains(e.id.toInt)) ^^)
-
 val acts = syn(
   (actor_prof_director ~ outLE("ACTS_IN") ~
     LV("Movie")) & (a => (a.name, a.id.toInt)))
-
 executeQuery(acts, input)
   .groupBy {case (a, i) => i}
   .toStream
@@ -340,10 +305,8 @@ executeQuery(acts, input)
   .filter {case (i, a, mc) => mc >= 10}
   .map {case (i, a, mc) => (a, mc, directorsMap(i))}
   .sortBy {case (a, mc, dc) => (-dc, -mc)}
-  .foreach(println)
-
 \end{lstlisting}
-\caption{The query \emph{Directed more than 2 films, acted in more than 10} in Meerkat}
+\caption{\emph{Directed more than 2 films, acted in more than 10} query in Meerkat}
 \label{fig:directed}
 \end{figure}
 
