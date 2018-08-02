@@ -13,16 +13,15 @@ This query can be written as follows.
 A subquery \lstinline{middleCity} matches the fixed city $a$, and a query \lstinline{roadTo} matches a \emph{roadTo} edge.
 
 \begin{lstlisting}
-val countriesList = List("X", "Y")
-val path =
-  (reduceChoice(countriesList.map(pathPart)) |
-    middleCity)
+val countries = List("X", "Y")
+val path = reduceChoice(countries.map(pathPart))
+           | middleCity
 def pathPart(country: String) =
   syn(city(country) ~ roadTo ~ path ~
     roadTo ~ city(country))
 val middleCity = V(_.value() == "a")
 val roadTo = E(_.value() == "road_to")
-def city(country: String) = V(_.country == country)
+def city(country:String) = V(_.country == country)
 \end{lstlisting}
 
 A combinator \lstinline{reduceChoice} reduces a list of queries to a single query by means of the combinator of choice\lstinline{|}.
@@ -150,8 +149,8 @@ Several helper functions were implemented to simplify the processing of the node
 \begin{lstlisting}
 def LV(labels: String*) =
   V(e => labels.forall(e.hasLabel))
-def outLE(label: String) = outE(_.label() == label)
-def inLE(label: String) = inE(_.label() == label)
+def outLE(label:String) = outE(_.label() == label)
+def inLE (label:String) = inE (_.label() == label)
 \end{lstlisting}
 
 A vertex in the Neo4j database can have several labels while an edge can only have one; thus the functions for the handling of vertices and edges accept a different number of arguments.
@@ -164,7 +163,7 @@ Having the helper functions implemented, we can start building queries.
 The first query selects \emph{actors who played in some film}, in our example in ``Forrest Gump''.
 For every actor, the query selects the name and the birthplace.
 Compare the Cypher (Fig.~\ref{fig:Q1_C}) and the Meerkat versions (Fig.~\ref{fig:Q1_M}) of the query.
-The structure of them is similar: the first part is a path specification and the second part specifies the values to return; in the Meerkat version we use semantic actions to calculate it.
+The structure of them is similar: the first part specifies the path and the second part---the values to return; in the Meerkat version we use semantic actions to calculate it.
 
 \begin{figure}[!h]
 \begin{lstlisting}
@@ -208,8 +207,7 @@ ORDER BY count(*) DESC LIMIT 10
 \begin{lstlisting}
 val query =
   syn((
-    syn(LV("Actor") ^^) ~
-    outLE("ACTS_IN") ~
+    syn(LV("Actor") ^^) ~ outLE("ACTS_IN") ~
     LV("Movie")) & (a => (a.name, a.toInt)))
 executeQuery(query, input)
   .groupBy {case (a, i) => i}
@@ -262,54 +260,54 @@ executeQuery(query, input)
 \label{fig:Q4_M}
 \end{figure} % ============================================
 
-We also can compose all of the features used in the last two queries.
-To express the query presented in Fig.~\ref{fig:Q3_C}, we need to use not only postprocessing but also subquerying with postprocessing.
-First, we evaluate the \lstinline{directors} subquery and build \lstinline{directorsMap} which is further used in the semantic actions for the \lstinline{actor_prof_director} subquery.
-In the postprocessing step of the \lstinline{directors} subquery, we implement the filtering which relates to \lstinline{WHERE length(directed) >= 2} condition of the Cypher query.
-To get the final result, we also need to use postprocessing as far as it is necessary to implement the filtering and sorting (Fig.~\ref{fig:directed}).
+% We also can compose all of the features used in the last two queries.
+% To express the query presented in Fig.~\ref{fig:Q3_C}, we need to use not only postprocessing but also subquerying with postprocessing.
+% First, we evaluate the \lstinline{directors} subquery and build \lstinline{directorsMap} which is further used in the semantic actions for the \lstinline{actor_prof_director} subquery.
+% In the postprocessing step of the \lstinline{directors} subquery, we implement the filtering which relates to \lstinline{WHERE length(directed) >= 2} condition of the Cypher query.
+% To get the final result, we also need to use postprocessing as far as it is necessary to implement the filtering and sorting (Fig.~\ref{fig:directed}).
 
-\begin{figure}[]
-\begin{lstlisting}
-MATCH (a:Actor:Director)-[:ACTS_IN]->(m:Movie)
-WITH a, count(1) AS acted WHERE acted >= 10
-WITH a, acted
-   MATCH (a:Actor:Director)-[:DIRECTED]->(m:Movie)
-WITH a, acted, collect(m.title)
-   AS directed WHERE length(directed) >= 2
-RETURN a.name, acted, directed
-ORDER BY length(directed) DESC, acted DESC;
-\end{lstlisting}
-\caption{\emph{Directed more than 2 films, acted in more than 10} query in Cypher}
-\label{fig:Q3_C}
-\end{figure}
+% \begin{figure}[]
+% \begin{lstlisting}
+% MATCH (a:Actor:Director)-[:ACTS_IN]->(m:Movie)
+% WITH a, count(1) AS acted WHERE acted >= 10
+% WITH a, acted
+%    MATCH (a:Actor:Director)-[:DIRECTED]->(m:Movie)
+% WITH a, acted, collect(m.title)
+%    AS directed WHERE length(directed) >= 2
+% RETURN a.name, acted, directed
+% ORDER BY length(directed) DESC, acted DESC;
+% \end{lstlisting}
+% \caption{\emph{Directed more than 2 films, acted in more than 10} query in Cypher}
+% \label{fig:Q3_C}
+% \end{figure}
 
-\begin{figure}[h]
-\begin{lstlisting}
-val directors = syn((
-  syn(LV("Actor", "Director") ^^) ~
-  outLE("DIRECTED") ~ LV("Movie")) & (_.id.toInt))
-val directorsMap = executeQuery(directors, input)
-  .groupBy(i => i)
-  .map {case (i, ms) => (i, ms.length)}
-  .filter {case (_, ms) => ms >= 2}
-val actor_prof_director =  syn(
-  LV("Actor", "Director") ::
-    V(e => directorsMap.contains(e.id.toInt)) ^^)
-val acts = syn(
-  (actor_prof_director ~ outLE("ACTS_IN") ~
-    LV("Movie")) & (a => (a.name, a.id.toInt)))
-executeQuery(acts, input)
-  .groupBy {case (a, i) => i}
-  .toStream
-  .map {case (i, ms) => (i, ms.head._1, ms.length)}
-  .filter {case (i, a, mc) => mc >= 10}
-  .map {case (i, a, mc) => (a, mc, directorsMap(i))}
-  .sortBy {case (a, mc, dc) => (-dc, -mc)}
-\end{lstlisting}
-\caption{\emph{Directed more than 2 films, acted in more than 10} query in Meerkat}
-\label{fig:directed}
-\end{figure}
+% \begin{figure}[h]
+% \begin{lstlisting}
+% val directors = syn((
+%   syn(LV("Actor", "Director") ^^) ~
+%   outLE("DIRECTED") ~ LV("Movie")) & (_.id.toInt))
+% val directorsMap = executeQuery(directors, input)
+%   .groupBy(i => i)
+%   .map {case (i, ms) => (i, ms.length)}
+%   .filter {case (_, ms) => ms >= 2}
+% val actor_prof_director =  syn(
+%   LV("Actor", "Director") ::
+%     V(e => directorsMap.contains(e.id.toInt)) ^^)
+% val acts = syn(
+%   (actor_prof_director ~ outLE("ACTS_IN") ~
+%     LV("Movie")) & (a => (a.name, a.id.toInt)))
+% executeQuery(acts, input)
+%   .groupBy {case (a, i) => i}
+%   .toStream
+%   .map {case (i, ms) => (i, ms.head._1, ms.length)}
+%   .filter {case (i, a, mc) => mc >= 10}
+%   .map {case (i, a, mc) => (a, mc, directorsMap(i))}
+%   .sortBy {case (a, mc, dc) => (-dc, -mc)}
+% \end{lstlisting}
+% \caption{\emph{Directed more than 2 films, acted in more than 10} query in Meerkat}
+% \label{fig:directed}
+% \end{figure}
 
-It shows that our library is expressive enough to formulate realistic queries.
+We showed that our library is expressive enough to formulate realistic queries.
 The main drawback of our library as compared to the Cypher language is that all additional logic such as
 filtering, sorting or grouping has to be implemented manually as a separate step.
