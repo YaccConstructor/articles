@@ -1,22 +1,726 @@
 \section{B-H in Coq}
-Main part. 
-All code are published on GitHub~\footnote{\url{https://github.com/YaccConstructor/YC\_in\_Coq}}
-What did you do and how. And, possible, why. Problems, nontrivial solutions, stc.
-    
+
+%TODO
+%What did you do and how. And, possible, why. Problems, nontrivial solutions, stc.
+
+In this section we briefly describe motivation to use the chosen definitions, we also sketch all the fundamental parts of the proof. We also discuss advantages and disadvantages of usage side libraries/proof in ...?.
+
+% DEL?
+Our goal is to provide step-by-step algorithm of constructing the CNF grammar of the intersection of two languages. Final formulation of the obtained theorem can be found in the last subsection(?). 
+
+All code are published on GitHub~\footnote{\url{https://github.com/YaccConstructor/YC\_in\_Coq}}.
+   
 \subsection{ Smolka's code generalization}
 
-First we nwwd to generalize code of ...
+In this section we describe exact steps to ..., and discuss pros and cons of ... in this proof. 
+
+% TODO?: 
+% Значительная часть доказательства была построена на уже существующих определениях и доказательствах взятых из доказательства смолки. 
+% А именно, различные определения вывода в грамматике, некоторые вспомогательные леммы про разрешимость свойст грамматик/вывода, а также доказательство теоремы о том, что для любой CF существует преобразование в CNF.
+
+% TODO?:
+% Однако эта библиотека обладала одним существенным недостатком, который нам потребовалось исправить. We generalize code of Smolka's proof. Initially, the code from [] used natural numbers to specify a different terminals and nonterminals. 
+
+... of our proof, we need to consider nonterminals over the alphabet of triples. Therefore, it was(?) decided to simply add polymorphism over the target alphabet. Namely, let $Tt$ and $Vt$ be types with decidable relation of equality, then we can define the types of terminal and nonterminal over alphabets $Tt$ and $Vt$ respectively as follows:
+
+\begin{listing}[h]
+	\begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
+  Inductive ter : Type := | T : Tt -> ter.
+  Inductive var : Type := | V : Vt -> var.
+	\end{pyglist}
+	\caption{TODO}
+	\label{lst:verbments1}
+\end{listing}
+
+% TODO: 
+% Доказательство было хорошо структурированно, однако одна существенная часть сломалась. Одно из преобразований грамматики (удаление длинных правил) требует создания множества новых нетерминалов, в оригинальном доказательстве для этого использовалось максимум по всем нетерминалам входящим в грамматику, что стало невозможным для прозвольного типа. 
+% Поэтому, мы ввели гипотезу, которая требует, чтобы для типа ваших данных существовала биекция(это не совсем биекция) с натуральными числами, этого достаточно для нужд нашего доказательства.
+
+% TODO: 
+% Другим моментом, на который хотелось бы обратить внимание, что у смолки грамматики задаются просто списки правил, без стартового символа. То есть, грамматикой является просто список правил. Для языка же, мы долны отдельно указать стартовый нетерминал. Возможно(?) из-за этого теорема об эквивалентности языков сформулирована немного неудобным образом. То есть, эквивалентность гарантируется только для слов, не равных епсилону. 
+\begin{listing}[h]
+	\begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
+  Lemma language_normalform G A u :
+    Vs A el dom G -> 
+    u <> [] -> 
+    (language G A u <-> 
+       language (normalize G) A u).
+	\end{pyglist}
+	\caption{TODO}
+	\label{lst:verbments1}
+\end{listing}
+
+% TODO
+% Эту проблему мы не стали исправлять, так как бла-бла-бла. Вопрос, выводимо ли пустое слово и в CF и DFA является разрешимым, поэтому мы можем просто рассмотреть случаи когда это так и нет. И в том случае, когда выводится, к _итоговой_ грамматике пересечения добавить правило, которое из стартового нетерминала следует в эпсилон. 
+
+
+\subsection{Part ..: derivation and so on}
+
+Symbol is either a terminal or a nonterminal.
+
+\begin{listing}[h]
+	\begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
+		Inductive symbol : Type :=
+		| Ts : ter -> symbol
+		| Vs : var -> symbol.
+	\end{pyglist}
+	\caption{TODO}
+	\label{lst:verbments1}
+\end{listing}
+
+Next we define word and phrase as lists of terminals and symbols respectively. 
+
+\begin{listing}[h]
+	\begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
+		Definition word := list ter.
+		Definition phrase := list symbol.
+	\end{pyglist}
+	\caption{TODO}
+	\label{lst:verbments1}
+\end{listing}
+
+TODO: add def of "terminal"
+
+We have two different definitions because the notion of nonterminal doesn't make sense for DFA, but in order to construct derivation in grammar we need to use nonterminal in intermediate states. 
+
+Further we prove that if phrase consists only of terminals there exists save conversion between word and phrase.
+
+We inheriting our definition of CFG from [] paper. Rule is pair of nonterminal and list of symbols. Grammar is a list of rules. 
+
+\begin{listing}[h]
+	\begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
+		Inductive rule : Type :=
+		| R : var -> phrase -> rule.
+		
+		Definition grammar := list rule.
+	\end{pyglist}
+	\caption{TODO}
+	\label{lst:verbments1}
+\end{listing}
+
+An important step towards the definition of a language (?) governed (formed?)(?!) by a grammar is the definition of derivability. Having $der(G, A, p)$ --- means that phrase $p$ is derivable in grammar $G$ starting from(?) nonterminal $A$.
+
+\begin{listing}[h]
+	\begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
+		Inductive der (G : grammar) (A : var) : phrase -> Prop :=
+		| vDer : der G A [Vs A]
+		| rDer l : (R A l) el G -> der G A l
+		| replN B u w v : 
+		der G A (u ++ [Vs B] ++ w) -> der G B v -> der G A (u ++ v ++ w).
+	\end{pyglist}
+	\caption{TODO}
+	\label{lst:verbments1}
+\end{listing}
+
+Our proof requires grammar to be in CNF. We used statement that every grammar in convertible into CNF from Minka(?) work.
 
 \subsection{General scheme of proof}
 
-General scheme of our proof is based on constructive proof presented by~\cite{!!!}
+% ALT: We adopted a proof [] that intersection of grammar in CF language and DFA is a CF language.
+General scheme of our proof is based on constructive proof presented by ~\cite{!!!}. In the following subsections, the main steps of the proof will be presented. Overall, we will adhere to the following plan. 
 
-\subsection{Part one: regular language and automata}
+\begin{enumerate}
+	\item First we consider trivial cases, like DFA with no states or empty languages
+	\item Every CF language can be converted to CNF
+	\item Every DFA can be presented as an union of DFAs with single final state
+	\item Intersecting grammar in CNF with DFA with one final state
+	\item Proving than union of CF languages is CF language
+\end{enumerate}
 
-First step is !!!!
+\subsection{Part one: trivial cases}
 
-\subsection{Part two}
+% TODO: тут я что-то не то написал, это нужно убрать, наверное. 
+% TODO: но тогда наоборот, можно написать, что в нашем случае не требуется отдельного рассмотрения ... случаев. 
+Cases when one or both of the initial languages are empty we call trivial. Since in this case, the intersection language is also empty it is easy to construct the corresponding grammar.
 
-\subsection{ Part N: final step}
+We do the case analysis. 
 
-Finally we should proof main statement!
+% TODO: нужно написать, что мы всё таки используем конечный тип для состояний автомата. 
+
+TODO: add some text
+
+% Сперва мы рассматриваем случай, когда у автомата нет ни одного состояния, то есть, число состояний == 0. В этом случае мы можем сразу вывести противоречие, так как по определению, у автомата есть начальное состояние. Что значит, что есть по крайней мере одно состояние, что противоречит тому, что n = 0.
+
+% 
+
+
+ 
+\subsection{Part two: regular language and automata}
+
+In this section we describe definitions of DFA and DFA with exactly one final state, we also present function that converts any DFA to a set of DFA with one final state and lemma that states this split is well-defined(?).
+
+%We start with the definition of a word, word ( -_- ) is a list of terminals. 
+A list of terminals we call word. 
+%CODE
+%\begin{listing}[h]
+%	\begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
+%  Definition word := list ter.
+%	\end{pyglist}
+%	\caption{TODO}
+%	\label{lst:verbments1}
+%\end{listing}
+
+We assume that regular language by definition described by DFA. As the definition of an DFA, we have chosen a general definition, which does not impose any restrictions on the type of input symbols and the number of states. Thus, in our case, the DFA is a 5-tuple, (1) a state type, (2) a type of input symbols, (3) a start state, (4) a transition function, and (5) a list of final states.
+
+\begin{listing}[h]
+	\begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
+  Context {State T: Type}.
+  Record dfa: Type :=
+    mkDfa {
+      start: State;
+      final: list State;
+      next: State -> (@ter T) -> State;
+    }.
+	\end{pyglist}
+	\caption{TODO}
+	\label{lst:verbments1}
+\end{listing}
+
+Next we define a function that would evaluate in what state the automaton will end up if it starts from state $s$ and receives a word $w$. 
+
+\begin{listing}[h]
+	\begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
+  Fixpoint final_state (next_d: dfa_rule) (s: State) (w: word): State :=
+    match w with
+    | nil => s 
+    | h :: t => final_state next_d (next_d s h) t 
+    end.
+	\end{pyglist}
+	\caption{TODO}
+	\label{lst:verbments1}
+\end{listing}
+
+We say that the automaton accepts a word $w$ being in state $s$ if the function $[final\_state \_ s w]$ ends in one of the final states. Finally, we say that an automaton accepts a word $w$, if when(?) the DFA starts from the initial state, it ends in one of the final states.
+
+%CODE
+%Definition accepts (d : dfa) (s: State) (w: word) : Prop :=
+%In (final_state (next d) s w) (final d). 
+
+%CODE
+%Definition dfa_language (d : dfa) := (accepts d (start d)).
+
+In order to define the DFA with exactly one final state, it is necessary to replace the list of final states by one final state in the definition of an(?) ordinary DFA. The definitions of "accepts" and "dfa\_language" vary slightly.
+
+Alternative: In the proof we need a subset (subtype?) of all automata. Namely, automata with one finite state. We can define them as follows. We say that dfa is a single-final-state-automata, if and only if the predicate "is final state?" can be represented as "is equal to the state fin?"
+
+\begin{listing}[h]
+	\begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
+  Record s_dfa : Type :=
+    s_mkDfa {
+      s_start: State;
+      s_final: State;
+      s_next: State -> (@ter T) -> State;
+  }.      
+	\end{pyglist}
+	\caption{TODO}
+	\label{lst:verbments1}
+\end{listing}
+  
+% CHEC: sDFA? 
+TODO?: add code\\
+
+Similarly, we can define functions $s\_accepts$ and $s\_dfa\_language$ for sDFA. Since in this case, there is only one final state, to define function $s\_accepts$ it is enough to check the state in which the automaton stopped with the finite state. The function $s\_dfa\_language$ repeats the function $dfa\_language$, except that the function must now use $s\_accepts$ instead of accepts.
+
+%CODE
+%Definition s_accepts (d : s_dfa) (s: State) (w: word) : Prop :=
+%(final_state (s_next d) s w) = (s_final d).
+
+%CODE
+%Definition s_dfa_language (d : s_dfa) := (s_accepts d (s_start d)).
+
+Now it is easy to define a function that converts an ordinary DFA into a sequence (set?) of DFAs (?) with one final state.
+
+\begin{listing}[h]
+	\begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
+  Fixpoint split_dfa_list 
+      (st_d : State) (next_d : dfa_rule) (f_list : list State): list (s_dfa) :=
+    match f_list with
+    | nil => nil
+    | h :: t => (s_mkDfa st_d h next_d) :: split_dfa_list st_d next_d t
+    end.    
+ 
+ Definition split_dfa (d: dfa) := split_dfa_list (start d) (next d) (final d).
+	\end{pyglist}
+	\caption{TODO}
+	\label{lst:verbments1}
+\end{listing}
+
+
+% CODE
+% Definition single_final_state_dfa (d: dfa)(fin: dfa_state) := dfa_fin dfa = pred1 fin.
+
+
+% d DFA accepts word iff after transitions is comes to one of ist final states
+
+% CODE
+%Fixpoint dfa\_final x w :=
+%match w with
+%| [::] => x
+%| a::w => dfa\_final (dfa\_step A x a) w
+%end.
+
+%Definition dfa\_accept x w := dfa\_fin (dfa\_final st word).
+
+%It is easy to see that if our automaton is an automata with one final state fin, then dfa\_accept x w  is equivalent to dfa\_final x w = fin
+
+%Regular language is a set words accepted by DFA.
+
+%Definition dfa\_language (d : dfa):= fun word =>accepts d start word.
+
+% TODO 
+Correctness of "split":
+
+\begin{listing}[h]
+	\begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
+  Lemma correct_split:
+    forall dfa w,
+      dfa_language dfa w <->
+      exists sdfa, 
+         In sdfa (split_dfa dfa) /\ 
+         s_dfa_language sdfa w.
+	\end{pyglist}
+	\caption{TODO}
+	\label{lst:verbments1}
+\end{listing}
+
+\begin{theorem}
+	% Рассмотрим произвольный DFA и слово w. 
+	% Тогда, то, что w принадлежит dfa влечёт то, что существует s_dfa, который принадлежит (split_dfa dfa) и принимает слово w. И наоборот, если существует автомат из списка (split_dfa dfa) такой, что ... принимает слово w, тогда и dfa принимает слово w.
+\end{theorem}
+
+\textbf{Proof.}
+% Для доказательства этого факта, как и в формулировке, разделим доказательство на две части. 
+% (1) ... влечёт ... TODO.
+% (2) ... влечёт ... TODO.
+
+TODO: add proof
+
+bla-bla-bla
+
+
+\subsection{Part ..: Chomsky induction}
+TODO: add some text
+
+Naturally many statements about properties of language's words can be proved by induction over derivation structure. Unfortunately, grammar can derive phrase us an intermediate step, but DFA supposed to work only with words, so we can’t simply apply induction over derivation structure. To tackle this problem we create custom induction-principle for grammars in CNF.
+
+The main point is that if we have a grammar in CNF, we can always divide the word into two parts, each of which is derived only from one nonterminal. Note that if we naively take a step back, we can get nonterminal in the middle of the word. Such a situation will not make any sense for DFA.
+
+With induction we always work with subtrees that describes some part of word. Here is a picture of subtree describing intuition behind Chomsky induction. \\
+TODO: add picture\\ 
+TODO: add Lemma derivability\_backward\_step.
+
+More formally: 
+Let $G$ be a grammar in CNF. Consider arbitrary nonterminal $N \in G$ and phrase which consists only on terminals $w$. 
+If $w$ is derivable from $N$ and $|w| \ge 2$, then there exists nonterminals $N_1, N_2$ and subphrases of $w$ --- $w_1, w_2$ such that: $N \to N_1 N_2 \in G$, $der(N_1, w_1)$, $der(N_2, w_2)$, $|w_1| \ge 1$, $|w_2| \ge 1$ and $w_1 ++ w_2 = w$.
+
+\textbf{Proof.}
+
+The next step is to prove the following statement:
+
+Let $G$ be a grammar in CNF. And $P$ be a predicate on nonterminals and phrases (i.e. $P: var \to phrase \to Prop$).
+Let us also assume that the following two hypotheses are satisfied:
+(1) for every terminal production (i.e. in the form $N \to a$) of grammar $G$, $P(r, [Ts r])$ and (2) for every $N, N_1, N_2 \in G$ and two phrases which consist only of terminals $w_1, w_2$, if $P(N_1, w_1)$, $P(N_2, w_2)$, $der(G, N_1, w_1)$ and $der(G, N_2, w_2)$ then $P(N, w_1 ++ w_2)$.
+Then for any nonterminal $N$ and any phrase consisting only of terminals $w$, the fact that $w$ is derivable from $N$ implies $P(N,w)$.
+
+Basically, this principle says that if some $P$ holds for two basic situations, then $P$ hold for any derivable word.
+
+% TODO?
+\textbf{Proof?.} 
+There is a constant $n$ such that $| w | \le n$. 
+We prove the statement by induction on n. \\
+\textit{Base:} $n = 0$, \\
+\textit{Induction step: } \\
+
+
+
+
+%CODE
+%Hypothesis inductive_step_1:
+%  forall (r : _) (t : ter),
+%  R r [Ts t] el G ->
+%  P r [Ts t].
+
+%CODE
+%Hypothesis inductive_step_2:
+%  forall (r r1 r2: _) (w1 w2 : phrase),
+%  R r [Vs r1; Vs r2] el G ->
+%  P r1 w1 ->
+%  P r2 w2 ->
+%  terminal w1 ->
+%  terminal w2 ->
+%  der G r1 w1 ->
+%  der G r2 w2 ->
+%  P r (w1 ++ w2).
+
+%CODE
+%Lemma chomsky_derivability_induction:
+%  forall (r : _) (w : _),
+%  @der T V G r w ->
+%  terminal w ->
+%  P r w.
+
+
+TODO: add some text
+
+As one might notice, TODO
+%TODO
+% Понятно, что для доказательства этой теоремы, нам нужно было сделать шаг "назад" по выводу, что, однако, невозможно с текущим определением вывода. 
+
+% Поэтому, пришлось добавить следующую гипотезу. Basically is says that 
+
+%Definition syntactic_analysis_is_possible :=
+%  forall {T V: Type} (G: @grammar T V) (A: var) (l: phrase),
+%  der G A l ->
+%  (R A l el G) \/ (exists rhs, R A rhs el G /\ derf G rhs l).
+
+
+\subsection{Part ..: intersection}
+
+Since bla-bla-bla, we can assume that we have (1) DFA with exactly one final state --- $dfa$ and (2) grammar in CNF --- $G$. 
+
+Let $G_{INT}$ be the grammar of intersection. In $G_{INT}$ nonterminals presented as triples $(from \times var \times to) $ where $from$ and $to$ are states of $dfa$, and $var$ is a nonterminal of(in?) $G$.
+
+\subsubsection{Function }
+Next we present adaptation of the algorithm given in $[ ]$. 
+
+Since G is a grammar in CNF, it has only two type of productions: $(1)\ N \to a $ and $(2) \ N \to N_{1} N_{2}$, where $N, N_1, N_2$ are nonterminals and $a$ is a terminal.
+
+%For every production $N \to N_1 N_2$ in $G$, and for every $p, q, r \in dfa$ we generate the production $[p, N, r] \to [p, N_1, q][q, N_2, r]$.
+For every production $N \to N_1 N_2$ in $G$ we generate a set of productions of the form $(from, N, to) \to (from, N_1,  m) (m, N_2, to)$ where: $from$, $m$, $to$ --- goes through all $dfa$ states.
+
+\begin{listing}[h]
+	\begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
+  Definition convert_nonterm_rule_2 (r r1 r2: _) (state1 state2 : _) :=
+    map (fun s3 => R (V (s1, r, s3)) [Vs (V (s1, r1, s2)); Vs (V (s2, r2, s3))])
+      list_of_states.
+
+  Definition convert_nonterm_rule_1  (r r1 r2: _) (s1 : _) :=
+    flat_map (convert_nonterm_rule_2 r r1 r2 s1) list_of_states.
+
+  Definition convert_nonterm_rule (r r1 r2: _) :=
+    flat_map (convert_nonterm_rule_1 r r1 r2) list_of_states.
+    \end{pyglist}
+	\caption{TODO}
+	\label{lst:verbments1}
+\end{listing}
+
+For every production of the form $N \to a$ we add a set of productions $(from, N, (dfa\_step(from, a))) \to a$ where: $from$ --- goes through all $dfa$ states and $dfa\_step (from, a)$ is the state in which the $dfa$ appears after receiving terminal $a$ in state $from$.
+
+\begin{listing}[h]
+	\begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
+  Definition convert_terminal_rule (next: _) (r: _) (t: _): list TripleRule :=
+    map (fun s1 => R (V (s1, r, next s1 t)) [Ts t]) list_of_states.
+	\end{pyglist}
+	\caption{TODO}
+	\label{lst:verbments1}
+\end{listing}
+
+TODO: add some text 
+
+Next we join the functions above to get a generic function which works for both types of productions. Note that since the grammar is in CNF,(?) the third alternative is never called.
+
+\begin{listing}[h]
+	\begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
+  Definition convert_rule (next: _) (r: _ ) :=
+    match r with
+    | R r [Vs r1; Vs r2] => 
+        convert_nonterm_rule r r1 r2
+    | R r [Ts t] => 
+        convert_terminal_rule next r t 
+    | _  => []   (* Never called *)
+    end.
+		
+  Definition convert_rules 
+    (rules: list rule) (next: _): list rule :=
+    flat_map (convert_rule next) rules.
+	
+  (* Maps grammar and s_dfa to grammar over triples *)
+  Definition convert_grammar grammar s_dfa :=
+    convert_rules grammar (s_next s_dfa). 
+	\end{pyglist}
+	\caption{TODO}
+	\label{lst:verbments1}
+\end{listing}
+
+Note that at this point we do not have any manipulations with starting rules. Nevertheless(?), the hypothesis of the uniqueness of the final state of the DFA, will help us unambiguously introduce the starting nonterminal of the grammar of intersection.
+
+\subsubsection{Correctness }
+
+TODO: add some text 
+
+In the interest of clarity of exposition, we skip some auxiliary lemmas, such as "we can get the initial grammar from the grammar of intersection by projecting the triples back to terminals/nonterminals ". Also note that the grammar after the conversion remains in CFN. Since the transformation of rules does not change the structure of the rules, but only replaces one(??!!) terminals and nonterminals with others.
+
+
+% NOTE: skipped
+% Во-первых, мы доказываем, что функция ведёт себя так, как задумано
+% то есть, сперва все, что мы хотим оказывается там где надо. 
+% И наоборот, функция возвращает только то, что нам нужно
+
+% forward_terminal_rule_inclusion
+% forward_nonterminal_rule_inclusion
+% backward_rule_inclusion
+% backward_terminal_rule_inclusion
+% backward_nonterminal_rule_inclusion
+% remains_chomsky:
+% consistensy_of_triple_nonterm_rules
+% consistensy_of_triple_term_rules
+
+
+
+% ADD
+% The starting nonterminal for the intersection grammar is the following nonterminal: (start, S, final). Where: start -- the start state of DFA, S -- the start symbol of initial grammar, and final -- the final state of DFA. 
+
+
+
+% CHECK a/the
+Next we prove the two main lemmas. Namely, the derivability in the initial grammar and the $s\_dfa$ implies the derivability in the grammar of intersection. And the other way around, the derivability in the grammar of intersection implies the derivability in the initial grammar and the $s\_dfa$.
+
+% CHECK
+Let $G$ be a grammar in CNF. In order to use Chomsky Induction we also assume that syntactic analysis is possible. 
+
+% ADD?: der_in_initial_grammar_and_dfa_implies_der_in_triple_grammar
+% Theorem der_in_initial_grammar_and_dfa_implies_der_in_triple_grammar:
+%   forall (next: dfa_rule) (r: var) (from to: DfaState) (word: _),
+%     der G r (to_phrase word) ->
+%     final_state next from word = to ->
+%     der (convert_rules G next) (V (from, r, to)) (to_phrase word).
+\begin{theorem}
+	Let $s\_dfa$ be an arbitrary DFA, let r be a nonterminal of grammar G, let from and to be two states of the DFA. We also pick an arbitrary word --- w. If in grammar G it is possible to derive w out of r and starting from the state from when w is received, the s\_dfa ends up in state to, then word w is also derivable in grammar (convert\_rules G next) from the nonterminal (V (from, r, to)).
+\end{theorem}
+% Если в грамматике из нетерминала r можно вывести слово word и стартуя из состояния from при принятии слова word автомат оказывается в состоянии to, тогда слово word также выводится и в грамматике (convert_rules G next) из нетерминала (V (from, r, to)). 
+
+\textbf{Proof.}	TODO.
+In another case, it would be logical to use induction on the derivation structure in $G$. But as it was discussed earlier, this is not the case, otherwise we will get a phrase (list of terminals and nonterminals) instead of a word. 
+Let's apply chomsky induction principle with 
+  $P := fun r phr => \forall (next : dfa\_rule) (from to : DfaState),
+           final\_state next from (to_word phr) = to ->
+            der (convert\_rules G next) (V (from, r, to)) phr$.
+We will get the bla-bla, bla-bla, bla-bla-bla         
+
+
+
+% ADD: main_forward
+Since a language is just a bla-bla-bla, we use the lemma above to prove bla-bla-bla
+
+
+
+% ADD: der_in_triple_grammar_implies_dfa_accepts
+% ADD: der_in_triple_gr_implies_der_in_initial_gr
+
+% ADD: main_backward
+
+
+%5.4 Intersecting DFA with one final state with grammar in CNF:
+%Now we providing construction for intersection grammar in CNF with DFA. Further we name G_0 - original grammar. G_n - grammar for intersection. In G_n nonterminals presented as triples (from * n * to) where ‘from’ and ‘to’ are states of DFA, and n - is nonterminal in G_0.
+
+%Algorithm
+%Grammar in CNF has only two type of rules:
+%N -> a
+%N -> N_1 N_2
+
+%For which we have simple procedures of conversion.
+%For every rule S -> a
+%we add rules (from  S  (dfa_step from a)) -> a where: ‘from’ - goes through all DFA states, and (dfa_step from a) - is the state in which the DFA appears after receiving terminal a
+%For every rule N -> N_1 N_2
+%we add rules (from  N  to) -> (from  N_1  m) (m  N_2 * to) where: from, m, to - goes through all DFA states
+
+%The starting nonterminal for the intersection grammar is the following nonterminal: (start, S, final). Where: start -- the start state of DFA, S -- the start symbol of initial grammar, and final -- the final state of DFA. 
+
+
+%Lemma der_in_triple_grammar_implies_dfa_accepts':
+%forall (r : var) (w : word),
+%der (convert_rules G next) (V (from, r, to)) (to_phrase w) ->     
+%final_state next (fst3 (from, r, to)) w = thi3 (from, r, to).
+%Proof
+%We proving this statement using Chomsky induction:
+
+%For rule (from, r, to) := t by construction we have only rules where to = next from t
+%For rule (from, r, to) := (from, n1, m) (m, n2, to)  -  word divided into two parts w = w1 ++ w2. Word w1 transits DFA from ‘from’ to ‘m’. Word w2 transits DFA from ‘m‘ to ‘to’. So w transits DFA from ‘from’ to ’to’.
+
+
+%Lemma der_in_triple_gr_implies_der_in_initial_gr':
+%forall (r: var) (w: word),
+%der (convert_rules G next) r (to_phrase w) ->
+%der G (snd3 (unVar r)) (to_phrase w). 
+%Proof
+%We proving this statement using Chomsky induction:
+%For rule (from, r, to) := [t] by construction we have rule r := t in primary grammar 
+
+%For rule (from, r, to) := (from, n1, m) (m, n2, to)  -  by construction we have rule r := n1 n2 in primary grammar 
+
+%Theorem der_in_initial_grammar_and_dfa_implies_der_in_triple_grammar:
+%forall (next: dfa_rule) (r: var) (from to: State) (w: word),
+%der G r (to_phrase w) ->
+%final_state next from w = to ->
+%der (convert_rules G next) (V (from, r, to)) (to_phrase w).
+%Proof
+%We proving this statement using Chomsky derivability induction:
+%For rule (frr, to) := [t] by construction we have only rules where (to = next from t)
+%For rule (from, r, to) := (from, n1, m) (m, n2, to)  - our word divided into two parts w = w1 ++ w2. Word w1 transits DFA from ‘from’ to ‘m’. Word w2 transits DFA from ‘m‘ to ‘to’. So w transits DFA from ‘from’ to ’to’.
+
+
+\subsection{Part ..: union}
+
+After the previous step, we have a list of grammars of CF languages, in this section, we provide a function by which we construct a grammar of the union of languages.
+
+For this, we need nonterminals from every language to be from different nonintersecting sets. To achieve this we add labels to nonterminals. Thus, each grammar of the union would have its own unique ID number, all nonterminals within one grammar will have the same ID which coincides with the ID of a grammar. In addition, it is necessary to introduce a new starting nonterminal of the union.
+
+\begin{listing}[h]
+	\begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
+  Inductive labeled_Vt : Type :=
+  | start : labeled_Vt
+  | lV : nat -> Vt -> labeled_Vt.
+  
+  Definition label_var (label: nat) (v: @var Vt): @var labeled_Vt :=
+    V (lV label v).  
+	\end{pyglist}
+	\caption{TODO}
+	\label{lst:verbments1}
+\end{listing}
+
+Construction of new grammar is quite simple. The function that constructs the union grammar takes a list of grammars, then, it (1) splits the list into head [$h$] and tail [$tl$], (2) labels [$length \ tl$] to $h$, (3) adds a new rule from the start nonterminal of the union to the start nonterminal of the grammar [$h$], finally (4) the function is recursively called on the tail [$tl$] of the list.
+
+\begin{listing}[h]
+	\begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
+  Definition label_grammar label grammar := ...
+
+  Definition label_grammar_and_add_start_rule label grammar :=
+    let '(st, gr) := grammar in 
+    (R (V start) [Vs (V (lV label st))]) :: label_grammar label gr.        
+
+  Fixpoint grammar_union (grammars : seq (@var Vt * (@grammar Tt Vt))): @grammar Tt labeled_Vt :=
+    match grammars with
+    |  [] => []
+    |  (g::t) => label_grammar_and_add_start_rule (length t) g ++ (grammar_union t)
+    end.
+	\end{pyglist}
+	\caption{TODO}
+	\label{lst:verbments1}
+\end{listing}
+
+%Definition label_symbol (label: nat) (s: @symbol Tt Vt): @symbol Tt labeled_Vt :=
+%match s with
+%| Ts t => Ts t
+%| Vs v => Vs (V (lV label v))
+%end.
+%
+%Definition label_phrase (label: nat) (p: @phrase Tt Vt): @phrase Tt labeled_Vt :=
+%map (label_symbol label) p.
+%
+%Definition label_rule (label: nat) (r : @rule Tt Vt): @rule Tt labeled_Vt :=
+%let '(R v p) := r in R (V (lV label v)) (label_phrase label p).
+%
+%Definition label_grammar (label: nat) (g: @grammar Tt Vt): @grammar Tt labeled_Vt:=
+%map (label_rule label) g.
+
+%Definition label_grammar_and_add_start_rule (label: nat) (g : @var Vt * (@grammar Tt Vt)):
+%@grammar Tt labeled_Vt :=
+%let '(st, gr) := g in (R (V start) [Vs (V (lV label st))]) :: label_grammar label gr.        
+
+%Fixpoint label_list_of_grammars (grammars : seq (@var Vt * (@grammar Tt Vt))):
+%@grammar Tt labeled_Vt :=
+%match grammars with
+%|  [] => []
+%|  ((_,gr)::t) => label_grammar (length t) gr ++ (label_list_of_grammars t)
+%end.
+
+%Fixpoint grammar_union (grammars : seq (@var Vt * (@grammar Tt Vt))): @grammar Tt labeled_Vt :=
+%match grammars with
+%|  [] => []
+%|  (g::t) => label_grammar_and_add_start_rule (length t) g ++ (grammar_union t)
+%end.
+
+\subsubsection{Equivalence proof}
+
+In this section, we prove that function $grammar\_union$ constructs a correct grammar of union language indeed. Namely, we prove the following theorem.
+
+% ALT
+%\begin{theorem}
+%	Let $grammars$ be a sequence of pairs of starting nonterminals and grammars. Then for any word $w$, the fact that $w$ belongs to language of union (i.e. [$grammar\_union \ grammars$] +  [$V (start Vt)$]) is equivalent to the fact that there exists a $grammar \in grammars$ such that $w$ belongs to language generated by $grammar$.
+%\end{theorem}
+
+\begin{theorem}\label{theorem-correct-union}
+	Let $grammars$ be a sequence of pairs of starting nonterminals and grammars. Then for any word $w$, the fact that $w$ belongs to language of union is equivalent to the fact that there exists a grammar $(st,gr) \in grammars$ such that $w$ belongs to language generated by $(st,gr)$.
+\end{theorem}
+
+% TODO 
+\begin{listing}[h]
+	\begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
+  Variable grammars: seq (var * grammar).
+
+  Theorem correct_union:
+    forall word, 
+      language (grammar_union grammars) 
+        (V (start Vt)) (to_phrase word) <->
+      exists s_l, 
+        language (snd s_l) (fst s_l) 
+          (to_phrase word) /\ 
+        In s_l grammars.
+	\end{pyglist}
+	\caption{TODO}
+	\label{lst:verbments1}
+\end{listing}
+
+% TODO: 
+% (1: Это нужно описать отдельно)
+% ... ... ... ... 
+
+\textbf{Proof of theorem ~\ref{theorem-correct-union}.} Since the statement is formulated as an equivalence, we divide the proof into two parts:\\
+1. If $w$ belongs to the union language, then $w$ belongs to one of the initial language. \\
+% Cсхема примерно такая: 
+% Поднимает предположение в контекст. 
+% (1: Это нужно описать отдельной леммой): Из леммы знаем, что либо фраза равна стартовому нетерминалу, либо грамматика из grammars такая, что в грамматике объединения это слово выводится из нетерминала (V (lV (length grammars2) var)). Список грамматик мы можем разделить на (1) начало списка, (2) ту самую грамматику и (3)конец списка. 
+% Докажем, что это и есть интересующая нас грамматика. 
+% Так как мы рассматриваем слово, стартовым нетерминалом оно быть не может. Значит второй случай.
+% (2: Это нужно описать отдельной леммой) По другой лемме, если рассматривается вывод _не_ из стартового нетерминала, тогда все правила с использованием стартового нетерминала можно выкинуть. 
+% После этого, заменяем grammars на то равенство.
+% (3: Это нужно описать отдельной леммой) Есть лемма, которая говорит, что в случае вывода из labeled нетерминала, все правила с другими метками можно выкинуть. Остались правила только с одной (интересующей нас) меткой. 
+% Нам нужно доказать, что в грамматике ... выводится ... 
+% Это просто, так как у нас есть лемма, что мы можем про-label-ить грамматику и ничего не изменится. Теперь посылка совпадает с предположением.
+% terminal (to_phrase word). Тоже просто. 
+% И In (a, g) (u ++ (a, g) :: v) тоже очевидно.
+2. If $w$ belongs to one of the initial language, then $w$ belongs to the union language. \\
+The fact that $(st,grammar) \in grammars$ implies that there exist $gr1$ and $gr2$ such that: $gr1 ++ (st, grammar) :: gr2 = grammars$. 
+%bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla bla-bla-bla 
+
+%Lemma same_union_fwd : forall (l : list (grammar * Vt)) (w : word),
+%language_list_union (map grammar_to_language l) w ->
+%grammar_to_language (grammar_union l, start Vt) w.
+Proof.
+This proved through induction over l.
+assume l = h :: t, then either word accepted by h or tail.
+If word accepted by h
+%grammar_to_language h w  
+If word accepted by l. We just proving that adding one more language to union preserves
+word derivability. 
+%grammar_to_language (grammar_union l, start Vt) w ->
+%grammar_to_language (grammar_union h :: l, start Vt) w
+Which is equivalent to proving that adding new rules to grammar preserves
+word derivability
+
+2. If we have derivation for some word in new grammar lanager we can provide derivate in for some language from union.
+
+%Lemma same_union_bkw : forall (l : list (grammar * Vt)) (w : word),
+%grammar_to_language (grammar_union l, start Vt) w ->
+%language_list_union (map grammar_to_language l) w.
+Proof.
+Here we converting derivability procedure for language union into derivability procedure of one of language.
+%First we have to search though derivability structure and find rule of form start := s_i that was applied after this we can find for which language we build derivation.
+Then we proving that in derivation we can use rules from only one language at time.
+Finally we converting derivation by simple relabelling back all nonterminals.
+
+
+
+
+
+\subsection{ Part N: taking all parts together}
+
+TODO: add some text
+
+
+\begin{theorem}
+	For any two decidable types Terminal and Nonterminal for type of terminals and nonterminals correspondingly. If there exists bijection from Nonterminal to $\mathbb{N}$ and syntactic analysis in the sense of definition TODO is possible, then for any DFA dfa which accepts Terminal and any grammar $G$, there exists the grammar of intersection $L(DFA)$ and $G$.
+\end{theorem}	
+
+Proof. 
+
