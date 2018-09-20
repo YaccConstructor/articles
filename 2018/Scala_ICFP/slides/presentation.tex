@@ -1,0 +1,336 @@
+\documentclass[xcolor=table]{beamer}
+\usepackage{beamerthemesplit}
+\usepackage{wrapfig}
+\usetheme{SPbGU}
+\usepackage{pdfpages}
+\usepackage{amsmath}
+\usepackage{cmap} 
+\usepackage[T2A]{fontenc} 
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{multirow}
+\usepackage[noend]{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{fancyvrb}
+\usetikzlibrary{shapes,arrows}
+\usepackage{tikz}
+\usetikzlibrary{automata,positioning}
+
+\newtheorem{mytheorem}{Theorem}
+\renewcommand{\thealgorithm}{}
+
+
+\beamertemplatenavigationsymbolsempty
+
+\title[Parser Combinators for CFPQ]{Parser Combinators for Context-Free Path Querying}
+% То, что в квадратных скобках, отображается в левом нижнем углу. 
+\institute[JetBrains Research]{
+JetBrains Research, Programming Languages and Tools Lab  \\
+Saint Petersburg University
+}
+
+% То, что в квадратных скобках, отображается в левом нижнем углу.
+\author[Kate Verbitskaia]{\textbf{Kate Verbitskaia}, Ilya Kirillov, Ilya Nozkin, Semyon Grigorev}
+
+\date{September 28, 2018}
+
+\definecolor{orange}{RGB}{179,36,31}
+
+\begin{document}
+{
+\begin{frame}[fragile]
+  \begin{tabular}{p{3.5cm} p{5.5cm} p{1cm}}
+   \begin{center}
+      \includegraphics[height=1.5cm]{pictures/jetbrainsResearch.pdf}
+    \end{center}
+    &
+    \begin{center}
+      \includegraphics[height=1.5cm]{pictures/icfplogo.png}
+    \end{center}
+    &
+    \begin{center}
+      \includegraphics[height=1.5cm]{pictures/SPbGU_Logo.png}
+    \end{center} 
+  \end{tabular}
+  \titlepage
+\end{frame}
+}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Path Querying}
+\begin{minipage}[m]{0.42\linewidth}
+\begin{tikzpicture}[shorten >=1pt,node distance=2cm,on grid,auto]
+   \node[state] (a) {Here};
+   \node[state] (b) [left=of a] {B};
+   \node[state] (c) [right=of a] {C};
+   \node[state] (d) [below=of c] {D};
+   \node[state] (e) [below=of b] {E};
+   \node[state] (f) [below=of a] {F};
+   \node[state] (g) [below=of f] {There};
+   \node[state] (h) [below=of d] {H};
+    \path[->]
+    (a) edge node {} (b)
+    (a) edge node {} (c)
+    (a) edge node {} (f)
+    (b) edge node {} (e)
+    (c) edge node {} (d)
+    (d) edge node {} (h)
+    (d) edge node {} (a)
+    (e) edge node {} (f)
+    (e) edge node {} (g)
+    (f) edge node {} (b)
+    (f) edge node {} (g)
+    (h) edge node {} (g);    
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[m]{0.5\linewidth}
+    Is there a path from \textbf{Here} to \textbf{There}?
+\end{minipage}
+\end{frame}
+
+\begin{frame}[noframenumbering]
+  \transwipe[direction=90]
+  \frametitle{Path Querying}
+\begin{minipage}[m]{0.42\linewidth}
+\begin{tikzpicture}[shorten >=1pt,node distance=2cm,on grid,auto]
+   \node[state] (a) {Here};
+   \node[state] (b) [left=of a] {B};
+   \node[state] (c) [right=of a] {C};
+   \node[state] (d) [below=of c] {D};
+   \node[state] (e) [below=of b] {E};
+   \node[state] (f) [below=of a] {F};
+   \node[state] (g) [below=of f] {There};
+   \node[state] (h) [below=of d] {H};
+    \path[->]
+    (a) edge[red] node {} (b)
+    (a) edge node {} (c)
+    (a) edge node {} (f)
+    (b) edge[red] node {} (e)
+    (c) edge node {} (d)
+    (d) edge node {} (h)
+    (d) edge node {} (a)
+    (e) edge[red] node {} (f)
+    (e) edge node {} (g)
+    (f) edge node {} (b)
+    (f) edge[red] node {} (g)
+    (h) edge node {} (g);    
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[m]{0.5\linewidth}
+    Is there a path from \textbf{Here} to \textbf{There}?
+\end{minipage}
+\end{frame}
+
+\begin{frame}[noframenumbering]
+  \transwipe[direction=90]
+  \frametitle{Path Querying}
+\begin{minipage}[m]{0.42\linewidth}
+\begin{tikzpicture}[shorten >=1pt,node distance=2cm,on grid,auto]
+   \node[state] (a) {Here};
+   \node[state] (b) [left=of a] {B};
+   \node[state] (c) [right=of a] {C};
+   \node[state] (d) [below=of c] {D};
+   \node[state] (e) [below=of b] {E};
+   \node[state] (f) [below=of a] {F};
+   \node[state] (g) [below=of f] {There};
+   \node[state] (h) [below=of d] {H};
+    \path[->]
+    (a) edge node {} (b)
+    (a) edge node {} (c)
+    (a) edge node {} (f)
+    (b) edge node {} (e)
+    (c) edge node {} (d)
+    (d) edge node {} (h)
+    (d) edge node {} (a)
+    (e) edge node {} (f)
+    (e) edge node {} (g)
+    (f) edge node {} (b)
+    (f) edge node {} (g)
+    (h) edge node {} (g);    
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[m]{0.5\linewidth}
+    Is there a path from \textbf{Here} to \textbf{There} of length 13?
+\end{minipage}
+\end{frame}
+
+\begin{frame}[noframenumbering]
+  \transwipe[direction=90]
+  \frametitle{Path Querying}
+\begin{minipage}[m]{0.42\linewidth}
+\begin{tikzpicture}[shorten >=1pt,node distance=2cm,on grid,auto]
+   \node[state] (a) {Here};
+   \node[state] (b) [left=of a] {B};
+   \node[state] (c) [right=of a] {C};
+   \node[state] (d) [below=of c] {D};
+   \node[state] (e) [below=of b] {E};
+   \node[state] (f) [below=of a] {F};
+   \node[state] (g) [below=of f] {There};
+   \node[state] (h) [below=of d] {H};
+    \path[->]
+    (a) edge node {} (b)
+    (a) edge[red] node {} (c)
+    (a) edge[red] node {} (f)
+    (b) edge[red] node {} (e)
+    (c) edge[red] node {} (d)
+    (d) edge node {} (h)
+    (d) edge[red] node {} (a)
+    (e) edge node {} (f)
+    (e) edge[red] node {} (g)
+    (f) edge[red] node {} (b)
+    (f) edge node {} (g)
+    (h) edge node {} (g);    
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[m]{0.5\linewidth}
+Is there a path from \textbf{Here} to \textbf{There} of length 13?
+\end{minipage}
+\end{frame}
+
+\begin{frame}[noframenumbering]
+  \transwipe[direction=90]
+  \frametitle{Path Querying}
+\begin{minipage}[m]{0.42\linewidth}
+\begin{tikzpicture}[shorten >=1pt,node distance=2cm,on grid,auto]
+   \node[state] (a) {Here};
+   \node[state] (b) [left=of a] {B};
+   \node[state] (c) [right=of a] {C};
+   \node[state] (d) [below=of c] {D};
+   \node[state] (e) [below=of b] {E};
+   \node[state] (f) [below=of a] {F};
+   \node[state] (g) [below=of f] {There};
+   \node[state] (h) [below=of d] {H};
+    \path[->]
+    (a) edge node {} (b)
+    (a) edge node {} (c)
+    (a) edge node {} (f)
+    (b) edge node {} (e)
+    (c) edge node {} (d)
+    (d) edge node {} (h)
+    (d) edge node {} (a)
+    (e) edge node {} (f)
+    (e) edge node {} (g)
+    (f) edge node {} (b)
+    (f) edge node {} (g)
+    (h) edge node {} (g);    
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[m]{0.5\linewidth}
+    What is the shortest path from \textbf{Here} to \textbf{There}?
+\end{minipage}
+\end{frame}
+
+\begin{frame}[noframenumbering]
+  \transwipe[direction=90]
+  \frametitle{Path Querying}
+\begin{minipage}[m]{0.42\linewidth}
+\begin{tikzpicture}[shorten >=1pt,node distance=2cm,on grid,auto]
+   \node[state] (a) {Here};
+   \node[state] (b) [left=of a] {B};
+   \node[state] (c) [right=of a] {C};
+   \node[state] (d) [below=of c] {D};
+   \node[state] (e) [below=of b] {E};
+   \node[state] (f) [below=of a] {F};
+   \node[state] (g) [below=of f] {There};
+   \node[state] (h) [below=of d] {H};
+    \path[->]
+    (a) edge node {} (b)
+    (a) edge node {} (c)
+    (a) edge[red] node {} (f)
+    (b) edge node {} (e)
+    (c) edge node {} (d)
+    (d) edge node {} (h)
+    (d) edge node {} (a)
+    (e) edge node {} (f)
+    (e) edge node {} (g)
+    (f) edge node {} (b)
+    (f) edge[red] node {} (g)
+    (h) edge node {} (g);    
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[m]{0.5\linewidth}
+    What is the shortest path from \textbf{Here} to \textbf{There}?
+\end{minipage}
+
+\end{frame}
+
+
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Context-Free Path Querying}
+\end{frame}
+
+\begin{frame}
+  \transwipe[direction=90]
+  \frametitle{Goals}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{What is done??}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Meerkat}
+\end{frame}
+
+\begin{frame}
+  \transwipe[direction=90]
+  \frametitle{CFPQ in Meerkat}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Neo4J integration}
+\end{frame}
+
+ 
+\begin{frame}
+  \transwipe[direction=90]
+  \frametitle{Semantics??}
+\end{frame}
+
+\begin{frame}
+  \transwipe[direction=90]
+  \frametitle{Limitations}
+\end{frame}
+
+            
+\begin{frame}
+  \transwipe[direction=90]
+  \frametitle{Examples}         
+  Screens
+\end{frame}     
+
+\begin{frame}
+  \transwipe[direction=90]
+  \frametitle{Future work}         
+\end{frame}     
+            
+            
+\begin{frame}
+  \transwipe[direction=90]
+  \frametitle{Conclusion}         
+\end{frame}           
+            
+\begin{frame}
+\transwipe[direction=90]
+\frametitle{Contacts}
+\begin{itemize}
+  \item Semyon Grigorev: \href{mailto:s.v.grigoriev@spbu.ru}{s.v.grigoriev@spbu.ru}
+  \item Kate Verbitskaia: \href{mailto:kajigor@gmail.com}{kajigor@gmail.com}
+\end{itemize}
+\begin{itemize}
+  \item Meerkat for CFPQ: \href{https://github.com/YaccConstructor/Meerkat}{https://github.com/YaccConstructor/Meerkat}
+\end{itemize}
+\end{frame}
+\end{document}
