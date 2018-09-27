@@ -1,0 +1,182 @@
+1:
+Hi! I'm Kate and I am going to tell you how we adjusted parser combinators to solve the context free path querying problem.
+But first I need to tell you What the context free path querying problem is.
+
+2/1:
+I guess everyone here is familiar with graphs and paths in them.
+2/2:
+Having some graph we can ask if there is a path from Here to There.
+2/3:
+Of course, there are such paths and one of them is this red one.
+2/4:
+Another question we may ask is is there a path from Here to There of lengh 13?
+Perfectly reasonable question!
+And look, we introduced a constraint on the paths of interest, we are only interested in the paths of the certain length.
+2/5:
+There are infinite number of such paths, but the shortest one is this one: you go aroud a cycle three times, and then continue following the red hare^ arrows.
+2/6:
+Ah, speaking of the shortest paths, we can also ask for the shortest path between Here and There ...
+2/7:
+and get this one.
+All of these questions are queries for the graph and we of course can answer them.
+They are not that fun though.
+The only features of the paths we can select are the vertices it comes through and the length, nothing more
+
+3/1:
+Stuff gets more exciting when we deal with the weighted graphs: if the graph has something associated with its edges, or written on them.
+3/2:
+Having the weighted, we can start querying for more interesting stuff.
+We can consider the weights as symbols of some alphabet, then each path forms a string.
+And having paths be strings, we can search for the paths which are also in some language.
+For example, we can ask for the paths which satisfy some regular expression.
+3/3:
+In this graph there is one such path which spells food.
+3/4:
+Constraints here are a regular language, but there is not any reason to limit ourselves with regular languages.
+
+4/1:
+Why not query the graph for the paths which are in some context free language?
+A language of balanced brackets is context free, so let's use it.
+4/2:
+There are three paths in the graph which form a balanced brackets sequence.
+
+5:
+So, the context free path querying problem is the following.
+Given a directed weighted graph and a context free language, find all the paths in the graph which are also in the language.
+There may be variations to this problem statement.
+Sometimes we are only interested in checking if such paths exist.
+Sometimes we only need to find the paths which start in one particular vertex or end in the other.
+Sometimes what we realy need is not only the set of paths, but their structural representations in terms of the context free language, also knows as the abstract syntax tree, or even the result of some semantics for such a tree.
+Bear in mind, the set of the paths can be infinite and the techniques may vary.
+
+6:
+The applications of context free path querying include graph database querying, static code analysis, analysis of social networks or even bioinformatics.
+It's surprising how different the applications are.
+
+7/1:
+So, how would we solve the context free path querying problem?
+To check that the path is in fact a string of the language, we need to parse the string anyway,
+Sooooo Is there a way to generalize parsing to work on graphs instead of the simple strings?
+7/2:
+As a matter of fact, yes, yes we can!
+We've been doing this for quite while now, and we've already generalized about 5 different parsing algorithms to work for graph querying.
+
+8:
+What's in focus now, is the user friendliness of parsing as a tool of graph querying.
+If you have ever written a parser, you probably know, that you cannot just throw an arbitrary grammar into the parsing algorithm and expect it to behave well.
+We don't want to make our query writers to suffer through the particular pain points of the grammar design.
+We also want to handle any input graph, be it a DAG or an arbitrary one with cycles.
+And another thing we want is being able to write the queries using the language we use for writing programms, say Scala, not come up with a special little DSL of some kind.
+
+9:
+There is a neat technique in the parsing world, which have all these and some more useful features.
+It's parser combinators.
+Here we can use combinators of the general purpose programming language to construct queries.
+Whatever safety guarantees our programming language of choice does, the query ''language'' gets them for free.
+The other cool thing is composability of the queries we get this way.
+We can write higher order queries, if you wish, and get the specific ones by applying them to suitable parameters.
+And the thing we also get, the result of the query is natural in the language we program the application: no need for new intermediate abstractions.
+
+10:
+So we need to start with some parser combinator library, which can handle arbitrary context free grammars, and modify it.
+There exists such a library in Scala.
+It's called Meerkat.
+Under the hood it implements CPS-parsing with memoization, and it handles arbitrary context free grammars including left recursive and ambiguous.
+It even may calculate some semantics over the parsing trees.
+Here is an example grammar in Meerkat, as you can see, it has both left recusion and ambiguities, but Meerkat handles it just find, constructing a special representation for all possible derivation trees.
+
+11:
+So our goal is to make it possible to get a Meerkat grammar and query the graph with it.
+Just like that.
+
+12/1:
+Let me tell you how it's done.
+A typical input for a parser is a string, and each string is just a linear graph.
+The vertices are positions in the input between the symbols, and the symbols are the weights for the edges.
+12/2:
+But what makes a graph not a string?
+12/3:
+One of the differences, that there may be branches in the graphs: outgoing and incoming.
+If to think of the outgoing branches in terms of the familiar input positions, we can say, that in our ''string'' has several next symbols after the given one.
+Edges which are incoming into a vertex just means that for the several positions, the next one is this position.
+12/4:
+The other difference between strings and graphs are cycles.
+Cycles mean the infinite number of paths, but from the input positions' point, the don't differ much from the branches.
+
+13:
+So the general idea of this parsing generalization is:
+each linear subraph can be parsed the same way we parse strings.
+If there are outgoing branches from the same vertex, we just continue parsing along each branch independently.
+If two edges come into one vertex, we just need to merge in some sort the intermediate parsing results, and continue parsing only those, which we haven't seen before.
+Of course, to not reparse stuff, we need to implement some kind of memoization, and this is exactly what Meerkat is good at.
+
+14/1:
+Among the basic combinators we support, there are a usual sequential parsing combinator and the combinator of choice.
+14/2:
+We also provide the combinators familiar from the regular expressions and BNFs such as an optional parsing and the repetitions.
+14/3:
+There are also combinators for the semantics: we can apply a function to the result of parsing of a single token, or we can also map it for the whole parser.
+We can also just capture the result of the parsing (this is the same as using identity function)
+
+15:
+All right, now it's the time to say that I lied to you a little.
+To find the paths between two vertices we need to either filter the paths which our grammar matches or to consider not only edges, but vertices too, when writing a query.
+We add a couple of combinators to do just that: LV checks if the vertex contains the specified string.
+But vertices, for example in databases can have more, than one symbol in them, so there is a combinator for vertices which can check arbitrary properties of them.
+
+16:
+Similarly to vertices, we can use predicates to match the edges too.
+Here is an input abstraction which we came up with.
+There should be two functions implemented for your favorite source of graph structured data.
+The first one checks if given vertex satisfies the predicate
+The second filters the outgoing from the given vertex edges by the predicate.
+We provided the implementations for this trait for linear input, GraphX library and Neo4j graph database.
+
+17:
+Speaking of graph databases,
+Here is the example query to a database of movies.
+In this database there is data on movies, the actors who stared in them, the directors directing and stuff like that.
+This particular query searches 10 most prolific actors.
+Here we have to use postprocessing of results to order the actors by the number of movies in the direction we want.
+By the way, in this particular example, the set of paths is always finite, but in general there may be infinite number of paths.
+The executeQuery function retrieves the set of paths lazily, so one can process as long as they find it usefull.
+
+18:
+We run our library through a series of tests.
+First, we queried ontologies for the stuff which is on the same level of hierarchy.
+This "same level of hierarchy" query is nothing but the balanced bracket grammar.
+In this test we run about 3 times faster than our earlier implementation based on the parser algorithm GLL.
+We also implemented a static code analysis: this one checks the may-alias relations, and the query here is also context free.
+We were faster than the trails library which is a combinator library for graph traversals, and solves the similar problem, albeit it has its' own limitaions on the structure of paths.
+We tried to query the movie database with our library, using the set of queries from Neo4j tutorials.
+In this run our library is about 10 times slower than the result of running queries in Cypher against Neo4j graph database.
+This shows that even though our comibinators are quite expressive, there is some overhead when it comes to regular constraints.
+
+19:
+This overhead is one of the limitation of our library.
+The other one concernes what to do after the parsing stage is over.
+First, we can lazily retrieve paths from the internal data structure, but it's not imidiately clear what order is right.
+The second question is even less understood.
+Some semantics do need to inspect each path: for example, if semantics is the legth of the path.
+Other semantics don't: for example the one which checks if there is a path which goes through some fixed vertex.
+But what kind of semantics calculation can be done for the whole set of the paths collected along some cycle in the graph?
+
+20:
+As per the plans for the future, first of all, we want to explore ways to reduce overhead when searching the paths with regular constraints.
+Second, we are in the middle of applying the library for interprocedural static code analysis -- we need to finish that.
+And there is also an interesting question: can we go even further and use constraints which are beyond context free?
+For example, conjunctive, which are used in some problems of bioinformatics.
+
+21:
+To summarize: we implemented the parser combinators library to run context free path queries, which provides a means of transparent query integration and work on any input graph.
+
+22:
+Here are our contact details and the link to the github repository of the project.
+Thank you for your attention, I will gladly answer your questions.
+
+
+
+
+
+
+
