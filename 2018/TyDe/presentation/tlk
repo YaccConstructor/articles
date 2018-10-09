@@ -1,12 +1,14 @@
 Hi, my name is Semyon and i want to talk about our attempt to provide solution for type-safe usage of existing GPGPU libraries in F# programs.
 As you can see our solution is based on type providers.
-I want to note that i present results of my student's work. 
+I want to note that i present my student's work. 
+He wasn't been able to get the visa. 
+It is a work in progress, so don't be too harsh.
 
 
 Does anybody use GPU for computations? Not for gaming)
-Briefly, graphics processing unit or GPU is an implementation of SIMD architecture. 
-Main differences are shown at this picture. 
-As you can see, GPU contains huge amount of computing cores.
+Briefly, graphics processing unit or GPU is an implementation of "single instruction-multiple data" architecture. 
+Main differences are shown in this picture. 
+GPU contains huge amount of computing cores.
 Thus it may be useful not only for graphics processing, which was its initial area, but also GPU may be a good choice for massive parallel data processing.
 In other terms we may want to use graphics processing units for general purpose computations.
 
@@ -16,23 +18,27 @@ linear algebra. But today we can see more different applications for GPUs.
 
 
 For GPU programming we should use low-level languages based on C, such as CUDA C or OpenCL C.
-But when we think about applications we usually want to use one of high-level languages for one of popular platforms.
-For example, for JVM or .NET.
+But when we think about applications we usually want to use one of high-level languages for one of popular platforms such as JVM or .NET.
 And interaction between such platforms and low-level GPU code is a big problem.
 
-How we can simplify development of applications which utilize GPUs?
-Firs of all we can translate high-level language into GPU specific language and provide appropriate runtime support for data transferring, exception handling and so on.
-It is interesting solution, because it allow as to use features of high level language for GPU programming. 
-And set of these features depends only on translator power. 
-But if we want to create really high performance GPU solution we should use low level features which depends on concrete processor architecture.
-Another way is usage of existing GPU specific libraries. It allow as to utilize full power of GPU but we should provide mechanism for automatic binding generation.
-Of course we want to provide type-safe integration of GPU code in our application.
-It is not interesting to use dynamically typed bindings statically typed language, such as F# for example. 
 
-One of solutions which implements the first way is a Brahma.FSharp. 
-It is an open source library which can translate of F# quotations into OpenCL C and provides appropriate runtime. 
-Of course, only subset of F# can be translated. 
-We extend these library with mechanism for type-safe usage of existing OpenCL C code.
+How we can simplify development of applications which utilize GPUs?
+First of all we can translate high-level language into GPU specific language and provide appropriate runtime support for data transferring, exception handling and so on.
+It is interesting solution, because it allows us to use features of high level language for GPU programming. 
+And set of these features depends only on translator power. 
+But if we want to create really high performance GPU solution we should use low level features which depend on concrete processor architecture.
+Another way is to use existing GPU specific libraries. 
+It allows us to utilize full power of GPU but we should provide mechanism for automatic binding generation.
+Of course we want to provide type-safe integration of GPU code in our application.
+It is not cool (not ok, unsafe) to use dynamically typed or untyped bindings in statically typed language, such as F# for example. 
+
+
+One of solutions which implements the first way is a Brahma.FSharp.
+It is an open source library which can translate F# quotations into OpenCL C and provides appropriate runtime. 
+Of course, only subset of F# can be translated.
+Atomic unit of translation is a quoted lambda function which translates to kernel function with creation of correspondent F# object.
+We extend this library with mechanism for type-safe usage of existing OpenCL C code.
+
 
 Our solution is based on F# type providers. 
 Type provider is compile-time metaprogramming technique which can be used for type-safe integration with external data with fixed schema.
@@ -40,44 +46,56 @@ Type provider may be treated as function from schema description to respective t
 XML, Json, INI files are classical arguments for type providers.
 But also there exist providers for R, SQL and other languages. 
 
+
 Here you can see the example of INI type provider. 
 You can see content of INI file at the top of slide and usage of type provide at the bottom.
 as you can see, provided type describes structure and content of given file and all type information of fields are available in design and compile time. 
+It even gives an IDE support, so we can see these nice fields in the completion box and the tooltip
 
-So, our solution is OpenCL C type provider.
+
+We propose to create an OpenCL C type provider.
 Remind that we want to provide a way for type-preserving integration of existing OpenCL C libraries into F# code.
-As far as OpenCL standard declares source-level distribution, we can work with source code, and it is a good news because all possible information are available.
-In the opposite to processing of compiled code, when some information, for example about types, may be missed.
-On the other hand, it meens that we should handle a bunch of dependent files instead of single binary file.
-What can help as on the start is that it is enough to handle only functions signatures for basic solution.
+As far as OpenCL standard declares source-level distribution, we can work with source code, and it is a good news because all possible information is available.
+It is much better than to process compiled code, when some information, such as types, may be missed.
+On the other hand, it means that we should handle a bunch of dependent files instead of single binary file.
+What can help as at the start is that it is enough to handle only functions signatures for basic solution.
 
-Type builder uses abstract syntax tree for methods generation. We create our own C syntax analyzer 
-because interaction with third party libraries from type provider is very tricky. 
-Additionally we save original sources for execution on GPU, so translator from Brahma.FSharp is used only for correct calls generation.
-We do not parse and print all C code.
-And yes, it is a classical type provider.
 
-But with huge amount of limitations. 
-Some of them are just technical and can be solved by syntax analyzer improvements. 
-But from current point it looks like it is possible create provider only for C code with some restriction. 
-For example it is very nontrivial task to create mappings for all OpenCL C types.
+Type builder uses abstract syntax tree for methods generation.
+We create our own C syntax analyzer because interaction with third party libraries from type provider is very tricky. 
+To build a type provider, we only need to inspect functions signatures, which means we don't need to look into the code itself: no parsing or translating the C code. 
+We save original sources for execution on GPU, so translator from Brahma.FSharp is used only for correct calls generation.
+And yes, it is just a classical type provider.
+
+
+Since it is a work in progress, there is still a bunch of limitations. 
+Some of them are just technical and can be solved by improving the syntax analyzer. 
+But currently it seems that it is not possible to create provider arbitrary C code. 
+For example it is very nontrivial to create mappings for all OpenCL C types.
+One such type is Vector types. Vector types are OpenCL specific and we want to get bijective map between them and F# types.
+But type providers are limited, so it seems to be impossible to create appropriate map.
 I hope that it is possible to find such restrictions that it will be user-friendly and allow our tool to provide bindings for real code.  
 
-Seems that it is good time for example.
+
+let's look at some examples.
 Here you can see IDE's features which is based on information provided by our provider.
 First of all we should define a new type and say that it should be provided by our provider.
 Provider create type which contains static member for each function from given C file.
-As you can see it allow compiler to check correctness of imported functions usage statically.
+As you can see it allows compiler to check correctness of imported functions usage statically.
 Moreover, IDE can provide all expected functionality: completion, arguments description, etc.
 
-In the future we plan to improve OpenCL c support.
-Another direction is to make provided type more native for F#.
+
+In the future we plan to improve OpenCL C support. 
+Another direction is to make provided type more native for F#. (NOT ENOUGH CONTEXT)
 First of all we should unify provided kernels with Brahma.FSharp's one.
 Second, we should improve composability.
-One want to use provided functions just as functions in complex kernel written in F#. 
+One wants to use provided functions just as functions in complex kernel written in F#. 
 This case is not fully supported now. 
 
-To summarize, we create the prototype for type-safe integration of OpenCL code into F# applications.
+
+To summarize, we created the prototype for type-safe integration of OpenCL code into F# applications.
 Sources and ready to use binaries are published.
 
+
 Thank you for attention. 
+I will gladly answer your questions.
