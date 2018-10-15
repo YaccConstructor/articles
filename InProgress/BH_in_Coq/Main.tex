@@ -1,19 +1,20 @@
 \section{Bar-Hillel Theorem Mechanization in Coq}
+\label{sec:main}
 
-%TODO
-%What did you do and how. And, possible, why. Problems, nontrivial solutions, stc.
+In this section we describe in detail all the fundamental parts of the proof. 
+Also in this section, we briefly describe motivation to use the chosen definitions. 
+In addition, we discuss the advantages and disadvantages of using of third-party proofs. 
 
-In this section we describe in detail all the fundamental parts of the proof. Also in this section, we briefly describe motivation to use the chosen definitions. In addition, we discuss the advantages and disadvantages of using of third-party proofs. 
-
-Overall goal of this section is to provide step-by-step algorithm of constructing the CNF grammar of the intersection of two languages. Final formulation of the obtained theorem can be found in the last subsection. 
-
-All code are published on GitHub~\footnote{\url{https://github.com/YaccConstructor/YC\_in\_Coq}}.
+Overall goal of this section is to provide step-by-step algorithm of constructing the CNF grammar of the intersection of two languages.
+Final formulation of the obtained theorem can be found in the last subsection. 
    
 \subsection{ Smolka's code generalization}
+\label{sec:solka-generalized}
 
-In this section, we describe the exact steps taken to use the proof of TODO:Smolka's theorem in the proof of this article's theorem.
+In this section, we describe the exact steps taken to use the results of Gert Smolka and Jana Hofmann~\cite{smolkaHofmann2016} on context-free languages mechanization in Coq in the proof of this article's theorem.
 
-A substantial part of this proof relies on the work of TODO:Smolka. From this work(,?) many definitions and theorems were taken. Namely, the definition of a grammar, definitions of a derivation in grammar, some auxiliary lemmas about the decidability of properties of grammar/derivation, we also use the theorem that states that there always exists the transformation from context-free grammar to grammar in Chomsky Normal Form (CNF).
+A substantial part of this proof relies on the work of~\cite{smolkaHofmann2016}\footnote{Gert Smolka, Jana Hofmann, Verified Algorithms for Context-Free Grammars in Coq. Related sources in Coq: \url{https://www.ps.uni-saarland.de/~hofmann/bachelor/coq_src.zip}. Documentation: \url{https://www.ps.uni-saarland.de/~hofmann/bachelor/coq/toc.html}. Access date: 10.10.2018.} from which many definitions and theorems were taken.
+Namely, the definition of a grammar, definitions of a derivation in grammar, some auxiliary lemmas about the decidability of properties of grammar/derivation, we also use the theorem that states that there always exists the transformation from context-free grammar to grammar in Chomsky Normal Form (CNF).
 
 However, this proof had one major flaw that we needed to fix. One could define a terminal symbol as in inductive type over natural numbers[TODO].
 
@@ -21,19 +22,19 @@ However, this proof had one major flaw that we needed to fix. One could define a
 	\begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
   Inductive ter : Type := | T : nat -> ter.
 	\end{pyglist}
-	\caption{TODO}
+	\caption{The original Smolka's definition of terminals}
 	\label{lst:verbments1}
 \end{listing}
 
-That is how it was done in TODO:Smolka. However for purposes of our proof, we need to consider nonterminals over the alphabet of triples. Therefore, it was decided to add polymorphism over the target alphabet. Namely, let $Tt$ and $Vt$ be types with decidable relation of equality, then we can define the types of terminal and nonterminal over alphabets $Tt$ and $Vt$ respectively as follows (???):
+That is how it was done in~\cite{smolkaHofmann2016}. However for purposes of our proof, we need to consider nonterminals over the alphabet of triples. Therefore, it was decided to add polymorphism over the target alphabet. Namely, let $Tt$ and $Vt$ be types with decidable relation of equality, then we can define the types of terminal and nonterminal over alphabets $Tt$ and $Vt$ respectively as presented in~\ref{lst:polymorphic-terminals}.
 
 \begin{listing}[h]
     \begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
   Inductive ter : Type := | T : Tt -> ter.
   Inductive var : Type := | V : Vt -> var.
     \end{pyglist}
-    \caption{TODO}
-    \label{lst:verbments1}
+    \caption{The new polymorphic definitions of terminals and nonterminals}
+    \label{lst:polymorphic-terminals}
 \end{listing}
 
 The proof of Smolka has a clear structure, therefore only part of the proof where the use of natural numbers was essential has become incorrect. One of the grammar transformations (namely deletion of long rules) requires the creation of many new non-terminals. In the original proof for this purpose, the maximum over non-terminals included in the grammar was used. However, it is impossible for an arbitrary type.
@@ -50,17 +51,17 @@ Another difficulty is that the original work defines grammar as a list of rules 
     (language G A u <-> 
        language (normalize G) A u).
     \end{pyglist}
-    \caption{TODO, CHECK}
+    \caption{The equivalence of languages specified by context-free grammar and by transformed grammar in CNF}
     \label{lst:verbments1}
 \end{listing}
 
 Changes in the definition of grammar or language would lead to significant code corrections. However, the question of whether the empty word is derivable is decidable for both the CF grammar and the DFA. Therefore, it is possible to simply consider two cases (1) when the empty word is derivable in the grammar and (2) when the empty word is not derivable.
 
-\subsection{Part ..: derivation and so on}
+\subsection{Basic definitions}
 
-In this section, we introduce the basic definitions used in the article.
+In this section, we introduce the basic definitions used in the article, such as alphabets, context-free grammar, and derivation.
 
-We define a symbol is either a terminal or a nonterminal.
+We define a symbol is either a terminal or a nonterminal~(\ref{lst:symb}).
 
 \begin{listing}[h]
     \begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
@@ -68,24 +69,27 @@ We define a symbol is either a terminal or a nonterminal.
     | Ts : ter -> symbol
     | Vs : var -> symbol.
     \end{pyglist}
-    \caption{TODO}
-    \label{lst:verbments1}
+    \caption{Definition of symbol (union of terminals and nonterminals)}
+    \label{lst:symb}
 \end{listing}
 
-Next we define a word and a phrase as lists of terminals and symbols respectively. 
+Next we define a word and a phrase as lists of terminals and symbols respectively~(\ref{lst:phrase}).
+One can think that word is an element of the language defined by grammar, and phrase is an intermediate result of derivation.
+Also, phrase is a right side of derivation rule.
 
 \begin{listing}[h]
     \begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
   Definition word := list ter.
   Definition phrase := list symbol.
     \end{pyglist}
-    \caption{TODO}
-    \label{lst:verbments1}
+    \caption{Definitions of word and phrase.}
+    \label{lst:phrase}
 \end{listing}
 
 The notion of nonterminal doesn't make sense for DFA, but in order to construct derivation in grammar we need to use nonterminal in intermediate states. For phrases, we introduce a predicate that defines whenever a phrase consists of only terminals. And if so, the phrase it can be safely converted to the corresponding word.
 
-We inheriting the definition of CFG from [Smplka] paper. Rule is defined as a pair of a nonterminal and a list of symbols. Grammar is a list of rules. 
+We inheriting the definition of CFG from~\cite{smolkaHofmann2016}. Rule is defined as a pair of a nonterminal and a list of symbols, and grammar is a list of rules~(\ref{lst:grm}).
+Note, that this definition of grammar is not include start nonterminal, and it is sufficient difference from classical definition, because such defined grammar is not specified language.
 
 \begin{listing}[h]
     \begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
@@ -94,24 +98,24 @@ We inheriting the definition of CFG from [Smplka] paper. Rule is defined as a pa
         
   Definition grammar := list rule.
     \end{pyglist}
-    \caption{TODO}
-    \label{lst:verbments1}
+    \caption{Context-free rule and grammar definition}
+    \label{lst:grm}
 \end{listing}
 
-An important step towards the definition of a language (?) governed (formed?)(?!) by a grammar is the definition of derivability. Having $der(G, A, p)$ --- means that phrase $p$ is derivable in grammar $G$ starting from(?) nonterminal $A$.
+An important step towards the definition of a language specified by a grammar is the definition of derivability~(\ref{lst:der}). Having $der(G, A, p)$ --- means that phrase $p$ is derivable in grammar $G$ starting from nonterminal $A$.
 
 \begin{listing}[h]
     \begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
   Inductive der (G : grammar) 
-        (A : var) : phrase -> Prop :=
+                (A : var) : phrase -> Prop :=
   | vDer : der G A [Vs A]
   | rDer l : (R A l) el G -> der G A l
   | replN B u w v : 
       der G A (u ++ [Vs B] ++ w) -> 
       der G B v -> der G A (u ++ v ++ w).
     \end{pyglist}
-    \caption{TODO}
-    \label{lst:verbments1}
+    \caption{Derivability definition. Informally it is a recognizer of the language specified by grammar $G$ and start nonterminal $A$}
+    \label{lst:der}
 \end{listing}
 
 Proof of TODO requires grammar to be in CNF. We used statement that every grammar in convertible into CNF from TODO:Smolka work.
@@ -120,7 +124,9 @@ Proof of TODO requires grammar to be in CNF. We used statement that every gramma
 
 \subsection{General scheme of the proof}
 
-General scheme of our proof is based on constructive proof presented by ~\cite{!!!}. In the following subsections the main steps of the proof are presented. Overall, we will adhere to the following plan. 
+General scheme of our proof is based on constructive proof presented in~\cite{beigelproof}.
+This proof does not use push-down automata explicitly and operates by grammars, so it looks pretty simple to be mechanized.
+In the following subsections the main steps of the proof are presented. Overall, we will adhere to the following plan. 
 
 \begin{enumerate}
     \item First we consider trivial case, when DFA has no state (TODO: del this?)
@@ -510,7 +516,8 @@ Proof.
 Like last time, we use the principle of Chomsky Induction.
 We apply the induction with the following parameter P:
 \begin{align*}
-(P := fun tr_non phr => final_state next (first3 tr_non) (to_word phr) = third3 r). 
+(P := fun tr_non phr => 
+\\ final_state next (first3 tr_non) (to_word phr) = third3 r). 
 \end{align*}
 
 Note that in this case, one need to use projections from triple-non-terminals to "single" non-terminals. Induction is carried out in the grammar of triples, but the property says(??) about the automaton. However(?), this property can also be expressed in terms of triples-non-terminals.
