@@ -15,14 +15,14 @@ In this section, we describe the exact steps taken to use the results of Gert Sm
 
 A substantial part of this proof relies on the work of~\cite{smolkaHofmann2016}\footnote{Gert Smolka, Jana Hofmann, Verified Algorithms for Context-Free Grammars in Coq. Related sources in Coq: \url{https://www.ps.uni-saarland.de/~hofmann/bachelor/coq_src.zip}. Documentation: \url{https://www.ps.uni-saarland.de/~hofmann/bachelor/coq/toc.html}. Access date: 10.10.2018.} from which many definitions and theorems were taken. Namely, the definition of a grammar, definitions of a derivation in grammar, some auxiliary lemmas about the decidability of properties of grammar/derivation, we also use the theorem that states that there always exists the transformation from context-free grammar to grammar in Chomsky Normal Form (CNF).
 
-However, the proof about existence of transformation to CNF had one major flaw that we needed to fix. One could define a terminal symbol as in inductive type over natural numbers[TODO].
+However, the proof about existence of transformation to CNF had one major flaw that we needed to fix. One could define a terminal symbol as in inductive type over natural numbers~(Lst.\ref{lst:terms}).
 
 \begin{listing}[h]
 	\begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
   Inductive ter : Type := | T : nat -> ter.
 	\end{pyglist}
 	\caption{The original Smolka's definition of terminals}
-	\label{lst:verbments1}
+	\label{lst:terms}
 \end{listing}
 
 That is how it was done in~\cite{smolkaHofmann2016}. However for purposes of our proof, we need to consider nonterminals over the alphabet of triples. Therefore, it was decided to add polymorphism over the target alphabet. Namely, let $Tt$ and $Vt$ be types with decidable relation of equality, then we can define the types of terminal and nonterminal over alphabets $Tt$ and $Vt$ respectively as presented in~\ref{lst:polymorphic-terminals}.
@@ -147,22 +147,23 @@ In the following subsections the main steps of the proof are presented. Overall,
     \item Proving than union of CF languages is CF language
 \end{enumerate}
 
-\subsection{Part one: trivial case}
+\subsection{Trivial case}
 
-(\textbf{TODO}: should we write that we have finite-type for states of DFA? Where?)
+First, we consider the case when the DFA does not have any state, that is, the number of states is equal to zero. 
+In this case, we can immediately derive a contradiction.
+By definition, for any DFA an initial state is known. 
+It means that there is at least one state, which contradicts the fact that the number of states is equal to zero.
 
-First, we consider the case when the DFA does not have any state, that is, the number of states is equal to zero. In this case, we can immediately derive a contradiction. By definition, for any DFA an initial state is known. It means that there is at least one state, which contradicts the fact that the number of states is equal to zero.
+In addition, it is worth mention, that in the proof~\cite {beigelproof} cases when in grammar an empty word is derivable or a DFA sets an empty language are discarded as trivial.
+It is assumed that the proof for this cases one can carry out himself.
+In our proof, we do not consider these cases as separate ones.
+Consideration of these cases is included in the corresponding theorems in general formulation.
 
-(\textbf{TODO}: is it correct citation? )
+\subsection{Regular languages and automata}
 
-In addition, it is worth mention, that in the proof ~\cite {beigelproof} cases when in grammar an empty word is derivable or a DFA sets an empty language are discarded as trivial. It is assumed that the proof for this cases one can carry out himself.
-In our proof, we do not consider these cases as separate ones. Consideration of these cases is included in the corresponding theorems in general formulation.
+In this section we describe definitions of DFA and DFA with exactly one final state, we also present function that converts any DFA to a set of DFA with one final state and lemma that states this split preserves language in some sense.
 
-\subsection{Part two: regular language and automata}
-
-In this section we describe definitions of DFA and DFA with exactly one final state, we also present function that converts any DFA to a set of DFA with one final state and lemma that states this split is well-defined(?).
-
-We assume that regular language is described by DFA. As the definition of an DFA, we have chosen a general definition, which does not impose any restrictions on the type of input symbols and the number of states. Thus, in our case, the DFA is a 5-tuple, (1) a state type, (2) a type of input symbols, (3) a start state, (4) a transition function, and (5) a list of final states.
+We assume that regular language is described by DFA. As the definition of an DFA, we have chosen a general definition, which does not impose any restrictions on the type of input symbols and the number of states. Thus, in our case, the DFA is a 5-tuple, (1) a state type, (2) a type of input symbols, (3) a start state, (4) a transition function, and (5) a list of final states~(Lst.\ref{lst:dfa}).
 
 \begin{listing}[h]
     \begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
@@ -174,11 +175,11 @@ We assume that regular language is described by DFA. As the definition of an DFA
       next: State -> (@ter T) -> State;
     }.
     \end{pyglist}
-    \caption{TODO}
-    \label{lst:verbments1}
+    \caption{Definition of deterministic finite automaton}
+    \label{lst:dfa}
 \end{listing}
 
-Next we define a function that would evaluate the final state of the automaton if it starts from state $s$ and receives a word $w$. 
+Next we define a function that evaluates the final state of the automaton if it starts from state $s$ and receives a word $w$. 
 
 \begin{listing}[h]
     \begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
@@ -197,7 +198,8 @@ Next we define a function that would evaluate the final state of the automaton i
     \label{lst:verbments1}
 \end{listing}
 
-We say that the automaton accepts a word $w$ being in state $s$ if the function $[final\_state \ s \ w]$ ends in one of the final states. Finally, we say that an automaton accepts a word $w$, if the DFA starts from the initial state and ends in one of the final states.
+We say that the automaton accepts a word $w$ being in state $s$ if the function $[\textit{final\_state} \ s \ w]$ returns one of the final states.
+Finally, we say that an automaton accepts a word $w$, if the DFA starts from the initial state and ends in one of the final states.
 
 %CODE
 %Definition accepts (d : dfa) (s: State) (w: word) : Prop :=
@@ -206,7 +208,8 @@ We say that the automaton accepts a word $w$ being in state $s$ if the function 
 %CODE
 %Definition dfa_language (d : dfa) := (accepts d (start d)).
 
-In order to define the DFA with exactly one final state, it is necessary to replace the list of final states by one final state in the definition of an ordinary DFA. The definitions of "accepts" and "dfa\_language" vary slightly.
+In order to define the DFA with exactly one final state, it is necessary to replace the list of final states by one final state in the definition of an ordinary DFA. 
+Related definitions such as \textit{accepts} and \textit{dfa\_language} should be modified slightly.
 
 %Alternative: In the proof we need a subset (subtype?) of all automata. Namely, automata with one finite state. We can define them as follows. We say that dfa is a single-final-state-automata, if and only if the predicate "is final state?" can be represented as "is equal to the state fin?"
 
@@ -219,11 +222,12 @@ In order to define the DFA with exactly one final state, it is necessary to repl
       s_next: State -> (@ter T) -> State;
   }.      
     \end{pyglist}
-    \caption{TODO}
-    \label{lst:verbments1}
+    \caption{Definition of DFA with exactly one final states}
+    \label{lst:dfa-one-ss}
 \end{listing}
   
-Similarly, we can define functions $s\_accepts$ and $s\_dfa\_language$ for DFA with one final state. Since in this case there is only one final state in order to define function $s\_accepts$ it is enough to check the state in which the automaton stopped with the finite state. Function $s\_dfa\_language$ repeats function $dfa\_language$ except that the function for a DFA with one final state should use $s\_accepts$ instead of $accepts$.
+Similarly, we can define functions $\textit{s\_accepts}$ and $\textit{s\_dfa\_language}$ for DFA with one final state.
+Since in this case there is only one final state in order to define function $\textit{s\_accepts}$ it is enough to check the state in which the automaton stopped with the finite state. Function $\textit{s\_dfa\_language}$ repeats function $\textit{dfa\_language}$ except that the function for a DFA with one final state should use $\textit{s\_accepts}$ instead of $\textit{accepts}$.
 
 %CODE
 %Definition s_accepts (d : s_dfa) (s: State) (w: word) : Prop :=
@@ -232,8 +236,9 @@ Similarly, we can define functions $s\_accepts$ and $s\_dfa\_language$ for DFA w
 %CODE
 %Definition s_dfa_language (d : s_dfa) := (s_accepts d (s_start d)).
 
-Now we can to define a function that converts an ordinary DFA into a set of DFAs with exactly one final state.
-Let $d$ be a DFA. Then the list of its final states is known. For each such state, one can construct a copy of the original DFA, but with one current final state.
+Now we can to define a function that converts an ordinary DFA into a set of DFAs with exactly one final state~(Lst.\ref{lst:dfa-split}).
+Let $d$ be a DFA. Then the list of its final states is known. 
+For each such state, one can construct a copy of the original DFA, but with one selected final state.
 
 \begin{listing}[h]
     \begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
@@ -250,8 +255,8 @@ Let $d$ be a DFA. Then the list of its final states is known. For each such stat
  Definition split_dfa (d: dfa) := 
    split_dfa_list (start d) (next d) (final d).
     \end{pyglist}
-    \caption{TODO}
-    \label{lst:verbments1}
+    \caption{Split DFA into set of DFAs with exactly one final state}
+    \label{lst:dfa-split}
 \end{listing}
 
 
@@ -276,6 +281,8 @@ Let $d$ be a DFA. Then the list of its final states is known. For each such stat
 
 %Definition dfa\_language (d : dfa):= fun word =>accepts d start word.
 
+Now we should prove theorem that the function of splitting preserves the language~(Lst.\ref{lst:split-preserves-lang}).
+
 \begin{listing}[h]
     \begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
   Lemma correct_split:
@@ -285,30 +292,40 @@ Let $d$ be a DFA. Then the list of its final states is known. For each such stat
          In sdfa (split_dfa dfa) /\ 
          s_dfa_language sdfa w.
     \end{pyglist}
-    \caption{TODO}
-    \label{lst:verbments1}
+    \caption{Splitting of DFA into DFAs with exactly one final state preserves language}
+    \label{lst:split-preserves-lang}
 \end{listing}
 
-We prove theorem that the function of splitting preserves the language.
-
 \begin{theorem}
-  Let $dfa$ be an arbitrary DFA and $w$ be a word. Then the fact that $dfa$ accepts $w$ implies that there exists a single-state DFA $s\_dfa$, such that $s\_dfa \in split\_dfa(dfa)$. And vice versa, for any $s\_dfa \in split\_dfa(dfa)$ the fact that $s\_dfa$ accepts a word $w$ implies that $dfa$ also accepts $w$.
+  Let $\textit{dfa}$ be an arbitrary DFA and $w$ be a word. Then the fact that $\textit{dfa}$ accepts $w$ implies that there exists a single-state DFA $\textit{s\_dfa}$, such that $\textit{s\_dfa} \in \textit{split\_dfa(dfa)}$. And vice versa, for any $\textit{s\_dfa} \in \textit{split\_dfa(dfa)}$ the fact that $\textit{s\_dfa}$ accepts a word $w$ implies that $\textit{dfa}$ also accepts $w$.
 \end{theorem}
 
 \textbf{Proof.}
-(\textbf{TODO}: reduce )
 Let us divide the proof into two parts.
-(1) Suppose $dfa$ accepts $w$. Then we prove that there exists a single-state DFA $s\_dfa$, such that $s\_dfa \in split\_dfa(dfa)$. 
-Let $finals$ be the set of final states of $dfa$. We carry out the proof by induction on $finals$. 
-\textit{\underline{Base step}}: $finals = [::]$. Trivial by contradiction (DFA with no final state cannot accept a word). \textit{\underline{Induction step}}: $finals = a::old\_finals$ and the statement holds for $old\_finals$. Since $dfa$ accepts $w$, it either ends up in $a$, or in one of the state from $old\_finals$.
-If $dfa$ is ends up in $a$, then we simply choose an automaton with the final state that is equal to $a$. Such an automaton exists, since now the list of final states also contains $a$. On the other hand, if $dfa$ is ends up in one of the state from $old\_finals$, then we can apply induction hypothesis. \\
-(2) Similarly for the opposite direction. Assume that there exists an automaton with exactly one final state from \textit{split\_dfa(dfa)} that accepts $w$. Then we prove that \textit{dfa} also accepts $w$. 
-Let $finals$ be the set of final states of $dfa$. We carry out the proof by induction on $finals$. 
-\textit{\underline{Base step}}: $finals = [::]$. Trivial by contradiction. \textit{\underline{Induction step}}: $finals = a::old\_finals$ and the statement holds for $old\_finals$. We know that one of the DFAs form $split\_dfa(dfa)$ accepts $w$, its final state either is equal to $a$, or lies in $old\_finals$.
-If the final state is equal to $a$, then $dfa$ also ends up in state $a$.  On the other hand, if final state lies in $old\_finals$, then we can apply induction hypothesis.
+\begin{enumerate}
+\item Suppose $\textit{dfa}$ accepts $w$. Then we prove that there exists a single-state DFA $\textit{s\_dfa}$, such that $\textit{s\_dfa} \in \textit{split\_dfa(dfa)}$. 
+Let \textit{finals} be the set of final states of \textit{dfa}. We carry out the proof by induction on \textit{finals}. 
+\\
+\textit{\underline{Base step}}: \textit{finals = [::]}. Trivial by contradiction (DFA with no final state cannot accept a word).
+\\
+\textit{\underline{Induction step}}: \textit{finals = a::old\_finals} and the statement holds for \textit{old\_finals}. Since \textit{dfa} accepts $w$, it either ends up in $a$, or in one of the state from \textit{old\_finals}.
+If \textit{dfa} is ends up in $a$, then we simply choose an automaton with the final state that is equal to $a$.
+Such an automaton exists, since now the list of final states also contains $a$.
+On the other hand, if \textit{dfa} is ends up in one of the state from \textit{old\_finals}, then we can apply induction hypothesis.
+
+\item Similarly for the opposite direction. Assume that there exists an automaton with exactly one final state from \textit{split\_dfa(dfa)} that accepts $w$. Then we prove that \textit{dfa} also accepts $w$. 
+Let \textit{finals} be the set of final states of \textit{dfa}. We carry out the proof by induction on \textit{finals}. 
+\\
+\textit{\underline{Base step}}: \textit{finals = [::]}. Trivial by contradiction.
+\\
+\textit{\underline{Induction step}}: \textit{finals = a::old\_finals} and the statement holds for \textit{old\_finals}.
+We know that one of the DFAs form \textit{split\_dfa(dfa} accepts $w$, its final state either is equal to $a$, or lies in \textit{old\_finals}.
+If the final state is equal to $a$, then \textit{dfa} also ends up in state $a$.
+On the other hand, if final state lies in \textit{old\_finals}, then we can apply induction hypothesis.
+\end{enumerate}
 
 
-\subsection{Part ..: Chomsky induction}
+\subsection{Chomsky induction}
 
 In this section, we introduce the notion of Chomsky induction.
 
@@ -336,6 +353,7 @@ With induction we always work with subtrees that describes some part of word. He
 Let $G$ be a grammar in CNF. Consider an arbitrary nonterminal $N \in G$ and phrase which consists only on terminals $w$. 
 If $w$ is derivable from $N$ and $|w| \ge 2$, then there exists two nonterminals $N_1, N_2$ and subphrases of $w$ --- $w_1, w_2$ such that: $N \to N_1 N_2 \in G$, $der(N_1, w_1)$, $der(N_2, w_2)$, $|w_1| \ge 1$, $|w_2| \ge 1$ and $w_1 ++ w_2 = w$.
 \end{theorem}
+
 \textbf{Proof.}
 The proof heavily uses the fact that grammar $G$ is in Chomsky Normal Form.
 We apply the hypothesis "syntactic analysis is possible ". After application, we get the fact that word $w$ is either an RHS of a rule of grammar $G$, or there is a phrase $phr$, such that (1) word $w$ is derivable from phrase $phr$ and (2) there exists a non-terminal $N$ such that $N -> prh in G$.
@@ -350,6 +368,7 @@ Finally, now we need to prove that both of this nonterminals has a non-empty con
 	(1) for every terminal production (i.e. in the form $N \to a$) of grammar $G$, $P(r, [Ts r])$ holds and (2) for every $N, N_1, N_2 \in G$ and two phrases that consist only of terminals $w_1, w_2$, if $P(N_1, w_1)$, $P(N_2, w_2)$, $der(G, N_1, w_1)$ and $der(G, N_2, w_2)$ then $P(N, w_1 ++ w_2)$.
 	Then for any nonterminal $N$ and any phrase consisting only of terminals $w$, the fact that $w$ is derivable from $N$ implies $P(N,w)$.
 \end{theorem}
+
 \textbf{Proof.} 
 Let $n$ be an upper bound of the length of word $w$. We carry out the proof by induction on $n$. 
 Base case: $ n = 0 $. Proof by contradiction. $|w| \le 0$ implies that $w$ is empty. But an empty word cannot be derived in CNF grammar (see ...).
@@ -392,19 +411,19 @@ TODO: add some text
 
 
 
-\subsection{Part ..: intersection}
+\subsection{Intersection of languages}
 
-Since we already have lemmas about the transformation of a grammar to CNF and the transformation a DFA to a DFA with exactly one state, further we assume that we have (1) DFA with exactly one final state --- $dfa$ and (2) grammar in CNF --- $G$. In this section, we describe the proof of the lemma that states that for any grammar in CNF and any automaton with exactly one state there is the intersection grammar.
+Since we already have lemmas about the transformation of a grammar to CNF and the transformation a DFA to a DFA with exactly one state, further we assume that we have (1) DFA with exactly one final state --- \textit{dfa} and (2) grammar in CNF --- $G$. In this section, we describe the proof of the lemma that states that for any grammar in CNF and any automaton with exactly one state there is the intersection grammar.
 
-\subsubsection{Function }
+\subsubsection{Construction of intersection}
 
-Next we present adaptation of the algorithm given in $[ ]$. 
+Next we present adaptation of the algorithm given in~\cite{beigelproof}. 
 
-Let $G_{INT}$ be the grammar of intersection. In $G_{INT}$ nonterminals presented as triples $(from \times var \times to) $ where $from$ and $to$ are states of $dfa$, and $var$ is a nonterminal of(in?) $G$.
+Let $G_{INT}$ be the grammar of intersection. In $G_{INT}$ nonterminals presented as triples $(from \times var \times to) $ where \textit{from} and $to$ are states of \textit{dfa}, and \textit{var} is a nonterminal of $G$.
 
 Since $G$ is a grammar in CNF, it has only two type of productions: $(1)\ N \to a $ and $(2) \ N \to N_{1} N_{2}$, where $N, N_1, N_2$ are nonterminals and $a$ is a terminal.
 
-For every production $N \to N_1 N_2$ in $G$ we generate a set of productions of the form $(from, N, to) \to (from, N_1,  m) (m, N_2, to)$ where: $from$, $m$, $to$ --- goes through all $dfa$ states.
+For every production $N \to N_1 N_2$ in $G$ we generate a set of productions of the form $$(from, N, to) \to (from, N_1,  m) (m, N_2, to)$$ where: $from$, $m$, $to$ --- goes through all $\textit{dfa}$ states.
 
 \begin{listing}[h]
     \begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
@@ -430,7 +449,7 @@ For every production $N \to N_1 N_2$ in $G$ we generate a set of productions of 
     \label{lst:verbments1}
 \end{listing}
 
-For every production of the form $N \to a$ we add a set of productions $(from, N, (dfa\_step(from, a))) \to a$ where: $from$ --- goes through all $dfa$ states and $dfa\_step (from, a)$ is the state in which the $dfa$ appears after receiving terminal $a$ in state $from$.
+For every production of the form $N \to a$ we add a set of productions $$(\textit{from}, N, (\textit{dfa\_step}(\textit{from}, a))) \to a$$ where $\textit{from}$ --- goes through all $\textit{dfa}$ states and $\textit{dfa\_step (from, a)}$ is the state in which the $\textit{dfa}$ appears after receiving terminal $a$ in state $\textit{from}$.
 
 \begin{listing}[h]
     \begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
@@ -446,7 +465,8 @@ For every production of the form $N \to a$ we add a set of productions $(from, N
     \label{lst:verbments1}
 \end{listing}
 
-Next we join the functions above to get a generic function that works for both types of productions. Note that since the grammar is in CNF,(?) the third alternative can never be the case.
+Next we join the functions above to get a generic function that works for both types of productions. 
+Note that since the grammar is in CNF, the third alternative can never be the case.
 
 \begin{listing}[h]
     \begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
@@ -463,7 +483,8 @@ Next we join the functions above to get a generic function that works for both t
     (rules: list rule) (next: _): list rule :=
     flat_map (convert_rule next) rules.
     
-  (* Maps grammar and s_dfa to grammar over triples *)
+  (* Maps grammar and s_dfa 
+     to grammar over triples *)
   Definition convert_grammar grammar s_dfa :=
     convert_rules grammar (s_next s_dfa). 
     \end{pyglist}
@@ -471,9 +492,9 @@ Next we join the functions above to get a generic function that works for both t
     \label{lst:verbments1}
 \end{listing}
 
-Note that at this point we do not have any manipulations with starting rules. Nevertheless(?), the hypothesis of the uniqueness of the final state of the DFA, will help us unambiguously introduce the starting nonterminal of the grammar of intersection.
+Note that at this point we do not have any manipulations with starting rules. Nevertheless, the hypothesis of the uniqueness of the final state of the DFA, will help us unambiguously introduce the starting nonterminal of the grammar of intersection.
 
-\subsubsection{Correctness}
+\subsubsection{Correctness of intersection}
 
 In this subsection we present a high-level description of the proof about correctness of the intersection function.
 
@@ -582,7 +603,7 @@ Well, in the end one need to combine both theorems to get full equivalence. On t
 
 After the previous step, we have a list of grammars of CF languages, in this section, we provide a function by which we construct a grammar of the union of languages.
 
-For this, we need nonterminals from every language to be from different nonintersecting sets. To achieve this we add labels to nonterminals. Thus, each grammar of the union would have its own unique ID number, all nonterminals within one grammar will have the same ID which coincides with the ID of a grammar. In addition, it is necessary to introduce a new starting nonterminal of the union.
+For this, we need nonterminals from every language to be from different non-intersecting sets. To achieve this we add labels to nonterminals. Thus, each grammar of the union would have its own unique ID number, all nonterminals within one grammar will have the same ID which coincides with the ID of a grammar. In addition, it is necessary to introduce a new starting nonterminal of the union.
 
 \begin{listing}[h]
     \begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
@@ -669,9 +690,9 @@ In this case, one explicitly specify the corresponding derivation in the union-g
 The labeling function is arranged in such a way that knowing the place of a certain grammar in the list of grammars, one can calculate the exact number that will be assigned to this grammar as a label.
 After that proof can be finished in two steps. Step 1: one need to apply the rule from the starting non-terminal of the union-grammar to the starting non-terminal of the initial grammar. And step 2: one should use the fact that derivation in initial grammar and labeled grammar are equivalent.
 
-\subsection{ Part N: taking all parts together}
+\subsection{Taking all parts together}
 
-В конце нужно собрать все леммы вместе.
+%В конце нужно собрать все леммы вместе.
 
 
 \begin{theorem}
