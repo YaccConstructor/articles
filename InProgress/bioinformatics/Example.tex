@@ -48,7 +48,7 @@ Abstract is very abstract. Abstract is very abstract. Abstract is very abstract.
 \section{\uppercase{Introduction}}
 \label{sec:introduction}
 
-\noindent Accurate sequences classifiacation and subsequences detection are an open problems in different areas of bioinformatics, such as genomics and protenomics. 
+\noindent Accurate sequences classification and subsequences detection are an open problems in different areas of bioinformatics, such as genomics and protenomics. 
 Challenge here is a high variability of sequences which one want to mark as a same class.
 For some type of sequences its secondary structure is a !!! and this fact may be used for !!!.
 
@@ -62,33 +62,32 @@ Neural networks is another way to deal with ``noisy'' data.
 The works~\cite{Humidor,ANN} utilize neural networks for 16s rRNA processing and demonstrate promising results.
 
 In this work we propose the way to combine formal grammars and neural networks for secondary structure features processing.
-The key idea is does not try to model full (sub)sequence by grammar, but create grammar which describes features of secondary structure and use neural network for these features processing.
+The key idea is does not try to model full (sub)sequence of interest by grammar, but create grammar which describes features of secondary structure and use neural network for these features processing.
 
 \section{\uppercase{Proposed solution}}
 \label{sec:proposedSolution}
 
-\noindent We combine neural networks and ordinary context-free grammars to detect genomic sequences. 
-We extract features by using the ordinary (not probabilistic) context-free grammar and use the dense neural network for features processing.
+\noindent We propose to combine neural networks and ordinary context-free grammars (not probabilistic which are usually used in this area) in order to handle information of sequences' secondary structure. 
+Namely, we propose to extract secondary structure features by using the ordinary context-free grammar and use the dense neural network for features processing.
 Features can be extracted by any parsing algorithm and then presented as a boolean matrix but we choose parsing algorithm based on matrix multiplication.
 
+In this section we describe all components of our recipe and provide some examples end explanations on it.
+ 
 \subsection{Context-Free Grammars}
 
-\noindent It is a well-known fact that secondary structure of sequence may be approximated by using formal grammars.
-There is number of works that utilize this fact for !!!
+\noindent The first component is a context-free grammar. 
+It is a well-known fact that secondary structure of sequence may be approximated by using formal grammars.
+There is number of works that utilize this fact for different purposes~\cite{!!!!}.
 
-The !!! is to use probabilistic grammars.
-We use ordinary (not probabilistic) gramars.
-Our goal is not to model secondary structure of whall sequence (wich requred probabilistic grammars), but describe features of secondary structure, such as stems, loops, pseudoknots and it's composition.
+Usually probabilistic context-free grammars are used for secondary structure modeling because it allows to dealt with variations (mutations or some kinds of noise).
+In the opposite of it, we use ordinary (not probabilistic) grammars.
+Our goal is not to model secondary structure of whole sequence (which required probabilistic grammars), but describe features of secondary structure, such as stems, loops, pseudoknots and it's composition.
 The set of feature types is limited by class of the grammar which we use.
 For example, pseudoknots can not be expressed by context-free grammars, but can be expresed by using cinjunctive~\cite{KanchanDevi2017,zier2013rna,Okhotin:2001:CG:543313.543323} or multiple context-free~\cite{SEKI1991191,Riechert:2016:ADP:2972703.2972851}.
 
-The context-free grammar which we use in our experiments is presented in figue~\ref{fig:cfg-rna}.
-More details on it.
-Four letters in the alphabet ().
-Only calssical base pairs.
-\verb|s1| is a stsrt nonterminal.
-metarules as a feature of languge.
-Stems as an exampl eof metarules usage.
+The context-free grammar which we use in our experiments is presented in figure~\ref{fig:cfg-rna}.
+It is a context-free grammar over four-letters in the alphabet $\Sigma=\{A,C,G,T\}$ with start nonterminal \verb|s1|.
+This grammar which describes composition of stems with bounded minimal height.
 
 \begin{figure}
 \begin{verbatim}
@@ -98,15 +97,15 @@ any_str : any*[2..10]
 
 s0: any_str | any_str stem<s0> s0
 
-any: A | U | C | G
+any: A | T | C | G
 
-stem1<s>: A s U | G s C | U s A | C s G 
+stem1<s>: A s T | G s C | T s A | C s G 
 
 stem2<s>: stem1< stem1<s> >
 
 stem<s>:  
-      A stem<s> U 
-    | U stem<s> A 
+      A stem<s> T 
+    | T stem<s> A 
     | C stem<s> G 
     | G stem<s> C 
     | stem1< stem2<s> >  
@@ -116,14 +115,39 @@ stem<s>:
 \label{fig:cfg-rna}
 \end{figure}
 
-For example, one can varay length of unfoldable sequence \verb|a_0_7 : any*[0..10]| or \verb|a_0_7 : any*[1..8]|.
-Also one can increase (or decrease for some reason) the minimal height of stem, or add pseudocnotss description in the grammar.
+First of all, we provide a brief description of grammar specification language.
+Left hand side and right hand side of rule are separated by the \verb|:| sign.
+In the right hand side one can use extended regular expressions over union alphabet of terminals and nonterminals.
+Such constructions as bounded repetition and alternative are available.
+For example, \verb|any*[2..10]| is a bounded repetition and it is stands that nonterminal \verb|any| may be repeated any number of times from 2 up to 10.
+Example of rule which uses alternatives is \texttt{any: A | T | C | G} which stands that \verb|any| is one of four terminals.
+
+Another important feature of the language is parametric rules or metarules which allow one to create a reusable grammar templates.
+More details on metarules one can find in~\cite{!!!}.
+The example of metarule in our grammar is \texttt{stem1<s>: A s T | G s C | T s A | C s G}.
+This rule has one parameter \verb|s| which stands for something that should be embedded into stem.
+Application of this rule to \verb|any_str| allow one to define stem with loop of length from 2 up to 10.
+In our grammar we use metarules in order to describe stems with bounded minimal height: \verb|stem1<s>| is a stem with height exactly 1,  \verb|stem2<s>| is a stem with height exactly 2, and \verb|stem<s>| is a stem with height not lower than 3.
+
+Now we explain what does this grammar meens.
+This grammar describe a recursive composition of stems.
+To see it one can look at the rule for \verb|s0| which is recursive and shows that composition of stems may be embedded into stem (\verb |stem<s0>| in the right side of this rule).
+Every stem should has height not lower then 3 and builds only from classical base pairs.
+Stems may be connected by arbitrary sequence of length from 2 up to 10, and loops have the same length.
+Graphical explanation one can find in figure~\ref{fig:cfg-rna-graphical}.
+
+
+
+
+Note that grammar is a variable parameter and may be tuned for specific cases.
+For example, one can vary length of unfoldable sequence \verb|a_0_7 : any*[0..10]| or \verb|a_0_7 : any*[1..8]|.
+Also one can increase (or decrease for some reason) the minimal height of stem, or add pseudoknots description in the grammar (in case of usage of conjunctive grammars instead of context-free one).
 
 \begin{figure}
 \centering
 \includegraphics[width=.5\textwidth]{figures/16sgrammar.pdf}
-\caption{!!!}
-\label{fig:ss}
+\caption{Graphical explanation of pattern which is described by grammar in the figure~\ref{fig:cfg-rna}}
+\label{fig:cfg-rna-graphical}
 \end{figure}
 
 \subsection{Parsing Algorithm}
@@ -136,7 +160,7 @@ Matrices.
 
 Valiant~\cite{Valiant:1975:GCR:1739932.1740048} --- subcubic algorithm based on matrix multiplication.
 
-Rustam~\cite{Azimov:2018:CPQ:3210259.3210264} --- generalization for graph. Theoretical time complexity is !!! than complexity of the Valiant's algorithm, but in practice these algorithm avoid machnery on submatrices manipulation and demonstarte better performence with simple implementation.
+Rustam~\cite{Azimov:2018:CPQ:3210259.3210264} --- generalization for graph. Theoretical time complexity is !!! than complexity of the Valiant's algorithm, but in practice these algorithm avoid machinery on submatrices manipulation and demonstrate better performance with simple implementation.
 
 Sparse matrices, boolean, GPGPU, etc.
 
@@ -144,9 +168,9 @@ Matrix-based approach can be generalized to conjunctive and even boolean grammar
 
 \subsection{Matrices}
 
-\noindent The result of parsing is a set of squere boolean matrices. 
+\noindent The result of parsing is a set of square boolean matrices. 
 Each matrix $M_N$ contains information of all substrings which can be derived from nontermnal $N$.
-In the oter word, $M_N[i,j]=1$ iff $N \Rightarrow^*_G w[i,j]$ where $w$ is the input sequence and $G$ is context-free grammar, and $N$ is a nonterminal.
+In the other word, $M_N[i,j]=1$ iff $N \Rightarrow^*_G w[i,j]$ where $w$ is the input sequence and $G$ is context-free grammar, and $N$ is a nonterminal.
 
 Detailed description
 
@@ -171,19 +195,19 @@ We can select nonterminals of interest.
 %  }
 
 Empty triangle can be omitted.
-In order to handle matrices by using newral networks we vectorize it.
+In order to handle matrices by using neural networks we vectorize it.
 Row by row.
 Complression to int or byte.
 It is the reason why we want to try boolean networks.
 
 \subsection{Neural Networks}
 
-\noindent One of possible choice for classificaton.
+\noindent One of possible choice for classification.
 Classical scenario is to provide features vectors and try to classify them which meens that network can select important features for each class.
 In our case ht fact that ``$w[i,j]$ is derivable from nonterminal $N$'' which is encoded in the matrix is a feature.
 So, matrix is a set (or vector) of features.
 
-We use dense neural network because locality is broken during vectorisation and any convolutons is inapplicable.
+We use dense neural network because locality is broken during vectorization and any convolutions is inapplicable.
 
 Current architecture and its motivation and explanation.
 Huge dropout and batch normalization.
@@ -191,7 +215,7 @@ Huge dropout and batch normalization.
 \subsection{Examples}
 \label{sec:examples}
 
-\noindent Here we provide more examples of matrices and point out some observations obout it.
+\noindent Here we provide more examples of matrices and point out some observations about it.
 
 As mentioned above, pseudoknots can not be expressed in terms of context-free grammars. 
 But 
@@ -296,7 +320,7 @@ Construct network which can handle sequences, not parsing data.
 It may help to create an embedding.
 It may be done by the next way.
 \begin{enumerate}
-\item Build and train the network which hanle vectorized matricres.
+\item Build and train the network which handle vectorized matrices.
 \item Extend this network with head which should convert sequence to !!!
 \item Train. Weights of first network is fixed.
 \item For concrete problem we can tune weights for full network after second trained to appropriate quality.
