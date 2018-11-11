@@ -1,0 +1,318 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+
+\title{Parsing by matrix multiplication}
+\author{---}
+\date{October 2018}
+
+
+\usepackage[left=2cm,right=2cm,
+    top=2cm,bottom=2cm,bindingoffset=0cm]{geometry}
+\usepackage{natbib}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{amsmath}
+\usepackage[amsmath,amsthm,thmmarks]{ntheorem}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{minted}
+\usepackage{verbments}
+\usepackage{caption}
+\usepackage{algorithmicx}
+\usepackage{amssymb}
+\usepackage{tikz} 
+\usepackage{pgfplots} 
+\usepackage{sidecap} 
+\usepackage{soul}
+\usepackage{xcolor}
+\usepackage{tabu}
+\usepackage{float}
+
+% Package to generate and customize Algorithm as per ACM style
+\usepackage[ruled, linesnumbered]{algorithm2e}
+\renewcommand{\algorithmcfname}{Algorithm}
+\SetAlFnt{\small}
+\SetAlCapFnt{\small}
+\SetAlCapNameFnt{\small}
+\SetAlCapHSkip{0pt}
+\IncMargin{-\parindent}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+
+
+ $\quad$ Since the theory of context-free grammars was developed by Noam Chomsky, its applications have been studied extensively. Context-free grammars have been used to describe programming languages. But recent research has shown that the theory of formal languages and, in particular, context-free languages can be used in bioinformatics.
+ 
+ It was therefore important to develop more efficient recognition or parsing algorithms. One of the basic parsing algorithms is the Cocke–Kasami–Younger algorithm(CYK)\citep{kasami,younger}, which computes a parsing table with the time complexity O($n^3$), where n is the length of the input string.
+ 
+ All further parsing algorithms had the same cubic-time complexity\citep{earley} or could work only with sub-classes of context-free grammars\citep{bernardy}, until Leslie Valiant presented new, asymptotically more efficient parsing algorithm\citep{valiant}. Just as the CYK, Valiant's algorithm computes the same parsing table, but its main difference is replacing most of computations with matrix multiplication. Thereafter, Okhotin generalized Valiant's algorithm to the class of boolean grammars and also improved its performance and understandability\citep{okhotin}.
+ 
+ This paper aims to present a modification of Valiant's algorithm, which can be simply applied to the string-matching problem, for example, for sequences processing in bionformatics. Also the algorithm described here is accompanied with the proof of correctness and evaluation of time complexity which is  $O(|G|BMM(n)log(n))$ for an input string of length n, where BMM(n) is the number of operations needed to multiply two Boolean matrices of size $n \times n$. 
+ 
+ 
+ 
+ 
+ \section{Background}
+ 
+  $\quad$ In this section we briefly describe the key definitions and the basic parsing algorithms which are necessary for further understanding of the results obtained in this paper.
+  
+ \subsection{Terminology}
+ 
+  $\quad$ $\Sigma$ is a finite nonempty set called an alphabet, $\Sigma^{*}$ is a set of all finite strings over $\Sigma$. A grammar is a quadruple $(\Sigma, N, R, S)$, where $\Sigma$ is a finite set of terminals, N is a finite set of nonterminals, R is a finite set of productions of the form $\alpha \rightarrow \gamma$, where $\alpha \in V^{*}NV^{*}$, $\gamma \in V^{*}$, $V = \Sigma \cup N$ and $S \in N$ is a start symbol. 
+ 
+ \textbf{Definition 1.} Grammar $G = (\Sigma, N, R, S)$ is called context-free, if $\space\forall r \in R$ are of the form $A \rightarrow \beta$, where $A \in N, \beta \in V^{+}$. 
+ 
+ \textbf{Definition 2.} Context-free grammar $G = (\Sigma, N, R, S)$ is said to be in Chomsky normal form if $\space\forall r \in R$ are of the form: 
+ \begin{itemize}
+   \item $A \rightarrow BC$,
+   \item $A \rightarrow a$,
+   \item $S \rightarrow \epsilon$, 
+ \end{itemize}
+ where $A, B, C \in N, a \in \Sigma, \epsilon$ is an empty string. 
+ 
+ \textbf{Definition 3.} $L_{G}(A)$ is language of grammar $G_{A} = (\Sigma, N, R, A)$, which means all the sentences that can be derived in a finite number of steps from the start symbol A.
+ 
+  \subsection{Parsing by matrix multiplication}
+  
+  $\quad$  The main problem of parsing is to verify if the input string belongs to the language of some given grammar $L_{G}$. In this section we will describe parsing algorithm, based on matrix multiplication. It has been proposed by Leslie Valiant and is the most asymptotically efficient parsing algorithm, which works for all context-free grammars, although they can be generalized to conjunctive and boolean grammars due to Alexander Okhotin. 
+  
+  The CYK algorithm is a basic parsing algorithm. Its main idea is to construct for an input string $a_{1}a_{2}...a_{n}$ a parsing table T of size $n \times n$,  where $T_{i, j} =  \{ A |  a_{i + 1}...a_{j} \in L_{G}(A)\}$ $\forall i < j$, $G = (\Sigma, N, R, S)$ is a context-free grammar. 
+  
+  The elements of T are filled successively beginning with $T_{i - 1, i} = \{ A | A -> a_{i} \in R\}$. 
+  
+  Then, $T_{i, j} = f(P_{i, j})$, where $P_{i, j} = \bigcup\limits_{k = i + 1}^{j - 1} T_{i,k} \times T_{k, j}$, $f(P) = \{A | \exists A \rightarrow BC \in R : (B, C) \in P\}$.
+  
+  The input string $a_{1}a_{2}...a_{n}$ belongs to $L_{G}$ if and only if $S \in T_{0, n}$.
+  
+  The time complexity of this algorithm is $O(n^3)$. Valiant proposed to offload the most intensive computations to the Boolean matrix multiplication. As the most time-consuming is computing $\bigcup\limits_{k = i + 1}^{j - 1} T_{i, k} \times T_{k, j}$, Valiant rearranged computation of $T_{i, j}$, in order to use multiplication of submatrices of T. 
+  
+  \textbf{Definition 4.} Let $X \in (2^N)^{m \times l}$ and $Y \in (2^N)^{l \times n}$ be two submatrices of parsing table T. Then, $X \times Y = Z$, where $Z \in (2^{N \times N})^{m \times n}$ and $Z_{i, j} = \bigcup\limits_{k = 1}^{l} X_{i, k} \times Y_{k, j}$.
+  
+  In \textbf{Algorithm 1} full pseudo-code of Valiant's algorithm written in the terms proposed by Okhotin, is presented. All elements of T and P are initialized by empty sets. Then, the elements of these two table are successively filled by two recursive procedures.
+  
+  
+ % Algorithm1
+\begin{algorithm}
+\SetAlgoNoLine
+\KwIn{Grammar $G = (\Sigma, N, R, S), w = a_{1}...a_{n}, n \geq 1, a_{i} \in \Sigma$, where  n + 1 --- power of two}
+\underline{main()}{:}{
+ 
+ \textit{compute(0, n + 1)\;}
+ accept if and only if $S \in T_{0, n}$
+ \linebreak
+ }
+ 
+\underline{compute(\textit{l, m})}{:}{
+ \If {$m - l \geq 4$}{
+     \textit{compute(l, $\frac{l+m}{2}$)\;
+     compute($\frac{l+m}{2}$, m)}}
+ \textit{complete(l, $\frac{l+m}{2}$, $\frac{l+m}{2}$, m)}
+ \linebreak
+ }
+ 
+\underline{complete(\textit{l, m}, $l^\prime$, $m^\prime$)}{:}{
+ \If {$m - l = 4$ and $m = l^\prime$}{$T_{l, l + 1} = \{A | A \rightarrow a_{l+ 1} \in R\}$\;}
+ \ElseIf{$m - l = 1$ and $m < l^\prime$}{ $T_{l, l'} = f(P_{l, l'})$\;}
+ \ElseIf{$m - l > 1$}{
+    $B = (l, \frac{l+m}{2}, \frac{l'+m'}{2}, m'), B' = (\frac{l+m}{2}, m, l', \frac{l'+m'}{2}),\linebreak
+    C = (\frac{l+m}{2}, m, l', \frac{l'+m'}{2}), D = (l, \frac{l+m}{2}, l', \frac{l'+m'}{2}),\linebreak
+    D' = (\frac{l+m}{2}, m, \frac{l'+m'}{2}, m'), E = (l, \frac{l+m}{2}, \frac{l'+m'}{2}, m')$\;
+    complete(C)\;
+    $P_{D} = P_{D} \cup (T_{B} \times T_{C})$\;
+    complete(D)\;
+    $P_{D'} = P_{D'} \cup (T_{C} \times T_{B'})$\;
+    complete(D')\;
+    $P_{E} = P_{E} \cup (T_{B} \times T_{D'})$\;
+    $P_{E} = P_{E} \cup (T_{D} \times T_{B'})$\;
+    complete(E)
+    }
+ }
+  \textit{complete(l, $\frac{l+m}{2}$, $\frac{l+m}{2}$, m)}
+ 
+\caption{Parsing by matrix multiplication:  Valiant's Version}
+\end{algorithm}
+
+The procedure $compute(l, m)$ constructs the correct values of $T_{i,j} \forall l \le i < j < m$.
+
+The procedure $complete(l, m, l', m')$ constructs the submatrix $\forall T_{i, j}$ $l \le i < m$, $l' \le j < m'$. This procedure assumes $T_{i, j} \forall l \leq i < j < m,  l' \leq i < j < m'$ are already constructed and the current value of  $P[i, j] =  \{ (B, C) |\exists (m \le k < l'): a_{i + 1}...a_{k} \in L(B), a_{k + 1}...a_{j} \in L(C)\}$ $\forall l \leq i < m,  l' \leq j < m'$. 
+
+Then Valiant described that product of multiplying of two submatrices of parsing table T can be provided as $|N|^2$ Boolean matrices (for each pair of nonterminals). Denote matrix corresponding to pair $(B, C) \in N \times N$ as $Z^{(B, C)}$, then $Z_{i, j}^{(B, C)} = 1$ if and only if $(B, C) \in Z_{i, j}$. It should also be noted that $Z^{(B, C)} = X^{B} \times Y^{C}$. So, matrix multiplication in \textbf{Definition 4} can be replaced by Boolean matrix multiplication, each of which can be computed independently. Following these changes, time complexity of \textbf{Algorithm 1} is $O(|G|BMM(n)log(n))$ for an input string of length n, where BMM(n) is the number of operations needed to multiply two Boolean matrices of size $n \times n$.
+
+\section{Modification of Valiant's algorithm}
+ 
+ $\quad$ In this section we describe the modification of Valiant's algorithm, which has a number of advantages, such as possibility to broke it down into several subtasks that can be processed independently. Also this version can be simply applied to the string-matching problem, which often arises in text editing, DNA and RNA sequence analysis.
+ 
+ The main change of this modification is to divide the parsing table into layers of disjoint submatrices of the same size.
+ The division, we have made from the reorganization of the matrix multiplication order, is presented in \textbf{Figure 1}. 
+ The layers are computes successively from the bottom up.
+ 
+\begin{figure}[h!]
+\centering
+\includegraphics[scale=0.4]{layers}
+\caption{Division of the parsing table into layers}
+\label{fig:universe}
+\end{figure}
+
+ Let us consider the pseudo-code of the modification, which is written in \textbf{Algorithm 2}. The procedure $main()$ computes the lowest layer ($T_{l, l+1}$), and then divide the table into layers, described earlier, and computes them through the $completeVLayer()$ call. Thus, $main()$ computes all elements of parsing table T correctly.
+ 
+ Denote some subsidiary functions for matrix $m$:
+  \begin{itemize}
+   \item $bottom(m) = (\frac{l+m}{2}, m, l', \frac{l'+m'}{2})$,
+   \item $left(m) = (l, \frac{l+m}{2}, l', \frac{l'+m'}{2})$,
+   \item $right(m) = (\frac{l+m}{2}, m, \frac{l'+m'}{2}, m')$, 
+   \item $top(m) = (l, \frac{l+m}{2}, \frac{l'+m'}{2}, m')$.
+ \end{itemize}
+ 
+ The procedure $completeVLayer(M)$ takes an array of disjoint submatrices M. For each $m = (l, m, l', m') \in M$ this procedure computes $left(m), right(m), top(m)$. The procedure assumes that the elements of $bottom(m)$ and all $T_{i, j} \forall l \leq i < j < m,  l' \leq i < j < m'$ are already constructed. Also it is assumed that the current value of  $P[i, j] =  \{ (B, C) |\exists (m \le k < l'): a_{i + 1}...a_{k} \in L(B), a_{k + 1}...a_{j} \in L(C)\}$ $\forall l \leq i < m,  l' \leq j < m'$.
+ 
+ The procedure $completeLayer(M)$ also takes an array of disjoint submatrices M, but unlike the previous one, it computes $T_{i, j} \forall (i, j) \in m$. This procedure, just as in the previous case, assumes that  $T_{i, j} \forall l \leq i < j < m,  l' \leq i < j < m'$ are already constructed and the current value of  $P[i, j] =  \{ (B, C) |\exists (m \le k < l'): a_{i + 1}...a_{k} \in L(B), a_{k + 1}...a_{j} \in L(C)\}$ $\forall l \leq i < m,  l' \leq j < m'$.
+ 
+ \textbf{Algorithm 3} describes how the procedure $performMultiplication(task)$, where $task$ is an array of a triple of submatrices, works. It is worth mentioning that, as distinct from the original algorithm, $|tasks| \ge 1$ and all these multiplications can be computed independently.
+ 
+
+% Algorithm2
+\begin{algorithm}
+\SetAlgoNoLine
+\KwIn{Grammar $G = (\Sigma, N, R, S), w = a_{1}...a_{n}, n \geq 1, a_{i} \in \Sigma$, where  n + 1 --- power of two}
+\underline{main()}{:}{
+ 
+ \For {$l \in \{1, \ldots, n \}$}{$T_{l, l + 1} = \{A | A \rightarrow a_{l + 1} \in R\}$}
+ \For{$1 \le i < k $}{
+ layer = $\textit{constructLayer(i)}$\;
+ \textit{completeVLayer(layer)}
+ }
+ \BlankLine
+ }
+ 
+\underline{constructLayer(i)}{:}{
+ \BlankLine
+ $\{B | \exists k \geq 0 : B = (k*2^i, (k+1)*2^i, (k + 1)*2^i, (k+2)*2^i) \}$
+ \BlankLine
+    }
+\underline{completeLayer(M)}{:}{
+\BlankLine
+\If {$\forall (l, m, l', m') \in M \quad (m - l = 1)$}{\For{$ (l, m, l', m') \in M$}{$T_{l, l'} = f(P_{l, l'})$\;}}
+\Else{
+bottomLayer =  $\{ (\frac{l+m}{2}, m, l', \frac{l'+m'}{2}) | (l, m, l', m') \in M\}$\;
+\textit{completeLayer(bottomLayer)}\;
+\textit{completeVLayer(M)}
+}
+\BlankLine
+}
+ 
+\underline{comleteVLayer(M)}{:}{
+ \BlankLine
+ leftSubLayer = $\{ (l, \frac{l+m}{2}, l', \frac{l'+m'}{2}) | (l, m, l', m') \in M\}$\;
+ rightSubLayer = $\{ (\frac{l+m}{2}, m, \frac{l'+m'}{2}, m') | (l, m, l', m') \in M\}$\;
+ topSubLayer = $\{ (l, \frac{l+m}{2}, \frac{l'+m'}{2}, m') | (l, m, l', m') \in M\}$\;
+ multiplicationTask1 = $\{(l, m, l', m'), (l, m, m, 2m - l), (m, 2m - l, l', m') | (l, m, l', m') \in leftSubLayer\} \cup \linebreak  \{(l, m, l', m'), (l, m, 2l' - m', l'), (2l' - m', l', l', m') | (l, m, l', m') \in rightSubLayer\}$\;
+ \BlankLine
+ multiplicationTask2 = $\{(l, m, l', m'), (l, m, m, 2m - l'), (m, 2m - l, l', m') | (l, m, l', m') \in topSubLayer\}$\;
+ \BlankLine 
+ multiplicationTask3 = $\{(l, m, l', m'), (l, m, 2l' - m', l'), (2l' - m', l', l', m') | (l, m, l', m') \in topSubLayer\}$\;
+ \BlankLine
+ \textit{performMultiplications(multiplicationTask1)}\;
+ \textit{completeLayer(leftSubLayer $\cup$ rightSubLayer)}\;
+ \textit{performMultiplications(multiplicationTask2)}\;
+ \textit{performMultiplications(multiplicationTask3)}\;
+ \textit{completeLayer(topSubLayer)}
+ 
+ }
+
+\caption{Parsing by matrix multiplication:  Modified Version}
+\end{algorithm}
+
+ % Algorithm3
+\begin{algorithm}[h!]
+\SetAlgoNoLine
+\underline{performMultiplication(task)}{:}{\\
+\For{$ (m, m1, m2) \in M$}{$P_{m} = P_{m} \cup (T_{m1} \times T_{m2})$\;}
+}
+\caption{}
+\end{algorithm}
+
+\section{Proof of correctness}
+
+ $\quad$ In this section ...\\
+
+\textbf{Theorem 1.}
+
+Let M be a submatrix array. Assume that $T[i, j] =  \{ A |  a_{i + 1}...a_{j} \in L(A)\}$ $\forall l \leq i < j < m,  l' \leq i < j < m'$ and $P[i, j] =  \{ (B, C) |\exists (m \le k < l'): a_{i + 1}...a_{k} \in L(B), a_{k + 1}...a_{j} \in L(C)\}$ $\forall l \leq i < m,  l' \leq j < m'$ $\forall (l, m, l', m') \in M$.
+
+Then the procedure $\textit{completeLayer(M)}$, returns correctly computed sets of $T[i, j]$ $\forall l \leq i \le m,  l' \leq j \le m'$ $\forall (l, m, l', m') \in M$. 
+
+\textbf{Proof.}
+
+Induction on $\textit{m - l}$. (Hereinafter denoting (l, m, l', m') as a typical example of array M, and all the computations are implemented for all submatrices in M).
+
+The base case: $\textit{m - l}$ = 1. There is only one element to compute, and $P[l, l'] =  \{ (B, C) |  a_{l + 1}...a_{l'} \in L(B)L(C)\}$. Further, algorithm computes $f(P[l, l']) = \{ A |  a_{l + 1}...a_{l'} \in L(A)\}$, so $T[l, l']$ computed correctly.
+
+For the induction step, assume that (l1, m1, l2, m2) is correctly computed for $m2 - l2 = m1 - l1 > m - l$.
+
+Let us consider complete $\textit{completeLayer(M)}$, where $\textit{m - l} >$ 1.
+
+Firstly, consider $\textit{completeLayer(bottom = \{$(\frac{l+m}{2}, m, l', \frac{l'+m'}{2})$\})}$, as theorem conditions are fulfilled, then this call returns correct sets $T[i, j]$ $\forall (i, j) \in bottom$ (hereinafter is means $\forall (i, j) \in m$ $\forall m \in bottom$). All submatrices with size $ m1 - l1 > m - l$, all previous layers and also $\textit{bottom(M)}$ are correct, so, $\textit{completeVLayer(M)}$ can be called, and $\textit{multiplicationByTask(task1)}$ adds to each $P[i, j]$ $\forall (i, j) \in left = \{(\frac{l+m}{2}, m, l', \frac{l'+m'}{2}))\}$ all pairs $\{ (B, C) |\exists (\frac{l+m}{2} \le k < l'): a_{i + 1}...a_{k} \in L(B), a_{k + 1}...a_{j} \in L(C)\}$ and $\forall (i, j) \in right = \{(\frac{l+m}{2}, m, \frac{l'+m'}{2}, m')\}$ all pairs $\{ (B, C) |\exists (m \le k < \frac{l'+m'}{2}): a_{i + 1}...a_{k} \in L(B), a_{k + 1}...a_{j} \in L(C)\}$. Now all the theorem conditions are fulfilled so, it is possible to call $\textit{completeLayer($left \cup right$)}$, which returns correct sets $T[i, j]$ $\forall (i, j) \in ($left \cup right$)$. 
+
+Next, \textit{multiplicationByTask(task2)} and \textit{multiplicationByTask(task3)} add to each $P[i, j]$ \linebreak $\forall (i, j) \in top = \{(l, \frac{l+m}{2}, \frac{l'+m'}{2}, m'))\}$ all pairs $\{(B, C) |\exists (\frac{l+m}{2} \le k < m) and (l' \le k < \frac{l'+m'}{2}) : a_{i + 1}...a_{k} \in L(B), a_{k + 1}...a_{j} \in L(C)\}$. Now all the theorem conditions are fulfilled so, it is possible to call $\textit{completeLayer(top)}$, which returns correct sets $T[i, j]$ $\forall (i, j) \in top$. 
+
+Thus, all $T[i, j]$ $\forall (i, j) \in M$ are computed correctly. $\square$\\
+
+\textbf{Theorem 2.}
+
+Let M be a submatrix array. Assume that, $T[i, j] =  \{ A |  a_{i + 1}...a_{j} \in L(A)\}$ $\forall l \leq i < j < m,  l' \leq i < j < m'$ and $\forall b1 \leq i < b2$,  $b3 \leq j < b4$, where $(b1, b2, b3, b4) = (\frac{l+m}{2}, m, l', \frac{l'+m'}{2})$, also $P[i, j] =  \{ (B, C) |\exists (m \le k < l'): a_{i + 1}...a_{k} \in L(B), a_{k + 1}...a_{j} \in L(C)\}$ $\forall l \leq i < m,  l' \leq j < m'$ $\forall (l, m, l', m') \in M$.
+
+Then, the procedure $\textit{completeVLayer(M)}$, returns correctly computed sets of $T[i, j]$ $\forall l \leq i \le m,  l' \leq j \le m'$ $\forall (l, m, l', m') \in M$. 
+
+\textbf{Proof.}
+
+The proof is similar to the proof of Theorem 1. \\
+
+\textbf{Statement.}
+
+Function $\textit{costructLayer(i)}$ returns $2^{k - i} - 1$ matrices of size $2^i$.\\
+
+\textbf{Lemma.}
+
+ \begin{itemize}
+ \item $\forall i \in \{ 1, .., k - 1\}$  $\sum{|layer|}$ for the calls of $\textit{completeVLayer(layer)}$ where $\forall (l, m, l', m') \in layer$ with $m - l = 2^{k - i}$  is exactly $2^{2i - 1} - 2^{i - 1}$;
+ \item $\forall i \in \{ 1, .., k - 1\}$ products of submatrices of size $2^{k - i} \times 2^{k - i}$ are calculated exactly $2^{2i - 1} - 2^{i}$
+ \end{itemize}
+
+\textbf{Proof.}
+
+The base case: i = 1. $\textit{completeVLayer(layer)}$ where $\forall (l, m, l', m') \in layer$ with $m - l = 2^{k - 1}$ is called only once in the  $\textit{main()}$ and $|layer| = 1$. So, $2^{2i - 1} - 2^{i - 1} = 2^1 - 2^0 = 1$.
+
+For the induction step, assume that $\forall i \in \{ 1, .., j\}$ $\sum{|layer|}$ for the calls of $\textit{completeVLayer(layer)}$ where $\forall (l, m, l', m') \in layer$ with $m - l = 2^{k - i}$  which is exactly $2^{2i - 1} - 2^{i - 1}$.
+
+Let us consider i = j + 1. 
+
+Firstly, it is the call of $\textit{completeVLayer(costructLayer(k - i))}$, where $\textit{costructLayer(i)}$ returns $2^i - 1$ matrices of size $2^i$. Secondly, $\textit{completeVLayer(layer)}$ is called 3 times for the left, right and top submatrices of size $2^{k - (i - 1)}$. Finally, $\textit{completeVLayer(layer)}$ is called 4 times for the bottom, left, right and top submatrices of size $2^{k - (i - 2)}$, except $2^{i - 2} - 1$ matrices which were already computed.
+
+Then, $\sum{|layer|} = 2^{i} - 1 + 3 \times (2^{2(i - 1) - 1} - 2^{(i - 1) - 1}) + 4 \times (2^{2(i - 2) - 1} - 2^{(i - 2) - 1}) - (2^{i - 2} - 1) = 2^{2i - 1} - 2^{i - 1}$. 
+
+To calculate the number of products of submatrices of size $2^{k - i} \times 2^{k - i}$, we consider the calls of \linebreak $\textit{completeVLayer(layer)}$ where $\forall (l, m, l', m') \in layer$ with $m - l = 2^{k - (i - 1)}$, which is $2^{2(i - 1) - 1} - 2^{(i - 1) - 1}$. During these calls $performMultiplications$ run 3 times, $|multiplicationTask1| = 2 \times 2^{2(i - 1) - 1} - 2^{(i - 1) - 1}$ and \linebreak $|multiplicationTask2| = |multiplicationTask3| = 2^{2(i - 1) - 1} - 2^{(i - 1) - 1}$. So, the number of products of submatrices of size $2^{k - i} \times 2^{k - i}$ is $4 \times (2^{2(i - 1) - 1} - 2^{(i - 1) - 1}) = 2^{2i - 1} - 2^{i}$. $\square$\\
+
+\textbf{Theorem 3.}
+
+The time complexity of the Algorithm 1 is $O(|G|BMM(n)log(n))$ for an input string of length n, where G is a context-free grammar in Chomsky normal form, BMM(n) is the number of operations needed to multiply two Boolean matrices of size $n \times n$.
+
+\textbf{Proof.}
+
+The proof is almost identical with that of the theorem given by Okhotin \citep{okh}, because, as shown in the last lemma, the Algorithm 1 has the same number of products of submatrices. $\square$\\
+
+
+\section{Applications}
+
+
+\bibliographystyle{plain}
+\bibliography{references}
+\end{document}
+
+
+
+
+
+
