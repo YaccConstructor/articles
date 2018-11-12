@@ -33,15 +33,15 @@
 
 \abstract
 {
-We propose a way to combine formal grammar and artificial neural networks for biological sequences processing.
-Formal grammar is used for utilization information about sequence secondary structure and neural networks allow us to deal with mutations and noise.
-In contrast to the classical way when \textbf{probabilistic} grammars are used for secondary structure modeling, we propose to use \textbf{arbitrary (not probabilistic)} grammars which simplifies grammar creation.
-Instead of modeling the structure of the full sequence, we create a grammar which describes features of the secondary structure.
-Then we use undirected matrix-based parsing for features extraction: the fact that some substring is derivable from some nonterminal is a feature. 
-And after that, we use a dense neural network for features processing.
-In this paper, we provide a detailed description for all the parts of our receipt: grammar, parsing algorithm, and network architecture.
-Also, we discuss possible ways for improvements and future work.
-Finally, we provide the results of tRNA and 16s rRNA processing which shows that our idea can be applied to solve real problems.
+We propose a way to combine formal grammars and artificial neural networks for biological sequences processing.
+Formal grammars is used for encode sequence secondary structure and neural networks deal with mutations and noise.
+In contrast to the classical way, when \textbf{probabilistic} grammars are used for secondary structure modeling, we propose to use \textbf{arbitrary (not probabilistic)} grammars which simplifies grammar creation.
+Instead of modeling the structure of the whole sequence, we create a grammar which only describes features of the secondary structure.
+Then we use undirected matrix-based parsing to extract features: the fact that some substring can be derived from some nonterminal is a feature. 
+And after that, we use a dense neural network to precess features.
+In this paper, we describe in details all the parts of our receipt: a grammar, parsing algorithm, and network architecture.
+Also, we discuss possible improvements and future work.
+Finally, we provide the results of tRNA and 16s rRNA processing which shows the applicability of our idea to real problems.
 }
 
 \onecolumn \maketitle \normalsize \vfill
@@ -49,62 +49,63 @@ Finally, we provide the results of tRNA and 16s rRNA processing which shows that
 \section{\uppercase{Introduction}}
 \label{sec:introduction}
 
-\noindent Accurate, fast, and precise sequences classification and subsequences detection are the open problems in different areas of bioinformatics, such as genomics and proteomics. 
-Challenge here is a high variability of sequences belonging to the same class (or one want to mark as the same class).
-Probabilistic models, such as Hidden Markov's Models (HMMs) or probabilistic (stochastic) grammars (PCFGs, SCFGs), can help to deal with variability.
-Formal grammars are more successful in long-distance connections handling.
-Moreover, grammars can model the secondary structure of sequences more explicitly.
+\noindent Accurate, fast, and precise sequences classification and subsequences detection are open problems in such areas of bioinformatics as genomics and proteomics. 
+Challenge here is high variability of sequences belonging to the same class.
+Probabilistic models, such as Hidden Markov's Models (HMMs) or probabilistic (stochastic) grammars (PCFGs, SCFGs), help to deal with variability.
+Formal grammars are more successful in handling long-distance connections.
+Moreover, grammars model the secondary structure of sequences more explicitly.
 
-For example, algorithms that can efficiently and accurately identify and classify bacterial taxonomic hierarchy have become a focus in computational genomics.
-The idea that the secondary structure of genomic sequences is sufficient for solving the detection and classification problems lies at the heart of many tools~\cite{GrammarsRNA,PCFG,meta,LWPCFG}.
-One of the ways to specify the secondary structure is to use formal grammars. 
+For example, algorithms that can efficiently and accurately identify and classify bacterial taxonomic hierarchy became a focus in computational genomics.
+The idea that the secondary structure of genomics sequences is sufficient for solving the detection and classification problems lies at the heart of many tools~\cite{GrammarsRNA,PCFG,meta,LWPCFG}.
 The problem here is that the sequences obtained from the real bacteria usually contain a huge number of mutations and noise which renders precise methods impractical. 
 Probabilistic grammars and covariance models (CMs) are a way to take the noise into account~\cite{EddyDurbin}, but it is difficult to create (train or learn) high-quality grammar or model.
 However, CMs are successfully used in some tools, for example, the Infernal tool~\cite{Infernal}.
 
 Neural networks are another way to deal with noisy data. 
-The works~\cite{Humidor,ANN} utilize neural networks for 16s rRNA processing and demonstrate promising results.
+The works~\cite{Humidor,ANN} utilize artificial neural networks for 16s rRNA processing and demonstrate promising results.
 But these works do not use information about the secondary structure of sequences.
 
-In this work, we propose a way to combine formal grammars, which involves secondary structure features, and neural networks for sequences processing.
-The key idea is not to try to model the full (sub)sequence of interest by grammar, but to create a grammar which describes features of secondary structure and to use a neural network for these features processing.
+In this work, we propose a way to combine formal grammars and neural networks for sequences processing.
+The key idea is not to try to model the full (sub)sequence of interest by a grammar, but to create a grammar which describes features of secondary structure and to use a neural network for these features processing.
+We show that proposed approach can detect features that are not expressible in the class of used grammars.
+For example, neural network
 We provide an evaluation of the proposed approach for tRNA classification and 16s rRNA detection.
-Results show that the proposed approach may be applicable.
+Results show that the proposed approach is applicable for real problems.
 
 \section{\uppercase{Proposed solution}}
 \label{sec:proposedSolution}
 
-\noindent We propose to combine neural networks and ordinary context-free grammars (not probabilistic which are usually used in this area) in order to handle information of sequences' secondary structure. 
+\noindent We combine neural networks and ordinary context-free grammars (not probabilistic which are usually used in this area) in order to handle information of sequences secondary structure. 
 Namely, we propose to extract secondary structure features by using the ordinary context-free grammar and use the dense neural network for features processing.
-Features can be extracted by any parsing algorithm and then presented as a boolean matrix, but we choose the parsing algorithm based on matrix multiplication.
+Our solution is not dependent on parsing algorithm: features can be extracted by any parsing algorithm and then presented as a boolean matrix, and we choose the parsing algorithm based on matrix multiplication.
 
 In this section, we describe all the components of our recipe and provide some examples end explanations.
  
 \subsection{Context-Free Grammars}
 
 \noindent The first component is a context-free grammar. 
-It is a well-known fact that the secondary structure of the sequence may be approximated by using formal grammars.
-There is a number of works that utilize this fact for different purposes~\cite{GrammarsRNA,LWPCFG,zier2013rna,knudsen2003pfold}.
+It is well known that the secondary structure of the sequence may be approximated by using formal grammars.
+Several works utilize this fact~\cite{GrammarsRNA,LWPCFG,zier2013rna,knudsen2003pfold}.
 
-Probabilistic context-free grammars are usually used for secondary structure modeling because it allows to deal with variations (mutations or some kinds of noise).
-In the opposite of it, we use ordinary (not probabilistic) grammars.
-Our goal is not to model the secondary structure of the whole sequence (which requires probabilistic grammars), but to describe features of the secondary structure, such as stems, loops, pseudoknots and their composition.
+Probabilistic context-free grammars are usually used for secondary structure modeling because it deals with variations (mutations or noise).
+As opposed to it, we use ordinary (not probabilistic) grammars.
+Our goal is not to model the secondary structure of the whole sequence (which requires probabilistic grammars), but rather to describe features of the secondary structure, such as stems, loops, pseudoknots and their composition.
 Of course, the set of feature types is limited by the class of grammar which we use.
-For example, pseudoknots can not be expressed by context-free grammars, but can be expressed using conjunctive grammars~\cite{KanchanDevi2017,zier2013rna,Okhotin:2001:CG:543313.543323} or multiple context-free ones~\cite{SEKI1991191,Riechert:2016:ADP:2972703.2972851}.
+For example, pseudoknots can not be expressed by context-free grammars, but can be expressed by conjunctive grammars~\cite{KanchanDevi2017,zier2013rna,Okhotin:2001:CG:543313.543323} or multiple context-free ones~\cite{SEKI1991191,Riechert:2016:ADP:2972703.2972851}.
 
 The context-free grammar $G_0$ which we use in our experiments is presented in figure~\ref{fig:cfg-rna}.
-It is a context-free grammar over the four-letters alphabet $\Sigma=\{A,C,G,T\}$ with start nonterminal \verb|s1|.
-This grammar describes composition of stems with bounded minimal height.
+It is a context-free grammar over the four-letters alphabet $\Sigma=\{A,C,G,T\}$ with the start nonterminal \verb|s1|.
+This grammar describes composition of stems of bounded minimal height.
 
 \begin{figure}
 \begin{verbatim}
-s1: stem<s0> any
+s1: stem<s0>
 
-any_str : any*[2..10]
+any_str : any_smb*[2..10]
 
 s0: any_str | any_str stem<s0> s0
 
-any: A | T | C | G
+any_smb: A | T | C | G
 
 stem1<s>: A s T | G s C | T s A | C s G 
 
@@ -126,64 +127,62 @@ First of all, we provide a brief description of grammar specification language.
 Left-hand side and right-hand side of the rule are separated by the \verb|:| sign.
 In the right-hand side, one can use extended regular expressions over union alphabet of terminals and nonterminals.
 Such constructions as bounded repetition and alternative are available.
-For example, \verb|any*[2..10]| is a bounded repetition and it stands that the nonterminal \verb|any| may be repeated any number of times from 2 up to 10.
-Example of the rule which uses alternatives is \texttt{any: A | T | C | G} which stands that \verb|any| is one of the four terminals.
+For example, \verb|any_smb*[2..10]| is a bounded repetition and it stands that the nonterminal \verb|any_smb| may be repeated any number of times from 2 up to 10.
+Example of the rule which uses alternatives is \texttt{any_smb: A | T | C | G} which stands that \verb|any_smb| is one of the four terminals.
 
-Another important feature of the language is the existance of parametric rules or meta-rules which allow one to create reusable grammar templates.
-More details on meta-rules one can find in~\cite{Thiemann:2008:MCG:1389449.1389465}.
+The grammar specification language also has parametric rules or meta-rules which are used to create reusable grammar templates.
+One can find more details on meta-rules in~\cite{Thiemann:2008:MCG:1389449.1389465}.
 The example of meta-rule in our grammar is \texttt{stem1<s>: A s T | G s C | T s A | C s G}.
-This rule has one parameter \verb|s| which stands for something that should be embedded into a stem.
+This rule is parametrized by \verb|s| which stands for something that should be embedded into a stem.
 Application of this rule to \verb|any_str| allows one to define stem with a loop of length from 2 up to 10.
-In our grammar we use meta-rules in order to describe stems with bounded minimal height: \verb|stem1<s>| is a stem with height exactly 1,  \verb|stem2<s>| is a stem with height exactly 2, and \verb|stem<s>| is a stem with height not lower than 3.
+In our grammar we use meta-rules in order to describe stems with bounded minimal height: \verb|stem1<s>| is a stem with height exactly 1,  \verb|stem2<s>| is a stem with height exactly 2, and \verb|stem<s>| is a stem with height greater or equal 3.
 
-Now we explain what this grammar meens.
+Now we explain what this grammar means.
 This grammar describes a recursive composition of stems.
 To see it one can look at the rule for \verb|s0| which is recursive and shows that composition of stems may be embedded into the stem (\verb|stem<s0>| in the right side of this rule).
 Every stem should have height not lower than 3 and can be built only from classical base pairs.
 Stems may be connected by an arbitrary sequence of length from 2 up to 10, and loops have the same length.
-Graphical explanation of this description one can find in figure~\ref{fig:cfg-rna-graphical}.
+One can find graphical explanation of this description in figure~\ref{fig:cfg-rna-graphical}.
 
 \begin{figure}
 \centering
 \includegraphics[width=.45\textwidth]{figures/16sgrammar.pdf}
-\caption{Graphical explanation of pattern which is described by grammar in the figure~\ref{fig:cfg-rna}}
+\caption{Graphical explanation of pattern specified by grammar $G_0$ in figure~\ref{fig:cfg-rna}}
 \label{fig:cfg-rna-graphical}
 \end{figure}
 
-Note that grammar is a variable parameter and may be tuned for specific cases.
-The grammar presented above is a result of a set of experiments, so there are no reasons to stand that it is the best grammar for secondary structure features extraction.
-For example, one can vary length of unfoldable sequence by changing rule for \verb|any_str|: \verb|any_str : any*[0..10]|, \verb|any_str : any*[1..8]|, or something else.
+Note, that grammar is a variable parameter of our solution and may be tuned for specific cases.
+The grammar presented above is a result of a set of experiments, so there is no reason to state that it is the best grammar for secondary structure features extraction.
+For example, one can vary length of unfoldable sequence by changing rule for \verb|any_str|: \verb|any_str : any_smb*[0..10]|, \verb|any_str : any_smb*[1..8]|, or something else.
 Also, one can increase (or decrease for some reason) the minimal height of stem or add some new features, such as pseudoknots, to the grammar (in case of usage of conjunctive grammars instead of the context-free one).
 
 
 \subsection{Parsing Algorithm}
 
-\noindent In the classical scenario, parsing is used for answering the question of whether or not the given sequence is derivable in the given grammar.
-Additionally, in case if a sequence is derivable, derivation tree may be provided as a result of parsing. 
+\noindent Parsing is used to determine if the given sequence can be derived in the given grammar.
+Additionally, when the sequence is derivable, derivation tree may be provided as a result of parsing. 
 It is a classical way: there is a huge number of works on modeling secondary structure of the full sequence of interest by using probabilistic grammars and respective parsing techniques~\cite{knudsen2003pfold,Browny1993StochasticCG,Knudsen2005StochasticCG}.
-We propose to use parsing as a feature extraction: we want not to check the derivability of the given string or find the most probable derivation but to find all the derivable substrings of given string for all nonterminals.
-So, we use undirected parsing.
+We propose to use parsing to extract features: rather than checking the derivability of the given string or find the most probable derivation we search for all the derivable substrings of given string for all nonterminals.
 
 CYK~\cite{Younger1967RecognitionAP} is a classical well-known algorithm for undirected parsing. 
-This algorithm and its modifications are traditionally used for PCFG/SCFG processing and, as a result, are used in a number of tools, but they demonstrate a poor performance on long sequences and big grammars~\cite{Liu2005}.
+This algorithm and its modifications are traditionally used for PCFG/SCFG processing and, as a result, are used in a number of tools, but they demonstrate poor performance on long sequences and big grammars~\cite{Liu2005}.
 
-An alternative approach is the usage of algorithms based on matrix multiplication, such as Valiant's algorithm~\cite{Valiant:1975:GCR:1739932.1740048} which provides subcubic parsing.
-
-In our work, we use another version of matrix-based algorithm~\cite{Azimov:2018:CPQ:3210259.3210264}.
-The theoretical time complexity of this algorithm is worse than the complexity of the Valiant's algorithm, but in practice, this algorithm avoids machinery on submatrices manipulation and demonstrates better performance along with a simple implementation.
-
-From the practical point of view, matrix-based algorithms allow to easily utilize advanced techniques, such as algorithms for sparse and boolean matrices, GPGPU-based libraries, etc.
+An alternative approach is to use the algorithms based on matrix multiplication, such as Valiant's algorithm~\cite{Valiant:1975:GCR:1739932.1740048}.
+From the practical standpoint, matrix-based algorithms allow to easily utilize advanced techniques, such as algorithms for sparse and boolean matrices, GPGPU-based libraries, etc.
 
 Moreover, the matrix-based approach can be generalized to conjunctive and even boolean grammars~\cite{OKHOTIN2014101}, as far as to multiple context-free grammars~\cite{mcfgMatrices}, which can provide a base for more expressive features descriptions handling without significant changes in other parts of our solution.
+
+In our work, we use a version of matrix-based algorithm~\cite{Azimov:2018:CPQ:3210259.3210264}.
+The theoretical time complexity of this algorithm is worse than the complexity of the Valiant's algorithm, but it demonstrates better performance in practice along with a simple implementation, since this algorithm avoids machinery on submatrices manipulation.
 
 \subsection{Matrices}
 
 \noindent The result of parsing is a set of square boolean matrices. 
 Each matrix $M_N$ contains information of all substrings which can be derived from the nonterminal $N$.
 In other words, $M_N[i,j]=1$ iff $N \Rightarrow^*_G w[i,j-1]$ where $w$ is the input sequence and $G$ is a context-free grammar, and $N$ is a nonterminal.
-Thus, the result of parsing is a set of matrices: one matrix for each nonterminal from grammar.
+Thus, the result of parsing is a set of matrices: one matrix for each nonterminal from the grammar.
 For further processing, we can select nonterminals of interest.
-In our case, for grammar $G_0$ we select matrix for the nonterminal \verb|s1|.
+In our case, for grammar $G_0$, we select matrix for the nonterminal \verb|s1|.
 
 \begin{figure}
 \centering
@@ -194,42 +193,45 @@ In our case, for grammar $G_0$ we select matrix for the nonterminal \verb|s1|.
 
 The example of such matrix is provided in figure~\ref{fig:matrix-simple-stem}.
 This matrix is a result of parsing of the sequence { \center{$w_1=$\texttt{CCCCATTGCCAAGGACCCCACCTTGGCAATCCC}} \\} w.r.t the grammar $G_0$.
-In the figure, one can see an upper right triangle of parsing matrix (bottom left is always empty, so omitted) with input string on the diagonal.
-Note that string is added only for example readability and real matrix does not contain input string, only results of its parsing.
-Each filled cell $[i,j]$ which contains 1 is denote that subsequence $w_1[i,j-1]$ is derivable from \verb|s1| in $G_0$ (so, this subsequence folds to stem with heigh 3 or more).
-In order to find stems with height more than 3 one should detect diagonal chains of 1-s: in our example stem has height equal to 10 and one can find chain of 1-s of the length $8=10-2$ (first 1 is a root of the stem of height 3 and each next 1 is a new base pair upon this stem --- root of the stem with height increased by one).
+One can see an upper right triangle of parsing matrix (bottom left is always empty, so omitted) with input string on the diagonal.
+Note that the string is added only for example readability and a real matrix does not contain the input string, only results of its parsing.
+Each filled cell $[i,j]$ which contains 1 denotes that the subsequence $w_1[i,j-1]$ is derivable from \verb|s1| in $G_0$ (so, this subsequence folds to a stem of height 3 or more).
+In order to find stems with height more than 3, one should detect diagonal chains of 1-s: in our example the stem is of height 10 and one can find chain of 1-s of the length $8=10-2$ (first 1 is a root of the stem of height 3 and each next 1 is a new base pair upon this stem --- root of the stem with height increased by one).
 Red boxes and contact map are added for navigation simplification.
 
 Our goal is to extract all the features of the secondary structure, so, our parser finds all the substrings which can be derived from \verb|s1|.
 As a result, there are some 1-s out of the chain.
 These are correct results: corresponded subsequences can be derived from \verb|s1|. 
-In the current example these 1-s may be treated as noise in some sense, but, as we show later, such behavior may be useful in some cases.
-Moreover, for long sequences with the complex structure, it may be not evident, which features of the secondary structure are principal.
+In the current example these 1-s may be treated as noise in some sense, but such behavior may be useful in some cases, as we show later.
+Moreover, for long sequences with the complex structure, it may be not evident, which features of the secondary structure are most important.
 
 We use these matrices as an input for the artificial neural network which should detect sufficient features (long chain in our example) and utilize them for applied problem solution (sequence detection or classification, for example).
-We drop out the bottom left triangle and vectorize matrices row-by-row in order to get a bit vector, then convert it to a byte vector and use as an input.
+We drop out the bottom left triangle and vectorize matrices row-by-row in order to get a bit vector, then convert it to a byte vector and use it as an input.
 The transition from bit vector to byte vector is done in order to decrease the input size which is critical for long sequences. 
 On the other hand, such operation may significantly complicate network architecture and training, and it is a reason to try to use bitwise networks~\cite{DBLP:journals:corr:KimS16} in the future.  
 
 \subsection{Artificial Neural Networks}
 
-\noindent Artificial neural networks are one of the possible choices for different classification problems in the case when data has a hard-to-formalize principal for problem features and contains some kinds of noise. Different types of networks are successfully utilized for images, speech, and natural languages processing.
+\noindent Artificial neural networks are one of the possible choices for different classification problems in case when data has a hard-to-formalize principal for problem features and contains noise.
+Different types of networks suit for images, speech, and natural languages processing.
 
-Classical scenario for classification problems is to provide features vectors and try to classify them, which means that network can select important features for each required class.
-In our case, the fact that $w[i,j-1]$ is derivable from nonterminal $N$ which is encoded in the matrix is exactly a feature.
+Classical scenario for classification problems is to provide features vectors and to classify them, meaning that network can select important features for each required class.
+In our case, the fact that $w[i,j-1]$ is derivable from nonterminal $N$ is a feature.
+These facts are encoded in the parsing matrix.
 So, the vectorized matrix is a vector of features which is a typical input for a neural network.
 
 We use dense neural network because data locality is broken during vectorization and any convolutions are inapplicable.
 Moreover, convolutions are used mostly for features extraction, but in our case features are already extracted by parsing.
-Thus we need only to detect principal features and relations between them.
-And it is a typical area for dense networks.
+Thus we need to only detect principal features and relations between them.
+It is best done with dense networks.
 
 One of the problems with arbitrary data processing by using neural networks is the input size normalization.
-The input layer of the network has fixed size, but input sequence length and hence the length of vectorized parsing result may be varied even for the fixed task.
-For example, the length of tRNA may be approximately from 59 up to 250.
+The input layer of the network has fixed size, but input sequence length and hence the length of vectorized parsing result may vary even for the fixed task.
+For example, if we want to create solution fro tRNA processing, we should handle sequences of the length approximately from 59 up to 250.
 We propose two possible ways to solve this problem.
 The first way is subsequences processing: for some tasks, it may be enough to process not a full sequence, but only its subsequence.
 In this case we can set the length of subsequence lower than the shortest sequence which we want to handle. 
+This way is useful for long sequences processing (16s rRNA, for example) but can not be applied for short sequences processing because of the information loss.
 The second way is to set an upper bound and fill the gap with special symbols.
 For example, while handling tRNAs we can set the input length to 250 and when we want to process sequence of length 60, then we should fill the rest 190 places by selected special symbol.
 
@@ -240,7 +242,7 @@ Despite the fact that initially, batch normalization is an alternative for dropo
 \section{Examples}
 \label{sec:examples}
 
-\noindent Here we provide more examples of matrices and point out some observations about it in order to provide better intuition on our idea.
+\noindent Here we provide more examples of matrices and point out some observations about it in order to provide better intuition of our idea.
 
 \begin{figure}
 \centering
@@ -251,13 +253,13 @@ Despite the fact that initially, batch normalization is an alternative for dropo
 
 The first part is the observation about pseudoknots. 
 Let consider the following sequence which can fold to pseudoknot as an example: {\center{$w_2=$\texttt{CCACTTACCTATGACCTAAGTCCTCATACC.}\\}}
-Note, that loops are very short for example minimization.
+Note, that this sequence is synthetic.
 As mentioned above, pseudoknots cannot be expressed in terms of context-free grammars. 
 But one can mean pseudoknot as a two crossing stems in some sense, and the parser can extract both of them, as presented in figure~\ref{fig:pseudoknot}.
 So, if a neural network is powerful enough, it can detect that if these two features appear simultaneously, then the sequence contains pseudoknot.
 As a result, we can detect features which are not expressible in context-free grammars using the proposed way.
 
-The second is an example of a matrix for real tRNA.
+The second is an example of a matrix for the real tRNA.
 Parsing result of the tRNA\footnote{The sequence Novosphingobium\_aromaticivorans\_DSM\_12444\_chr.trna57-GlyGCC (268150-268084)  Gly (GCC) 67 bp Sc: 22.97. From GtRNAdb: \url{http://gtrnadb2009.ucsc.edu/download.html}. Access date: 02.11.2018.} sequence {\center{$w_3=$\texttt{CAGGGCATAACCTAGCCCAACCTTGCCAAGG \\ 
  TTGGGGTCGAGGGTTCGAATCCCTTCGCCCGCTCCA} \\ }} is presented in figure~\ref{fig:real-trna}. Also, one can see predicted secondary structures\footnote{Predicted secondary structures are given by using the Fold Web Server with default settings: \url{http://rna.urmc.rochester.edu/RNAstructureWeb/Servers/Fold/Fold.html} Access date: 02.11.2018.} (top two) in figures~\ref{fig:real-trna-folding1} and~\ref{fig:real-trna-folding2}.
 
@@ -278,7 +280,7 @@ Parsing result of the tRNA\footnote{The sequence Novosphingobium\_aromaticivoran
 
 Colored boxes in figure~\ref{fig:real-trna} marks features which correspond to these two predicted foldings: blue marks for~\ref{fig:real-trna-folding1} and red for~\ref{fig:real-trna-folding2}.
 Note, that our grammar $G_0$ handles only classical base pairs, so the pair \verb|G - T| which exists in predicted foldings, is not presented in parsing result.
-Anyway, we can see that all expected information on the secondary structure is presented in the matrix, of course, with some additional features.
+Anyway, we can see that all expected information on the secondary structure is presented in the matrix with some additional features, of course.
 And it is a field for neural networks --- to select appropriate features.
 
 \begin{figure*}
@@ -288,15 +290,15 @@ And it is a field for neural networks --- to select appropriate features.
 \label{fig:real-trna}
 \end{figure*}
 
-Thus we can conclude, that very nontrivial compositions of secondary structure features may be detected by using powerful enough neural networks.
-It is an interesting question for future research: what kinds of applications may be built by using such results?
+We conclude, that very nontrivial compositions of secondary structure features may be detected by powerful enough neural networks.
+What kinds of applications may be built by using such results is an interesting question for future research.
 
 \section{\uppercase{Evaluation}}
 \label{sec:evaluation}
 
 \noindent We evaluate the proposed approach on two cases: 16s rRNA detection and tRNA classification.
-Note that the goal of the evaluation is to demonstrate the applicability of approach which described above.
-So, we do not provide a comparison with existing tools and we do not try to solve real problems.
+Note that the goal of the evaluation is to demonstrate the applicability of the approach described above.
+So, we do not provide a comparison with existing tools because our solution is a prototype.
 All of these are tasks for future work.
 
 \subsection{16s rRNA Sequences}
@@ -311,7 +313,7 @@ After training, current accuracy is 90\% for validation set (up to 81000 sequenc
 \noindent The second problem is tRNA classification: we train a neural network to separate tRNAs into two classes: prokaryotes and eukaryotes.
 We prepare 50000 sequences from GtRNADB~\cite{Chan2009} for training: 35000 for training and 15000 for testing.
 In this case, we use the next trick for data size normalization.
-We set the upper bound of sequence length to 220 and after that we align real tRNA sequence $w$ in the following way: first $k$ symbols of the input is $w$ ($|w|=k$) and the rest $220-k$ symbols are filled by \verb|$| --- a special symbol which is not in input alphabet.
+We set the upper bound of sequence length to 220 and after that we align the real tRNA sequence $w$ in the following way: first $k$ symbols of the input is $w$ ($|w|=k$) and the rest $220-k$ symbols are filled by \verb|$| --- a special symbol which is not in input alphabet.
 
 Also, we prepare validation set which contains 217984 sequences for prokaryotes and 62656 sequences for eukaryotes.
 All data for validation was taken from tRNADB-CE\footnote{tRNADB-CE: tRNA gene database curated manually by experts. URL: \url{http://trna.ie.niigata-u.ac.jp/cgi-bin/trnadb/index.cgi}. Access date: 31.10.2018}~\cite{Abe2010}.
@@ -327,11 +329,11 @@ This network contains six dense layers and uses \verb|relu| and \verb|sigmoid| a
 \label{fig:nn}
 \end{figure}
 
-After training our network demonstrates accuracy of 97\%. 
+After training, our network demonstrates accuracy of 97\%. 
 For validation set we get the following results: 3276 of eukaryotes (5.23\% of all eukaryotes) are classified as prokaryotes and 4373 of prokaryotes (2.01\% of all prokaryotes) are classified as eukaryotes. 
 
-As a result, we can conclude that input normalization by filling sequence to upper bound of length by special symbol is working.
-Also, we can state that secondary structure contains sufficient information for classification.
+We conclude that input normalization by filling sequence to upper bound of length by special symbol is working.
+Also, we can state that the secondary structure contains sufficient information for classification.
 
 
 \section{\uppercase{Discussion and Future Work}}
@@ -342,7 +344,7 @@ The ongoing experiment is finding all instances of 16s rRNA in full genomes.
 Also, we plan to use the proposed approach for the filtration of chimeric sequences and classification.
 A composition of our approach with other methods and tools as well as grammar tuning and detailed performance evaluation may improve the applicability for the real data processing.
 
-One of the problems of the proposed approach is that parsing is a bottleneck of performance.
+One of the problems of the proposed approach is that parsing is a bottleneck.
 A possible solution is to construct a network which can handle sequences instead of parsing data.
 It may be done in the following way.
 \begin{enumerate}
@@ -360,26 +362,26 @@ There is a set of tools for user-friendly convolutional networks visualization, 
 It may be useful to create such a tool and customize it for our domain.
 
 We do some experiments in genomic sequence analysis, but what about proteomics?
-Works on grammar-based approaches to proteomics sequences analysis have a long history~\cite{Jimenez-Montaño1984,Dyrka2008ASC,Sciacca2011AnnotatedSC}%,DBLP:Witold:Proteins}
+Works on grammar-based approaches to proteomics sequences analysis have a long history~\cite{Jimenez-Montano1984,Dyrka2008ASC,Sciacca2011AnnotatedSC}.
 This area provides new challenges, such as more complex grammar, more symbols in the alphabet, more complex rules of interactions, more complex features.
-As a result, more powerful languages may be required in this area.
-So, it may be interesting to apply the proposed approach to proteomics sequences analysis.
+As a result, more powerful languages may be needed in this area.
+So, we are curious to apply the proposed approach to proteomics sequences analysis.
 One of the possible crucial problems is to detect functionally equivalent sequences with sufficiently different length.
 
-Also, it may be interesting to use other types of neural networks.
-Bitwise networks~\cite{DBLP:journals:corr:KimS16} may be reasonable because the result of parsing is a bitwise matrix, so it looks like a natural way to use these networks to process such result. 
+Also, it may be reasonable to use other types of neural networks.
+Bitwise networks~\cite{DBLP:journals:corr:KimS16} may be reasonable because the result of parsing is a bitwise matrix, so it looks natural to use these networks to process such result. 
 Another direction is convolutional networks utilization.
 One can treat parsing matrices as bitmaps: one can set a specific color for each nonterminal and get a multicolor picture as a sum of matrices.
 The problem here is a picture size: typical matrix size is $n \times n$ where $n$ is a length of the input sequence.
 
-An important part of work is a training data preparation.
+An important part of work is training data preparation.
 One of the difficult problems is creation of a balanced dataset.
 Biological datasets (like GreenGenes) contain a huge number of samples for some well-studied organisms and a very small number of samples for others.
 Moreover, datasets often contain unclassified and candidatus sequences.
-It is not evident how we should prepare datasets in order to get a high-quality trained network.
+It is not evident how to prepare datasets to get a high-quality trained network.
 
-To conclude, our work is in the beginning stage and current results are promising. 
-There is a huge number of experiments in different directions which may be potentially interesting.
+To conclude, our work is at the beginning stage, but current results are promising. 
+There is a huge number of experiments in different directions which have potential.
 In order to choose the right direction, we hope to discuss future work with the community.
 
 
