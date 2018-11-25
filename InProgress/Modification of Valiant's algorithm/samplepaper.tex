@@ -24,7 +24,7 @@
 
 \begin{document}
 %
-\title{Contribution Title\thanks{Supported by organization x.}}
+\title{Parsing by matrix multiplication for the string-matching problem\thanks{Supported by organization x.}}
 %
 %\titlerunning{Abbreviated paper title}
 % If the paper title is too long for the running head, you can set
@@ -51,20 +51,27 @@ ABC Institute, Rupert-Karls-University Heidelberg, Heidelberg, Germany\\
 The abstract should briefly summarize the contents of the paper in
 15--250 words.
 
-\keywords{First keyword  \and Second keyword \and Another keyword.}
+\keywords{Parsing  \and Matrix multiplication \and Context-free grammars \and String-matching \and Bioinformatics.}
 \end{abstract}
 %
 %
 %
 \section{Introduction}
 
-Since the theory of context-free grammars was developed by Noam Chomsky, its applications have been studied extensively. Context-free grammars have been used to describe programming languages. But recent research has shown that the theory of formal languages and, in particular, context-free languages can be used in bioinformatics.
+Since the theory of context-free grammars was developed by Noam Chomsky, its utility has been extensively studied. The classic application of context-free grammars is describing natural and programming  languages. Recent  research  has  shown  that the theory of formal languages and, in particular, context-free languages can be used in bioinformatics. For example, parsing is applicable to DNA and RNA processing. The secondary structure of the nucleotide sequence contains information about the organism species, therefore, it can be used in solving the recognition and classification problems. Moreover, in terms of parsing, the secondary structure can be described by some context-free grammar.
 
-It was therefore important to develop more efficient recognition or parsing algorithms. One of the basic parsing algorithms is the Cocke–Kasami–Younger algorithm(CYK)~\cite{kasami,younger}, which computes a parsing table with the time complexity O($n^3$), where n is the length of the input string.
+Such field of application as bioinformatics requires working with large amount of data. That is why it is important not only to develop more efficient recognition or parsing algorithms, but also to adapt the existing ones to new problems that come with the new application areas.
 
-All further parsing algorithms had the same cubic-time complexity~\cite{earley} or could work only with sub-classes of context-free grammars~\cite{bernardy}, until Leslie Valiant presented new, asymptotically more efficient parsing algorithm~\cite{valiant}. Just as the CYK, Valiant's algorithm computes the same parsing table, but its main difference is replacing most of computations with matrix multiplication. Thereafter, Okhotin generalized Valiant's algorithm to the class of boolean grammars and also improved its performance and understandability~\cite{okhotin}.
+At this moment the asymptotically fastest parsing algorithm that can be applied to any context-free grammar was proposed by Leslie Valiant~\cite{valiant}. The algorithm computes the parsing table for a linear input, where each element of this table is responsible for deriving a particular substring. By offloading the most time-consuming computations on a Boolean matrix multiplication, Valiant has achieved an improvement in time complexity, which is O(BMM(n)log(n)) for an input string of size n, where BMM(n) is the number of operations needed to multiply two Boolean matrices of size n × n. Nevertheless, this algorithm also has some drawbacks, for example, adaptation to the string-matching problems. 
 
-This paper aims to present a modification of Valiant's algorithm, which can be simply applied to the string-matching problem, for example, for sequences processing in bionformatics. Also the algorithm described here is accompanied with the proof of correctness and evaluation of time complexity which is  $O(|G|BMM(n)log(n))$ for an input string of length n, where BMM(n) is the number of operations needed to multiply two Boolean matrices of size $n \times n$.
+This  paper  aims  to  present  a  modification  of  Valiant’s  algorithm partially dealing with the problem described above. We divide the parsing table into successively computed layers of disjoint submatrices of the same size through the reorganization of the matrix multiplication order. Thus, we can suspend the modification execution as soon as the layer we need was computed. Moreover, all submatrices in layer can be processed independently and further it allow to use GPGPU (General-Purpose computing on Graphics Processing Units) and parallel computation.
+
+We make the following contribution:
+\begin{itemize}
+    \item we introduce a  modification  of  Valiant’s  algorithm;
+    \item we prove the correctness of the modification, and also we prove that time complexity is the same as for the original algorithm;
+    \item we show the applicability of our modification for the string-matching problem.
+\end{itemize}
 
 \section{Background}
 
@@ -328,6 +335,17 @@ The proof is almost identical with that of the theorem given by Okhotin~\cite{ok
 
 \section{Applications}
 
+Let $2^k$ be an input string length.
+Let s be a substring length. $ 2^{l' - 2} < s \le 2^{l' - 1}$
+Let $2^{l'}$ be a maximum size of layer to calculate.  $l' = k - (m - 2)$, $(m - 2) = k - l'$
+
+$ C \sum\limits_{i=m}^k 2^{2i - 1} \cdot 2^{\omega(k - i)} \cdot f(2^{k - i}) = C \sum\limits_{i=2}^{l'} 2^{2(i + (k - l')) - 1} \cdot 2^{\omega(l' - i)} \cdot f(2^{l' - i}) =  C \cdot 2^{\omega l'}\sum\limits_{i=2}^{l'} 2^{(2 - \omega)i} \cdot 2^{2(k - l') - 1} \cdot f(2^{l' - i}) \le C \cdot 2^{\omega l'} f(2^{l'}) \cdot 2^{2(k - l') - 1} \sum\limits_{i=2}^{l'} 2^{(2 - \omega)i} = BMM(2^{l'}) \cdot 2^{2(k - l') - 1} \sum\limits_{i=2}^{l'} 2^{(2 - \omega)i}$ 
+
+$\sum\limits_{i=2}^{l'} 2^{(2 - \omega)i} = $ const, if $\omega > 2$
+
+$\sum\limits_{i=2}^{l'} 2^{(2 - \omega)i} = l' - 1$, if $\omega = 2$
+
+Time complexity for substrings of size s is  $O(|G|BMM(2^{l'})(l' - 1))$, while time complexity for the full input string is $O(|G|BMM(2^k)(k - 1))$. 
 
 %
 % ---- Bibliography ----
