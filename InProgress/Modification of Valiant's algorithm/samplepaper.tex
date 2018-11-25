@@ -64,26 +64,27 @@ Such field of application as bioinformatics requires working with large amount o
 
 At this moment the asymptotically fastest parsing algorithm that can be applied to any context-free grammar was proposed by Leslie Valiant~\cite{valiant}. The algorithm computes the parsing table for a linear input, where each element of this table is responsible for deriving a particular substring. By offloading the most time-consuming computations on a Boolean matrix multiplication, Valiant has achieved an improvement in time complexity, which is O(BMM(n)log(n)) for an input string of size n, where BMM(n) is the number of operations needed to multiply two Boolean matrices of size n × n. Nevertheless, this algorithm also has some drawbacks, for example, adaptation to the string-matching problems. 
 
-This  paper  aims  to  present  a  modification  of  Valiant’s  algorithm partially dealing with the problem described above. We divide the parsing table into successively computed layers of disjoint submatrices of the same size through the reorganization of the matrix multiplication order. Thus, we can suspend the modification execution as soon as the layer we need was computed. Moreover, all submatrices in layer can be processed independently and further it allow to use GPGPU (General-Purpose computing on Graphics Processing Units) and parallel computation.
+This  paper  aims  to  present  a  modification  of  Valiant's  algorithm partially dealing with the problem described above. We divide the parsing table into successively computed layers of disjoint submatrices of the same size through the reorganization of the matrix multiplication order. Thus, we can suspend the modification execution as soon as the layer we need was computed. Moreover, all submatrices in layer can be processed independently and further it allow to use GPGPU (General-Purpose computing on Graphics Processing Units) and parallel computation.
 
 We make the following contribution:
 \begin{itemize}
-    \item we introduce a  modification  of  Valiant’s  algorithm;
+    \item we introduce a  modification  of  Valiant's  algorithm;
     \item we prove the correctness of the modification, and also we prove that time complexity is the same as for the original algorithm;
     \item we show the applicability of our modification for the string-matching problem.
 \end{itemize}
 
 \section{Background}
 
-In this section we briefly describe the key definitions and the basic parsing algorithms which are necessary for further understanding of the results obtained in this paper.
+In this section we briefly introduce the key definitions and the necessary parsing algorithm. Before descibing the Valiant's  algorithm, we would like to mention one of the basic recognition algorithms known as CYK (the Cocke-Younger-Kasami algorithm), by which we show the main Valiant's idea that made such time complexity possible.
 
 \subsection{Preliminaries}
 
-$\Sigma$ is a finite nonempty set called an alphabet, $\Sigma^{*}$ is a set of all finite strings over $\Sigma$. A grammar is a quadruple $(\Sigma, N, R, S)$, where $\Sigma$ is a finite set of terminals, N is a finite set of nonterminals, R is a finite set of productions of the form $\alpha \rightarrow \gamma$, where $\alpha \in V^{*}NV^{*}$, $\gamma \in V^{*}$, $V = \Sigma \cup N$ and $S \in N$ is a start symbol. 
+An alphabet $\Sigma$ is a finite nonempty set of symbols. $\Sigma^{*}$ is a set of all finite strings over $\Sigma$. 
+A grammar is a quadruple $(\Sigma, N, R, S)$, where $\Sigma$ is a finite set of terminals, N is a finite set of nonterminals, R is a finite set of productions of the form $\alpha \rightarrow \gamma$, where $\alpha \in V^{*}NV^{*}$, $\gamma \in V^{*}$, $V = \Sigma \cup N$ and $S \in N$ is a start symbol. 
 
-\subsubsection{Definition 1.} Grammar $G = (\Sigma, N, R, S)$ is called context-free, if $\space\forall r \in R$ are of the form $A \rightarrow \beta$, where $A \in N, \beta \in V^{+}$. 
+\subsubsection{Definition 1} Grammar $G = (\Sigma, N, R, S)$ is called context-free, if $\space\forall r \in R$ are of the form $A \rightarrow \beta$, where $A \in N, \beta \in V^{+}$. 
 
-\subsubsection{Definition 2.} Context-free grammar $G = (\Sigma, N, R, S)$ is said to be in Chomsky normal form if $\space\forall r \in R$ are of the form: 
+\subsubsection{Definition 2} Context-free grammar $G = (\Sigma, N, R, S)$ is said to be in Chomsky normal form if $\space\forall r \in R$ are of the form: 
 \begin{itemize}
   \item $A \rightarrow BC$,
   \item $A \rightarrow a$,
@@ -91,17 +92,17 @@ $\Sigma$ is a finite nonempty set called an alphabet, $\Sigma^{*}$ is a set of a
 \end{itemize}
 where $A, B, C \in N, a \in \Sigma, \epsilon$ is an empty string. 
 
-\subsubsection{Definition 3.} $L_{G}(A)$ is language of grammar $G_{A} = (\Sigma, N, R, A)$, which means all the sentences that can be derived in a finite number of steps from the start symbol A.
+\subsubsection{Definition 3} $L_{G}(A)$ is language of grammar $G_{A} = (\Sigma, N, R, A)$, which means all the sentences that can be derived in a finite number of steps from the start symbol A.
 
 \subsection{Parsing by matrix multiplication}
   
-The main problem of parsing is to verify if the input string belongs to the language of some given grammar $L_{G}$. In this section we will describe parsing algorithm, based on matrix multiplication. It has been proposed by Leslie Valiant and is the most asymptotically efficient parsing algorithm, which works for all context-free grammars, although they can be generalized to conjunctive and boolean grammars due to Alexander Okhotin. 
+The main problem of parsing is to verify if the input string belongs to the language of some given grammar $L_{G}$. We will describe the Cocke-Younger-Kasami algorithm and the most asymptotically efficient parsing algorithm, which works for all context-free grammars, Valiant's parsing algorithm, based on matrix multiplication. In this paper we use the rewritten version of Valiant's algorithm proposed by Alexander Okhotin. 
 
 The CYK algorithm is a basic parsing algorithm. Its main idea is to construct for an input string $a_{1}a_{2}...a_{n}$ a parsing table T of size $n \times n$,  where 
 \begin{equation}
 T_{i, j} =  \{ A |  a_{i + 1}...a_{j} \in L_{G}(A)\} \quad \forall i < j
 \end{equation}
-and $G = (\Sigma, N, R, S)$ is a context-free grammar. 
+and $G = (\Sigma, N, R, S)$ is a context-free grammar in Chomsky normal form. 
 
 The elements of T are filled successively beginning with 
 \begin{equation}
@@ -163,7 +164,8 @@ The input string $a_{1}a_{2}...a_{n}$ belongs to $L_{G}$ if and only if $S \in T
 \end{algorithm}
 
 The time complexity of this algorithm is $O(n^3)$. Valiant proposed to offload the most intensive computations to the Boolean matrix multiplication. As the most time-consuming is computing $\bigcup\limits_{k = i + 1}^{j - 1} T_{i, k} \times T_{k, j}$, Valiant rearranged computation of $T_{i, j}$, in order to use multiplication of submatrices of T. 
-\subsubsection{Definition 4.} Let $X \in (2^N)^{m \times l}$ and $Y \in (2^N)^{l \times n}$ be two submatrices of parsing table T. Then, $X \times Y = Z$, where $Z \in (2^{N \times N})^{m \times n}$ and $Z_{i, j} = \bigcup\limits_{k = 1}^{l} X_{i, k} \times Y_{k, j}$.
+
+\subsubsection{Definition 4} Let $X \in (2^N)^{m \times l}$ and $Y \in (2^N)^{l \times n}$ be two submatrices of parsing table T. Then, $X \times Y = Z$, where $Z \in (2^{N \times N})^{m \times n}$ and $Z_{i, j} = \bigcup\limits_{k = 1}^{l} X_{i, k} \times Y_{k, j}$.
 
 In \textbf{Algorithm 1} full pseudo-code of Valiant's algorithm written in the terms proposed by Okhotin, is presented. All elements of T and P are initialized by empty sets. Then, the elements of these two table are successively filled by two recursive procedures.
 
@@ -244,7 +246,7 @@ Denote some subsidiary functions for matrix $m$:
   \item $top(m) = (l, \frac{l+m}{2}, \frac{l'+m'}{2}, m')$.
 \end{itemize}
  
-The procedure $completeVLayer(M)$ takes an array of disjoint submatrices M. For each $m = (l, m, l', m') \in M$ this procedure computes $left(m), right(m), top(m)$. The procedure assumes that the elements of $bottom(m)$ and all $T_{i, j} \forall l \leq i < j < m,  l' \leq i < j < m'$ are already constructed. Also it is assumed that the current value of  $P[i, j] =  \{ (B, C) |\exists (m \le k < l'): a_{i + 1}...a_{k} \in L(B), a_{k + 1}...a_{j} \in L(C)\}$ $\forall l \leq i < m,  l' \leq j < m'$.
+The procedure $completeVLayer(M)$ takes an array of disjoint submatrices M. For each $m = (l, m, l', m') \in M$ this procedure computes $left(m)$, $right(m)$, $top(m)$. The procedure assumes that the elements of $bottom(m)$ and all $T_{i, j} \forall l \leq i < j < m,  l' \leq i < j < m'$ are already constructed. Also it is assumed that the current value of  $P[i, j] =  \{ (B, C) |\exists (m \le k < l'): a_{i + 1}...a_{k} \in L(B), a_{k + 1}...a_{j} \in L(C)\}$ $\forall l \leq i < m,  l' \leq j < m'$.
  
 The procedure $completeLayer(M)$ also takes an array of disjoint submatrices M, but unlike the previous one, it computes $T_{i, j} \forall (i, j) \in m$. This procedure, just as in the previous case, assumes that  $T_{i, j} \forall l \leq i < j < m,  l' \leq i < j < m'$ are already constructed and the current value of  $P[i, j] =  \{ (B, C) |\exists (m \le k < l'): a_{i + 1}...a_{k} \in L(B), a_{k + 1}...a_{j} \in L(C)\}$ $\forall l \leq i < m,  l' \leq j < m'$.
  
@@ -262,7 +264,7 @@ The procedure $completeLayer(M)$ also takes an array of disjoint submatrices M, 
 
 \section{Proof of correctness}
 
-In this section ...
+We provide the proof of correctness and time complexity for the proposed modification in this section. 
 
 \begin{theorem}
 Let M be a submatrix array. Assume that $T[i, j] =  \{ A |  a_{i + 1}...a_{j} \in L(A)\}$ $\forall l \leq i < j < m,  l' \leq i < j < m'$ and $P[i, j] =  \{ (B, C) |\exists (m \le k < l'): a_{i + 1}...a_{k} \in L(B), a_{k + 1}...a_{j} \in L(C)\}$ $\forall l \leq i < m,  l' \leq j < m'$ $\forall (l, m, l', m') \in M$.
@@ -276,7 +278,7 @@ Then the procedure $\textit{completeLayer(M)}$, returns correctly computed sets 
 \begin{proof}
 Induction on $\textit{m - l}$. (Hereinafter denoting (l, m, l', m') as a typical example of array M, and all the computations are implemented for all submatrices in M).
 
-The base case: $\textit{m - l}$ = 1. There is only one element to compute, and $P[l, l'] =  \{ (B, C) |  a_{l + 1}...a_{l'} \in L(B)L(C)\}$. Further, algorithm computes $f(P[l, l']) = \{ A |  a_{l + 1}...a_{l'} \in L(A)\}$, so $T[l, l']$ computed correctly.
+The base case: $\textit{m - l}$ = 1. There is only one element to compute, and $P[l, l'] =  \{ (B, C) |  a_{l + 1}...a_{l'} \in L(B)L(C)\}$. Further, algorithm computes $f(P[l, l'])$ = \linebreak $\{ A |  a_{l + 1}...a_{l'} \in L(A)\}$, so $T[l, l']$ computed correctly.
 
 For the induction step, assume that (l1, m1, l2, m2) is correctly computed for $m2 - l2 = m1 - l1 > m - l$.
 
@@ -335,17 +337,21 @@ The proof is almost identical with that of the theorem given by Okhotin~\cite{ok
 
 \section{Applications}
 
-Let $2^k$ be an input string length.
-Let s be a substring length. $ 2^{l' - 2} < s \le 2^{l' - 1}$
-Let $2^{l'}$ be a maximum size of layer to calculate.  $l' = k - (m - 2)$, $(m - 2) = k - l'$
+Next we discuss the main cause of developing this modification. Our aim was adaptation of Valiant's algorithm for string-matching problem. 
 
-$ C \sum\limits_{i=m}^k 2^{2i - 1} \cdot 2^{\omega(k - i)} \cdot f(2^{k - i}) = C \sum\limits_{i=2}^{l'} 2^{2(i + (k - l')) - 1} \cdot 2^{\omega(l' - i)} \cdot f(2^{l' - i}) =  C \cdot 2^{\omega l'}\sum\limits_{i=2}^{l'} 2^{(2 - \omega)i} \cdot 2^{2(k - l') - 1} \cdot f(2^{l' - i}) \le C \cdot 2^{\omega l'} f(2^{l'}) \cdot 2^{2(k - l') - 1} \sum\limits_{i=2}^{l'} 2^{(2 - \omega)i} = BMM(2^{l'}) \cdot 2^{2(k - l') - 1} \sum\limits_{i=2}^{l'} 2^{(2 - \omega)i}$ 
+So if we want to find all substrings of size s which can be derived from a start symbol for an input string of size $n = 2^k$, we need to compute layers with submatrices of size $\le 2^{l'}$, where $ 2^{l' - 2} < s \le 2^{l' - 1}$.
 
-$\sum\limits_{i=2}^{l'} 2^{(2 - \omega)i} = $ const, if $\omega > 2$
+$l' = k - (m - 2)$, $(m - 2) = k - l'$
 
-$\sum\limits_{i=2}^{l'} 2^{(2 - \omega)i} = l' - 1$, if $\omega = 2$
+$ C \sum\limits_{i=m}^k 2^{2i - 1} \cdot 2^{\omega(k - i)} \cdot f(2^{k - i}) = C \cdot 2^{\omega l'}\sum\limits_{i=2}^{l'} 2^{(2 - \omega)i} \cdot 2^{2(k - l') - 1} \cdot f(2^{l' - i}) \le C \cdot 2^{\omega l'} f(2^{l'}) \cdot 2^{2(k - l') - 1} \sum\limits_{i=2}^{l'} 2^{(2 - \omega)i} = BMM(2^{l'}) \cdot 2^{2(k - l') - 1} \sum\limits_{i=2}^{l'} 2^{(2 - \omega)i}$ 
 
-Time complexity for substrings of size s is  $O(|G|BMM(2^{l'})(l' - 1))$, while time complexity for the full input string is $O(|G|BMM(2^k)(k - 1))$. 
+Thus, time complexity for searching all substrings is  $O(|G|BMM(2^{l'})(l' - 1))$, while time complexity for the full input string is $O(|G|BMM(2^k)(k - 1))$. In contract to the modification, Valiant's algorithm completely calculate at least 2 triangle submatrices of size $\frac{n}{2}$, as it is shown on the \textbf{Figure 2}, which mean minimum asymptotic complexity  $O(|G|BMM(2^{k - 1})(k - 2))$. Make a conclusion that the modification is asymptotically faster for substrings of size s $<<$ n  than the original algorithm. 
+
+\section{Conclusion}
+
+The main goal of this work was to find an effective solution for the string-matching problem that arose at the intersection of the theory of formal languages and bioinformatics. We proposed a modification of Valiant's algorithm partially dealing with this problem. Also we proved its applicability by showing the asymptotic complexity concerning substring searching. 
+
+
 
 %
 % ---- Bibliography ----
