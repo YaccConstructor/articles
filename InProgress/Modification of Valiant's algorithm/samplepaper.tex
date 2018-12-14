@@ -24,32 +24,32 @@
 
 \begin{document}
 %
-\title{Parsing by matrix multiplication for the string-matching problem\thanks{Supported by organization x.}}
+\title{Parsing by Matrix Multiplication for String Matching \thanks{Supported by organization x.}}
 %
 %\titlerunning{Abbreviated paper title}
 % If the paper title is too long for the running head, you can set
 % an abbreviated paper title here
 %
-\author{First Author\inst{1}\orcidID{0000-1111-2222-3333} \and
-Second Author\inst{2,3}\orcidID{1111-2222-3333-4444} \and
-Third Author\inst{3}\orcidID{2222--3333-4444-5555}}
+\author{Yuliya Susanina\inst{1, 2}\orcidID{0000-1111-2222-3333} \and
+Anna Yaveyn\inst{3}\orcidID{1111-2222-3333-4444} \and
+Semyon Grigorev\inst{1, 2}\orcidID{2222--3333-4444-5555}}
 %
-\authorrunning{F. Author et al.}
+\authorrunning{Yuliya Susanina, Anna Yaveyn, and Semyon Grigorev}
 % First names are abbreviated in the running head.
 % If there are more than two authors, 'et al.' is used.
 %
-\institute{Princeton University, Princeton NJ 08544, USA \and
-Springer Heidelberg, Tiergartenstr. 17, 69121 Heidelberg, Germany
-\email{lncs@springer.com}\\
-\url{http://www.springer.com/gp/computer-science/lncs} \and
-ABC Institute, Rupert-Karls-University Heidelberg, Heidelberg, Germany\\
-\email{\{abc,lncs\}@uni-heidelberg.de}}
+\institute{Saint Petersburg State University, 7/9 Universitetskaya nab.\\ St. Petersburg, 199034 Russia \\ 
+\and JetBrains Research, Universitetskaya emb., 7-9-11/5A \\ St.Petersburg, Russia \\
+\email{jsusanina@gmail.com},
+\email{semen.grigorev@jetbrains.com}\\
+\and
+...\\
+\email{...}}
 %
 \maketitle              % typeset the header of the contribution
 %
 \begin{abstract}
-The abstract should briefly summarize the contents of the paper in
-15--250 words.
+Recent  research  has  shown  that the theory of formal languages can be used in bioinformatics. While using parsing for processing nucleotide sequences it became necessary to find an easily adaptable to the string-matching problem parsing algorithm, and as such field of application as bioinformatics requires working with large amount of data, it should be highly efficient. The asymptotically fastest parsing algorithm was proposed by Valiant and based on matrix multiplication. The original version of matrix-based algorithm is difficult to apply to the string-matching problem. In this paper we present  a modification  of Valiant's  algorithm dealing with the problem mentioned above. The modification has a succinct proof of correctness and is implemented. 
 
 \keywords{Parsing  \and Matrix multiplication \and Context-free grammars \and String-matching \and Bioinformatics.}
 \end{abstract}
@@ -58,20 +58,14 @@ The abstract should briefly summarize the contents of the paper in
 %
 \section{Introduction}
 
-Since the theory of context-free grammars was developed by Noam Chomsky, its utility has been extensively studied. The classic application of context-free grammars is describing natural and programming  languages. Recent  research  has  shown  that the theory of formal languages and, in particular, context-free languages can be used in bioinformatics. For example, parsing is applicable to DNA and RNA processing. The secondary structure of the nucleotide sequence contains information about the organism species, therefore, it can be used in solving the recognition and classification problems. Moreover, in terms of parsing, the secondary structure can be described by some context-free grammar.
+Since the theory of context-free grammars was developed by Noam Chomsky, its utility has been extensively studied~\cite{chomsky1,chomsky2}. The classic application of context-free grammars is describing natural and programming  languages. Recent  research  has  shown  that the theory of formal languages and, in particular, context-free languages can be used in bioinformatics~\cite{rivas,knudsen,yuan,dowell}. 
 
-Such field of application as bioinformatics requires working with large amount of data. That is why it is important not only to develop more efficient recognition or parsing algorithms, but also to adapt the existing ones to new problems that come with the new application areas.
+There are a number of different approaches to solve the recognition and classification problems in bioinformatics, some of them are based on the researches claiming that the secondary structure of the nucleotide sequence (DNA and RNA) contains an important information about the organism species. The specific features of the secondary structure can be described by some context-free grammar, and therefore the recognition problem can be reduced to parsing -- verification if some nucleotide sequence can be derived in this grammar. That means we try to find the substrings possessing these specific features and further we can draw conclusions about the organism's origin based on the availability and location of the found substrings. So it is necessary to find an easily adaptable to the string-matching problem algorithm, moreover, as such field of application as bioinformatics requires working with large amount of data, it should be highly efficient.
 
-At this moment the asymptotically fastest parsing algorithm that can be applied to any context-free grammar was proposed by Leslie Valiant~\cite{valiant}. The algorithm computes the parsing table for a linear input, where each element of this table is responsible for deriving a particular substring. By offloading the most time-consuming computations on a Boolean matrix multiplication, Valiant has achieved an improvement in time complexity, which is O(BMM(n)log(n)) for an input string of size n, where BMM(n) is the number of operations needed to multiply two Boolean matrices of size n × n. Nevertheless, this algorithm also has some drawbacks, for example, adaptation to the string-matching problems. 
+The majority of parsing algorithms either had the cubic-time complexity (Kasami~\cite{kasami}, Younger~\cite{younger}, Earley~\cite{earley}) or could work only with sub-classes of context-free grammars (Bernardy, Claussen~\cite{bernardy}), until Leslie Valiant presented new, asymptotically more efficient parsing algorithm based on matrix multiplication~\cite{valiant} that can be applied to any context-free grammar. Valiant's algorithm computes the parsing table for a linear input, where each element of this table is responsible for deriving a particular substring. By offloading the most time-consuming computations on a Boolean matrix multiplication, Valiant has achieved an improvement in time complexity, which is O(BMM(n)log(n)) for an input string of size n, where BMM(n) is the number of operations needed to multiply two Boolean matrices of size n $\times$ n. In addition, Okhotin generalized the matrix-based algorithm to conjunctive and Boolean grammars which are the natural extensions of context-free grammars which have more expressive power and also improved its performance and understandability~\cite{okhotin}. Nevertheless, Valiant's algorithm is difficult to apply to the string-matching problem, as its original version will have to make many unnecessary matrix multiplication calls.
 
-This  paper  aims  to  present  a  modification  of  Valiant's  algorithm partially dealing with the problem described above. We divide the parsing table into successively computed layers of disjoint submatrices of the same size through the reorganization of the matrix multiplication order. Thus, we can suspend the modification execution as soon as the layer we need was computed. Moreover, all submatrices in layer can be processed independently and further it allow to use GPGPU (General-Purpose computing on Graphics Processing Units) and parallel computation.
+This  paper  aims  to  present  a  modification  of  Valiant's  algorithm dealing with the problem described above. We divide the parsing table into successively computed layers of disjoint submatrices of the same size through the reorganization of the matrix multiplication order. We also prove the correctness of the modification and that time complexity is the same as for the original algorithm. The applicability of our modification for the string-matching problem in practice is further shown.
 
-We make the following contribution:
-\begin{itemize}
-    \item we introduce a  modification  of  Valiant's  algorithm;
-    \item we prove the correctness of the modification, and also we prove that time complexity is the same as for the original algorithm;
-    \item we show the applicability of our modification for the string-matching problem.
-\end{itemize}
 
 \section{Background}
 
@@ -363,11 +357,23 @@ The main goal of this work was to find an effective solution for the string-matc
 % \bibliography{mybibliography}
 %
 \begin{thebibliography}{8}
-\bibitem{valiant}
-Valiant, Leslie G.: General context-free recognition in less than cubic time. Journal of computer and system sciences \textbf{10}(2), 308--315 (1975)
+\bibitem{chomsky1}
+Chomsky, N.: On certain formal properties of grammars. Information and control \textbf{2}(2), 137--167 (1959)
 
-\bibitem{okhotin}
-Okhotin, A.: Parsing by matrix multiplication generalized to Boolean grammars. Theoretical Computer Science \textbf{516}, 101--120 (2014)
+\bibitem{chomsky2}
+Chomsky, N. and Schützenberger M. P.: The algebraic theory of context-free languages. In: Studies in Logic and the Foundations of Mathematics vol. 35. pp. 118--161 Elsevier (1963)
+
+\bibitem{rivas}
+Rivas, E. and Eddy, S. R: The language of RNA: a formal grammar that includes pseudoknots. Bioinformatics \textbf{16}(4), 334–-340 (2000)
+
+\bibitem{knudsen}
+Knudsen, B. and Hein, J.: RNA secondary structure prediction using stochastic context-free grammars and evolutionary history. Bioinformatics (Oxford, England) \textbf{15}(6), 446–-454 (1999)
+
+\bibitem{yuan}
+Yuan, C. and Lei, J. and Cole, J. and Sun, Y.: Reconstructing 16S rRNA genes in metagenomic data. Bioinformatics \textbf{31}(12), i35–-i43 (2015)
+
+\bibitem{dowell}
+Dowell, R. D. and Eddy, S. R.: Evaluation of several lightweight stochastic context-free grammars for RNA secondary structure prediction. BMC bioinformatics \textbf{5}(1), 71 (2004)
 
 \bibitem{bernardy}
 Bernardy, J.P., Claessen K.: Efficient divide-and-conquer parsing of practical context-free languages. In: ACM SIGPLAN Notices, vol. 48. no. 9, pp. 111-122 ACM (2013)
@@ -380,6 +386,15 @@ Younger, D.H.: Recognition and parsing of context-free languages in time n3. Inf
 
 \bibitem{earley}
 Earley, J.: An efficient context-free parsing algorithm. Communications of the ACM \textbf{13}(2), 94--102 (1970)
+
+\bibitem{valiant}
+Valiant, L. G.: General context-free recognition in less than cubic time. Journal of computer and system sciences \textbf{10}(2), 308--315 (1975)
+
+\bibitem{okhotin}
+Okhotin, A.: Parsing by matrix multiplication generalized to Boolean grammars. Theoretical Computer Science \textbf{516}, 101--120 (2014)
+
+
+
 
 \end{thebibliography}
 \end{document}
