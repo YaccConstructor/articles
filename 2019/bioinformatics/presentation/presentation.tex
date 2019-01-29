@@ -19,6 +19,8 @@
 \usepackage{fancyvrb}
 \usetikzlibrary{calc}
 \usetikzlibrary{shapes,arrows}
+\usetikzlibrary{arrows,automata}
+\usetikzlibrary{positioning}
 
 \usepackage{tabularx}
 \newcolumntype{Y}{>{\raggedleft\arraybackslash}X}
@@ -29,6 +31,17 @@
 
 \newcommand{\tikzmark}[1]{\tikz[overlay,remember picture] \node (#1) {};}
 \def\Put(#1,#2)#3{\leavevmode\makebox(0,0){\put(#1,#2){#3}}}
+
+\tikzset{
+    state/.style={
+           rectangle,
+           rounded corners,
+           draw=black, very thick,
+           minimum height=2em,
+           inner sep=2pt,
+           text centered,
+           },
+}
 
 \beamertemplatenavigationsymbolsempty
 
@@ -43,7 +56,7 @@ Saint Petersburg University
 % То, что в квадратных скобках, отображается в левом нижнем углу.
 \author[Semyon Grigorev]{Polina Lunina, \textbf{Semyon Grigorev}}
 
-\date{Febrary !!!, 2019}
+\date{Febrary 24, 2019}
 
 \begin{document}
 {
@@ -61,19 +74,12 @@ Saint Petersburg University
 \end{frame}
 }
 
-\begin{frame} \frametitle{Sequences Analysis}
+\begin{frame} \frametitle{Sequences Analysis: classification, search, etc}
 
-\begin{itemize}
-   \item Sequences classification
-   \item Subsequences seqrch
-   \item \dots
-\end{itemize}
-\pause
-\begin{minipage}[t]{0.48\textwidth}
-
+\begin{minipage}[t]{0.49\textwidth}
 \textbf{Problem: high variability of data}
 \begin{itemize}
-   \item Mutattions
+   \item Mutations
    \item Different kinds of noice
    \item \dots
 \end{itemize}
@@ -82,7 +88,7 @@ Saint Petersburg University
 \end{minipage}
 \pause
 ~
-\begin{minipage}[t]{0.48\textwidth}
+\begin{minipage}[t]{0.47\textwidth}
 \textbf{Level of abstraction}
 \begin{itemize}
    \item Plain text
@@ -93,39 +99,187 @@ Saint Petersburg University
 \textbf{We should handle secondary structure}
 \end{minipage}
 
+
+{
+\centering
+\pause
+\vspace{1cm}
+\textbf{Probabilistic approach which can handle secondary structure information}
+}
 \end{frame}
 
 
-\begin{frame} \frametitle{Probabilistic approaches}
+%\begin{frame} \frametitle{Probabilistic approaches}
+
+%\begin{itemize}
+  %\item Hidden Markov's Models (HMM's)
+  %\item Probabilistic grammars (Secondary structure)
+  %item Covariation Models (CM's) (Secondary structure)
+  %item Artificial neural networks (Basicly no)
+%\end{itemize}
+%
+%\end{frame}
+
+
+\begin{frame} \frametitle{Our Receip: Parsing + Artificial Neural Network}
 
 \begin{itemize}
-  \item Hidden Markov's Models (HMM's)
-  \item Probabilistic grammars
-  \item Covariation Models (CM's)
-  \item Artificial neural networks
+  \item Parsing is not for secondary structure modelling, but for features extraction
+  \begin{itemize}
+    \item In the opposite to classical way of probabilistic CF grammars utilization
+  \end{itemize}
+  \pause
+  \item Formal grammars for secondary structure handling
+  \item Parsing for features extraction
+  \item Artificial neural network as probabilistic model for features processing
+  \item Extracted features handling
+
 \end{itemize}
 
 \end{frame}
 
 
-\begin{frame} \frametitle{Our receip: Parsing + DNN}
-
-\begin{itemize}
-  \item Idea: not secondary structure modelling, but features extraction!
-\end{itemize}
-
-\end{frame}
+\begin{frame} \frametitle{Solution Structure}
+\tiny %\hspace{-2cm}
+  \begin{tikzpicture}[->,>=stealth']
 
 
-\begin{frame} \frametitle{Our receip: Parsing + DNN}
+  \node[state,
+        align=left,
+        text width = 3.5cm] (grm)
+   {
+    \textbf{Grammar}\\
+  Fixed formal grammar (not necessary context-free) describes features of secondary structure and can be tuned in order to increase result quality.
 
-\begin{itemize}
-  \item Idea description. Figure
-\end{itemize}
+   };
+
+
+  \node[state,
+        below of=grm,
+        node distance=1.5cm,
+        align = left,
+        text width = 3.5cm] (sqs)
+   {
+   \textbf{Sequences}\\
+  Each sequence is treated as a text in $\{A, C, G, T\}$ alphabet.
+   };
+
+
+  \node[state,
+        right of=grm,
+        node distance=4cm,
+        align = left,
+        text width = 3.5cm](parser)
+  {
+  \textbf{Parser}\\
+  Parser extracts features of given sequence secondary structure.
+  Implementation of parsing algorithm is based on matrix multiplications (Valiant, Okhotin) and utilizes GPGPU.
+  };
+
+  \node[state,
+        right of=parser,
+        node distance=4cm,
+        align = left,
+        text width = 3.5cm] (mtrx)
+  {
+    \textbf{Matrices}\\
+    \vspace{0.2cm}
+    \begin{tabular}{| c | c | c | c | }
+    \hline
+    0 & \textbf{1} & 0 & \textbf{1}\\ \hline
+    0 & 0 & \textbf{1} & 0\\ \hline
+    0 & 0 & 0 & \textbf{1}\\ \hline
+    0 & 0 & 0 & 0\\ \hline
+    \end{tabular} \\
+    \vspace{0.1cm}
+  Parsing result is (0-1) matrix $M$ which represents secondary structure features for sequence $\omega$: $ M.[i,j] = 1 \iff \text{\ttfamily{s1}} \rightarrow^* \omega.[i,j]$, and $0$ in other case.
+  };
+
+  \node[state,
+        below of=sqs,
+        node distance=1cm,
+        align = left,
+        text width = 3.5cm](result)
+  {
+  \textbf{Result of classification}
+
+  };
+
+
+  \node[state,
+        below of=parser,
+        node distance=4.2cm,
+        align = left,
+        text width = 3.5cm](DNN)
+  {
+  \textbf{Neural Network}\\
+
+  Dense neural network with more than 10 dense layers.
+  Agressive dropout and batch normalization for learning process stabilization.\\
+  Typical building block:
+  \\
+  \vspace{-0.3cm}
+  \begin{center}
+  \includegraphics[width=2.5cm]{pictures/bb.pdf}
+  \end{center}
+
+  };
+
+
+  \node[state,
+        right of=DNN,
+        node distance=4cm,
+        align = left,
+        text width = 3.5cm](vector)
+  {
+  \textbf{Vectors}\\
+  \vspace{0.2cm}
+  \begin{tabular}{| c | c | c | c | }
+  \hline
+  0 & 1 & 0 & 1\\ \hline
+  0 & 0 & 1 & 0\\ \hline
+  0 & 0 & 0 & 1\\ \hline
+  0 & 0 & 0 & 0\\ \hline
+\end{tabular}
+$\Rightarrow$ \texttt{[0,1,0,1,0,1,0,0,1,0]} $\Rightarrow$ \texttt{[84,128]}\\
+\vspace{0.1cm}
+  Line-by-line compressed matrix representation: sequence of 8 cells (bits) is compressed to byte. Top right triangle of matrix is always empty, so can be ignored.
+  };
+
+
+  \path (grm) edge  (parser)
+   (sqs) edge [bend right] (parser)
+  % (sqs) edge (parser)
+   (parser) edge (mtrx)
+   (mtrx) edge (vector)
+   (vector) edge (DNN)
+   (DNN) edge (result)
+   ;
+
+  \end{tikzpicture}
+
+  \tikzmark{zzz}{
+  }
+  %}
+  \pause
+  \onslide<2>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (zzz) + (-0.1,7.9)$) rectangle ($ (zzz) + (3.8,4.8)$);}}
+
+  \onslide<3>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (zzz) + (3.8,7.9)$) rectangle ($ (zzz) + (7.8,5.9)$);}}
+
+  \onslide<4>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (zzz) + (7.8,8.4)$) rectangle ($ (zzz) + (11.8,5.3)$);}}
+
+  \onslide<5>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (zzz) + (7.8,4.5)$) rectangle ($ (zzz) + (11.8,0.8)$);}}
+
+  \onslide<6>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (zzz) + (3.9,5.2)$) rectangle ($ (zzz) + (7.8,0.2)$);}}
+
+  \onslide<7>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (zzz) + (-0.1,4.8)$) rectangle ($ (zzz) + (3.8,4.0)$);}}
+
 
 \end{frame}
 
 \begin{frame}[fragile] \frametitle{Grammar}
+%\onslide<1-4>{
+
 \begin{verbatim}
 s1: stem<s0>
 any_str : any_smb*[2..10]
@@ -142,10 +296,16 @@ stem<s>:                \\ stem of height 3 or more
     | G stem<s> C
     | stem1< stem2<s> >
 \end{verbatim}
+\tikzmark{yyy}{
+}
+%}
 \pause
-\only<1-2>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($(-0.2,5.6)$) rectangle ($(12,4.6)$);}}
-\only<3-3>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($(-0.2,4.6)$) rectangle ($(12,3.6)$);}}
-\only<4-4>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($(-0.2,3.6)$) rectangle ($(12,0.6)$);}}
+\onslide<2>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (yyy) + (-0.2,7.5)$) rectangle ($ (yyy) + (12,7)$);}}
+\onslide<3>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (yyy) + (-0.2,7)$) rectangle ($ (yyy) + (12,6)$);}}
+\onslide<4>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (yyy) + (-0.2,6)$) rectangle ($ (yyy) + (12,5.5)$);}}
+\onslide<5>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (yyy) + (-0.2,5.6)$) rectangle ($ (yyy) + (12,4.6)$);}}
+\onslide<6>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (yyy) + (-0.2,4.6)$) rectangle ($ (yyy) + (12,3.6)$);}}
+\onslide<7>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (yyy) + (-0.2,3.6)$) rectangle ($ (yyy) + (12,0.6)$);}}
 \end{frame}
 
 \begin{frame}[fragile] \frametitle{Example 1: Stem}
@@ -153,7 +313,18 @@ stem<s>:                \\ stem of height 3 or more
  $\omega_1=$ \texttt{CCCCATTGCCAAGGACCCCACCTTGGCAATCCC}
 \vspace{1cm}
 
-\includegraphics[width=.8\textwidth]{pictures/4.pdf}
+\tikzmark{xx}{\includegraphics[width=.8\textwidth]{pictures/4.pdf}}
+\onslide<2-3>{
+\tikz[overlay,remember picture]{
+\draw[draw=red,thick,fill opacity=0.2] ($(xx) + (1.1,4.97)$) rectangle ($(xx) + (9.05,3.235)$);
+}
+}
+
+\onslide<3>{
+\tikz[overlay,remember picture]{
+\draw[draw=red,thick,fill opacity=0.2] ($(xx) + (5.8,4.97)$) rectangle ($(xx) + (8.75,0.4)$);
+}
+}
 
 \end{frame}
 
@@ -162,36 +333,54 @@ stem<s>:                \\ stem of height 3 or more
  $\omega_2=$ \texttt{CCACTTACCTATGACCTAAGTCCTCATACC}
 \vspace{1cm}
 
-\includegraphics[width=.8\textwidth]{pictures/5.pdf}
+\tikzmark{y}{\includegraphics[width=.8\textwidth]{pictures/5.pdf}}
+
+\onslide<2-3>{
+\tikz[overlay,remember picture]{
+\draw[draw=red,thick,fill opacity=0.2] ($(y) + (0.6,5.37)$) rectangle ($(y) + (7.15,4.4)$);
+\draw[draw=red,thick,fill opacity=0.2] ($(y) + (5.15,5.37)$) rectangle ($(y) + (6.8,1.7)$);
+}
+}
+
+\onslide<3>{
+\tikz[overlay,remember picture]{
+\draw[draw=blue,thick,fill opacity=0.2] ($(y) + (2.8,4.01)$) rectangle ($(y) + (9.42,3.05)$);
+\draw[draw=blue,thick,fill opacity=0.2] ($(y) + (7.45,4.01)$) rectangle ($(y) + (9.1,0.3)$);
+}
+}
 
 \end{frame}
 
 
 \begin{frame}[fragile] \frametitle{Example 3: real tRNA}
 \centering
- $\omega_3=$ \texttt{CAGGGCATAACCTAGCCCAACCTTGCCAAGG\\TTGGGGTCGAGGGTTCGAATCCCTTCGCCCGCTCCA}\footnote{\tiny{Novosphingobium aromaticivorans from GtRNAdb.}}
+ $\omega_3=$ \texttt{CAGGGCATAACCTAGCCCAACCTTGCCAAGG\\TTGGGGTCGAGGGTTCGAATCCCTTCGCCCGCTCCA}
 \vspace{0.5cm}
+\begin{itemize}
+  \item Novosphingobium aromaticivorans DSM 12444 chr.trna57-GlyGCC(268150-268084) Gly (GCC) 67 bp Sc: 22.9, from \href{http://gtrnadb2009.ucsc.edu/download.html}{GtRNAdb}
+  \item Predicted secondary structures are given by using the \href{http://rna.urmc.rochester.edu/RNAstructureWeb/Servers/Fold/Fold.html}{Fold Web Server with default settings}
 
-Predicted secondary structures\footnote{\tiny{Results are given by using the \href{http://rna.urmc.rochester.edu/RNAstructureWeb/Servers/Fold/Fold.html}{Fold Web Server with default settings}.}}
+\end{itemize}
 
-\begin{minipage}[t]{0.49\textwidth}
-\centering
-\includegraphics[width=.70\textwidth]{pictures/Fold1.pdf}
-\end{minipage}
-\begin{minipage}[t]{0.49\textwidth}
-\centering
-\includegraphics[width=.96\textwidth]{pictures/Fold2.pdf}
+
+%\begin{minipage}[t]{0.49\textwidth}
+%\centering
+%\includegraphics[width=.70\textwidth]{pictures/Fold1.pdf}
+%\end{minipage}
+%\begin{minipage}[t]{0.49\textwidth}
+%\centering
+%\includegraphics[width=.96\textwidth]{pictures/Fold2.pdf}
 %\vspace{1cm}
 %\vfill
-\end{minipage}
+%\end{minipage}
 
 \end{frame}
 
 \begin{frame}[fragile] \frametitle{Example 3: real tRNA}
 \centering
-%\only<1-8>{
+
 \tikzmark{an}{\includegraphics[width=\textwidth]{pictures/0m.pdf}}
-%}
+
 \onslide<2-3>{\Put(-175,150){\includegraphics[height=6cm]{pictures/Fold1.pdf}}}
 \onslide<3-3,7>{
 \tikz[overlay,remember picture]{
@@ -228,49 +417,109 @@ Predicted secondary structures\footnote{\tiny{Results are given by using the \hr
 \begin{frame} \frametitle{Summary}
 
 \begin{itemize}
-  \item Parser is a features extructor
-  \item All possible foldings
-  \item Grammar is a varaible parameter
+  \item Parser is a features extructor, not a way to model secondary structure of full sequence
+  \item Parsing result contains all possible foldings (w.r.t. grammar) including practically unreal foldings
+  \item Grammar is a varaible parameter: one can add \texttt{G-T} pair, change minimal height of stem, etc
   \item It is possible to detect features which is not expressable in language class which in use
 \end{itemize}
 
 \end{frame}
 
 \begin{frame} \frametitle{Artificial Neural Networks}
-We use dence neural network
+
 \begin{itemize}
-  \item Problem: fixed size of input. Special simbol
-  \item agressive dropout and batch normalization
-  \item !!!
+  \item Dence neural network
+  \begin{itemize}
+    \item About 10 dence layers
+    \item \texttt{Relu} activation function
+  \end{itemize}
+  \item Problem: size of input is fixed, but length of sequences is variable \\
+  \begin{minipage}[t]{0.28\textwidth}
+    \texttt{ACACAC \\
+    CGTACGCT \\
+    GCT}
+  \end{minipage}~
+  \begin{minipage}[m]{0.18\textwidth}
+    \vspace{1cm}
+    $\Rightarrow$
+  \end{minipage}~
+  \begin{minipage}[t]{0.28\textwidth}
+    \texttt{ACACAC\$\$ \\
+    CGTACGCT \\
+    GCT\$\$\$\$\$}
+  \end{minipage}
+
+  \item Agressive dropout (up to 90\% after each layer) and batch normalization (after each layer) for learning stabilization
 \end{itemize}
 
 \end{frame}
 
-\begin{frame} \frametitle{Evaluation}
+\begin{frame} \frametitle{Evaluation: 16s rRNA detection}
 \begin{itemize}
- \item 16s rRNA detection
+ \item Training data
  \begin{itemize}
-  \item Type provider is a \textbf{function which constructs type}
+   \item All sequences have the length of 512 symbols
+   \item Totally up to 310000 sequences
+  \item Positive: random subsequences of 16s rRNA sequences from the Green Genes database
+  \item Negative: random subsequences of full genes from the NCBI database
  \end{itemize}
-\pause
-\item tRNA classification
-\begin{itemize}
- \item Type provider is a \textbf{function which constructs type}
-\end{itemize}
+\item Validation set: up to 81000 sequences
+\item After training, accuracy is 90\%
 \end{itemize}
 
 \end{frame}
+
+\begin{frame} \frametitle{Evaluation: tRNA classification}
+\begin{itemize}
+ \item Training data: 50000 sequences from GtRNADB
+ \item Input data normalization
+ \begin {itemize}
+    \item Set the upper bound of sequence length to 220
+    \item First $k$ symbols of the input are tRNA and the rest $220 - k$ symbols are filled by a special symbol
+\end{itemize}
+
+\item Validation set:  217984 sequences for prokaryotes and 62656 sequences for eukaryotes from tRNADB-CE 3
+\item After training, accuracy is 97\%
+\begin{itemize}
+  \item 3276 of eukaryotes (5.23\% of all eukaryotes in the validation set) are classified as prokaryotes \item 4373 of prokaryotes (2.01\% of all prokaryotes in the validation set) are classified as eukaryotes
+\end{itemize}
+
+\end{itemize}
+
+\end{frame}
+
 
 \begin{frame} \frametitle{Future work}
 
 \begin{itemize}
  \item DNN without parsing
- \item Other types of neural networks
- \item More !!! Evaluation
+ \begin{itemize}
+   \item Create a training set of matrices using parsing
+   \item Train the network $NN_1$ which can handle vectorized matrices
+   \item Create network $NN_2$ by extending $NN_1$ with a set of layers which convert the sequence to input for $NN_1$
+   \item Train $NN_2$, weights of layers from $NN_1$ are fixed
+ \end{itemize}
+ \item Other types of neural networks: bitwise networks, convolutional networks
+ \item More evaluation
  \item Comprison with other tools
 \end{itemize}
 
 \end{frame}
+
+\begin{frame} \frametitle{Conclusion}
+
+\begin{itemize}
+ \item We propose the approach to handle secondary structure of sequences
+ \item This approach can be applied for real data procssing
+ \item This approach can be extended to more expressive formal languages classes
+ \begin{itemize}
+   \item Conjunctive and boolean grammars
+   \item Multiple context-free grammars
+ \end{itemize}
+\end{itemize}
+
+\end{frame}
+
 
 \begin{frame}
 %\transwipe[direction=90]
@@ -288,7 +537,6 @@ We use dence neural network
   \item Trained models:
 \end{itemize}
 \vspace{2cm}
-\pause
 \center{\huge{Thanks!}}
 \end{frame}
 \end{document}
