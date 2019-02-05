@@ -4,32 +4,32 @@ This listing contains main theorems and definitions from our work.
 
    \begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
 
- Inductive ter : Type := | T : Tt -> ter.
- Inductive var : Type := | V : Vt -> var.
+Inductive ter : Type := | T : Tt -> ter.
+Inductive var : Type := | V : Vt -> var.
 
- Lemma language_normal_form (G:grammar) (A: var) (u: word):
-   u <> [] -> (language G A u <-> language (normalize G) A u).
+Lemma language_normal_form (G:grammar) (A: var) (u: word):
+  u <> [] -> (language G A u <-> language (normalize G) A u).
 
-  Inductive symbol : Type :=
-     | Ts : ter -> symbol
-     | Vs : var -> symbol.
+Inductive symbol : Type :=
+  | Ts : ter -> symbol
+  | Vs : var -> symbol.
 
- Definition word := list ter.
- Definition phrase := list symbol.
- Inductive rule : Type := | R : var -> phrase -> rule.
- Definition grammar := list rule.
+Definition word := list ter.
+Definition phrase := list symbol.
+Inductive rule : Type := | R : var -> phrase -> rule.
+Definition grammar := list rule.
 
- Inductive der (G : grammar) (A : var) : phrase -> Prop :=
+Inductive der (G : grammar) (A : var) : phrase -> Prop :=
   | vDer : der G A [Vs A]
   | rDer l : (R A l) el G -> der G A l
   | replN B u w v :
-      der G A (u ++ [Vs B] ++ w) ->
-      der G B v -> der G A (u ++ v ++ w).
+    der G A (u ++ [Vs B] ++ w) ->
+    der G B v -> der G A (u ++ v ++ w).
 
- Definition language (G : grammar) (A : var) (w : phrase) :=
-     der G A w /\ terminal w.
+Definition language (G : grammar) (A : var) (w : phrase) :=
+  der G A w /\ terminal w.
 
- Context {State T: Type}.
+Context {State T: Type}.
 
 Record dfa: Type :=
   mkDfa {
@@ -38,49 +38,52 @@ Record dfa: Type :=
     next: State -> ter T -> State;
   }.
 
- Fixpoint final_state (next_d: dfa_rule) (s: State) (w: word): State :=
-   match w with
-   | nil => s
-   | h :: t => final_state next_d (next_d s h) t
-   end.
+Fixpoint final_state (next_d: dfa_rule) (s: State) (w: word): State :=
+  match w with
+  | nil => s
+  | h :: t => final_state next_d (next_d s h) t
+  end.
 
 Record s_dfa : Type :=
-   s_mkDfa {
-     s_start: State;
-     s_final: State;
-     s_next: State -> (@ter T) -> State;
- }.
+  s_mkDfa {
+    s_start: State;
+    s_final: State;
+    s_next: State -> (@ter T) -> State;
+  }.
 
- Fixpoint split_dfa_list (st_d : State) (next_d : dfa_rule)
-                         (f_list : list State): list (s_dfa) :=
-    match f_list with
-    | nil => nil
-    | h :: t => (s_mkDfa st_d h next_d) :: split_dfa_list st_d next_d t
-    end.
+Fixpoint split_dfa_list (st_d : State) (next_d : dfa_rule)
+                        (f_list : list State): list (s_dfa) :=
+  match f_list with
+  | nil => nil
+  | h :: t => (s_mkDfa st_d h next_d) :: split_dfa_list st_d next_d t
+  end.
 
- Definition split_dfa (d: dfa) := split_dfa_list (start d) (next d) (final d).
+Definition split_dfa (d: dfa) :=
+  split_dfa_list (start d) (next d) (final d).
 
- Lemma correct_split:
-    forall dfa w,
-      dfa_language dfa w <->
-      exists sdfa, In sdfa (split_dfa dfa) /\ s_dfa_language sdfa w.
+Lemma correct_split:
+  forall dfa w,
+    dfa_language dfa w <->
+    exists sdfa, In sdfa (split_dfa dfa) /\ s_dfa_language sdfa w.
 
- Definition syntactic_analysis_is_possible :=
+Definition syntactic_analysis_is_possible :=
   forall (G : grammar) (A : var) (w : phrase),
   der G A w -> (R A w \in G) \/ (exists rhs, R A rhs \in G /\ derf G rhs w).
 
 Definition convert_nonterm_rule_2 (r r1 r2: _) (state1 state2 : _) :=
-   map (fun s3 => R (V (s1, r, s3)) [Vs (V (s1, r1, s2)); Vs (V (s2, r2, s3))])
-       list_of_states.
+  map (fun s3 => R (V (s1, r, s3))
+                   [Vs (V (s1, r1, s2)); Vs (V (s2, r2, s3))])
+      list_of_states.
 
- Definition convert_nonterm_rule_1 (r r1 r2: _) (s1 : _) :=
-   flat_map (convert_nonterm_rule_2 r r1 r2 s1) list_of_states.
+Definition convert_nonterm_rule_1 (r r1 r2: _) (s1 : _) :=
+  flat_map (convert_nonterm_rule_2 r r1 r2 s1) list_of_states.
 
- Definition convert_nonterm_rule (r r1 r2: _) :=
-   flat_map (convert_nonterm_rule_1 r r1 r2) list_of_states.
+Definition convert_nonterm_rule (r r1 r2: _) :=
+  flat_map (convert_nonterm_rule_1 r r1 r2) list_of_states.
 
-Definition convert_terminal_rule (next: _) (r: _) (t: _): list TripleRule :=
-   map (fun s1 => R (V (s1, r, next s1 t)) [Ts t]) list_of_states.
+Definition convert_terminal_rule
+  (next: _) (r: _) (t: _): list TripleRule :=
+  map (fun s1 => R (V (s1, r, next s1 t)) [Ts t]) list_of_states.
 
 Definition convert_rule (next: _) (r: _ ) :=
    match r with
@@ -91,28 +94,28 @@ Definition convert_rule (next: _) (r: _ ) :=
    | _  => []   (* Never called *)
    end.
 
- Definition convert_rules
-   (rules: list rule) (next: _): list rule :=
-   flat_map (convert_rule next) rules.
+Definition convert_rules
+  (rules: list rule) (next: _): list rule :=
+  flat_map (convert_rule next) rules.
 
- (* Maps grammar and s_dfa
-    to grammar over triples *)
- Definition convert_grammar grammar s_dfa :=
-   convert_rules grammar (s_next s_dfa).
+Definition convert_grammar grammar s_dfa :=
+  convert_rules grammar (s_next s_dfa).
 
 Inductive labeled_Vt : Type :=
   | start : labeled_Vt
   | lV : nat -> Vt -> labeled_Vt.
 
-Definition label_var (label: nat) (v: @var Vt): @var labeled_Vt := V (lV label v).
+Definition label_var (label: nat) (v: @var Vt): @var labeled_Vt :=
+  V (lV label v).
 
 Variable grammars: seq (var * grammar).
 
 Theorem correct_union:
-   forall word,
-     language (grammar_union grammars)
-     (V (start Vt)) (to_phrase word) <->
-     exists s_l, language (snd s_l) (fst s_l) (to_phrase word) /\ In s_l grammars.
+  forall word,
+    language (grammar_union grammars)
+    (V (start Vt)) (to_phrase word) <->
+  exists s_l,
+    language (snd s_l) (fst s_l) (to_phrase word) /\ In s_l grammars.
 
 
    \end{pyglist}
