@@ -5,8 +5,8 @@
 \usetheme{SPbGU}
 \usepackage{pdfpages}
 \usepackage{amsmath}
-\usepackage{cmap} 
-\usepackage[T2A]{fontenc} 
+\usepackage{cmap}
+\usepackage[T2A]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage[english]{babel}
 \usepackage{indentfirst}
@@ -17,20 +17,37 @@
 \usepackage{algorithm}
 \usepackage{algorithmicx}
 \usepackage{fancyvrb}
+\usetikzlibrary{calc}
 \usetikzlibrary{shapes,arrows}
-%usepackage{fancyvrb}
-%\usepackage{minted}
-%\usepackage{verbments}
+\usetikzlibrary{arrows,automata}
+\usetikzlibrary{positioning}
+
+\usepackage{tabularx}
+\newcolumntype{Y}{>{\raggedleft\arraybackslash}X}
+
 
 \newtheorem{mytheorem}{Theorem}
 \renewcommand{\thealgorithm}{}
 
+\newcommand{\tikzmark}[1]{\tikz[overlay,remember picture] \node (#1) {};}
+\def\Put(#1,#2)#3{\leavevmode\makebox(0,0){\put(#1,#2){#3}}}
+
+\tikzset{
+    state/.style={
+           rectangle,
+           rounded corners,
+           draw=black, very thick,
+           minimum height=2em,
+           inner sep=2pt,
+           text centered,
+           },
+}
 
 \beamertemplatenavigationsymbolsempty
 
-\title[DNN + Formal Grammars]{The Composition of Dense Neural Networks and Formal Grammars for Secondary Structure Analysis}
+\title[DNN + Formal Grammars]{The Composition of Dense Neural Networks and Formal~Grammars for Secondary Structure Analysis}
 %\subtitle[YaccConstructor]{Parsing techniques for graph analysis}
-% То, что в квадратных скобках, отображается в левом нижнем углу. 
+% То, что в квадратных скобках, отображается в левом нижнем углу.
 \institute[JetBrains Research]{
 JetBrains Research, Programming Languages and Tools Lab  \\
 Saint Petersburg University
@@ -39,274 +56,488 @@ Saint Petersburg University
 % То, что в квадратных скобках, отображается в левом нижнем углу.
 \author[Semyon Grigorev]{Polina Lunina, \textbf{Semyon Grigorev}}
 
-\date{Febrary !!!, 2019}
-
-\definecolor{orange}{RGB}{179,36,31}
+\date{Febrary 24, 2019}
 
 \begin{document}
 {
 \begin{frame}[fragile]
-  \begin{tabular}{p{1.5cm} p{7.5cm} p{1cm}}
-   \begin{center}
-      \includegraphics[height=1.5cm]{pictures/jetbrainsResearch.pdf}
-    \end{center}
-    &
-    \begin{center}
-      %\includegraphics[height=1.5cm]{pictures/icfplogo.png}
-      BIOINFORMATICS \\ 2019
-    \end{center}
-    &
-    \begin{center}
-      \includegraphics[height=1.5cm]{pictures/SPbGU_Logo.png}
-    \end{center} 
-  \end{tabular}
+  \begin{table}
+  \centering
+  \begin{tabularx}{\linewidth}{YcX}
+    \includegraphics[height=1.5cm]{pictures/jetbrainsResearch.pdf} \hfill
+    & \begin{minipage}[t]{0.3\textwidth}\center \vspace{-1cm}  BIOINFORMATICS 2019
+      \end{minipage}
+    & \hfill \includegraphics[height=1.5cm]{pictures/SPbGU_Logo.png}
+  \end{tabularx}
+  \end{table}
   \titlepage
 \end{frame}
 }
 
-\begin{frame}[fragile]
-  \transwipe[direction=90]
-  \frametitle{GPGPU}
-%  \begin{minipage}[m]{0.40\linewidth}
-%\raisebox{-0.5\totalheight}{\includegraphics[height=0.85\textheight]{pictures/cpu_gpu.pdf}}
-%\end{minipage}\hfill
-%\begin{minipage}[m]{0.6\linewidth}
-%General purpose computations on graphical processor units
-%\begin{itemize}
-%      \item (Almost) SIMD architecture 
-%      \item Huge amount of ``simple'' ALUs on single chip
-%      \item Initially for computer graphic/games
-%      \item Good choice for massive data processing   
-%\end{itemize}
+\begin{frame} \frametitle{Sequences Analysis: classification, search\dots}
 
+\begin{minipage}[t]{0.49\textwidth}
+\textbf{Problem: high variability of data}
+\begin{itemize}
+   \item Mutations
+   \item Different kinds of noise
+   \item \dots
+\end{itemize}
+\pause
+\textbf{We need probabilistic approaches}
+\end{minipage}
+\pause
+~
+\begin{minipage}[t]{0.47\textwidth}
+\textbf{Level of abstraction}
+\begin{itemize}
+   \item Primary structure
+   \item Secondary structure
+   \item Tertiary structure
+\end{itemize}
+\pause
+\textbf{We should handle secondary structure}
+\end{minipage}
+
+
+{
+\begin{center}
+\pause
+\vspace{1cm}
+\textbf{Probabilistic approach which handles secondary structure}
+\end{center}
+}
+\end{frame}
+
+
+%\begin{frame} \frametitle{Probabilistic approaches}
+
+%\begin{itemize}
+  %\item Hidden Markov's Models (HMM's)
+  %\item Probabilistic grammars (Secondary structure)
+  %item Covariation Models (CM's) (Secondary structure)
+  %item Artificial neural networks (Basicly no)
+%\end{itemize}
+%
+%\end{frame}
+
+
+\begin{frame} \frametitle{Proposed Solution: Parsing + Artificial Neural Network}
+
+\begin{itemize}
+  \item Use parsing to extract features, not to model secondary structure
+  \begin{itemize}
+    \item As compared to the classical way of probabilistic CF grammars utilization
+  \end{itemize}
+  \pause
+  \item Formal grammars as secondary structure description
+  \item Parsing as features extraction
+  \item Artificial neural network as probabilistic model for features processing
+\end{itemize}
+
+\end{frame}
+
+
+\begin{frame} \frametitle{Solution Structure}
+\tiny %\hspace{-2cm}
+  \begin{tikzpicture}[->,>=stealth']
+
+
+  \node[state,
+        align=left,
+        text width = 3.5cm] (grm)
+   {
+    \textbf{Grammar}\\
+  Fixed formal grammar (not necessarily context-free) describes features of secondary structure and can be tuned to increase the quality of result.
+
+   };
+
+
+  \node[state,
+        below of=grm,
+        node distance=1.5cm,
+        align = left,
+        text width = 3.5cm] (sqs)
+   {
+   \textbf{Sequences}\\
+  Each sequence is treated as a text in $\{A, C, G, T\}$ alphabet.
+   };
+
+
+  \node[state,
+        right of=grm,
+        node distance=4cm,
+        align = left,
+        text width = 3.5cm](parser)
+  {
+  \textbf{Parser}\\
+  Parser extracts features of the given sequence secondary structure.
+  Implementation of parsing algorithm is based on matrix multiplications (Valiant, Okhotin) and utilizes GPGPU.
+  };
+
+  \node[state,
+        right of=parser,
+        node distance=4cm,
+        align = left,
+        text width = 3.5cm] (mtrx)
+  {
+    \textbf{Matrices}\\
+    \vspace{0.2cm}
+    \begin{tabular}{| c | c | c | c | }
+    \hline
+    0 & \textbf{1} & 0 & \textbf{1}\\ \hline
+    0 & 0 & \textbf{1} & 0\\ \hline
+    0 & 0 & 0 & \textbf{1}\\ \hline
+    0 & 0 & 0 & 0\\ \hline
+    \end{tabular} \\
+    \vspace{0.1cm}
+  Parsing result is (0-1) matrix~$M$ which represents secondary structure features for sequence $\omega$: $ M[i,j] = 1 \iff \text{\ttfamily{s1}} \xrightarrow{*}{} \omega[i,j]$, and $0$ otherwise.
+  };
+
+  \node[state,
+        below of=sqs,
+        node distance=1cm,
+        align = left,
+        text width = 3.5cm](result)
+  {
+  \textbf{Result of classification}
+
+  };
+
+
+  \node[state,
+        below of=parser,
+        node distance=4.2cm,
+        align = left,
+        text width = 3.5cm](DNN)
+  {
+  \textbf{Neural Network}\\
+
+  Dense neural network with more than 10 dense layers.
+  Agressive dropout and batch normalization for learning process stabilization.\\
+  Typical building block:
+  \\
+  \vspace{-0.3cm}
+  \begin{center}
+  \includegraphics[width=2.5cm]{pictures/bb.pdf}
+  \end{center}
+
+  };
+
+
+  \node[state,
+        right of=DNN,
+        node distance=4cm,
+        align = left,
+        text width = 3.5cm](vector)
+  {
+  \textbf{Vectors}\\
+  \vspace{0.2cm}
+  \begin{tabular}{| c | c | c | c | }
+  \hline
+  0 & 1 & 0 & 1\\ \hline
+  0 & 0 & 1 & 0\\ \hline
+  0 & 0 & 0 & 1\\ \hline
+  0 & 0 & 0 & 0\\ \hline
+\end{tabular}
+$\Rightarrow$ \texttt{[0,1,0,1,0,1,0,0,1,0]} $\Rightarrow$ \texttt{[84,128]}\\
+\vspace{0.1cm}
+  Line-by-line compressed matrix representation: sequence of 8 cells (bits) is compressed into a byte. Bottom left triangle of the matrix is always empty, so can be ignored.
+  };
+
+
+  \path (grm) edge  (parser)
+   (sqs) edge [bend right] (parser)
+  % (sqs) edge (parser)
+   (parser) edge (mtrx)
+   (mtrx) edge (vector)
+   (vector) edge (DNN)
+   (DNN) edge (result)
+   ;
+
+  \end{tikzpicture}
+
+  \tikzmark{zzz}{
+  }
+  %}
+  \pause
+  \onslide<2>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (zzz) + (-0.1,7.9)$) rectangle ($ (zzz) + (3.8,4.8)$);}}
+
+  \onslide<3>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (zzz) + (3.8,7.9)$) rectangle ($ (zzz) + (7.8,5.9)$);}}
+
+  \onslide<4>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (zzz) + (7.8,8.45)$) rectangle ($ (zzz) + (11.8,5.3)$);}}
+
+  \onslide<5>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (zzz) + (7.8,4.6)$) rectangle ($ (zzz) + (11.8,0.75)$);}}
+
+  \onslide<6>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (zzz) + (3.9,5.2)$) rectangle ($ (zzz) + (7.8,0.2)$);}}
+
+  \onslide<7>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (zzz) + (-0.1,4.8)$) rectangle ($ (zzz) + (3.8,4.0)$);}}
+
+
+\end{frame}
+
+\begin{frame}[fragile] \frametitle{Grammar}
+%\onslide<1-4>{
+
+\begin{verbatim}
+s1: stem<s0>
+any_str: any_smb*[2..10]
+any_smb: A | T | C | G
+s0: any_str | any_str stem<s0> s0
+stem1<s>:               \\ stem of height exactly 1
+      A s T | G s C | T s A | C s G
+stem2<s>:               \\ stem of height exactly 2
+      stem1< stem1<s> >
+stem<s>:                \\ stem of height 3 or more
+      A stem<s> T
+    | T stem<s> A
+    | C stem<s> G
+    | G stem<s> C
+    | stem1< stem2<s> >
+\end{verbatim}
+\tikzmark{yyy}{
+}
+%}
+\pause
+\onslide<2>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (yyy) + (-0.2,7.5)$) rectangle ($ (yyy) + (12,7)$);}}
+\onslide<3>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (yyy) + (-0.2,7)$) rectangle ($ (yyy) + (12,6)$);}}
+\onslide<4>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (yyy) + (-0.2,6)$) rectangle ($ (yyy) + (12,5.5)$);}}
+\onslide<5>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (yyy) + (-0.2,5.6)$) rectangle ($ (yyy) + (12,4.6)$);}}
+\onslide<6>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (yyy) + (-0.2,4.6)$) rectangle ($ (yyy) + (12,3.6)$);}}
+\onslide<7>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (yyy) + (-0.2,3.6)$) rectangle ($ (yyy) + (12,0.6)$);}}
+\end{frame}
+
+\begin{frame}[fragile] \frametitle{Example 1: Stem}
+\centering
+ $\omega_1=$ \texttt{CCCCATTGCCAAGGACCCCACCTTGGCAATCCC}
+\vspace{1cm}
+
+\tikzmark{xx}{\includegraphics[width=.8\textwidth]{pictures/4.pdf}}
+\onslide<2-3>{
+\tikz[overlay,remember picture]{
+\draw[draw=red,thick,fill opacity=0.2] ($(xx) + (1.1,4.97)$) rectangle ($(xx) + (9.05,3.235)$);
+}
+}
+
+\onslide<3>{
+\tikz[overlay,remember picture]{
+\draw[draw=red,thick,fill opacity=0.2] ($(xx) + (5.8,4.97)$) rectangle ($(xx) + (8.75,0.4)$);
+}
+}
+
+\end{frame}
+
+\begin{frame}[fragile] \frametitle{Example 2: Pseudoknot}
+\centering
+ $\omega_2=$ \texttt{CCACTTACCTATGACCTAAGTCCTCATACC}
+\vspace{1cm}
+
+\tikzmark{y}{\includegraphics[width=.8\textwidth]{pictures/5.pdf}}
+
+\onslide<2-3>{
+\tikz[overlay,remember picture]{
+\draw[draw=red,thick,fill opacity=0.2] ($(y) + (0.6,5.37)$) rectangle ($(y) + (7.15,4.4)$);
+\draw[draw=red,thick,fill opacity=0.2] ($(y) + (5.15,5.37)$) rectangle ($(y) + (6.8,1.7)$);
+}
+}
+
+\onslide<3>{
+\tikz[overlay,remember picture]{
+\draw[draw=blue,thick,fill opacity=0.2] ($(y) + (2.8,4.01)$) rectangle ($(y) + (9.42,3.05)$);
+\draw[draw=blue,thick,fill opacity=0.2] ($(y) + (7.45,4.01)$) rectangle ($(y) + (9.1,0.3)$);
+}
+}
+
+\end{frame}
+
+
+\begin{frame}[fragile] \frametitle{Example 3: real tRNA}
+\centering
+ $\omega_3=$ \texttt{CAGGGCATAACCTAGCCCAACCTTGCCAAGG\\TTGGGGTCGAGGGTTCGAATCCCTTCGCCCGCTCCA}
+\vspace{0.5cm}
+\begin{itemize}
+  \item Novosphingobium aromaticivorans DSM 12444 chr.trna57-GlyGCC(268150-268084) Gly (GCC) 67 bp Sc: 22.9, from \href{http://gtrnadb2009.ucsc.edu/download.html}{GtRNAdb}
+  \item Predicted secondary structures are given by using the \href{http://rna.urmc.rochester.edu/RNAstructureWeb/Servers/Fold/Fold.html}{Fold Web Server with default settings}
+
+\end{itemize}
+
+
+%\begin{minipage}[t]{0.49\textwidth}
+%\centering
+%\includegraphics[width=.70\textwidth]{pictures/Fold1.pdf}
+%\end{minipage}
+%\begin{minipage}[t]{0.49\textwidth}
+%\centering
+%\includegraphics[width=.96\textwidth]{pictures/Fold2.pdf}
+%\vspace{1cm}
+%\vfill
 %\end{minipage}
 
 \end{frame}
 
-\begin{frame}[fragile]
-  \transwipe[direction=90]
-  \frametitle{General purpose applications of GPGPU}
-  \begin{itemize}
-    \item Initially for scientific computations
-    \begin{itemize}
-      \item Physics
-      \item Math
-      \item Chemistry
-    \end{itemize}
-    \item But more and more for applications
-      \begin{itemize} 
-        \item Finance/Banking
-        \item Data Analytics and Data Science (Hadoop, Spark ...)
-        \item Security analytics (log processing)
-        \item Some scientific computations today are daily-used applications (bioinformatics, chemistry , \dots)
-      \end{itemize}
-  \end{itemize}
-\end{frame}
+\begin{frame}[fragile] \frametitle{Example 3: real tRNA}
+\centering
 
-\begin{frame}
-  \transwipe[direction=90]
-  \frametitle{High level languages and GPGPU}
-\begin{minipage}[m]{0.45\linewidth}
-Low-level platforms and languages for GPGPU programming
-\begin{itemize}
-\item NVIDIA CUDA: Cuda C, Cuda Fortran
-\item \textbf{OpenCL: OpenCL C}
-\end{itemize}
-\end{minipage}\hfill
-\begin{minipage}[m]{0.45\linewidth}
-High-level platform and languages for applications
-\begin{itemize}
-      \item C++
-      \item Python, Haskell, OCaml, \dots
-      \item JVM: Java, Scala, \dots 
-      \item \textbf{.NET: C\#, F\#, \dots}
-\end{itemize}
-\end{minipage}
+\tikzmark{an}{\includegraphics[width=\textwidth]{pictures/0m.pdf}}
 
-\pause
-\vspace{1cm}
-\center{\huge{Interaction is a challenge!}}
-\end{frame}
+\onslide<2-3>{\Put(-175,150){\includegraphics[height=6cm]{pictures/Fold1.pdf}}}
+\onslide<3-3,7>{
+\tikz[overlay,remember picture]{
+\draw[draw=blue,thick,fill opacity=0.2] ($(an) + (0.28,6.885)$) rectangle ($(an) + (11.22,6.415)$);
+\draw[draw=blue,thick,fill opacity=0.2] ($(an) + (10.3,6.885)$) rectangle ($(an) + (11.025,0.57)$);
 
-\begin{frame}[fragile]
-  \transwipe[direction=90]
-  \frametitle{Possible solutions}
-  \begin{itemize}
-  \item Translation of high-level language to GPGPU specific one
-    \begin{itemize}
-  \item[+] Useful features of host language for GPGPU programming (type safety)
-  \item[--] High performance GPGPU programs is inherently low-level
-  \end{itemize}
-  \item Using of existing GPGPU libraries
-      \begin{itemize}
-  \item[+] GPGPU optimized solution in low-level language
-  \item[?] We need automatic generation of ``well-typed'' bindings
-  \end{itemize}
+\draw[draw=blue,thick,fill opacity=0.2] ($(an) + (2.65,5.49)$) rectangle ($(an) + (6.68,4.42)$);
+\draw[draw=blue,thick,fill opacity=0.2] ($(an) + (4.65,5.49)$) rectangle ($(an) + (6.46,3.2)$);
 
-  \end{itemize}
-\end{frame}
-
-\begin{frame}[fragile]
-  \transwipe[direction=90]
-  \frametitle{Brahma.FSharp}
-  \begin{itemize}
-  \item F\# quotations to OpenCL C translator
-  \item Runtime
-      \begin{itemize}
-        \item Comand queue
-        \item Execution context management
-        \item Memory management
-        \item F\# aliases for OpenCL-specific functions
-      \end{itemize}
-
-  \end{itemize}
-\end{frame}
-
-\begin{frame}
-  \transwipe[direction=90]
-  \frametitle{F\# type providers}
-\begin{itemize}
- \item Compile-time metaprogramming for types creation
- \begin{itemize}
-  \item Type provider is a \textbf{function which constructs type}
- \end{itemize}
- \item Design-time features in IDE
- \begin{itemize}
-   \item Completion
-   \item Type information
- \end{itemize}
- \item Used for type-safe integration of external data with fixed schema
- \begin{itemize}
-   \item Type providers for XML, JSON, INI
-   \item R, SQL
- \end{itemize}
-\end{itemize}
-
-\end{frame}
-
-
-\begin{frame}[fragile]
-  \transwipe[direction=90]
-  \frametitle{Example of INI type provider}
-
-\small{
-\begin{verbatim}
-[Section1]
-intSetting = 2
-stringSetting = stringValue
-[Section2]
-floatSetting = 1.23
-boolSetting = true
-anotherBoolSetting = False
-emptySetting =
-stringWithSemiColonValue = DataSource=foo@bar;UserName=blah 
-\end{verbatim}
+\draw[draw=blue,thick,fill opacity=0.2] ($(an) + (7.2,2.85)$) rectangle ($(an) + (10.12,2.4)$);
+\draw[draw=blue,thick,fill opacity=0.2] ($(an) + (9.23,2.85)$) rectangle ($(an) + (9.95,1.2)$);
 }
-%\includegraphics[width=0.6\textwidth]{pictures/INIExample.png}
+}
 
+\onslide<5-6>{\Put(-10,130){\includegraphics[height=4.3cm]{pictures/Fold2.pdf}}}
+\onslide<6-7>{
+\tikz[overlay,remember picture]{
+
+\draw[draw=red,thick,fill opacity=0.2] ($(an) + (0.31,6.86)$) rectangle ($(an) + (3.4,6.44)$);
+\draw[draw=red,thick,fill opacity=0.2] ($(an) + (2.5,6.86)$) rectangle ($(an) + (3.2,5.1)$);
+
+\draw[draw=red,thick,fill opacity=0.2] ($(an) + (3.4,5.06)$) rectangle ($(an) + (5.95,4.535)$);
+\draw[draw=red,thick,fill opacity=0.2] ($(an) + (4.83,5.06)$) rectangle ($(an) + (5.73,3.6)$);
+
+\draw[draw=red,thick,fill opacity=0.2] ($(an) + (6.1,3.47)$) rectangle ($(an) + (11.2,3.15)$);
+\draw[draw=red,thick,fill opacity=0.2] ($(an) + (10.5,3.47)$) rectangle ($(an) + (11,0.6)$);
+
+\draw[draw=red,thick,fill opacity=0.2] ($(an) + (7.2,2.85)$) rectangle ($(an) + (10.12,2.4)$);
+\draw[draw=red,thick,fill opacity=0.2] ($(an) + (9.23,2.85)$) rectangle ($(an) + (9.95,1.2)$);
+}
+}
 \end{frame}
 
-\begin{frame}
-  \transwipe[direction=90]
-  \frametitle{OpenCL C type provider}
+\begin{frame} \frametitle{Summary}
+
 \begin{itemize}
-\item We want to construct type-safe wrapper for existing library
-\item OpenCL standard declares source-level distribution with in place compilation
-\begin{itemize}
-\item[+] We can work with source code, not with binaries
-\item[--] Existing library is a set of files includes *.h files
+  \item Parser is only a features extractor
+  \item Parsing result contains all possible foldings (w.r.t. grammar) including impossible in practice
+  \item Grammar is a parameter: one can add a \texttt{G-T} pair, change minimal height of the stem, etc
+  \item It is possible to detect features which are not expressible in the language class in use
 \end{itemize}
-\item It is enough to process functions signatures
-\end{itemize}
-\end{frame}
- 
-\begin{frame}
-  \transwipe[direction=90]
-  \frametitle{OpenCL C type provider: architecture}
-    
- % \includegraphics[width=0.95\textwidth]{pictures/OpenCL_C_TP.pdf}
- % \\
-  \pause
-  \center{Yes, it is typical type provider}
+
 \end{frame}
 
-\begin{frame}
-  \transwipe[direction=90]
-  \frametitle{Limitations}
+\begin{frame} \frametitle{Artificial Neural Networks}
+
 \begin{itemize}
-\item Only (small) subset of OpenCL C
- \begin{itemize}
- \item *.h files are not supported
- \item preprocessor is not supported
- \item only small subset of syntax is supported
+  \item Dense neural network
+  \begin{itemize}
+    \item About 10 dense layers
+    \item \texttt{Relu} activation function
   \end{itemize}
-\item Very simple C to F\# type mapping
+  \item Problem: input size is fixed, but the length of sequences is variable \\
+  \begin{center}
+  \begin{minipage}[t]{0.28\textwidth}
+    \texttt{ACACAC \\
+    CGTACGCT \\
+    GCT}
+  \end{minipage}~
+  \begin{minipage}[m]{0.18\textwidth}
+    \vspace{1cm}
+    $\Rightarrow$
+  \end{minipage}~
+  \begin{minipage}[t]{0.28\textwidth}
+    \texttt{ACACAC\$\$ \\
+    CGTACGCT \\
+    GCT\$\$\$\$\$}
+  \end{minipage}
+\end{center}
+
+  \item Agressive dropout (up to 90\% after each layer) and batch normalization (after each layer) for learning stabilization
 \end{itemize}
 
 \end{frame}
 
-            
-\begin{frame}
-  \transwipe[direction=90]
-  \frametitle{Examples}         
-  %\includegraphics[width=0.95\textwidth]{pictures/smpl1.png}
-  %\pause
-  %\\
-  %\includegraphics[width=0.95\textwidth]{pictures/smpl3.png}
-  %\pause
-  %\\
-  %\includegraphics[width=0.95\textwidth]{pictures/smpl2.png}
+\begin{frame} \frametitle{Evaluation: 16s rRNA detection}
+\begin{itemize}
+ \item Training data
+ \begin{itemize}
+   \item All sequences are 512 symbols in length
+   \item Totally up to 310000 sequences
+  \item Positive: random subsequences of 16s rRNA sequences from the Green Genes database
+  \item Negative: random subsequences of full genes from the NCBI database
+ \end{itemize}
+\item Validation set: up to 81000 sequences
+\item Accuracy is 90\% after training
+\end{itemize}
 
-\end{frame}     
+\end{frame}
+
+\begin{frame} \frametitle{Evaluation: tRNA classification}
+\begin{itemize}
+ \item Training data: 50000 sequences from GtRNADB
+ \item Input data normalization
+ \begin {itemize}
+    \item Set the upper bound of sequence length to 220
+    \item First $k$ symbols of the input are tRNA and the rest $220 - k$ symbols are filled by the special symbol
+\end{itemize}
+
+\item Validation set:  217984 sequences for prokaryotes and 62656 sequences for eukaryotes from tRNADB-CE 3
+\item Accuracy is 97\% after training
+\begin{itemize}
+  \item 3276 of eukaryotes (5.23\% of all eukaryotes in the validation set) are classified as prokaryotes \item 4373 of prokaryotes (2.01\% of all prokaryotes in the validation set) are classified as eukaryotes
+\end{itemize}
+
+\end{itemize}
+
+\end{frame}
+
+
+\begin{frame} \frametitle{Future work}
+
+\begin{itemize}
+ \item Create DNN which does not requre input parsing
+ \begin{itemize}
+   \item Create a training set of matrices using parsing
+   \item Train the network $NN_1$ which can handle vectorized matrices
+   \item Create network $NN_2$ by extending $NN_1$ with a set of layers which convert the sequence to input for $NN_1$
+   \item Train $NN_2$, weights of layers from $NN_1$ are fixed
+ \end{itemize}
+ \item Try to use other types of neural networks: bitwise networks, convolutional networks
+ \item Do more evaluation
+ \item Perform comparison with other tools
+\end{itemize}
+
+\end{frame}
+
+\begin{frame} \frametitle{Conclusion}
+
+\begin{itemize}
+ \item We propose the approach to handle secondary structure of sequences
+ \item This approach can be applied for real data processing
+ \item This approach can be extended to more expressive classes of formal languages
+ \begin{itemize}
+   \item Conjunctive and boolean grammars
+   \item Multiple context-free grammars
+ \end{itemize}
+\end{itemize}
+
+\end{frame}
+
 
 \begin{frame}
-  \transwipe[direction=90]
-  \frametitle{Future work}         
-\begin{itemize}
-\item Improve OpenCL C support
-\begin{itemize}
-\item Lexer and parser
-\item Translator 
-\item Types mapping
-\item Headers files processing
-\item \dots
-\end{itemize}
-\item Unify kernels on client side
-\begin{itemize}
-\item Currently native Brahma.FSharp's kernel and kernel loaded by type provider are different 
-types
-\end{itemize}
-\item Improve mechanism of kernels composition
-\end{itemize}
-\end{frame}     
-            
-            
-\begin{frame}
-  \transwipe[direction=90]
-  \frametitle{Summary}         
-\begin{itemize}
-\item F\# OpenCL C type provider
-\begin {itemize}
-\item Type-safe integration of existing OpenCL C code in F\# applications
-\item Proof of concept
-\end{itemize}
-\vspace{1cm}
-\item Source code on GitHub: \url{https://github.com/YaccConstructor/Brahma.FSharp}
-\item Package on NuGet: \url{https://www.nuget.org/packages/Brahma.FSharp/}
-\end{itemize}
-\end{frame}           
-            
-\begin{frame}
-\transwipe[direction=90]
+%\transwipe[direction=90]
 \frametitle{Contact Information}
 \begin{itemize}
-  \item Semyon Grigorev: \href{mailto:s.v.grigoriev@spbu.ru}{s.v.grigoriev@spbu.ru}
-  \item Kirill Smirenko: \href{mailto:k.smirenko@gmail.com}{k.smirenko@gmail.com}
+  \item Semyon Grigorev:
+    \begin{itemize}
+      \item \href{mailto:s.v.grigoriev@spbu.ru}{s.v.grigoriev@spbu.ru}
+      \item \href{mailto:Semen.Grigorev@jetbrains.com}{Semen.Grigorev@jetbrains.com}
+    \end{itemize}
+  \item Polina Lunina:
+  \begin{itemize}
+    \item  \href{mailto:lunina_polina@mail.ru}{lunina\_polina@mail.ru}
+  \end{itemize}
+  \item Trained models:
 \end{itemize}
-\begin{itemize}
-  \item Brahma.FSharp: \href{https://github.com/YaccConstructor/Brahma.FSharp}{https://github.com/YaccConstructor/Brahma.FSharp}
-\end{itemize}
-\hspace{2cm}
+\vspace{2cm}
 \center{\huge{Thanks!}}
 \end{frame}
 \end{document}

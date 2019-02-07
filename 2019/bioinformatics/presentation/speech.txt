@@ -1,0 +1,91 @@
+1. Hi, my name is Semyon, I'm from the saint Petersburg state university. I want to talk about our solution on secondary structure handling by using ordinary grammars and dense neural networks.
+
+2. There are a big number of sequences analysis tasks, such as subservience detection, sequences classification and so on. One of serious problem here is a high variability of the input data. And as a result we need probabilistic approaches.
+
+Within it there are some different levels of abstraction: we can treat the given sequence just as a plain text, or add some information about its structure. It is shown that utilization of secondary structure can increase quality of sequences analysis.
+
+Thus, probabilistic approach which can handle secondary structure can be a good choice. Look at the Infernal tool, for example.   
+
+3. Classical way is to use probabilistic grammar for secondary structure modelling. We propose to use parser only for features extraction. Namely, we use ordinary, not probabilistic, grammar for features description. Then we use parser for features extraction. After that we use artificial neural network for extracted features processing.
+
+4. Let discuss structure of our solution in more details. The input consists of two parts. The first is a grammar which should not be context-free. We can use more expressive classes of grammars. We only need to have ability to represent parsing result as a set of matrices. The second part is a sequence to be processed.
+
+ These two parts is input for parser. Our implementation is based on Okhotin's algorithm which reduce parsing to matrices multiplication. As a result we can utilize GPGPUs for parsing.
+
+ Result of parsing is a set of boolean matrices: one matrix for each nonterminal. Each matrix represents information about all substrings which is derivable from the given nonterminal. In practice we use only matrix for start nonterminal. If cell i,j contains 1 then substring from i to j derivable from the start nonterminal.
+
+ The input for neural network is a vector of features, so we should vectorize out matrices. We use simple line-by-line vectorization. As far as bottom left triangle is always filled by zeros, we skip it. For long sequences we also compress vectors to decrease network size. We just treat sequences of bits as byte. It is technical trick because most libraries for neural networks can not handle bit vectors, but can handle byte vectors.
+
+ Well. Now we are ready to run dense neural network. At the current state it is classical dense network with agressive dropout and batch normalization. It is necessary for learning stabilization.
+
+Finally we get some results which are depend on problem which we try to solve.
+
+5. Let discuss some parts in more carefully. Firs part is grammar. In our case it is context-free grammar. S-one is a start nonterminal --- it is our point of interest.
+This grammar contains two rules which describe arbitrary string of length from 2 up to 10, and arbitrary symbol, respectively.
+
+The next rule is a key of this grammar. This rule describes recursive composition of stems which we want to detect. As you can see, S-zero is sequence of S-zeros, embedded into stem.
+
+Rest rules are necessary for description of stem with bounded minimal height.
+
+First of all, we specify stem with height exactly one,
+
+The next step is definition of stem of height exactly Network
+
+And finally we define stem of height more then three.
+
+In this grammar we use only classical base pairs. But one can add G-T pair. It may increase quality of result.
+
+Well. Let look at the examples of parsing results.
+6. First example is a result of parsing of sequence which should contains stem. Note that it is a synthetic sequence. Parsing result is a matrix. Bottom left angle is empty. Input sequence is laced on main diagonal only for example explanation. Real matrix contains only ones and zeros.
+
+Additionally, you can see contact map, which helps to navigate in sequence.
+
+Let look at the matrix content. Each one is a root of stem. Chain of ones is a stem with height more than three. The leftmost one is a stem of height 3 and each next is a stem of height increased by 1. So, here we can see stem of height ten.
+
+Let highlight it. I use boxes for mapping ones to input sequence. One box for first part of folded subsequence, and one -- for the second part. Great: parsing result maps to expected contact map.
+
+You can see some possibly strange ones which are out of chain. As I mention above, we detect all possible substrings. Detected foldings are possible with relation to our grammar. Sometimes these foldings should be treated as noise, but sometimes they may be useful. Let look at example, when it is useful to detect all possible foldings.
+
+7.Yet another synthatic sequence which should fold to pseudoknot. Pseudoknots are not describable by using context-free grammars. Pdeudoknot presented here can be described as interleaved stems. And our matrix contains all these two stems.
+
+The first one
+
+and the second one
+
+No, if neural network is powerful enough, if can infer that given sequence contains pseudoknot, because parsing result contains all necessary information.
+
+Thus, our approach can handle features of secondary structure which can not be expressed in class of grammar in use.
+
+8. And the last example is a real tRNA processing. This sequence is given from GTRNA batabase. In this example we compare parsing result with top two predicted secondary structures which are given by external tool.
+
+9. Well. It is a parsing matrix.
+
+And here you can see first predicted secondary structure.
+
+And this structure is contained in our matrix. As far as we do not handle G-T pairs in our grammar, parsing result is slightly different from predicted structure. For example HERE.
+
+Well. And now the second predicted structure.
+
+Predicted by tool.
+
+And corresponding parts detected by our parser.
+
+And put all together. All two predicted structures are contained in matrix.
+
+10. Short Summary. Parser is just features extractor. It extracts all possible foldings for all possible substrings with relation to given grammar which can be modified. And as a result it is possible to detect features which is not expressable in used class of grammars.
+
+11. The next part of our solution is a dense neural network which used for features processing. We use network with more than 10 dense layers. Technical prolem with network is fixed size of input vector. Size of vector is depends on the input sequence length which is variable. To solve this problem we just align seuences by using special symdol as shouwn at the slide.
+
+To stablize learning process we need to use aggressive dropout and batch normalization layers at he same time.
+
+12. We have two cases for evaluation. The first is a rRNA detection. We try to classify rRNA sequences and non-rRNA sequences. We use Green Genes databse as a source of positve examples and random parts of annotated geens from NCBI as negative examples. In this case our soulution demonstartes 90% accuracy.
+
+13. The next case is a tRNA classification: we try to split all tRNA sequences into eucaryotes and procaryotes. Here we use sequences from GtRNADB for training and and seuences from tRNABD-CE for validation. For this case our soulution demonstrates 97% accurasy.
+
+14. In the future we plan to create network which does not require input parsing. It can be done by staged training.
+ Also we want to try other types of artificial networks. For example, we can treat parsing matrix as a picture. Convolutional network may be a good choise for such images prcessing.
+And of course we should compare our approach with other approaches and tools.
+
+15. So, we propose yet another approach to handle secondary structure of sequences and show that it is applicab;e for ral data processing. This approach is grammar independent: one can use more expressive than context-free classes of grammars. For example, conjunctive grammars. One you need is only be shure that you can represent secondary structure features as a matrix.
+
+16. That's all. Thank you for attention. I'm ready to answer your questions.
