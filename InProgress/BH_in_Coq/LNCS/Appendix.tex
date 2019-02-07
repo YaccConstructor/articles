@@ -108,6 +108,18 @@ Inductive labeled_Vt : Type :=
 Definition label_var (label: nat) (v: @var Vt): @var labeled_Vt :=
   V (lV label v).
 
+Definition label_grammar_and_add_start_rule label grammar :=
+  let '(st, gr) := grammar in
+  (R (V start) [Vs (V (lV label st))]) :: label_grammar label gr.
+
+Fixpoint grammar_union (grammars : seq (@var Vt * (@grammar Tt Vt)))
+       : @grammar Tt labeled_Vt :=
+  match grammars with
+  | [] => []
+  |  (g::t) => label_grammar_and_add_start_rule (length t)
+                                                g ++ (grammar_union t)
+end.
+
 Variable grammars: seq (var * grammar).
 
 Theorem correct_union:
@@ -116,6 +128,14 @@ Theorem correct_union:
     (V (start Vt)) (to_phrase word) <->
   exists s_l,
     language (snd s_l) (fst s_l) (to_phrase word) /\ In s_l grammars.
+
+Theorem grammar_of_intersection_exists:
+  exists
+    (NewNonterminal: Type)
+    (IntersectionGrammar: @grammar Terminal NewNonterminal) St,
+  forall word,
+     dfa_language dfa word /\ language G S (to_phrase word) <->
+     language IntersectionGrammar St (to_phrase word).
 
 
    \end{pyglist}
