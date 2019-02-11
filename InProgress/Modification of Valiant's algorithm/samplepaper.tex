@@ -8,7 +8,7 @@
 
 
 % Package to generate and customize Algorithm as per ACM style
-\usepackage[ruled, linesnumbered]{algorithm2e}
+\usepackage[ruled, linesnumbered, noend]{algorithm2e}
 \renewcommand{\algorithmcfname}{Algorithm}
 \SetAlFnt{\small}
 \SetAlCapFnt{\small}
@@ -60,12 +60,21 @@ Recent  research  has  shown  that the theory of formal languages can be used in
 
 Since the theory of context-free grammars was developed by Noam Chomsky, it has been extensively studied~\cite{chomsky1,chomsky2}. The classic application of context-free grammars is describing natural and programming  languages. Recent  research has  shown  that the theory of formal languages and, in particular, context-free languages can be used in bioinformatics~\cite{rivas,knudsen,yuan,dowell}. 
 
-There are a number of different approaches to solve the recognition and classification problems in bioinformatics, some of them are based on the researches claiming that the secondary structure of the nucleotide sequence (DNA and RNA) contains an important information about the organism species. The specific features of the secondary structure can be described by some context-free grammar, and therefore the recognition problem can be reduced to parsing -- verification if some nucleotide sequence can be derived in this grammar. That means we try to find the substrings possessing these specific features and further we can draw conclusions about the organism's origin based on the availability and location of the found substrings. So it is necessary to find an easily adaptable to the string-matching problem algorithm, moreover, as such field of application as bioinformatics requires working with large amount of data, it should be highly efficient.
+There is a number of different approaches to solve the recognition and classification problems in bioinformatics, some of them are based on the research claiming that the secondary structure of the DNA and RNA nucleotide sequence contains an important information about the organism species. The specific features of the secondary structure can be described by some context-free grammar, and therefore the recognition problem can be reduced to parsing -- verification if some nucleotide sequence can be derived in this grammar. That means we try to find the substrings in DNA or RNA sequences possessing these specific features and further we can draw conclusions about the organism's origin based on the availability and location of the found substrings. 
 
-The majority of parsing algorithms either had the cubic-time complexity (Kasami~\cite{kasami}, Younger~\cite{younger}, Earley~\cite{earley}) or could work only with sub-classes of context-free grammars (Bernardy, Claussen~\cite{bernardy}), until Leslie Valiant presented new, asymptotically more efficient parsing algorithm based on matrix multiplication~\cite{valiant} that can be applied to any context-free grammar. Valiant's algorithm computes the parsing table for a linear input, where each element of this table is responsible for deriving a particular substring. By offloading the most time-consuming computations on a Boolean matrix multiplication, Valiant has achieved an improvement in time complexity, which is O(BMM(n)log(n)) for an input string of size n, where BMM(n) is the number of operations needed to multiply two Boolean matrices of size n $\times$ n. In addition, Okhotin generalized the matrix-based algorithm to conjunctive and Boolean grammars which are the natural extensions of context-free grammars with more expressive power and also improved its performance and understandability~\cite{okhotin}. Nevertheless, Valiant's algorithm is difficult to apply to the string-matching problem, as its original version will have to make many unnecessary matrix multiplication calls.
+Such field of application as bioinformatics requires working with large amount of data, so it is necessary to find highly efficient parsing algorithm. Moreover, this algorithm needs to be easily adaptive to such computing techniques as GPGPU (General-Purpose computing on Graphics Processing Units) or CPU parallel computing which is now a fairly widespread method to accelerate the computation.
 
-This  paper  aims  to  present  a  modification  of  Valiant's  algorithm dealing with the problem described above. We divide the parsing table into successively computed layers of disjoint submatrices of the same size through the reorganization of the matrix multiplication order. We also prove the correctness of the modification and that time complexity is the same as for the original algorithm. The applicability of our modification for the string-matching problem in practice is further shown.
+The majority of parsing algorithms either has the cubic-time complexity (Kasami~\cite{kasami}, Younger~\cite{younger}, Earley~\cite{earley}) or could work only with sub-classes of context-free grammars (Bernardy, Claussen~\cite{bernardy}), but still asymptotically more efficient parsing algorithm that can be applied to any context-free grammar is algorithm based on matrix multiplication proposed by Leslie Valiant~\cite{valiant}. It computes the parsing table for a linear input, where each element of this table is responsible for deriving a particular substring. By offloading the most time-consuming computations on a Boolean matrix multiplication, Valiant has achieved an improvement in time complexity, which is O(BMM(n)log(n)) for an input string of size n, where BMM(n) is the number of operations needed to multiply two Boolean matrices of size n $\times$ n. In addition, Okhotin generalized the matrix-based algorithm to conjunctive and Boolean grammars which are the natural extensions of context-free grammars with more expressive power and also improved its performance and understandability~\cite{okhotin}. In spite of the fact that Valiant's algorithm allows us to use parallel techniques, for example, compute matrix products on GPUs, it seems like a large part of matrix multiplications can be performed concurrently. 
 
+In this paper we show how to reorganize the matrix multiplication order in Valiant's algorithm to divide the parsing table into successively computed layers of disjoint submatrices where each submatrix of the layer can be processed independently.
+
+We make the following contributions:
+\begin{itemize}
+  \item We propose the modification of Valiant's algorithm which allows to compute some matrix products concurrently and improve the performance through parallel techniques.
+  \item We prove the correctness of the modification and provide its time complexity estimation which is $O(|G|BMM(n)log(n))$ for an input string of length n, where BMM(n) is the number of operations needed to multiply two Boolean matrices of size $n \times n$. 
+  \item We show the applicability of our approach in bioinformatics research, especially in addressing the string-matching problem.
+  \item We have implemented the proposed algorithm and our evaluation shows that ... parallel techniques improve the performance...
+\end{itemize}
 
 \section{Background}
 
@@ -116,26 +125,19 @@ f(P) = \{A | \exists A \rightarrow BC \in R : (B, C) \in P\}
 
 The input string $a_{1}a_{2}...a_{n}$ belongs to $L_{G}$ if and only if $S \in T_{0, n}$.
 
-
-The time complexity of this algorithm is $O(n^3)$. Valiant proposed to offload the most intensive computations to the Boolean matrix multiplication. As the most time-consuming is computing $\bigcup\limits_{k = i + 1}^{j - 1} T_{i, k} \times T_{k, j}$, Valiant rearranged computation of $T_{i, j}$, in order to use multiplication of submatrices of T. 
-
-\subsubsection{Definition 4} Let $X \in (2^N)^{m \times l}$ and $Y \in (2^N)^{l \times n}$ be two submatrices of parsing table T. Then, $X \times Y = Z$, where $Z \in (2^{N \times N})^{m \times n}$ and $Z_{i, j} = \bigcup\limits_{k = 1}^{l} X_{i, k} \times Y_{k, j}$.
-
-
-In \textbf{Algorithm 1} full pseudo-code of Valiant's algorithm written in the terms proposed by Okhotin, is presented. All elements of T and P are initialized by empty sets. Then, the elements of these two table are successively filled by two recursive procedures.
-
 % Algorithm1
 \begin{algorithm}
 \SetAlgoNoLine
 \KwIn{Grammar $G = (\Sigma, N, R, S), w = a_{1}...a_{n}, n \geq 1, a_{i} \in \Sigma$, where  n + 1 --- power of two}
 \underline{main()}{:}{
- 
+
  \textit{compute(0, n + 1)\;}
  accept if and only if $S \in T_{0, n}$
  \linebreak
  }
  
 \underline{compute(\textit{l, m})}{:}{
+
  \If {$m - l \geq 4$}{
      \textit{compute(l, $\frac{l+m}{2}$)\;
      compute($\frac{l+m}{2}$, m)}}
@@ -144,30 +146,44 @@ In \textbf{Algorithm 1} full pseudo-code of Valiant's algorithm written in the t
  }
  
 \underline{complete(\textit{l, m}, $l^\prime$, $m^\prime$)}{:}{
+
  \If {$m - l = 4$ and $m = l^\prime$}{$T_{l, l + 1} = \{A | A \rightarrow a_{l+ 1} \in R\}$\;}
  \ElseIf{$m - l = 1$ and $m < l^\prime$}{ $T_{l, l'} = f(P_{l, l'})$\;}
  \ElseIf{$m - l > 1$}{
-    $B = (l, \frac{l+m}{2}, \frac{l'+m'}{2}, m'), B' = (\frac{l+m}{2}, m, l', \frac{l'+m'}{2}),\linebreak
-    C = (\frac{l+m}{2}, m, l', \frac{l'+m'}{2}), D = (l, \frac{l+m}{2}, l', \frac{l'+m'}{2}),\linebreak
-    D' = (\frac{l+m}{2}, m, \frac{l'+m'}{2}, m'), E = (l, \frac{l+m}{2}, \frac{l'+m'}{2}, m')$\;
-    complete(C)\;
-    $P_{D} = P_{D} \cup (T_{B} \times T_{C})$\;
-    complete(D)\;
-    $P_{D'} = P_{D'} \cup (T_{C} \times T_{B'})$\;
-    complete(D')\;
-    $P_{E} = P_{E} \cup (T_{B} \times T_{D'})$\;
-    $P_{E} = P_{E} \cup (T_{D} \times T_{B'})$\;
-    complete(E)
+    $leftgrounded = (l, \frac{l+m}{2}, \frac{l+m}{2}, m), rightgrounded = (l', \frac{l'+m'}{2}, \frac{l'+m'}{2}, m')$,
+    
+    $bottom = (\frac{l+m}{2}, m, l', \frac{l'+m'}{2}), left = (l, \frac{l+m}{2}, l', \frac{l'+m'}{2})$,
+    
+    $right = (\frac{l+m}{2}, m, \frac{l'+m'}{2}, m'), top = (l, \frac{l+m}{2}, \frac{l'+m'}{2}, m')$\;
+    complete(bottom)\;
+    $P_{left} = P_{left} \cup (T_{leftgrounded} \times T_{bottom})$\;
+    complete(left)\;
+    $P_{right} = P_{right} \cup (T_{bottom} \times T_{rightgrounded})$\;
+    complete(right)\;
+    $P_{top} = P_{top} \cup (T_{leftgrounded} \times T_{right})$\;
+    $P_{top} = P_{top} \cup (T_{left} \times T_{rightgrounded})$\;
+    complete(top)
     }
  }
-  \textit{complete(l, $\frac{l+m}{2}$, $\frac{l+m}{2}$, m)}
- 
 \caption{Parsing by matrix multiplication: Valiant's Version}
 \end{algorithm}
 
+The time complexity of this algorithm is $O(n^3)$. Valiant proposed to offload the most intensive computations to the Boolean matrix multiplication. As the most time-consuming is computing $\bigcup\limits_{k = i + 1}^{j - 1} T_{i, k} \times T_{k, j}$, Valiant rearranged computation of $T_{i, j}$, in order to use multiplication of submatrices of T. 
+
+\subsubsection{Definition 4} Let $X \in (2^N)^{m \times l}$ and $Y \in (2^N)^{l \times n}$ be two submatrices of parsing table T. Then, $X \times Y = Z$, where $Z \in (2^{N \times N})^{m \times n}$ and $Z_{i, j} = \bigcup\limits_{k = 1}^{l} X_{i, k} \times Y_{k, j}$.
+
+In \textbf{Algorithm 1} full pseudo-code of Valiant's algorithm is written in the terms proposed by Okhotin, is presented. All elements of T and P are initialized by empty sets. Then, the elements of these two table are successively filled by two recursive procedures.
+
 The procedure $compute(l, m)$ constructs the correct values of $T_{i,j} \forall l \le i < j < m$.
 
-The procedure $complete(l, m, l', m')$ constructs the submatrix $\forall T_{i, j}$ $l \le i < m$, $l' \le j < m'$. This procedure assumes $T_{i, j} \forall l \leq i < j < m,  l' \leq i < j < m'$ are already constructed and the current value of  $P[i, j] =  \{ (B, C) |\exists (m \le k < l'): a_{i + 1}...a_{k} \in L(B), a_{k + 1}...a_{j} \in L(C)\}$ $\forall l \leq i < m,  l' \leq j < m'$. 
+The procedure $complete(l, m, l', m')$ constructs the submatrix $\forall T_{i, j}$ $l \le i < m$, $l' \le j < m'$. This procedure assumes $T_{i, j} \forall l \leq i < j < m,  l' \leq i < j < m'$ are already constructed and the current value of  $P[i, j] =  \{ (B, C) |\exists (m \le k < l'): a_{i + 1}...a_{k} \in L(B), a_{k + 1}...a_{j} \in L(C)\}$ $\forall l \leq i < m,  l' \leq j < m'$. \textbf{Figure 1} shows how the submatrix division during the procedure call is happening.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=200pt]{splitting_with_grounded2.pdf}
+\centering
+\caption{Matrix partition used in $complete(l, m, l', m')$ procedure} \label{fig1}
+\end{figure}
 
 Then Valiant described that product of multiplying of two submatrices of parsing table T can be provided as $|N|^2$ Boolean matrices (for each pair of nonterminals). Denote matrix corresponding to pair $(B, C) \in N \times N$ as $Z^{(B, C)}$, then $Z_{i, j}^{(B, C)} = 1$ if and only if $(B, C) \in Z_{i, j}$. It should also be noted that $Z^{(B, C)} = X^{B} \times Y^{C}$. So, matrix multiplication in \textbf{Definition 4} can be replaced by Boolean matrix multiplication, each of which can be computed independently. Following these changes, time complexity of \textbf{Algorithm 1} is $O(|G|BMM(n)log(n))$ for an input string of length n, where BMM(n) is the number of operations needed to multiply two Boolean matrices of size $n \times n$.
 
@@ -177,15 +193,28 @@ In this section we describe the modification of Valiant's algorithm, which has a
 
 \subsection{New approach}
  
-The main change of this modification is to divide the parsing table into layers of disjoint submatrices of the same size.
-The division we have made from the reorganization of the matrix multiplication order is presented in \textbf{Figure 1}. 
-The layers are computed successively from the bottom up.
+The main change of this modification is the possibility to divide the parsing table into layers of disjoint submatrices of the same size. The division we have made from the reorganization of the matrix multiplication order is presented in \textbf{Figure 2}.  The layers are computed successively from the bottom up.
 
 \begin{figure}[h]
-\includegraphics[width=250pt]{drawing.eps}
+\includegraphics[width=250pt]{layers2.eps}
 \centering
 \caption{Matrix partition on V-shaped layers.} \label{fig1}
 \end{figure}
+
+Let us consider the pseudo-code of the modification, which is written in \textbf{Algorithm 2}. The procedure $main()$ computes the lowest layer ($T_{l, l+1}$), and then divide the table into layers, described earlier, and computes them through the $completeVLayer()$ call. Thus, $main()$ computes all elements of parsing table T correctly.
+
+For the sake of brevity, we introduce $left(m), right(m), top(m), bottom(m),$ $rightgrounded(m)$ and $leftgrounded(m)$ functions which returns the nessesary submatrix for matrix $m = (l, m, l', m')$ according to \textbf{Figure 1}.
+
+Denote some subsidiary functions for matrix layer $M$:
+ \begin{itemize}
+  \item $bottomsublayer(M) = \{bottom(m) | m \in M \}$,
+  \item $lrsublayer(M) = \{left(m) | m \in M \} \cup \{right(m) | m \in M \}$,
+  \item $topsublayer(M) = \{top(m) | m \in M \}$.
+\end{itemize}
+ 
+The procedure $completeVLayer(M)$ takes an array of disjoint submatrices M. For each $m = (l, m, l', m') \in M$ this procedure computes $left(m)$, $right(m)$, $top(m)$. The procedure assumes that the elements of $bottom(m)$ and all $T_{i, j} \forall l \leq i < j < m,  l' \leq i < j < m'$ are already constructed. Also it is assumed that the current value of  $P[i, j] =  \{ (B, C) |\exists (m \le k < l'): a_{i + 1}...a_{k} \in L(B), a_{k + 1}...a_{j} \in L(C)\}$ $\forall l \leq i < m,  l' \leq j < m'$.
+ 
+The procedure $completeLayer(M)$ also takes an array of disjoint submatrices M, but unlike the previous one, it computes $T_{i, j} \forall (i, j) \in m$. This procedure, just as in the previous case, assumes that  $T_{i, j} \forall l \leq i < j < m,  l' \leq i < j < m'$ are already constructed and the current value of  $P[i, j] =  \{ (B, C) |\exists (m \le k < l'): a_{i + 1}...a_{k} \in L(B), a_{k + 1}...a_{j} \in L(C)\}$ $\forall l \leq i < m,  l' \leq j < m'$.
 
 % Algorithm2
 \begin{algorithm}
@@ -210,8 +239,7 @@ The layers are computed successively from the bottom up.
 \BlankLine
 \If {$\forall (l, m, l', m') \in M \quad (m - l = 1)$}{\For{$ (l, m, l', m') \in M$}{$T_{l, l'} = f(P_{l, l'})$\;}}
 \Else{
-bottomLayer =  $\{ (\frac{l+m}{2}, m, l', \frac{l'+m'}{2}) | (l, m, l', m') \in M\}$\;
-\textit{completeLayer(bottomLayer)}\;
+\textit{completeLayer(bottomsublayer(M))}\;
 \textit{completeVLayer(M)}
 }
 \BlankLine
@@ -219,40 +247,22 @@ bottomLayer =  $\{ (\frac{l+m}{2}, m, l', \frac{l'+m'}{2}) | (l, m, l', m') \in 
  
 \underline{comleteVLayer(M)}{:}{
  \BlankLine
- leftSubLayer = $\{ (l, \frac{l+m}{2}, l', \frac{l'+m'}{2}) | (l, m, l', m') \in M\}$\;
- rightSubLayer = $\{ (\frac{l+m}{2}, m, \frac{l'+m'}{2}, m') | (l, m, l', m') \in M\}$\;
- topSubLayer = $\{ (l, \frac{l+m}{2}, \frac{l'+m'}{2}, m') | (l, m, l', m') \in M\}$\;
- multiplicationTask1 = $\{(l, m, l', m'), (l, m, m, 2m - l), (m, 2m - l, l', m') | (l, m, l', m') \in leftSubLayer\} \cup \linebreak  \{(l, m, l', m'), (l, m, 2l' - m', l'), (2l' - m', l', l', m') | (l, m, l', m') \in rightSubLayer\}$\;
+ multiplicationTask1 = $\{left(subm), leftgrounded(subm), bottom(subm) | subm \in M \} \cup \linebreak  \{right(subm), bottom(subm), rightgrounded(subm) | subm \in M\}$\;
  \BlankLine
- multiplicationTask2 = $\{(l, m, l', m'), (l, m, m, 2m - l'), (m, 2m - l, l', m') | (l, m, l', m') \in topSubLayer\}$\;
+ multiplicationTask2 = $\{top(subm), leftgrounded(subm), right(subm) | subm \in M\}$\;
  \BlankLine 
- multiplicationTask3 = $\{(l, m, l', m'), (l, m, 2l' - m', l'), (2l' - m', l', l', m') | (l, m, l', m') \in topSubLayer\}$\;
+ multiplicationTask3 = $\{top(subm), left(subm), rightgrounded |subm \in M\}$\;
  \BlankLine
  \textit{performMultiplications(multiplicationTask1)}\;
- \textit{completeLayer(leftSubLayer $\cup$ rightSubLayer)}\;
+ \textit{completeLayer(lrsublayer(M))}\;
  \textit{performMultiplications(multiplicationTask2)}\;
  \textit{performMultiplications(multiplicationTask3)}\;
- \textit{completeLayer(topSubLayer)}
+ \textit{completeLayer(topsublayer(M))}
  
  }
 
 \caption{Parsing by matrix multiplication: Modified Version}
 \end{algorithm}
-
-Let us consider the pseudo-code of the modification, which is written in \textbf{Algorithm 2}. The procedure $main()$ computes the lowest layer ($T_{l, l+1}$), and then divide the table into layers, described earlier, and computes them through the $completeVLayer()$ call. Thus, $main()$ computes all elements of parsing table T correctly.
-
-
-Denote some subsidiary functions for matrix $m$:
- \begin{itemize}
-  \item $bottom(m) = (\frac{l+m}{2}, m, l', \frac{l'+m'}{2})$,
-  \item $left(m) = (l, \frac{l+m}{2}, l', \frac{l'+m'}{2})$,
-  \item $right(m) = (\frac{l+m}{2}, m, \frac{l'+m'}{2}, m')$, 
-  \item $top(m) = (l, \frac{l+m}{2}, \frac{l'+m'}{2}, m')$.
-\end{itemize}
- 
-The procedure $completeVLayer(M)$ takes an array of disjoint submatrices M. For each $m = (l, m, l', m') \in M$ this procedure computes $left(m)$, $right(m)$, $top(m)$. The procedure assumes that the elements of $bottom(m)$ and all $T_{i, j} \forall l \leq i < j < m,  l' \leq i < j < m'$ are already constructed. Also it is assumed that the current value of  $P[i, j] =  \{ (B, C) |\exists (m \le k < l'): a_{i + 1}...a_{k} \in L(B), a_{k + 1}...a_{j} \in L(C)\}$ $\forall l \leq i < m,  l' \leq j < m'$.
- 
-The procedure $completeLayer(M)$ also takes an array of disjoint submatrices M, but unlike the previous one, it computes $T_{i, j} \forall (i, j) \in m$. This procedure, just as in the previous case, assumes that  $T_{i, j} \forall l \leq i < j < m,  l' \leq i < j < m'$ are already constructed and the current value of  $P[i, j] =  \{ (B, C) |\exists (m \le k < l'): a_{i + 1}...a_{k} \in L(B), a_{k + 1}...a_{j} \in L(C)\}$ $\forall l \leq i < m,  l' \leq j < m'$.
  
 \textbf{Algorithm 3} describes how the procedure $performMultiplication(task)$, where $task$ is an array of a triple of submatrices, works. It is worth mentioning that, as distinct from the original algorithm, $|tasks| \ge 1$ and all these multiplications can be computed independently.
 
@@ -343,7 +353,7 @@ To summarize, the correctness of the modification was proved and it was shown th
 
 \subsection{Algorithm for substrings}
 
-Next we discuss the main cause of developing this modification. Our aim was adaptation of Valiant's algorithm for string-matching problem. 
+Next we show how our modification can be applied to the problem hat  arose  at  the  intersection  of  the  theory  of  formal  languages and bioinformatics -- the string-matching problem.
 
 So if we want to find all substrings of size s which can be derived from a start symbol for an input string of size $n = 2^k$, we need to compute layers with submatrices of size $\le 2^{l'}$, where $ 2^{l' - 2} < s \le 2^{l' - 1}$.
 
