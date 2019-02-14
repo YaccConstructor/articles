@@ -1,45 +1,57 @@
-\section{Modification of Valiant's algorithm}
+\section{Modified Valiant's algorithm}
 
-In this section we describe the modification of Valiant's algorithm, which has a number of advantages, such as possibility to broke it down into several subtasks that can be processed independently. Also this version can be simply applied to the string-matching problem, which often arises in text editing, DNA and RNA sequence analysis.
+In this section we describe the reorganization of submutrix processing order in the Valiant's algorithm which simplify independent handling of submatrices. As a result, proposed modification simplfy implementation of parallel submatrix processing.
 
 \subsection{New approach}
 
-The main change of this modification is the possibility to divide the parsing table into layers of disjoint submatrices of the same size. The division we have made from the reorganization of the matrix multiplication order is presented in \textbf{Figure 2}.  The layers are computed successively from the bottom up.
+The main change of this modification is the possibility to divide the parsing table into layers of disjoint submatrices of the same size.
+The idea of division we have made from the reorganization of the matrix multiplication order is presented in figure~\ref{fig2}.
+Each layer consists of squere matricres which size is power of 2.
+The layers are computed successively in the bottom-up order.
+Each matrix in the layer can be handled independently, which can help to implement parallel version of layer processing function.
 
-\begin{figure}[h]
+\begin{figure}
 \includegraphics[width=250pt]{layers2.eps}
 \centering
-\caption{Matrix partition on V-shaped layers.} \label{fig1}
+\caption{Matrix partition on V-shaped layers.}
+\label{fig2}
 \end{figure}
 
-Let us consider the pseudo-code of the modification, which is written in \textbf{Algorithm 2}. The procedure $main()$ computes the lowest layer $(T_{l, l+1})$, and then divide the table into layers, described earlier, and computes them through the \textit{completeVLayer()} call. Thus, $main()$ computes all elements of parsing table $T$ correctly.
+The modofided viresion of Valiant's algorithm is presented in listing~\ref{algo:modified}.
+The procedure \textit{main()} computes the lowest layer $(T_{l, l+1})$, and then divide the table into layers, described earlier, and computes them through the \textit{completeVLayer()} call.
+Thus, \textit{main()} computes all elements of parsing table $T$.
 
-For the sake of brevity, we introduce \textit{left(m), right(m), top(m), bottom(m), rightgrounded(m)} and \textit{leftgrounded(m)} functions which returns the nessesary submatrix for matrix $m = (l, m, l', m')$ according to \textbf{Figure 1}.
+For the sake of brevity, we introduce \textit{left(m), right(m), top(m), bottom(m), rightgrounded(m)} and \textit{leftgrounded(m)} functions which returns the nessesary submatrix for matrix $m = (l, m, l', m')$ according to the original Valiant's algorithm (figure~\ref{fig1}).
 
-Denote some subsidiary functions for matrix layer $M$:
+Also denote some subsidiary functions for matrix layer $M$:
  \begin{itemize}
-  \item $bottomsublayer(M) = \{bottom(m) | m \in M \}$,
+  \item \textit{bottomsublayer(M)}$ = \{bottom(m) | m \in M \}$,
   \item \textit{lrsublayer(M)}$ = \{\textit{left(m)} | m \in M \} \cup \{\textit{right(m)} | m \in M \}$,
-  \item $topsublayer(M) = \{top(m) | m \in M \}$.
+  \item \textit{topsublayer(M)}$ = \{top(m) | m \in M \}$.
 \end{itemize}
 
-The procedure \textit{completeVLayer(M)} takes an array of disjoint submatrices $M$.
+The procedure \textit{completeVLayer(M)} takes an array of disjoint submatrices $M$ which represents a layer.
 For each $m = (l, m, l', m') \in M$ this procedure computes \textit{left(m), right(m), top(m)}.
-The procedure assumes that the elements of $bottom(m)$ and all $T_{i, j} \forall l \leq i < j < m,  l' \leq i < j < m'$ are already constructed.
-Also it is assumed that the current value of  $P[i, j] =  \{ (B, C) |\exists (m \le k < l'): a_{i + 1} \dots a_{k} \in L(B), a_{k + 1} \dots a_{j} \in L(C)\} \forall l \leq i < m,  l' \leq j < m'$.
+The procedure assumes that the elements of \textit{bottom(m)} and $T_{i, j}$ for all $i$ and $j$ such that $l \leq i < j < m$ and $  l' \leq i < j < m'$ are already constructed.
+Also it is assumed that the current value of
+$P_{i, j} =  \{ (B, C) | \exists k, (m \le k < l'), a_{i + 1} \dots a_{k} \in L_G(B), a_{k + 1} \dots a_{j} \in L_G(C)\} $ for all $i$ and $j$ such that $l \leq i < m$ and $l' \leq j < m'$.
 
-The procedure \textit{completeLayer(M)} also takes an array of disjoint submatrices $M$, but unlike the previous one, it computes $T_{i, j} \forall (i, j) \in m$.
-This procedure, just as in the previous case, assumes that  $T_{i, j} \forall l \leq i < j < m,  l' \leq i < j < m'$ are already constructed and the current value of  $P[i, j] =  \{ (B, C) |\exists (m \le k < l'): a_{i + 1} \dots a_{k} \in L(B), a_{k + 1} \dots a_{j} \in L(C)\}$ $\forall l \leq i < m,  l' \leq j < m'$.
+The procedure \textit{completeLayer(M)} also takes an array of disjoint submatrices $M$, but unlike the previous one, it computes $T_{i, j}$ for all $(i, j) \in m$.
+This procedure requires exactly same assumptions on $T_{i, j}$  and $P_{i, j}$  as in the previous case.
 
-% Algorithm2
-\begin{algorithm}[t]
+In the other world, \textit{completeVLayer(M)} computes !!!SOME INTUITION HERE!!! \textit{completeLayer(M)} !!!SOME INTUITION HERE!!!
+
+Finally, the procedure \textit{performMultiplication(tasks)}, where \textit{tasks} is an array of a triple of submatrices, perform basic step of algoritm: matrix multiplication. It is worth mentioning that, as distinct from the original algorithm, here $|tasks| \ge 1$ and each task can be computed independently.
+So, practical implementation of this procedure can isely involve diferent techniques of parallel array processing, such as OpenMP~\ref{!!!}.
+
+\begin{algorithm}[h!]
 \SetAlgoNoLine
-\KwIn{Grammar $G = (\Sigma, N, R, S), w = a_{1} \dots a_{n}, n \geq 1, a_{i} \in \Sigma$, where  n + 1 --- power of two}
+\KwIn{$G = (\Sigma, N, R, S), w = a_{1} \dots a_{n}, n \geq 1, n + 1 = 2^p, a_{i} \in \Sigma$ }
 \underline{main()}{:}{
 
  \For {$l \in \{1, \ldots, n \}$}{$T_{l, l + 1} = \{A | A \rightarrow a_{l + 1} \in R\}$}
  \For{$1 \le i < k $}{
- layer = $\textit{constructLayer(i)}$\;
+ layer = \textit{constructLayer(i)}\;
  \textit{completeVLayer(layer)}
  }
  \BlankLine
@@ -62,7 +74,7 @@ This procedure, just as in the previous case, assumes that  $T_{i, j} \forall l 
 
 \underline{comleteVLayer(M)}{:}{
  \BlankLine
- multiplicationTask1 = $\{left(subm), leftgrounded(subm), bottom(subm) | subm \in M \} \cup \linebreak  \{right(subm), bottom(subm), rightgrounded(subm) | subm \in M\}$\;
+ \textit{multiplicationTasks$_1$ = \{left$(m_i)$, leftgrounded$(m_i)$, bottom$(m_i) | m_i \in M \} \cup \linebreak  \{right(subm), bottom(subm), rightgrounded(subm) | subm \in M\}$\;}
  \BlankLine
  multiplicationTask2 = $\{top(subm), leftgrounded(subm), right(subm) | subm \in M\}$\;
  \BlankLine
@@ -75,50 +87,52 @@ This procedure, just as in the previous case, assumes that  $T_{i, j} \forall l 
  \textit{completeLayer(topsublayer(M))}
 
  }
+ \BlankLine
+
+ \underline{performMultiplication(tasks)}{:}{\\
+ \For{$ (m, m1, m2) \in \textit{tasks}$}{$P_{m} = P_{m} \cup (T_{m1} \times T_{m2})$\;}
+ }
 
 \caption{Parsing by matrix multiplication: Modified Version}
+\label{algo:modified}
 \end{algorithm}
 
-\textbf{Algorithm 3} describes how the procedure \textit{performMultiplication(task)}, where \textit{task} is an array of a triple of submatrices, works. It is worth mentioning that, as distinct from the original algorithm, $|tasks| \ge 1$ and all these multiplications can be computed independently.
 
-
- % Algorithm3
-\begin{algorithm}[h]
-\SetAlgoNoLine
-\underline{performMultiplication(task)}{:}{\\
-\For{$ (m, m1, m2) \in M$}{$P_{m} = P_{m} \cup (T_{m1} \times T_{m2})$\;}
-}
-\caption{}
-\end{algorithm}
-
-\subsection{Proof of correctness}
+\subsection{Correctness and conplexity}
 
 We provide the proof of correctness and time complexity for the proposed modification in this section.
+To do it we should prove correctness of subprocedures \textit{completeLayer} and \textit{completeVLayer}.
 
 \begin{theorem}
-Let $M$ be a submatrix array. Assume that $T[i, j] =  \{ A |  a_{i + 1} \dots a_{j} \in L(A)\}$ $\forall l \leq i < j < m,  l' \leq i < j < m'$ and $P[i, j] =  \{ (B, C) |\exists (m \le k < l'): a_{i + 1} \dots a_{k} \in L(B), a_{k + 1} \dots a_{j} \in L(C)\}$ $\forall l \leq i < m,  l' \leq j < m'$ $\forall (l, m, l', m') \in M$.
+Let $M$ be a layer. If for all $(l, m, l', m') \in M$:
+\begin{enumerate}
+  \item $T_{i, j} = \{ A |  a_{i + 1} \dots a_{j} \in L_G(A)\}$ for all $i$ and $j$ such that $l \leq i < j < m$ and $l' \leq i < j < m'$;
+  \item $P_{i, j} =  \{ (B, C) |\exists k, (m \le k < l'): a_{i + 1} \dots a_{k} \in L_G(B), a_{k + 1} \dots a_{j} \in L_G(C)\}$ for all $l \leq i < m$ and $l' \leq j < m'$.
+\end{enumerate}
 
-Then the procedure \textit{completeLayer(M)}, returns correctly computed sets of $T[i, j]$ $\forall l \leq i \le m,  l' \leq j \le m'$ $\forall (l, m, l', m') \in M$.
+Then the procedure \textit{completeLayer(M)}, returns correctly computed sets of $T_{i, j}$ for all $l \leq i \le m$ and $l' \leq j \le m'$ for all $(l, m, l', m') \in M$.
 \end{theorem}
-%
-% the environments 'definition', 'lemma', 'proposition', 'corollary',
-% 'remark', and 'example' are defined in the LLNCS documentclass as well.
-%
-\begin{proof}
-Induction on $\textit{m - l}$. (Hereinafter denoting $(l, m, l', m')$ as a typical example of array $M$, and all the computations are implemented for all submatrices in $M$).
 
-The base case: $m - l = 1$. There is only one element to compute, and $P[l, l'] =  \{ (B, C) |  a_{l + 1} \dots a_{l'} \in L(B)L(C)\}$. Further, algorithm computes $f(P[l, l'])$ = \linebreak $\{ A |  a_{l + 1} \dots a_{l'} \in L(A)\}$, so $T[l, l']$ computed correctly.
 
-For the induction step, assume that (l1, m1, l2, m2) is correctly computed for $m2 - l2 = m1 - l1 > m - l$.
+\begin{proof}(Proof by induction on $m - l$.)
+
+Let $(l, m, l', m')$ is a typical element of array $M$.
+As far as each element can be handled independantly, we pove statements only for one element of $M$.
+
+\underline{\textbf{Basis:}} $m - l = 1$. There is only one element to compute, and $P_{l, l'} =  \{ (B, C) |  a_{l + 1} \dots a_{l'} \in L(B)L(C)\}$. Further, algorithm computes $f(P[l, l'])$ = \linebreak $\{ A |  a_{l + 1} \dots a_{l'} \in L(A)\}$, so $T[l, l']$ computed correctly.
+
+\underline{\textbf{Inductive step:}} Assume that $(l_1, m_1, l_2, m_2)$ is correctly computed for $m_2 - l_2 = m_1 - l_1 > m - l$.
 
 Let us consider complete \textit{completeLayer(M)}, where $m - l > 1$.
 
-Firstly, consider $\textit{completeLayer(bottom} = \{(\frac{l+m}{2}, m, l', \frac{l'+m'}{2})\})$, as theorem conditions are fulfilled, then this call returns correct sets $T[i, j]$ $\forall (i, j) \in bottom$ (hereinafter is means $\forall (i, j) \in m, \forall m \in \textit{bottom} $). All submatrices with size $ m1 - l1 > m - l $, all previous layers and also \textit{bottom(M)} are correct, so,  \textit{completeVLayer(M)} can be called, and \textit{multiplicationByTask(task1)} adds to each
-$ P[i, j] \forall (i, j) \in left = \{(\frac{l+m}{2}, m, l', \frac{l'+m'}{2}))\} $
+Firstly, consider \textit{completeLayer(bottom(M))}.
+Theorem conditions are fulfilled, then this call returns correct sets $T_{i, j}$ for all $(i, j) \in bottom$ (hereinafter is means $\forall (i, j) \in m, \forall m \in \textit{bottom} $).
+All submatrices with size $ m_1 - l_1 > m - l $, all previous layers and also \textit{bottom(M)} are correct, so,  \textit{completeVLayer(M)} can be called, and \textit{multiplicationByTask(task1)} adds to each
+$ P[i, j] \forall (i, j) \in left(M) $
 all pairs
 $ \{(B, C) |\exists (\frac{l+m}{2} \le k < l'): a_{i + 1} \dots a_{k} \in L(B), a_{k + 1} \dots a_{j} \in L(C)\} $
  and
-$ \forall (i, j) \in right = \{(\frac{l+m}{2}, m, \frac{l'+m'}{2}, m')\} $
+$ \forall (i, j) \in right (M)) $
  all pairs
 $ \{ (B, C) |\exists (m \le k < \frac{l'+m'}{2}): a_{i + 1} \dots a_{k} \in L(B), a_{k + 1} \dots a_{j} \in L(C)\}$.
 Now all the theorem conditions are fulfilled so, it is possible to call $\textit{completeLayer(left } \cup  \ right)$, which returns correct sets $T[i, j] \forall (i, j) \in (left \cup right)$.
@@ -129,7 +143,7 @@ Thus, all $T[i, j]$ $\forall (i, j) \in M$ are computed correctly.
 \end{proof}
 
 \begin{theorem}
-Let M be a submatrix array. Assume that, $T[i, j] =  \{ A |  a_{i + 1} \dots a_{j} \in L(A)\}$ $\forall l \leq i < j < m,  l' \leq i < j < m'$ and $\forall b1 \leq i < b2$,  $b3 \leq j < b4$, where $(b1, b2, b3, b4) = (\frac{l+m}{2}, m, l', \frac{l'+m'}{2})$, also $P[i, j] =  \{ (B, C) |\exists (m \le k < l'): a_{i + 1} \dots a_{k} \in L(B), a_{k + 1} \dots a_{j} \in L(C)\}$ $\forall l \leq i < m,  l' \leq j < m'$ $\forall (l, m, l', m') \in M$.
+Let ;M; be a submatrix array. Assume that, $T[i, j] =  \{ A |  a_{i + 1} \dots a_{j} \in L(A)\}$ $\forall l \leq i < j < m,  l' \leq i < j < m'$ and $\forall b1 \leq i < b2$,  $b3 \leq j < b4$, where $(b1, b2, b3, b4) = (\frac{l+m}{2}, m, l', \frac{l'+m'}{2})$, also $P[i, j] =  \{ (B, C) |\exists (m \le k < l'): a_{i + 1} \dots a_{k} \in L(B), a_{k + 1} \dots a_{j} \in L(C)\}$ $\forall l \leq i < m,  l' \leq j < m'$ $\forall (l, m, l', m') \in M$.
 
 Then, the procedure $\textit{completeVLayer(M)}$, returns correctly computed sets of $T[i, j]$ $\forall l \leq i \le m,  l' \leq j \le m'$ $\forall (l, m, l', m') \in M$.
 \end{theorem}
@@ -176,9 +190,9 @@ To summarize, the correctness of the modification was proved and it was shown th
 
 \subsection{Algorithm for substrings}
 
-Next we show how our modification can be applied to the problem hat  arose  at  the  intersection  of  the  theory  of  formal  languages and bioinformatics---the string-matching problem.
+Next we show how our modification can be applied to the string-matching problem.
 
-So if we want to find all substrings of size s which can be derived from a start symbol for an input string of size $n = 2^k$, we need to compute layers with submatrices of size $\le 2^{l'}$, where $ 2^{l' - 2} < s \le 2^{l' - 1}$.
+So if we want to find all substrings of size $s$ which can be derived from a start symbol for an input string of size $n = 2^k$, we need to compute layers with submatrices of size not greater than $2^{l'}$, where $2^{l' - 2} < s \le 2^{l' - 1}$.
 
 $l' = k - (m - 2)$, $(m - 2) = k - l'$
 
