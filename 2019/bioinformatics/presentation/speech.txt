@@ -1,95 +1,93 @@
-1. Hi, my name is Semyon. I want to talk about our solution on secondary structure handling by using ordinary grammars and dense neural networks.
+1. Hi, my name is Semyon. I want to talk about our solution for secondary structure handling by means ordinary grammars and dense neural networks.
 
-2. Our goal is to simplify long sequences analysis. For example, we have long sequence and we suppose that this sequence is a rRNA. We want to use it for classification. We know that textual analysis is not enough in this case and we should involve secondary structure analysis.
+2. Our goal is to simplify long sequences analysis. For example, there is a long sequence and we suppose that this sequence is an rRNA. We want to use it for classification. We know that the textual analysis is not powerful enough in this case and that the secondary structure analysis should be run.
 
-Well, next case. We get this sequence from metagenomic assembly. Here firstly we should to check that this sequence is nit a chimeric. And secondary structure analysis can help to do it, because even we can concatenate two substrings by using overlapping information, global secondary structure should be broken for chimeric sequence.
+It is even more complex, if we get this sequence from metagenomic assembly. Here, we should first check that this sequence is not chimeric. Secondary structure analysis helps to do it, because even if we concatenate two substrings with some  information overlapping, global secondary structure will be broken for chimeric sequence.
 
-So, we can see that secondary structure analysis is an important step in sequences processing. But this step is very time-consumptive. It is almost cubic in terms of the input size. We want to move this step to the preprocessing phase.
+So, we can see that secondary structure analysis is an important step in sequences processing. But this step is very time-consuming. It is almost cubic in terms of the input size. It would be best to move this step to the preprocessing phase.
 
-3. How we want to do it? Our solution consists of two components. First component is a parsing, and we propose to use parsing only for secondary structures features extraction, not for secondary structure modelling or predicting. By this way we can reduce complexity of secondary structure processing.
+3. How we want to do it? Our solution consists of two components. First component is parsing, and we propose to use parsing only for the extraction of secondary structures features, not for modelling or prediciton of the secondary structure. This way, we reduce complexity of secondary structure processing.
 
-So, we use formal grammars for features description. Note that here we use ordinary grammars, not probabilistic.
+We describe features with formal grammars. Note that here we use ordinary grammars, not probabilistic.
 
-Than we use parser for features extraction.
+Then we run the parser to extract features.
 
-And as a last step we use neural network as a probabilistic model for extracted features processing.
+As the last step, we employ neural network as a probabilistic model for processing of extracted features.
 
-4. To use our solution you should specify the input which consists of two parts. The first part is a ordinary formal grammar. Class of grammar is not restricted by context-free. One can use other types of grammars, for example, conjunctive or multiple context-free grammars. The second part is sequences to be parsed.
+4. To use our solution you should specify two things: the first is an ordinary formal grammar. We don't restrict the grammar to be context-free. One can use other types of grammars, for example, conjunctive or multiple context-free grammars. The second thing is sequences to be parsed.
 
 We use Valiant's algorithm for parsing. This algorithm is based on matrices multiplication, so we can utilize GPUs to increase parsing performance.
 
-Parsing result is a set of matrices. Each matrix contains information about all possible derivation of all possible substrings for the given nonterminal. Note that left bottom triangle of each matrix is always empty, so we can ignore it.
+Parsing result is a set of matrices: one per each nonterminal. Each matrix has the information about all possible derivations for the given nonterminal for all possible substrings. Note that the left bottom triangle of each matrix is always empty, so we ignore it it.
 
 We should vectorize matrices in order to get standard input representation for neural network.
 
-And now we are ready to use artificial neural network for extracted features processing. We use dense network. This network contains up to 10 layers and we use batch normalization and dropout for learning stabilization.
+After this, we are ready to use artificial neural network to process extracted features. We use a dense network of up to 10 layers and we use batch normalization and dropout for learning stabilization.
 
-The form of results depends on the task which we want to solve.
+The shape of results depends on the task which we are to solve.
 
-5. Firs parameter of our solution is a grammar and here you can see grammar which we use for evaluation. It is a context-free grammar and s-one is a name of pattern which we want to detect.
+5. The first parameter of our solution is a grammar and here you can see grammar which we use for the evaluation. It is a context-free grammar and s-one (being the start nonterminal) describes the pattern which we want to detect.
 
-The next two rules are helpers for arbitrary unfoldable string description. This string should has length between two and ten.
+The next two rules are helpers for arbitrary unfoldable string description. This string should have the length between two and ten.
 
-And the next set of rules is necessary for primitive feature description. We think that primitive feature in our case is a stem with fixed minimal height. So, we have no such features as stem with mismatches. If we want to describe stem with mismatch, we should think that we have two stems and one embedded into another. And these stems connected by two short unfoldable strings.
+The following set of rules describe a primitive feature. We consider the primitive feature to be a stem of the fixed minimal height. 
 
-So, first rule is a stem of height exactly one. You can see that this rule has a parameter s. This parameter is necessary to specify part which should be embedded into stem.
+There is no such feature as a stem with a mismatch. A stem with a mismatch can be viewed as two stems embedded into one another and connected by two short unfoldable strings.
 
-The next rule specifies stem of height exactly three.
+So, the first rule describes a stem of height exactly one. You can see that this rule has a parameter s. This parameter can specify the embedding of something into the stem.
+
+The next rule specifies the stem of height exactly three.
 
 And the last rule in this set describes arbitrary stem of height more than three.
 
-The last rule in this grammar describes recursive compasition of stems. This rule says that stems can be connected with unfoldable substrings, that one stem can be embedded into another, and, moreover, any recursive composition of stems nay be embedded into stem.
+The last rule in this grammar describes recursive composition of stems. This rule states that the stems can be connected with unfoldable substrings, that one stem can be embedded into another, and, moreover, any recursive composition of stems may be embedded into a stem.
 
-Note that this grammar is just a result of our experiments. One can add nonclassical base-pairs or change minimal height of stem. In this case you can get grammar which is more suitable for your problem. And, of course, it may be necessary to tune neural network after grammar changing.
+Note that we infered this grammar as a result of our experiments. One can add nonclassical base-pairs or change minimal height of stem. In this case you can get grammar which is more suitable for your problem. And, of course, it may be necessary to tune neural network for the different grammar.
 
-6. Now I demonstrate you some example of parsing. Sequence in the first example should folds into stem. How can we see it? Here you can see parsing results and contact map which helps to find stem in the input sequence. Now I show you this stem in parsing matrix. I will use boxes for navigation in the matrix.
+6. Now I demonstrate you an example of parsing. Sequence in the first example folds into a stem. How can we see it? Here you can see parsing results and a contact map which shows the stem in the input sequence. Now I show you this stem in the parsing matrix. I will use boxes for navigation in the matrix.
 
 First, or left, part of stem is selected now.
 
 Now the second part is selected.
 
-Representation of the stem is a chain of ones. Each one meens that corresponding substring can be folded as a stem of heigh 3 or more.
+Representation of the stem is a chain of ones. Each one meens that the substring can be folded into a stem of heigh 3 or more.
 
-You can see, that there are other filled cells in this matrix. It is because our parser detects all possible foldings for all possible substrings. In some case it is not a noise. It may be an important part of information about secondary structure.
+You can see, that there are other non-zero cells in this matrix. It is because our parser detects all possible foldings for all possible substrings. It is not always noise. It may provide with an important piece of information about secondary structure.
 
-7. For example, like in this case, when we want to detect pseudoknot. We can think that pseudoknot is a composition of two interleaved stems. And you can see that parsing result for our example contains information about two stems. One is here and one is here.
+7. For example, in this case, when there is a pseudoknot in the sequence. We can think of the pseudoknot as a composition of two interleaved stems. As you can see, the parsing result for this example has information about two stems. One is here and one is here.
 
-So, if our network is powerful enough, that it can infer that such composition of stems is a pseudoknot.
+So, if our network is powerful enough, then it can infer that such composition of stems is a pseudoknot.
 
-It is an impoertant featue of our solution because pseudoknots can not be described in the terms of context-free grammars. But we can detect pseudoknots by using cintext-free grammar in our framework.
+Pseudoknots cannot be described in the terms of context-free grammars, but we still can detect them, even though we use only context-free grammar in our framework.
 
 8. And the last example is a real tRNA. We have a sequence from tRNA database and we predict possible secondary structures of it by using standalone tool.
 
-Now I show that parsing results contains information about two most possible predicted structures.
+We predicted the two most possible predicted structures by parsing.
 
-9. You can see parsing matrix.
+9. Here is the first predicted structure, and these are parts of matrix which represent the information about the three stems shown in the picture.
 
-It is a first predicted structure, and we can select parts of matrix which represent information of three stems which you can see. They are here.
+The second possible secondary structure is represented in the matrix too.
 
-Now we should find the second structure in the matrix.
+Finally you can see, that the parsing result contains the information about all possible structures. But it also contains some other data. It is because we extract all possible features, even impossible in practice. To filter out the impossible in practice secondary structures is why we need a neural network.
 
-Predicted structure is presented in the picture, and I can select its representation on our matrix.
+10. We use dense network for features processing. This network contains more that ten layers.
 
-Finally you can see, that parsing results contains information about all possible structures. But it also contains some other information. It is because we extract all possible features, even impossible in practice. It is why we need a neural network.
+Our experiments have shown that only composition of aggressive dropout and batch normalization prevents overfitting.
 
-10. In our solution we use dense network for features processing. This network contains more that ten layers.
+11. Now I'll demonstrate some basic evaluation. By this evaluation we show our solution can be applied for real data processing.
 
-We detect that only composition of aggressive dropout and batch normalization can help to prevent overfitting.
+The first case is an rRNA detection. The aim is to create a binary classifier which separate rRNA and non-rRNA sequences. We use subsequences of fixed length, and after the training we get the model which demonstrates the accuracy of 90% on the validation set.
 
-11. Finally I demonstrate some basic evaluation. We want to show that our solution can be applied for real data processing.
+12. The second case is a tRNA classification. We use two different databases for training and validation. Accuracy in this task is 97%.
 
-The first case is a rRNA detection. We want to create binary classifier which separate rRNA and non-rRNA sequences. We use subsequences of fixed length, and after training we get a model which demonstrates accuracy in 90% on validation set.
+Thus, we conclude that our solution can be applied for real data processing.
 
-12. The second case is a tRNA classification. We use two different database for training and validation. Accuracy in this task is 97%.
+13. The first task for the future work is to eliminate the parsing from the sequence processing function. We believe that it is possible by creating a network which can handle a sequence and not a parsing result. We can create such network by staged learning.
 
-Finally we can conclude that our solution can be applied for real data processing.
-
-13. The first task for the future work is drop parsing out from the sequence processing function. It is possible by creation a network which can handle not a parsing result, but a sequence. We can create such network by using staged learning.
-
-Also we want to evaluate other types of networks because it can increase quality of our solution.
+Also we want to experiment with other types of networks because it can increase quality of our solution.
 
 And, of course, we should do more evaluation and comparison with other tools.
 
-14. To summarize, we propose the approach to handle secondary structure by using ordinary grammars and artificial neural networks. We reduce parsing utilization from secondary structure modelling to features extraction, and propose the way to exclude parsing from sequence processing. We demonstrate that it is possible to detect features which can not be expressed in terms of used grammar. And we show that our solution can be used for real data processing. 
+14. To summarize, we propose the approach to handle secondary structure by using ordinary grammars and artificial neural networks. We reduce parsing utilization from secondary structure modelling to features extraction, and propose the way to exclude parsing from sequence processing. We demonstrate that it is possible to detect features which can not be expressed in terms of the grammar used. And we show that our solution can be used for real data processing. 
 
-15.  Thank you for attention. I'm ready to answer your questions.
+15.  Thank you for the attention. I'm ready to answer your questions.
