@@ -1,9 +1,44 @@
 \section{Matrix-based Algorithm for CFPQ}
 
 Matrix-based algoritm for CFPQ was proposed by Rustam Azimov~\cite{Azimov:2018:CPQ:3210259.3210264}.
-This algorithm ...
-It was shown that GPGPU utilization for queryes evaluation can significantly improve performance.
+This algorithm can be expressed in few lines of code in terms of matrices operations, and it is a sufficient advantage for implementation.
+It was shown that GPGPU utilization for queryes evaluation can significantly improve performance in comparison with other implementations~\cite{Azimov:2018:CPQ:3210259.3210264} even float matrices used instead of boolean matrices.
 
-Pseudocode and notes. Performance-critical section is matrix multiplication!
+Pseudocode of the algorithm is presented in listing~\ref{lst:algo1}.
 
-We implement this algoritms by using different approaches for matrices multipliation.
+\begin{algorithm}[H]
+\begin{algorithmic}[1]
+\caption{Context-free path quering algorithm}
+\label{lst:algo1}
+\Function{contextFreePathQuerying}{D, G}
+    
+    \State{$n \gets$ the number of nodes in $D$}
+    \State{$E \gets$ the directed edge-relation from $D$}
+    \State{$P \gets$ the set of production rules in $G$}
+    \State{$T \gets$ the matrix $n \times n$ in which each element is $\varnothing$}
+    \ForAll{$(i,x,j) \in E$}
+    \Comment{Matrix initialization}
+        \State{$T_{i,j} \gets T_{i,j} \cup \{A~|~(A \rightarrow x) \in P \}$}
+    \EndFor    
+    \While{matrix $T$ is changing}
+       
+        \State{$T \gets T \cup (T \times T)$}
+        \Comment{Transitive closure calculation} 
+    \EndWhile
+\State \Return $T$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+Here $D = (V, E)$ be the input graph and $G = (N,\Sigma,P)$ be the input grammar. 
+Each cell of the matrix $T$ contains the set of nonterminals such that $N_k \in T[i,j] \iff \exists p = v_i \ldots v_j $---path in $D$, such that $N_k \xRightarrow[G]{*} \omega(p) $, where $\omega(p)$ is a word formed by labels along path $p$.
+Thus, this algorithm solves reachability problem, or, according Hellings~\cite{hellingsRelational}, process CFPQs by using relational query semantics.
+
+As you can see, performance-critical part of this algorithm is a matrix multiplication.
+Note, that the set of nonterminals is finite, we can represent the matrix $T$ as e set of boolean matrices: one for each nonterminal.
+In this case the matrix updeta operation be $T_{N_i} \leftarrow T_{N_i} + (T_{N_j} \times T_{N_k})$ for each production $N_i \rightarrow N_j \ N_k$ in $P$.
+Thus we can reduse CFPQ to boolean matrices multiplication. 
+After such transfromation we can apply the next optimization: we can skip update if there are no changes in the matrices $T_{N_j}$ and $T_{N_k}$ at the previous iteration.
+
+Thus, the most important part is efficient implementation of operations over boolean matrices, and in this work we compare effects of utilization of different approaches to matrices multiplication.
+All our implemetations are based on the optimized version of the algorithm.
