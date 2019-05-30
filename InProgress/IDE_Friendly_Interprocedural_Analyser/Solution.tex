@@ -91,8 +91,22 @@ Note that updating is performed by file but not by class because of partial clas
 \end{table}
 
 Now, let's consider the journey of data after receiving of a file updating request.
+The main problem is that data received from plugin have a bit easier but less informative structure in case of interprocedural analyses.
+I.e. generated method graphs have only such information that can be extracted directly from the source code of one method.
+For example, all invocations has only symbolic information about target such as namespace, name and signature but analyser needs to know at least how to find the entry point of graph corresponding to the target of the invocation.
+So, before data are inserted into the full graph of the program they are processed by the chain of entities called resolvers.
+Each of them finds some global entity corresponding to a certain piece of data, adds it back and passes the whole result to the next resolver.
+After the source data are passed through the full chain of resolvers it is ensured that any entitiy such as class, field, method or even lambda that is referenced somewhere inside the method can be found during the execution of an analyzer.
+The result of resolving that represents a method with all necessary metadata is added into the service's database.
 
-TODO: IN PROGRESS
+In case of example presented above it means that (TODO: EXAMPLE).
+
+So, aggregated graphs and their metadata form the database that is always present in memory, updates after each request and follows the structure of the original program but makes it possible to represesnt analyses in terms of reachability problems.
+It is also important that the active database has some redudant information that is important for analyses and updating but can be omitted on serialization.
+That is why the database cannot be partially dumped into the disk and stays in the memory during the whole session.
+Furthermore, the process of loading of the database from a disk has a stage that is similar to the chain of resolvers and it is aimed to restoring of all additional information.
+
+Since the database is constructed the next step is to identify how PDA-based analyses are implemented using considered solution.
 
 \subsection{Automata construction}
 
@@ -101,7 +115,7 @@ The main entity that is used for the construction is the abstract PDA class that
 Due to generalization of PDA and its slightly different meaning in case of static analyses it is named pushdown virtual machine (PDVM) (fig.~\ref{fig:PDVM}).
 
 \begin{figure}[h]
-	%\includegraphics[width=\linewidth]{pictures/{PDVM.dia}.png}
+	\includegraphics[width=\linewidth]{pictures/{PDVM.dia}.png}
 	\caption{Abstract Pushdown Virtual Machine}
 	\label{fig:PDVM}
 \end{figure}
@@ -121,7 +135,53 @@ Step method is invoked for each next input symbol in a configuration.
 Action method is called in each new configuration just before input symbols reading.
 It can be used when it is needed to perform a chain of transitions without any movement.
 
+TODO:EXAMPLE
+
 Since a PDVM is constructed it can be runned from any set of positions.
+This opportunity is provided by a separate generalized subsystem that takes any representation of graph and any PDVM and performs computations.
+
+\subsection{Automata simulation}
+
+The very core of the whole solution is the alogrithm that performs the simulation of automata on a graph input.
+It is completely independent from other parts of the solution and is designed as abstract as possible to support any definition of graph and any additionaly computations during simulation.
+Such approach requires to implement a set of specific entities that provides all necessary information to the simulator.
+The whole infrastructure is presented at fig.~\ref{fig:PDVMSimulation}.
+
+\begin{figure}[h]
+	\includegraphics[width=\linewidth]{pictures/{PDVMSimulation.dia}.png}
+	\caption{PDVM Simulating Infrastructure}
+	\label{fig:PDVMSimulation}
+\end{figure}
+
+Although the service part of the solution provides all interfaces that are present in the diagram, it is still necessary to consider how to implement them manually to give an opportunity to adapt the simulator to some unusual data representation.
+The first entity is a transitions provider that represent a graph structure itself.
+It has two methods: the one that returns a set of transitions (edges) outgoing from the given position (node) and the another that returns a target position of the given transition.
+Both of them are alternately called by the simulator to propagate the simulation flow through the graph.
+
+The second entity is a context.
+It represents a state of simulator possibly with some additional user information.
+Note that the state of simulation and the state of a PDA are different things.
+This state is a tuple of PDA's state, top of the stack and the position in the input.
+And it leads us to the main idea of the simulating algorithm that is based on assumption that there is no need to process some context more that one time.
+So, the third entity is a cache provider that is used just to check whether the automaton has already been in the certain state with the certain top of the stack in the given position or not and if it has then returns the previously processed context of the simulation.
+Such approach makes it possible to use some intermediate results of computation to make next step that ensures polinomial time and space complexity and also provides the opportunity of handling of infinite cycles during simulation.
+
+The simulator switches from one context to another on the each step and such process called an inheritance.
+It can produce some new context during the transition or just switch to an existing context.
+So the last entity is a context processor that is responsible for creating of new contexts and propagating of some user information during the inheritance.
+
+The implementation of all of these entities allows to simulate any PDVM that uses the corresponding types of states, transitions and stack symbols.
+The last step is to load a set of initial contexts using the appropriate method of a simulator and then run it.
+
+However, it is also important to get the results of simulation.
+It can be implemented using context processor that builds some structure during the inheritance.
+The standard implementation provides one processor that allows to extract paths accepted by an automaton.
+To realize what it actually does it might be useful to understand an input graph as a finite state automaton.
+Then the simulation of PDVM performs the intersection of FSA and PDA that produces another PDA which states are just contexts of simulation and transitions are their switches.
+So, the standard context processor just builds such PDA.
+Further, extraction of any word that is accepted by this PDA gives a path in the original graph that is accepted by the original PDA.
+
+TODO: WHAT'S ELSE???
 
 \subsection{Plugin}
 
