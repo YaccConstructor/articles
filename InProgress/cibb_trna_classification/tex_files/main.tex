@@ -41,22 +41,22 @@ Finally, we evaluate our solution on tRNA classification tasks.}
 
 Development of effective computational methods for genomic sequences analysis is an open problem in bioinformatics.
 The existing algorithms for sequences classification and subsequences detection adopt different concepts and approaches.
-The fundamental idea here is that secondary structure of genomic sequences contains important information about the biological functions of organisms.
-There are different ways of secondary structure handling such as utilization of probabilistic grammars, and covariance models~\cite{EddyDurbin, dowell2004evaluation, knudsen1999rna}.
+The fundamental idea here is that the secondary structure of genomic sequences contains important information about the biological functions of organisms.
+There are different ways of secondary structure handling such as the utilization of probabilistic grammars, and covariance models~\cite{EddyDurbin, dowell2004evaluation, knudsen1999rna}.
 
 The common problem while dealing with real-world data is a possible presence of different mutations, noise and random variations which requires some sort of probability estimation while modeling the secondary structure.
 Probabilistic grammars and covariance models provide such functionality along with good expressive possibilities and long-distance connections handling, and they are successfully used in practical tools, such as~\cite{Infernal}, but building and training accurate grammar or model for predicting the whole secondary structure involves some theoretical and practical difficulties.
-On the other hand, artificial neural networks are a common way to process noisy data and find complex structural patterns, moreover, the efficiency of neural networks for genetic data processing have already been shown in some works~\cite{Humidor,ANN}.
+On the other hand, artificial neural networks are a common way to process noisy data and find complex structural patterns, moreover, the efficiency of neural networks for genetic data processing has already been shown in some works~\cite{Humidor,ANN}.
 
 An approach for biological sequences processing using the combination of ordinary formal grammars and artificial neural networks was proposed in~\cite{grigorevcomposition}.
-The key idea is to use an ordinary context-free grammar to describe only the basic secondary structure features and leave the probabilistic analysis to neural network which takes parsing-provided data as an input.
+The key idea is to use an ordinary context-free grammar to describe only the basic secondary structure features and leave the probabilistic analysis to the neural network which takes parsing-provided data as an input.
 
 The result of a parsing algorithm for the input string $w$ and the fixed grammar non-terminal $N$ (start nonterminal) is an upper-triangular boolean matrix $M_N$, where $M_N [i,j] = 1$, iff the substring $w[i,j-1]$ is derivable from $N$.
 
-Secondary structure of RNA sequences can be representaed as a composition of stems~\cite{MQbioinformatics19}.
-Grammar $G_0$ which is provided in~\cite{grigorevcomposition} describes recursive composition of stems of height more then three base pairs, and we use this grammar in our work.
-If we use this grammar, then result matrix contains 1 in the cell iff correspondent substring folds to stem of haight 3.
-Thus, if substring folds to the stem of hight more than 3, then the matrix contains diagonal chain of ones.
+Secondary structure of RNA sequences can be represented as a composition of stems~\cite{MQbioinformatics19}.
+Grammar $G_0$ which is provided in~\cite{grigorevcomposition} describes the recursive composition of stems of height more than three base pairs, and we use this grammar in our work.
+If we use this grammar, then matrix contains 1 in the cell iff correspondent substring folds to stem of height 3.
+Thus, if substring folds to the stem of hight more than 3, then the matrix contains the diagonal chain of ones.
 For example, look at the figure~\ref{fig:example} which presents parsing result of a sequence
 $$
 w_1 = CCCCATTGCCAAGGACCCCACCTTGGCAATCCC
@@ -74,48 +74,48 @@ stem}
 \end{center}
 \end{figure}
 
-The result matrix can be linearized, compressed into byte or int vector, and handled by usind dense neural network, as described in~\cite{grigorevcomposition}.
-But linearization brokes data locality: chain of ones which meens a high stem is local in terms of matrix, but be broken during its linearization.
-It is the reason to investigate applicability of convolutional networks for parsing result handling: boolean natrix can be converted to black-white bitmap image.
-In this work we provide empirical comparison of networks wich handle vectors and images.
+The resulting matrix can be linearized, compressed into byte or int vector, and handled by using a dense neural network, as described in~\cite{grigorevcomposition}.
+But linearization brokes data locality: chain of ones, which meens a high stem is local in terms of a matrix, but be broken during its linearization.
+It is the reason to investigate the applicability of convolutional networks for parsing result handling: boolean matrix can be converted to a black-white bitmap image.
+In this work, we provide an empirical comparison of networks which handle vectors and images.
 
-Another problem is a bad performance of solution which is based on proposed approach.
-As far as trained network handles parsing result, we should parse each sequence which we want ot process.
-And parsig is a very time-consumption step: context-free parsing has cubic cimplexity in terms of input length.
+Another problem is a bad performance of the solution which is based on the proposed approach.
+As far as trained network handles parsing result, we should parse each sequence which we want to process.
+And parsing is a very time-consumption step: context-free parsing has cubic complexity in terms of the input length.
 Even if we use matrix-based parsing algorithm~\cite{Azimov:2018:CPQ:3210259.3210264} which utilizes GPGPU, performance is bad.
-So, in practice it wolud be better to avoid parsing step.
-In this work we propose a solution of this problem.
-We show, how to build network which handles sequences, not parsing result.
+So, in practice, it would be better to avoid the parsing step.
+In this work, we propose a solution to this problem.
+We show, how to build a network which handles sequences, not parsing result.
 
 \section{\bf The solution}
 
-In this work we improve solution which is proposed in~\cite{grigorevcomposition}, and the first step is a convolutional network utilization for parsing result processing.
+In this work, we improve solution which is proposed in~\cite{grigorevcomposition}, and the first step is a convolutional network utilization for parsing result processing.
 
-Parsing result is a boolean matrix and we utilize artificial neural network to handle to detect sufficient features and to find patterns in their appearance.
-Therefore, we need to transform these boolean matrices to some data structures accepted by neural network.
+Parsing result is a boolean matrix and we utilize the artificial neural network to handle to detect sufficient features and to find patterns in their appearance.
+Therefore, we need to transform these boolean matrices to a data structure accepted by the neural network.
 Presently, we came up with two possible ways.
-The first one is to drop out the bottom left triangle, vectorize top right triangle row by row and transform it to the byte vector.
+The first one is to drop out the bottom left triangle, vectorize top right triangle row by row and transform it into the byte vector.
 This approach reduces the input size, but it requires the equal length of the input sequences, therefore we propose to either cut sequences or add some special symbol for each of them till the definite length.
-Moreover, this way brokes data locality which do learning harder and cheaper in terms of requerd time.
-Network should restore back relations which were broken during linearization.
+Moreover, this way brokes data locality which does learning harder and expensive in terms of the required time.
+The network should restore back relations which were broken during linearization.
 
-The second way is to represent the matrix as an image: the false bits of matrix as white pixels and the true bits as black ones.
+The second way is to represent the matrix as an image: the false bits of the matrix as white pixels and the true bits as black ones.
 This approach makes it possible to process sequences with different length since the images could be easily transformed to a specified size.
-Also, this way save information about relative positions of extracted basic features which should iprove learning process.
+Also, this way save information about relative positions of extracted basic features which should improve the learning process.
 
-To handle images we use a the network which consists of a small number of convolutional layers, linearization, and dense network which has the similar architecture as for vectorized data.
-The example of such network is presented in figure~\ref{nn}, block \texttt{N1}.
-In the previous work we performed experiments only on vectorized data and in this work we provide an evaluation on both data formats and compare the results.
+To handle images we use a network which consists of a small number of convolutional layers, linearization, and dense network which has a similar architecture as for vectorized data.
+The example of such a network is presented in figure~\ref{nn}, block \texttt{N1}.
+In the previous work, we performed experiments only on vectorized data and in this work we provide an evaluation on both data formats and compare the results.
 
-To create a network which can handle orignal sequence instead of its parsing matrix we propose to use two-staged learning: to create a network we should first train another network wich solve subtask and after that use pretrained layers in final network.
+To create a network which can handle original sequence instead of its parsing matrix we propose to use two-staged learning: to create a network we should first train another network which solves subtask and after that use pretrained layers in the final network.
 In our case, firstly, we train a neural network which handles parsing results that performs classification according to a given problem.
-We create two networks in order to compare different architectures: one of them handles vectorised parsing result, other handles parsing result represented as a bitmap image.
-After that, we extend this neural network by a number of input layers that take the initial nucleotide sequence as an inputs and convert it to the parsing result which handelas appropriately by pretarined layers.
+We create two networks in order to compare different architectures: one of them handles vectorized parsing result, other handles parsing result represented as a bitmap image.
+After that, we extend this neural network by a number of input layers that take the initial nucleotide sequence as an input and convert it to the parsing result which handles appropriately by pretrained layers.
 
-For detailes look at figure~\ref{nn}. Here \texttt{N1} is a network which handles images, \texttt{N2} is a netork which handles vectorized parsing results, and \texttt{N0} is a additional block which converts input sequence into set of features which can be handled by using \texttt{N1} or \texttt{N2}.
+For details look at figure~\ref{nn}. Here \texttt{N1} is a network which handles images, \texttt{N2} is a network which handles vectorized parsing results, and \texttt{N0} is an additional block which converts input sequence into a set of features which can be handled by using \texttt{N1} or \texttt{N2}.
 
 So, we build a network that handles sequences and requires parsing only for training the network it is based on.
-This way we can remove the parsing step from the usage of trained model.
+This way we can remove the parsing step from the usage of the trained model.
 
 
 \section{\bf Experiments}
