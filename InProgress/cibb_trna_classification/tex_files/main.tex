@@ -89,30 +89,33 @@ We show, how to build network which handles sequences, not parsing result.
 
 \section{\bf The solution}
 
-The first idea is to explore different formats of the parsing results representation and develop corresponding neural network architectures. The second idea is to minimize the use of parsing in the context of our solution.
+In this work we improve solution which is proposed in~\cite{grigorevcomposition}, and the first step is a convolutional network utilization for parsing result processing.
 
-We use such matrices as an input to neural network that is supposed to perform classification of some kind by detecting sufficient features and finding patterns in their appearance.
+Parsing result is a boolean matrix and we utilize artificial neural network to handle to detect sufficient features and to find patterns in their appearance.
 Therefore, we need to transform these boolean matrices to some data structures accepted by neural network.
 Presently, we came up with two possible ways.
-The first one is to drop out the bottom left triangle, vectorize it row by row and transform it to the byte vector.
+The first one is to drop out the bottom left triangle, vectorize top right triangle row by row and transform it to the byte vector.
 This approach reduces the input size, but it requires the equal length of the input sequences, therefore we propose to either cut sequences or add some special symbol for each of them till the definite length.
-The second way is to represent the matrix as an image: the false bits of matrix as white pixels and the true bits as black ones.
-This approach makes it possible to process sequences with different length since the images could be easily transformed to a constant size.
+Moreover, this way brokes data locality which do learning harder and cheaper in terms of requerd time.
+Network should restore back relations which were broken during linearization.
 
-The final step is to process the parsing-provided data by an artificial neural network constructed and trained for a specific task.
-The neural network architecture is unique for each problem, but during the experimental research we worked out some common concepts.
-For vectorized data we use dense layers because data locality is broken during vectorization and dropout layers with batch normalization to stabilize learning.
-For image data we use a small number of convolutional layers, then linearization and go to the same architecture as for vectorized data, because convolution layers are suited for features extraction, but in our case it is already done by parsing.
+The second way is to represent the matrix as an image: the false bits of matrix as white pixels and the true bits as black ones.
+This approach makes it possible to process sequences with different length since the images could be easily transformed to a specified size.
+Also, this way save information about relative positions of extracted basic features which should iprove learning process.
+
+To handle images we use a the network which consists of a small number of convolutional layers, linearization, and dense network which has the similar architecture as for vectorized data.
+The example of such network is presented in figure~\ref{nn}, block \texttt{N1}.
 In the previous work we performed experiments only on vectorized data and in this work we provide an evaluation on both data formats and compare the results.
 
-To solve this problem we propose to use two-staged learning: to create a network we should first train another network wich solve subtask and after that use pretrained layers in final network.
+To create a network which can handle orignal sequence instead of its parsing matrix we propose to use two-staged learning: to create a network we should first train another network wich solve subtask and after that use pretrained layers in final network.
 In our case, firstly, we train a neural network which handles parsing results that performs classification according to a given problem.
+We create two networks in order to compare different architectures: one of them handles vectorised parsing result, other handles parsing result represented as a bitmap image.
 After that, we extend this neural network by a number of input layers that take the initial nucleotide sequence as an inputs and convert it to the parsing result which handelas appropriately by pretarined layers.
 
-So, we build a model that handles sequences and requires parsing only for training the model it is based on.
-This way we can remove the parsing step from the usage of trained model and also improve its accuracy without the additional data generation.
+For detailes look at figure~\ref{nn}. Here \texttt{N1} is a network which handles images, \texttt{N2} is a netork which handles vectorized parsing results, and \texttt{N0} is a additional block which converts input sequence into set of features which can be handled by using \texttt{N1} or \texttt{N2}.
 
-In the next section we provide the results of this modification usage.
+So, we build a network that handles sequences and requires parsing only for training the network it is based on.
+This way we can remove the parsing step from the usage of trained model.
 
 
 \section{\bf Experiments}
