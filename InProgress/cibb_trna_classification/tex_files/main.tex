@@ -23,12 +23,12 @@ semyon.grigorev@jetbrains.com
 \abstract{DNN, CNN, Machine Learning, Secondary Structure, Genomic Sequences, Formal Grammars, Parsing.
 \\[17pt]
 {\bf Abstract.}
-Recently a way to combine formal grammars and artificial neural networks for biological sequences processing was proposed.
-This approach utilizes an ordinary grammar for encoding primitive features of RNA secondary structure, parsing for features extraction and artificial neural network for extracted features processing.
-The bottleneck of this solution is parsing and the main problem here is the following: in practical usage of the trained model, we need to parse the input sequence which is time-consuming while working with huge biological databases.
-In this work, we solve this problem by using staged learning, and as a result, final solution use parsing only for network training.
-We also compare the applicability of networks which handle two representations of the parsing result: vector and bitmap image.
-Finally, we evaluate our solution on tRNA classification tasks.}
+A way to combine formal grammars and artificial neural networks for biological sequences processing was recently proposed.
+In this approach, an ordinary grammar encodes primitive features of the secondary structure of RNA, parsing is utilized for features extraction and artificial neural network~--- for processing of extracted features.
+Parsing is a bottleneck of the approach: input sequences should first be parsed before processing with a trained model which is a time-consuming operation when working with huge biological databases.
+In this work we solve the problem by employing staged learning and limiting parsing to be used only during network training.
+We also compare networks which represent the parsing result in two different ways: by a vector and a bitmap image.
+Finally, we evaluate our solution on tRNA classification.}
 
 \begin{document}
 \thispagestyle{myheadings}
@@ -40,96 +40,105 @@ Finally, we evaluate our solution on tRNA classification tasks.}
 \section{\bf Introduction}
 
 Development of effective computational methods for genomic sequences analysis is an open problem in bioinformatics.
-The existing algorithms for sequences classification and subsequences detection adopt different concepts and approaches.
-The fundamental idea here is that the secondary structure of genomic sequences contains important information about the biological functions of organisms.
-There are different ways of secondary structure handling such as the utilization of probabilistic grammars, and covariance models~\cite{EddyDurbin, dowell2004evaluation, knudsen1999rna}.
+While the existing algorithms for sequences classification and subsequences detection adopt different concepts and approaches, they share one idea: secondary structure of genomic sequences contains important information about biological functions of organisms.
+There are different ways to handle secondary structure, for example probabilistic grammars and covariance models~\cite{EddyDurbin, dowell2004evaluation, knudsen1999rna}.
 
-The common problem while dealing with real-world data is a possible presence of different mutations, noise and random variations which requires some sort of probability estimation while modeling the secondary structure.
-Probabilistic grammars and covariance models provide such functionality along with good expressive possibilities and long-distance connections handling, and they are successfully used in practical tools, such as~\cite{Infernal}, but building and training accurate grammar or model for predicting the whole secondary structure involves some theoretical and practical difficulties.
-On the other hand, artificial neural networks are a common way to process noisy data and find complex structural patterns, moreover, the efficiency of neural networks for genetic data processing has already been shown in some works~\cite{Humidor,ANN}.
+Real-world biological data commonly contains different mutations, noise, and random variations.
+This issue requires some sort of probability estimation while modeling the secondary structure.
+Probabilistic grammars and covariance models provide such functionality, are expressive and handle long-distance connections.
+They are successfully used in practical tools, such as Infernal~\cite{Infernal}, but building and training accurate grammar or model for predicting the whole secondary structure involves theoretical and practical difficulties.
+On the other hand, artificial neural networks are a common way to process noisy data and find complex structural patterns.
+Moreover, the efficiency of neural networks for genetic data processing has already been shown in some works~\cite{Humidor,ANN}.
 
-An approach for biological sequences processing using the combination of ordinary formal grammars and artificial neural networks was proposed in~\cite{grigorevcomposition}.
-The key idea is to use an ordinary context-free grammar to describe only the basic secondary structure features and leave the probabilistic analysis to the neural network which takes parsing-provided data as an input.
+An approach for biological sequences processing which employs the combination of ordinary formal grammars and artificial neural networks was proposed in~\cite{grigorevcomposition}.
+The key idea is to use an ordinary context-free grammar to describe only basic secondary structure features and leave the probabilistic analysis to the neural network which takes parsing-provided data as an input.
 
+Secondary structure of RNA sequences can be viewed as a composition of stems~\cite{MQbioinformatics19}.
+Grammar $G_0$ provided in~\cite{grigorevcomposition} describes the recursive composition of stems which are at least three base pairs in height, and we use this grammar in our paper.
 The result of a parsing algorithm for the input string $w$ and the fixed grammar non-terminal $N$ (start nonterminal) is an upper-triangular boolean matrix $M_N$, where $M_N [i,j] = 1$, iff the substring $w[i,j-1]$ is derivable from $N$.
+This means that, for the grammar $G_0$, a matrix contains $1$ in a cell iff a correspondent substring folds to a  stem of height at least 3.
+A stem results in a diagonal chain of $1$ in the matrix, if its height is more than 3.
+Figure~\ref{fig:example} presents the parsing result of a sequence
 
-Secondary structure of RNA sequences can be represented as a composition of stems~\cite{MQbioinformatics19}.
-Grammar $G_0$ which is provided in~\cite{grigorevcomposition} describes the recursive composition of stems of height more than three base pairs, and we use this grammar in our work.
-If we use this grammar, then matrix contains 1 in the cell iff correspondent substring folds to stem of height 3.
-Thus, if substring folds to the stem of hight more than 3, then the matrix contains the diagonal chain of ones.
-For example, look at the figure~\ref{fig:example} which presents parsing result of a sequence
-$$
+\[
 w_1 = CCCCATTGCCAAGGACCCCACCTTGGCAATCCC
-$$
+\]
+
 w.r.t the grammar $G_0$.
-Colored boxes are used to map substring which folds to stem to correspondent cells in the matrix.
+Colored boxes map a substring which folds to a stem to correspondent cells in the matrix.
 
 \begin{figure}[h]
 \begin{center}
 \centering
 \includegraphics[width=0.8\textwidth]{figures/4.pdf}
-\caption{Parsing result for sequence which should folds to
+\caption{Parsing result for sequence which should fold to
 stem}
 \label{fig:example}
 \end{center}
 \end{figure}
 
-The resulting matrix can be linearized, compressed into byte or int vector, and handled by using a dense neural network, as described in~\cite{grigorevcomposition}.
-But linearization brokes data locality: chain of ones, which meens a high stem is local in terms of a matrix, but be broken during its linearization.
-It is the reason to investigate the applicability of convolutional networks for parsing result handling: boolean matrix can be converted to a black-white bitmap image.
-In this work, we provide an empirical comparison of networks which handle vectors and images.
+The parsing result in form of matrix can be linearized, compressed into byte or int vector, and be further handled by a dense neural network, as described in~\cite{grigorevcomposition}.
+Unfortunatelly, linearization breakes data locality: a chain of $1$, which signifies a high stem, is local in a matrix, but is broken apart during its linearization.
+We see it to be an argument to investigate the applicability of convolutional networks for parsing result handling as a boolean matrix can be converted to a black-white bitmap image.
+In this paper we provide an empirical comparison of networks which handle vectors and images.
 
-Another problem is a bad performance of the solution which is based on the proposed approach.
-As far as trained network handles parsing result, we should parse each sequence which we want to process.
-And parsing is a very time-consumption step: context-free parsing has cubic complexity in terms of the input length.
-Even if we use matrix-based parsing algorithm~\cite{Azimov:2018:CPQ:3210259.3210264} which utilizes GPGPU, performance is bad.
-So, in practice, it would be better to avoid the parsing step.
-In this work, we propose a solution to this problem.
-We show, how to build a network which handles sequences, not parsing result.
+Another problem is bad performance of the earlier solution.
+Since the trained network handles parsing result, each input sequence should first be parsed.
+Parsing is a very time-consuming step: context-free parsing has cubic complexity in terms of the input length.
+Even if we use matrix-based parsing algorithm~\cite{Azimov:2018:CPQ:3210259.3210264} which utilizes GPGPU, performance is insufficient.
+We believe it would be better to avoid the parsing step.
+In this work, we propose a solution to this problem by building a network which handles raw sequences, not parsing results.
 
 \section{\bf The solution}
 
-In this work, we improve solution which is proposed in~\cite{grigorevcomposition}, and the first step is a convolutional network utilization for parsing result processing.
+In this paper we improve the solution proposed in~\cite{grigorevcomposition}.
+First, we describe how to use convolutional network for parsing result processing.
 
-Parsing result is a boolean matrix and we utilize the artificial neural network to handle to detect sufficient features and to find patterns in their appearance.
+Parsing result is a boolean matrix and we utilize the artificial neural network to detect sufficient features and to find patterns in their appearance.
 Therefore, we need to transform these boolean matrices to a data structure accepted by the neural network.
 Presently, we came up with two possible ways.
-The first one is to drop out the bottom left triangle, vectorize top right triangle row by row and transform it into the byte vector.
-This approach reduces the input size, but it requires the equal length of the input sequences, therefore we propose to either cut sequences or add some special symbol for each of them till the definite length.
-Moreover, this way brokes data locality which does learning harder and expensive in terms of the required time.
-The network should restore back relations which were broken during linearization.
+
+The first one is to drop out the nullary bottom left triangle, vectorize the top right triangle row by row and transform it into a byte vector.
+This approach reduces the input size, but it requires all the input sequences to have equal length.
+Thus we propose to either cut sequences to be some predefined length or to pad them up with some blank symbols.
+Vectorisation breakes data locality which makes learning harder: the network should restore back the relations broken during linearization.
+This also means that the learning takes more time.
 
 The second way is to represent the matrix as an image: the false bits of the matrix as white pixels and the true bits as black ones.
-This approach makes it possible to process sequences with different length since the images could be easily transformed to a specified size.
-Also, this way save information about relative positions of extracted basic features which should improve the learning process.
+This approach makes it possible to process sequences of different lengths since the images are easily transformed to a specified size
+Data locality is also preserved: the information about relative positions of extracted basic features does not get lost which should improve learning.
 
-To handle images we use a network which consists of a small number of convolutional layers, linearization, and dense network which has a similar architecture as for vectorized data.
-The example of such a network is presented in figure~\ref{nn}, block \textbf{\texttt{N1}}.
-In the previous work, we performed experiments only on vectorized data and in this work we provide an evaluation on both data formats and compare the results.
+To handle images, we use a network which consists of a small number of convolutional layers, linearization, and dense network which has a similar architecture as for vectorized data.
+The example of such network is presented in figure~\ref{nn}, block \textbf{\texttt{N1}}.
+In this paper we provide an evaluation on both data formats and compare the results.
 
-To create a network which can handle original sequence instead of its parsing matrix we propose to use two-staged learning: to create a network we should first train another network which solves subtask and after that use pretrained layers in the final network.
-In our case, firstly, we train a neural network which handles parsing results that performs classification according to a given problem.
-We create two networks in order to compare different architectures: one of them handles vectorized parsing result, other handles parsing result represented as a bitmap image.
-After that, we extend this neural network by a number of input layers that take the initial nucleotide sequence as an input and convert it to the parsing result which handles appropriately by pretrained layers.
+To create a network which can handle original sequence instead of its parsing matrix, we propose to use two-staged learning.
+In this approach, a network is built in two stages: first, a network is trained which solves a subtask and then it is used as pretrained layers in the training of the resulting network.
+In our solution we first train a neural network to handle parsing results which performs classification according to a problem at hands.
+We create two networks in order to compare different architectures: one of them handles vectorized parsing result, the other handles parsing result represented as a bitmap image.
+After that, we extend this neural network by a number of input layers that take the initial nucleotide sequence as an input and convert it to the parsing result which is handled appropriately by the pretrained layers.
 
-For details look at figure~\ref{nn}. Here \textbf{\texttt{N1}} is a network which handles images, \textbf{\texttt{N2}} is a network which handles vectorized parsing results, and \textbf{\texttt{N0}} is an additional block which converts input sequence into a set of features which can be handled by using \textbf{\texttt{N1}} or \textbf{\texttt{N2}}.
+A figure~\ref{nn} presents a detailed description of the three neural networks.
+Here \textbf{\texttt{N1}} is a network which handles images, \textbf{\texttt{N2}} is a network which handles vectorized parsing results, and \textbf{\texttt{N0}} is an additional block which converts input sequence into a set of features which can be handled by using \textbf{\texttt{N1}} or \textbf{\texttt{N2}}.
 
-So, we build a network that handles sequences and requires parsing only for training the network it is based on.
-This way we can remove the parsing step from the usage of the trained model.
+To sum up, we built a network that handles sequences and requires parsing only for training the network it is based on.
+This removes the parsing step from the usage of the trained model.
 
 
 \section{\bf Experiments}
 
-We evaluate the proposed approach with described above modifications on two tRNA sequences analysis tasks.
-The first one is a classification of tRNA into two classes: eukaryotes and prokaryotes.
-And the second one is a classification into four classes: archaea, bacteria, plants and fungi.
-For these experiments we use sequences from tRNA databases~\cite{trnadb1,trnadb2}.
-For both classification tasks we select the equal number of samples for each class and generated vectors and images datasets by parsing tool on the same sequences dataset using grammar presented in our previous work.
-After that, we train neural networks that handle different representations of parsing results: vectors or images.
-Then, for both vector- and image-based models we create the extended neural network which contains two blocks: the first one takes initial tRNA sequence as an input and transforms it to the parsing result by a number of dense layers with batch normalization and the second one is a block of pretrained layers from the base model which is created at the previos step.
+We evaluate the proposed approach with the described above modifications on two tRNA sequences analysis tasks.
+The first one is a classification of tRNA into two classes: eukaryotes and prokaryotes, while the second is a classification into four classes: archaea, bacteria, plants and fungi.
+We use sequences from tRNA databases~\cite{trnadb1,trnadb2} for these experiments.
+We select the equal number of samples for each class for both classification tasks.
+Each sample was parsed w.r.t. the grammar $G_0$ from the earlier paper and then both vectorized and transformed into an image.
+After that, we trained two neural networks: one which handles the representation of the parsing result as vectors, and the second~--- as images.
+Finally, we train the extended neural network.
+It consists of a block which takes an initial tRNA sequence as an input and transforms it into the parsing result by few dense layers with batch normalization and the block of pretrained layers: either the vector- or the image-based models from the previous step.
 
-These neural networks for two classes classification are shown in the figure~\ref{nn}, where the right rectangle represents model that handles vectors, the left rectangle represents network which classifies images and the middle rectangle here is the extension that transforms sequence to parsing result. For vector-based approach we combine this extension and the whole original sequence of layers.
-For image-based approach we use the similar architecture, except in that case we remove the convolutional layer from the extended model, thus, at the junction of the blocks the first layer corresponds to linearized image.
+These neural networks for two classes classification are shown in the figure~\ref{nn}, where the right rectangle represents the model that handles vectors, the left rectangle represents the network which classifies images and the middle rectangle is the extension that transforms a sequence to the parsing result.
+For vector-based network, we combine this extension and the whole original sequence of layers.
+For image-based network, we use the similar architecture, except we remove the convolutional layer from the extended model, thus, the first layer at the junction of the blocks corresponds to the linearized image.
 
 \begin{figure}[h]
 \begin{center}
@@ -141,47 +150,47 @@ For image-based approach we use the similar architecture, except in that case we
 \end{figure}
 
 
-All extended neural networks were trained and tested on the same datasets as the corresponding base ones. The trained models for two classes (EP) and for four classes (ABFP) classification tasks were estimated by using classical machine learning metrics: accuracy, precision and recall.
+All extended neural networks were trained and tested on the same datasets as the corresponding base ones.
+The trained models for two classes (EP) and for four classes (ABFP) classification tasks were estimated by using classical machine learning metrics: accuracy, precision and recall.
 
-Results on test dataset for each problem by accuracy metrics are presented in the table~\ref{acc}, where base model is a model which handles parsing result (image or vector respectively) and extended model handles tRNA sequences and extends the corresponding base model.
+Accuracy metrics for each problem from the test dataset are presented in the table~\ref{acc}, where base model is a model which handles parsing result (image or vector respectively) and extended model handles tRNA sequences and extends the corresponding base model.
 
 \input{table_acc.tex}
 
-Test results for extended models for both classifiers on the same amount of samples as in table~\ref{acc} by precision and recall metrics are presented in the table~\ref{pe}.
+The estimations of precision and recall metrics for extended models for both classifiers on the same  samples as in table~\ref{acc} are presented in the table~\ref{pe}.
 
 \input{table_pr_rec.tex}
 
 The results show that our approach is applicable to tRNA classification tasks and both vector- and image-based models can be used along with dense and convolutional layers in neural networks architectures.
 While the differences in results for extended models are insignificant, for base models image-based network demonstrates slightly better results (see table~\ref{acc}).
-The reason of this effect may be a better locality of features in the image-based representation of parsing result: chain of ones which means a high stem is local in terms of picture, but can be broken during linearization.
-In the current model, we use only one convolution layer.
+We believe that the reason of this effect lays in a better locality of features in the image-based representation of parsing result: chain of $1$ which means a high stem is local in terms of picture, but is broken during linearization.
+Current model uses a single convolution layer.
 Whether it is possible to utilize deep convolutional networks for secondary structure analysis in the discussed approach is a question for future research.
 
-The idea of extended model that handles sequences instead of parsing result is proved to be applicable in practice and it demonstrates even higher quality than the original parsing-based model, as it can be seen in the table~\ref{acc}.
-We can conclude that it is possible to use parsing only for network training without loss of network quality.
+The idea of extended model that handles sequences instead of parsing result is proved to be applicable in practice and it demonstrates even higher quality than the original parsing-based model, as illustrated by table~\ref{acc}.
+We can conclude that it is possible to use parsing only for network training without decreasing the network quality.
 
 \section{\bf Conclusion}
 
 We describe modifications of the proposed approach for biological sequences analysis using the combination of formal grammars and neural networks.
-We show that it is possible to handle parsing result which is represented as an image by using convolutional layers while processing it with a neural network, and this way it is possible to improve quality of the solution.
+We show that it is possible to handle parsing result which is represented as an image by using convolutional layers while processing it with a neural network, and it improves the quality of the solution.
 Also, we provide a solution that removes the parsing step from the trained model use and allows to run models on the original RNA sequences.
-As a result, the performance of the final solution can be significantly improved.
-We demonstrated the applicability of the proposed modifications for real-world problems.
+As a result, the performance of the solution is significantly improved.
+We demonstrate the applicability of the proposed modifications for real-world problems.
 Source code and documentation are published at GitHub: \url{https://github.com/LuninaPolina/SecondaryStructureAnalyzer}.
 
-We can provide a number of directions for future research.
-First of all, it is necessary to investigate the applicability of the proposed approach for other sequences processing and for other tasks.
-For examples, for 16s rRNA processing, and for chimeric sequences filtration.
+We can provide several directions for future research.
+First of all, it is necessary to investigate the applicability of the proposed approach for other sequences processing tasks such as 16s rRNA processing and chimeric sequences filtration.
 
 Another possible application is a secondary structure prediction.
 Is it possible to create a generative network which generates the most possible contact map for the given sequence?
 
-The image-based model demonstrates a slightly higher quality.
-We should investigate this effect.
-We think that the reason is a better locality of features.
-If so, it should be possible the create deep convolution network for secondary structure analysis.
+The image-based model demonstrates higher quality.
+We believe that it is caused by a better locality of features.
+If so, it should be possible to create deep convolution network for secondary structure analysis: further investigation is needed.
 
-Finally, it is important to find a theoretical base for grammar tuning. Is it possible to use theoretical results on secondary structure description by using formal grammar, such as~\cite{MQbioinformatics19} to find optimal grammar for our approach?
+Finally, it is important to find a theoretical base for grammar tuning.
+Is it possible to use theoretical results on secondary structure description by using formal grammar, such as~\cite{MQbioinformatics19} to find the optimal grammar for our approach?
 
 
 \section*{\bf Acknowledgments}
