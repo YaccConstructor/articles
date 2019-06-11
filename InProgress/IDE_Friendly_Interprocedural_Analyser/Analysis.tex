@@ -15,6 +15,34 @@ Each of them is an image of some source instruction.
 Invocations are produced from call sites and have the same information as ones in original code.
 I.e. it contains a reference to the entity which method is called, the name of target, a set of arguments and the information about returned values.
 Each assignment corresponds to real assignment and has references to the source entity and the target one.
-And return just indicates the end of a method. It can be not present directly in the source code but is needed to be added to 
+And return just indicates the end of a method. It can be not present explicitly in the source code but is still needed to be added to inform analyser about return point.
+However, the number of instruction types is not fixed and some analysis-specific operations can be added if necessary. 
+Nodes have no any data and correspond to positions between instructions in the source code.
+
+So, we have a bunch of graphs each of which represents the content of one method. 
+Next step is to interconnect them to have an opportunity to perform interprocedural jumps during invocations.
+There are several possible way to do that.
+First of them is to expand invocations statically, i.e. add a pair of edges for each target of each invocation.
+One to represent a jump from the call site to the entry point of target and one to emulate return from the final node of the method to the caller.
+But this approach leads to the need to update all these additional connections if some method is removed or its body is changed.
+So, we propose to resolve invocations dynamically right during an analysis.
+It allows us not to modify initial graphs structure at all.
+Nevertheless, it is still needed to have a mechanism that can perform the resolution, i.e. there must be an entity that can collect all targets of any invocation using references stored there. 
+
+To implement such mechanism, called resolver, we offer to accumulate some meta-information about the program besides graphs themselves.
+The relations in required data is shown at fig.~\ref{fig:Metadata}.
+
+\begin{figure}[h]
+	\includegraphics[width=\linewidth]{pictures/{TopLevelEntitiesHierarchy.dia}.png}
+	\caption{Metadata}
+	\label{fig:Metadata}
+\end{figure}
+
+Firstly, it is important to keep the hierarchy of inheritance to support polymorphic calls and invocations of methods of a basic class.
+Secondly, it is needed to know which methods are contained in each class to find the method by its name and its location.
+Thirdly, methods can have local functions and it is necessary to keep their hierarchy too to support, for example, anonymous function invocations, delegates passing and so on.
+And finally, methods themselves has references to nodes they own which is used to find the entry point and update the graph when the body of method is changed.
+This structure also contains such data as class fields and local variables of a method which can be referenced by operations.
+So, the resolver takes the class name and the identifier of a method or a field and walks through the hierarchy tying to find all suitable entities.
 
 \subsection{PDA construction}
