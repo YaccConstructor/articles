@@ -24,19 +24,14 @@
 \usepackage[font=small,labelfont=bf]{caption} % Required for specifying captions to tables and figures
 \usepackage{booktabs} % Horizontal rules in tables
 \usepackage{relsize} % Used for making text smaller in some places
-
 \usepackage{amsmath,amsfonts,amssymb,amsthm} % Math packages
 \usepackage{eqparbox}
-
 \usepackage{textcomp}
-
 \usepackage{caption}
 \usepackage{subcaption}
 \usepackage{graphicx}
 \usepackage{listings}
-%\usepackage{verbatimbox}
-%\usepackage{hyperref}
-
+\usepackage{enumitem}
 \usepackage{pgf}
 \usepackage{tikz}
 \usepackage[utf8]{inputenc}
@@ -96,8 +91,7 @@ boxshade=plain
 %   TITLE AND AUTHOR NAME
 %----------------------------------------------------------------------------------------
 %
-{ \bf  \huge {Improved Architecture of Artificial Neural Network for Secondary Structure Analysis} }
-%\\  \Large \it Context-free grammars and neural networks for secondary structure} % Poster title
+{ \bf  \huge {Improved Architecture of Artificial Neural Network for Secondary Structure Analysis} }  % Poster title
 {\vspace{0.3em} \smaller \textbf{Semyon Grigorev$^1$}, Polina Lunina$^1$ \\  % Author names
 \smaller \it $^1${Saint Petersburg State University, JetBrains Reserach, St. Petersburg, Russia } \\ % Author email addresses
 \smaller  {\textbf{E-mail:} semyon.grigorev@jetbrains.com}}
@@ -107,26 +101,24 @@ boxshade=plain
 %----------------------------------------------------------------------------------------
 %   INTRODUCTION
 %----------------------------------------------------------------------------------------
-\headerbox {Motivation}{name=introduction,column=0,row=0, span=2}{
+\headerbox {Motivation}{name=introduction,column=0,row=0, span=4}{
 
 An approach for biological sequences processing by combination of formal grammars and neural networks is proposed in the work~\cite{grigorevcomposition}.
-While classical way is to model secondary structure of the full sequence by using grammar, the proposed approach utilizes it only for primitive secondary structure features description.
-These features can be extracted by parsing algorithm and processed by using artificial neural network.
-It is shown that this approach is applicable for real-world data processing.
-Our goal is to improve this approach.
+While classical way is to model secondary structure of the full sequence by using grammar, the proposed approach utilizes it only for primitive secondary structure features description. These features can be extracted by parsing algorithm and processed by using artificial neural network. It is shown that this approach is applicable for real-world data processing and some questions are formulated for future research. In this work we provide answers to some of them.  
 }
+
 
 \headerbox {Questions}{name=questions, column=0, row=0, span=2, below=introduction}{
 
-\textbf{Is it possible to move parsing to network training step?} Parsing is the most time-consuming operation of the proposed solution, so whis way we can improve performance of final solution.
+\textbf{Is it possible to use convolutional neural networks for parsing result processing?} The result of parsing algorithm is a set of upper triangular boolean matrices. The original idea is to vectorize these matrices row by row and use DNNs for these vectors processing. Matrices can be also treated as bitmaps, where the false bits of matrix correspond to white pixels and the true bits to black ones. To handle these images we use network with a small number of convolutional layers, linearization and then the same structure as for vectorized data.
 
-\textbf{Is it possible to use convolutional neural networks for parsing result processing?} The result of parsing algorithm is a set of buulean matrices. The original solution uses vectorized representation of these matrices, and DNNs for these vectors processing. Matrces can be treated as bitmaps. This way we can simplify data normalization: we can resize figures if input sequences have different lengths.
-
+\textbf{Is it possible to move parsing to network training step?} Parsing is the most time-consuming operation of the proposed solution. We solve this problem by using two-staged learning. At the first step, we prepare a neural network (vector- or image-based) for our task which takes parsed data as an input. After that we extend trained network with a number of input layers that should convert original nucleotide sequence into parsing result. This way we create a network which can handle sequences, not parsing result. So, parsing is required only for training the first network.
 }
 
-\headerbox {Results}{name=results,column=2,row=0, span=2}{
+
+\headerbox {Results}{name=results, column=2, row=2, span=2, below=introduction}{
 We use the proposed improvements to create neural networks for tRNA sequences analysis problems: classification of tRNA into 2 classes: eukaryotes and prokaryotes (EP) and 4 classes: archaea, bacteria, plants and fungi (ABFP).
-We train networks on sequences from databases~\cite{trnadb1, trnadb2}.
+We use sequences from databases~\cite{trnadb1, trnadb2}.
 Results for both image- and vector-based classifiers are presented in the table, where base model means network which handles parsing result and extended model handles sequences and is based on the corresponding base model.
 \begin{center}
 \begin{tabular}{|l||l|l||l|l|}
@@ -138,168 +130,112 @@ Approach   & Vectors  & Images   & Vectors      & Images     \\ \hline
 \begin{tabular}[c]{@{}l@{}}Total samples\\ (train:valid:test)\end{tabular} & \multicolumn{2}{l||}{20000:5000:10000} & \multicolumn{2}{l|}{8000:1000:3000} \\ \hline
 \end{tabular}
 \end{center}
-
 }
 
-\headerbox{Solution Overview}{name=CFParsing,span=4,column=0,row=1,below=questions}{
+
+\headerbox{Solution Overview}{name=solution,span=4,column=0,row=1,below=results}{
 
 \begin{tikzpicture}[->,>=stealth']
 
-
 \node[state,
       align=left,
-      text width = 7cm] (grm)
+      text width = 2cm] (grm)
  {
-  \textbf{Grammar}\\
- \vspace{0.2cm}
-{\ttfamily
-s1: stem<s0> any
-\\
-a\_0\_7 : any*[2..10]
-\\
-s0: a\_0\_7 | a\_0\_7 stem<s0> s0
-\\
-any: A | U | C | G
-\\
-stem1<s>: A s U | G s C | U s A | C s G
-\\
-stem2<s>: stem1< stem1<s> >
-\\
-stem<s>:  \\
-\qquad      A stem<s> U \\
-\qquad    | U stem<s> A \\
-\qquad    | C stem<s> G \\
-\qquad    | G stem<s> C \\
-\qquad    | stem1< stem2<s> >  \\
- }
- \vspace{0.2cm}
-Fixed context-free grammar describes features of secondary structure and can be tuned in order to increase result quality.
-
+  \textbf{Grammar}
  };
-
 
 \node[state,
       below of=grm,
-      node distance=5.3cm,
+      node distance=1cm,
       align = left,
-      text width = 7cm] (sqs)
+      text width = 2cm] (sqs)
  {
- \textbf{Sequences}\\
-  \vspace{0.2cm}
-Genoms parts of fixed length. Current length is 512. Length is variable parameter and can be changed in order to increase quality of solution.
-Each sequence is treated as a text in $\{A, U, G, C\}$ alphabet.
+ \textbf{Sequences}
  };
-
 
 \node[state,
       right of=grm,
-      node distance=7.5cm,
+      node distance=4.5cm,
       align = left,
-      text width = 6cm](parser)
+      text width = 5cm](parser)
 {
 \textbf{Parser}\\
- \vspace{0.2cm}
-Parser is features extractor: it extracts features of given sequence secondary structure.
-Parsing algorithm is based on the algorithm~\cite{gsv}, so the grammar can be extended with conjunctive rules~\cite{Okhotin} for pseudoknots description.%~\cite{zier2013rna}.
-Parser performance is a bottleneck of our solution.
-Current implementation utilizes GPGPU and should be optimized in future.
+Parser extracts secondary structure features described by grammar. We use a matrix-based parsing algorithm~\cite{gsv}.
 };
 
 \node[state,
       right of=parser,
-      node distance=8cm,
+      node distance=6cm,
       align = left,
-      text width = 8.1cm] (mtrx)
+      text width = 5cm] (mtrx)
 {
   \textbf{Matrices}\\
-   \vspace{0.2cm}
-{\centering
-  \fbox{\includegraphics[width=2.5cm]{figures/mt1.png}}
-  \
-  \fbox{\includegraphics[width=2.5cm]{figures/mt2.png}}
-  \
-  \fbox{\includegraphics[width=2.5cm]{figures/mt3.png}}
-  }
-\\
-Parsing result is boolean (0-1) matrix which represents secondary structure features for sequence $\omega$: cell $[i,j]$ contains 1 iff $\omega.[j,i]$ is derivable from {\ttfamily s1} and $0$ in other case.
-These matrices can be handled as images or binary vectors by using respective types of neural networks (convolutional or binary) and one of topics for future research is to select better approach.
-Currently we compress each matrix to integer vector and use dense neural network.
+Parsing result for sequence $w$ and nonterminal $N$ is an upper-triangular boolean matrix $M_N$, where $M_N [i,j] = 1$, iff the substring $w[i,j-1]$ is derivable from $N$.
 };
 
 \node[state,
-      below of=sqs,
-      node distance=3.5cm,
+      right of=mtrx,
+      node distance=7.5cm,
       align = left,
-      text width = 7cm](result)
-{
-\textbf{Result of classification}\\
- \vspace{0.2cm}
-Currently we implement only simple binary classifier that separates 16s and non-16s sequences.
-One of interesting question is may this classifier be used for chimeric sequences filtering.
-We hope that it is possible because ``global'' secondary structure of chimeric sequences should be broken.
-};
-
-
-\node[state,
-      right of=result,
-      node distance=9cm,
-      align = left,
-      text width = 9.7cm](DNN)
-{
-\textbf{Neural Network}\\
- \vspace{0.2cm}
-\begin{minipage}[t]{5.5cm}
-We use dense neural network with 14 dense layers.
-Almost all of them are wrapped with dropout (up to 75\%) and batch normalization layers for learning stabilization.
-Our network is trained on up to 310000 sequences of length 512: positive (16s rRNA) from NCBI database, negative (non-16s) from Green Genes database.
-Current accuracy for validation set (up to 81000 sequences) is 90\%.
-\end{minipage}
-\begin{minipage}[t]{4cm}
-Typical building block:
-\\
-\includegraphics[width=4cm]{figures/bb.pdf}
-\end{minipage}
-
-
-};
-
-
-\node[state,
-      right of=DNN,
-      node distance=8cm,
-      align = left,
-      text width = 5cm](vector)
+      text width = 8cm](vector)
 {
 \textbf{Vectors}\\
-\vspace{0.2cm}
-We use line-by-line compressed matrix representation: sequence of 32 cells (bits) is compressed to unsigned integer.
-Top right triangle of matrix is always empty, so can be ignored.
-We hope that compression to 16 bit integer or byte may decrease complexity of neural network and improve result quality, but it requires significantly more memory on GPGPU which can be serious technical problem.
+We drop out the bottom left triangle
+and vectorize the rest of matrix row by row. It requires the equal length of the input sequences, therefore we propose to either cut sequences or add some empty symbol till the definite length.
+};
+
+\node[state,
+      below of=vector,
+      node distance=3.5cm,
+      align = left,
+      text width = 8cm](image)
+{
+\textbf{Images}\\
+We represent the false bits of matrix as white pixels and the true bits as black ones to get a bitmap image. This approach makes it possible to process sequences with different length since the images may be easily transformed to the same size.
+};
+
+\node[state,
+      below of=parser,
+      node distance=6cm,
+      align = left,
+      text width = 9.5cm](NN)
+{
+\textbf{Neural Networks}\\
+ \vspace{0.2cm}
+\includegraphics[width=9.5cm]{figures/nn_arch.png}
 
 };
 
+\node[state,
+      right of=NN,
+      node distance=8cm,
+      align = left,
+      text width = 5cm](NN_info)
+{
+\textbf{Neural Networks}\\
+Some description of models
+...
 
-\path (grm) edge  (parser)
- (sqs) edge [bend right] (parser)
-% (sqs) edge (parser)
+};
+
+\path (grm) edge (parser)
+ (sqs.east) edge (parser)
  (parser) edge (mtrx)
  (mtrx) edge (vector)
- (vector) edge (DNN)
- (DNN) edge (result)
+ (mtrx) edge [bend right] (image.west)
  ;
 
 \end{tikzpicture}
-
-
 }
 
+
 \headerbox {Future Research}
-{name=app1,column=0,span=2, below=CFParsing}
+{name=app1,column=0,span=1, below=solution}
 {
-\begin{itemize}
-\item Chimeric sequences filtration
-\item Secondary structure prediction
-\item Proteins functions prediction
+\begin{itemize}[noitemsep,nolistsep]  
+{\setlength\itemindent{-10pt} \item Chimeric sequences filtration}
+{\setlength\itemindent{-10pt} \item Secondary structure prediction}
+{\setlength\itemindent{-10pt} \item Proteins functions prediction}
 \end{itemize}
 }
 
@@ -308,7 +244,7 @@ We hope that compression to 16 bit integer or byte may decrease complexity of ne
 %----------------------------------------------------------------------------------------
 
 \headerbox {References}
-{name=app2,column=2,span=2, below=CFParsing}
+{name=app2,column=2,span=2, below=solution}
 {
 \smaller % Reduce the font size in this block
 \renewcommand{\section}[2]{\vskip 0.05em} % Get rid of the default "References" section title
@@ -320,17 +256,15 @@ We hope that compression to 16 bit integer or byte may decrease complexity of ne
 }
 
 
-
-\headerbox {Acknowledgments}{name=ack,column=0,span=1,below=app1}{
+\headerbox {Acknowledgments}{name=ack,column=1,span=1,below=solution}{
 The research was supported by the Russian Science Foundation grant 18-11-00100 and a grant from JetBrains Research.
-\vspace{0.24cm}
 }
 
-\headerbox {Information}{name=info,column=1,span=1,below=app1}{
-All materials available on GitHub: \small{https://github.com/YaccConstructor}
-\vspace{0.68cm}
-}
+\headerbox {Information}{name=info,column=0,span=2,below=ack}{
+All materials are available on GitHub:
 
+https://github.com/LuninaPolina/SecondaryStructureAnalyzer
+}
 
 \end{poster}
 
