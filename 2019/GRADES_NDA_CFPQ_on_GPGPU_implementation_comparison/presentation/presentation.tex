@@ -25,6 +25,7 @@
 \usepackage{tabularx}
 \newcolumntype{Y}{>{\raggedleft\arraybackslash}X}
 
+\renewcommand{\thealgorithm}{}
 
 \newtheorem{mytheorem}{Theorem}
 \renewcommand{\thealgorithm}{}
@@ -93,6 +94,14 @@ Saint Petersburg University
 
   \end{frame}
 
+%  \begin{frame}[fragile] \frametitle{Applicatipons}
+%    \begin{itemize}
+%      \item Static code analysis
+%      \item Graph database querying
+%      \item RDF analysis
+%    \end{itemize}
+%  \end{frame}
+
   \begin{frame}[fragile]
     \frametitle{Context-Free Path Querying: Relational Query Semantics}
     \begin{itemize}
@@ -113,6 +122,44 @@ Saint Petersburg University
     \end{itemize}
   \end{frame}
 
+  \begin{frame}[fragile] \frametitle{Matrix-based algorithm}
+    \begin{algorithm}[H]
+    \begin{algorithmic}[1]
+    \caption{Context-free recognizer for graphs}
+    \Function{contextFreePathQuerying}{D, G}
+
+        \State{$n \gets$ the number of nodes in $D$}
+        \State{$E \gets$ the directed edge-relation from $D$}
+        \State{$P \gets$ the set of production rules in $G$}
+        \State{$T \gets$ the matrix $n \times n$ in which each element is $\varnothing$}
+        \ForAll{$(i,x,j) \in E$}
+        \Comment{Matrix initialization}
+            \State{$T_{i,j} \gets T_{i,j} \cup \{A~|~(A \rightarrow x) \in P \}$}
+        \EndFor
+        \While{matrix $T$ is changing}
+
+            \State{$T \gets T \cup (T \times T)$}
+            \Comment{Transitive closure $T^{cf}$ calculation}
+        \EndWhile
+    \State \Return $T$
+    \EndFunction
+    \end{algorithmic}
+    \end{algorithm}
+  \end{frame}
+
+\begin{frame}[fragile] \frametitle{Questions for Evaluation}
+  \begin{itemize}
+    \item Can GPGPUs utilization for CFPQ improve performance in comparison with the CPU version?
+    \pause
+    \item Is it possible to achieve higher performance by means of existing libraries for matrices operations or do we need to create our own solution to get more control?
+    \pause
+    \item Can we achieve a high-performance solution with high-level languages such as Python?
+    \pause
+    \item Can we gain more performance improvement by using sparse matrix representation for CFPQ?
+  \end{itemize}
+\end{frame}
+
+
 
 \begin{frame}[fragile] \frametitle{CPU-based implementations}
   \begin{minipage}[t]{1cm}
@@ -121,7 +168,7 @@ Saint Petersburg University
   ~
 \begin{minipage}[t]{0.85\textwidth}
 \begin{itemize}
-  \item[\textbf{[Scipy]}] Sparse matrices multiplication by using Scipy in Python programming language
+  \item[\textbf{[Scipy]}] Sparse matrices multiplication by using \textbf{Scipy} in \textbf{Python} programming language
 \pause
   \item[\textbf{[M4RI]}] Dense matrices multiplication by using \textbf{m4ri2} library which implements the Method of Four Russians in \textbf{C} language
 \end{itemize}
@@ -129,7 +176,7 @@ Saint Petersburg University
 \end{frame}
 
 
-\begin{frame}[fragile] \frametitle{CPU-based implementations}
+\begin{frame}[fragile] \frametitle{GPGPU-based implementations}
   \begin{minipage}[t]{1cm}
 \hspace{1cm}
   \end{minipage}
@@ -137,19 +184,85 @@ Saint Petersburg University
 \begin{minipage}[t]{0.85\textwidth}
 \begin{itemize}
 \item[\textbf{[GPU4R]}] Our own implementation of the Method of Four
-Russians in CUDA C.
+Russians in \textbf{CUDA C}
 \pause
-\item[\textbf{[GPU\_N]}] Our own implementation of the na\"ive boolean
-matrix multiplication in CUDA C with boolean values treated
-as bits and packed into uint\_32.
+\item[\textbf{[GPU\_N]}] Our own implementation of the na\"{\i}ve boolean
+matrix multiplication in \textbf{CUDA C}
 \pause
-\item[\textbf{[GPU\_Py]}] Manual implementation of na\"ive boolean matrix
-multiplication in Python by using numba compiler. Boolean
-values are packed into uint\_32.
+\item[\textbf{[GPU\_Py]}] Manual implementation of na\"{\i}ve boolean matrix
+multiplication in \textbf{Python} by using \textbf{numba} compiler
 \end{itemize}
 \end{minipage}
 \end{frame}
 
+\begin{frame}[fragile] \frametitle{Dataset}
+  \begin{minipage}[t]{1cm}
+\hspace{1cm}
+  \end{minipage}
+  ~
+\begin{minipage}[t]{0.85\textwidth}
+\begin{itemize}
+\item[\textbf{[RDF]}]
+\begin{itemize}
+  \item The set of the real-world RDF files (ontologies)
+  \item Queries: $G_4: s \to SCOR \ s \ SCO \ | \ TR \ s \ T \ | \ SCOR \ SCO \ | \ TR \ T$,
+$G_5: s \to SCOR \ s \ SCO \ | \ SCO$
+\end{itemize}
+
+\pause
+\item[\textbf{[Worst]}]
+\begin{itemize}
+  \item The input graph is a two cycles of coprime lengths with a single common vertex
+  \begin{figure}
+        \begin{tikzpicture}[shorten >=1pt,node distance=2cm,on grid,auto]
+   \node[state] (q_1)   {$1$};
+   \node[state] (q_2) [above=of q_1] {$2$};
+   \node[state] (q_3) [above right=of q_1, below right=of q_2] {$0$};
+   \node[state] (q_4) [right=of q_3] {$3$};
+    \path[->]
+    (q_1) edge  node {A} (q_2)
+    (q_2) edge  node {A} (q_3)
+    (q_3) edge  node {A} (q_1)
+    (q_3) edge[bend left, above]  node {B} (q_4)
+    (q_4) edge[bend left, below]  node {B} (q_3);
+\end{tikzpicture}
+\end{figure}
+  \item Queries: $G_1: s \to A \ s \ B | \ A \ B$
+\end{itemize}
+\end{itemize}
+\end{minipage}
+\end{frame}
+
+\begin{frame}[fragile] \frametitle{Dataset}
+  \begin{minipage}[t]{1cm}
+\hspace{1cm}
+  \end{minipage}
+  ~
+\begin{minipage}[t]{0.85\textwidth}
+\begin{itemize}
+\item[\textbf{[Full]}]
+\begin{itemize}
+  \item The input graph is sparse, but the result is a full graph
+  \item Queries: \\ $G_2: s \to s \ s \ | \ A$, \\ $G_3: s \to s \ s \ s \ | \ A$
+\end{itemize}
+\pause
+\item[\textbf{[Sparse]}]
+\begin{itemize}
+  \item Sparse graphs are generated by the GTgraph
+  \item Queries: $G_1: s \to A \ s \ B | \ A \ B$
+\end{itemize}
+\end{itemize}
+\end{minipage}
+\end{frame}
+
+\begin{frame} \frametitle{Evaluation}
+  \begin{itemize}
+   \item OS: Ubuntu 18.04
+   \item CPU: Intel core i7 8700k 3,7HGz
+   \item RAM: DDR4 32 Gb
+   \item GPGPU: Geforce 1080Ti (11Gb RAM)
+  \end{itemize}
+\end{frame}
 
 \begin{frame} \frametitle{Evaluation: worst case}
   \begin{centering}
@@ -246,29 +359,28 @@ values are packed into uint\_32.
 
 \end{frame}
 
-\begin{frame}[fragile] \frametitle{Example 2: Pseudoknot}
+\begin{frame}[fragile] \frametitle{Evaluation: Full}
 \begin{center}
   {\tiny
   \rowcolors{1}{}{lightgray}
-  \begin{tabular}{| p{1.25cm} | c | c | c | c | c | c | c | c | }
+  \begin{tabular}{| l | c | c | c | c | c | c | c | c | c | c | c | c |}
       \hline
-      \multicolumn{3}{|c|}{RDF}        & \multicolumn{6}{|c|}{Query $G_5$}                              \\
-      %\cline{2-13}
+      \multirow{2}{*}{\#V} & \multicolumn{6}{|c|}{Query $G_2$}                               & \multicolumn{6}{|c|}{Query $G_3$} \\
+      \cline{2-13}
+                           & Scipy   & M4RI    & GPU4R   & GPU\_N  & GPU\_Py & CuSprs    & Scipy    & M4RI     & GPU4R   & GPU\_N  & GPU\_Py & CuSprs \\
       \hline
-      Name                                & \#V & \#E  & Scipy & M4RI  & GPU4R & GPU\_N & GPU\_Py & CuSprs \\
       \hline
-      \hline
-      \tiny{atm-prim}                    & 291 & 685   & 1     & \ltz & 1     & \ltz   & 2       & 267  \\
-      \tiny{biomed}                      & 341 & 711   & 4     & \ltz & 1     & \ltz   & 5       & 280  \\
-      \tiny{foaf}                        & 256 & 815   & 1     & \ltz & 1     & \ltz   & 2       & 263  \\
-      \tiny{funding}                     & 778 & 1480  & 2     & \ltz & 3     & \ltz   & 4       & 274  \\
-      \tiny{generations}                 & 129 & 351   & 1     & \ltz & 1     & \ltz   & 2       & 263  \\
-      \tiny{people\_pets}                & 337 & 834   & 1     & \ltz & 1     & \ltz   & 3       & 277  \\
-      \tiny{pizza}                       & 671 & 2604  & 2     & \ltz & 2     & \ltz   & 5       & 278  \\
-      \tiny{skos}                        & 144 & 323   & \ltz  & \ltz & 1     & \ltz   & 2       & 265  \\
-      \tiny{travel}                      & 131 & 397   & 1     & \ltz & 1     & \ltz   & 3       & 271  \\
-      \tiny{unv-bnch}                    & 179 & 413   & 1     & \ltz & 1     & \ltz   & 3       & 266  \\
-      \tiny{wine}                        & 733 & 2450  & 1     & \ltz & 3     & \ltz   & 3       & 281  \\
+      100                  & 0.007   & 0.002    & 0.002   & \ltz    & 0.003   & 0.278    & 0.023    & 0.076   & 0.005   & 0.001   & 0.007   & 0.290   \\
+      200                  & 0.040   & 0.003    & 0.002   & 0.001   & 0.004   & 0.279    & 0.105    & 0.098   & 0.004   & 0.001   & 0.007   & 0.296   \\
+      500                  & 0.480   & 0.003    & 0.003   & 0.001   & 0.004   & 0.329    & 1.636    & 0.094   & 0.007   & 0.001   & 0.010   & 0.382   \\
+      1000                 & 3.741   & 0.007    & 0.005   & 0.001   & 0.006   & 0.571    & 13.071   & 0.106   & 0.009   & 0.001   & 0.009   & 0.839   \\
+      2000                 & 40.309  & 0.063    & 0.019   & 0.003   & 0.017   & 1.949    & 93.676   & 0.108   & 0.030   & 0.005   & 0.026   & 3.740   \\
+      5000                 & 651.343 & 0.366    & 0.125   & 0.038   & 0.150   & 99.651   & 1205.421 & 0.851   & 0.195   & 0.075   & 0.239   & 201.151 \\
+      10000                & -       & 1.932    & 0.552   & 0.315   & 0.840   & 1029.042 & -        & 4.690   & 1.055   & 0.648   & 1.838   & -       \\
+      25000                & -       & 33.236   & 7.252   & 5.314   & 15.521  & -        & -        & 70.823  & 15.240  & 10.961  & 36.495  & -       \\
+      50000                & -       & 360.035  & 58.751  & 44.611  & 129.641 & -        & -        & 775.765 & 130.203 & 91.579  & 226.834 & -       \\
+      80000                & -       & 1292.817 & 256.579 & 190.343 & 641.260 & -        & -        & -       & 531.694 & 376.691 & -       & -       \\
+
       \hline
     \end{tabular}
     }
@@ -276,7 +388,27 @@ values are packed into uint\_32.
 \end{frame}
 
 
+\begin{frame}[fragile] \frametitle{Conclusion}
+  \begin{itemize}
+    \item Dataset is published
+    \item Impl!!!
+    \item RDF analysis
+  \end{itemize}
+\end{frame}
 
+\begin{frame}[fragile] \frametitle{Future research}
+  \begin{itemize}
+    \item Detailed investigation of implemented algorithms
+    \item Create open extensible platform for CFPQ algorithms comparison
+    \item Evaluate other CFPQ algorithms
+    \begin{itemize}
+      \item !!!
+      \item !!!
+    \end{itemize}
+    \item Add new data and queries
+    \item Integrate with LDBC
+  \end{itemize}
+\end{frame}
 
 \begin{frame}
 \frametitle{Contact Information}
@@ -286,13 +418,16 @@ values are packed into uint\_32.
       \item \href{mailto:s.v.grigoriev@spbu.ru}{s.v.grigoriev@spbu.ru}
       \item \href{mailto:Semen.Grigorev@jetbrains.com}{Semen.Grigorev@jetbrains.com}
     \end{itemize}
-  \item Polina Lunina:
-  \begin{itemize}
-    \item  \href{mailto:lunina_polina@mail.ru}{lunina\_polina@mail.ru}
-  \end{itemize}
-  \item Trained models: \href{https://github.com/YaccConstructor/YC.Bio}{https://github.com/YaccConstructor/YC.Bio}
+  \item Nikita Mishin: \href{mailto:mishinnikitam@gmail.com}{mishinnikitam@gmail.com}
+  \item Iaroslav Sokolov: \href{mailto:sokolov.yas@gmail.com}{sokolov.yas@gmail.com}
+  \item Egor Spirin: \href{mailto:egor@spirin.tech}{egor@spirin.tech}
+  \item Vladimir Kutuev: \href{mailto:vladimir.kutuev@gmail.com}{vladimir.kutuev@gmail.com}
+  \item Egor Nemchinov: \href{mailto:nemchegor@gmail.com}{nemchegor@gmail.com}
+  \item Sergey Gorbatyuk: \href{mailto:sergeygorbatyuk171@gmail.com}{sergeygorbatyuk171@gmail.com}
+\vspace{0.5cm}
+  \item Dataset and algorithm implementations: \href{https://github.com/SokolovYaroslav/CFPQ-on-GPGPU}{https://github.com/SokolovYaroslav/CFPQ-on-GPGPU}
 \end{itemize}
-\vspace{2cm}
+\vspace{0.1cm}
 \center{\huge{Thanks!}}
 \end{frame}
 \end{document}
