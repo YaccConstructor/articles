@@ -105,28 +105,109 @@ boxshade=plain
 %----------------------------------------------------------------------------------------
 \headerbox {Motivation}{name=introduction,column=0,row=0, span=2}{
 
-An approach for biological sequences processing by combination of ordinary formal grammars and neural networks is proposed in the work~\cite{grigorevcomposition}.
-While classical way is to model secondary structure of the full sequence by using probabilistic grammar, the proposed approach utilizes ordinary grammar only for primitive secondary structure features description.
-These features can be extracted by parsing and processed by using artificial neural network.
-In this work we show how to use convolutional networks instead of dense networks, and how improve performance of solution by creation network which can handles sequences instead of parsing results.
+Existing solution for secondary structure analysis~\cite{grigorevcomposition}:\\
+%\begin{enumerate}
+  %\item sequance $\to$ parser $\to$ boolean matrix (\textbf{})
+  %\item boolean matrix $\to$ int vector (\textbf{problems with size and data locality})
+  %\item int vector $\to$ dence neural network
+%\end{enumerate}
+\begin{tikzpicture}[->,>=stealth']
+
+  \node[state,
+        line width=0.5mm,
+        %left of = parser,
+        align=left,
+        text width = 1.7cm] (grm)
+   {
+    \textbf{Grammar}
+   };
+
+  \node[state,
+        line width=0.5mm,
+        below of=grm,
+        node distance=1cm,
+        align = left,
+        text width = 1.8cm] (sqs)
+   {
+   \textbf{Sequences}
+   };
+
+\node[state,
+      line width=0.5mm,
+      align = left,
+      right of = grm,
+      node distance=3.5cm,
+      text width = 3.3cm](parser)
+{
+\textbf{Parsing} \\ very time-consuming
+};
+
+\node[state,
+      line width=0.5mm,
+      right of=parser,
+      node distance=4.4cm,
+      align = left,
+      text width = 3.5cm] (mtrx)
+{
+  \textbf{Boolean Matrices}
+};
+
+\node[state,
+      line width=0.5mm,
+      below of=mtrx,
+      node distance=1.6cm,
+      align = left,
+      text width = 4.8cm](vector)
+{
+\textbf{Vectors}\\
+issues with size normalization and data locality
+};
+
+\node[state,
+      line width=0.5mm,
+      %below of = parser,
+      left of = vector,
+      align = left,
+      node distance=4.4cm,
+      text width = 3cm](NN)
+{
+\textbf{Dense Neural Network}
+};
+
+\path (grm.east) edge (parser)
+ (sqs.east) edge (parser.185.5)
+ (parser) edge (mtrx)
+ (mtrx) edge (vector)
+ (vector) edge (NN);
+ %(NN.-10.5) edge [-,dashed,black] (NN_info)
+
+\end{tikzpicture}
+
+Questions:
+\begin{itemize}
+  \item \textbf{Is it possible to move parsing to network training step?}
+  \item \textbf{Is it possible to use convolutional neural networks for parsing result processing?}
+\end{itemize}
+
 }
 
 
-\headerbox {Questions}{name=questions, column=2, row=0, span=2}{
+\headerbox {Parsing elimination}{name=pElim, column=0, row=0, span=2, below=introduction}{
 
-\textbf{Is it possible to use convolutional neural networks for parsing result processing?} The result of parsing algorithm is a set of upper triangular boolean matrices. The original idea is to vectorize these matrices row by row and use DNNs for these vectors processing. Matrices can be treated as bitmaps, where the false bits of matrix correspond to white pixels and the true bits to black ones. To handle these images we use network with convolutional layers followed by linearization and then the same structure as for vectorized data.
-
-\textbf{Is it possible to move parsing to network training step?} Parsing is the most time-consuming operation of the proposed solution. We solve this problem by using two-staged learning. At the first step, we prepare a neural network (vector- or image-based) for our task which takes parsed data as an input. After that we extend trained network with a number of input layers that convert the original nucleotide sequence into parsing result. This way we create a network which can handle sequences, not parsing result. So, parsing is required only for the base network training.
+ We solve this problem by using two-staged learning.
+ \begin{enumerate}
+   \item Train a network which takes parsed data as an input (\textbf{base model}).
+   \item Extend trained network with a number of input layers that convert the nucleotide sequence into parsing result (\textbf{extended model}).
+ \end{enumerate}
+    %This way we create a network which can handle sequences, not parsing result.
+    \textbf{Parsing is required only for the network training.}
 }
 
-
-\headerbox {Results}{name=results, column=0, row=0, span=2, below=introduction}{
-Two tasks for evaluation.
-The first is a classification of tRNA into 2 classes: eukaryotes and prokaryotes (EP).
-The second one is a classification into 4 classes: archaea, bacteria, fungi and plants (ABFP).
-We use sequences from open databases~\cite{trnadb1, trnadb2}.
-Results are presented in the table.
-Base model means network which handles parsing result and extended model handles sequences and is based on the corresponding base model.
+\headerbox {Results: tRNA classification}{name=results, column=2, row=0, span=2}{
+\begin{itemize}
+  \item 2 classes: eukaryotes and prokaryotes (EP).
+  \item 4 classes: archaea, bacteria, fungi and plants (ABFP).
+\end{itemize}
 \begin{center}
 \small
 \begin{tabular}{|l||l|l||l|l|}
@@ -138,121 +219,164 @@ Approach   & Vectors  & Images   & Vectors      & Images     \\ \hline
 \begin{tabular}[c]{@{}l@{}}Total samples\\ (train:valid:test)\end{tabular} & \multicolumn{2}{l||}{20000:5000:10000} & \multicolumn{2}{l|}{8000:1000:3000} \\ \hline
 \end{tabular}
 \end{center}
+Sequences from open databases~\cite{trnadb1, trnadb2}.
+
 }
 
+\headerbox {Data format}{name=dFormat, column=2, row=0, span=2, below=results}{
 
-\headerbox{Solution Overview}{name=solution,span=4,column=0,row=1,below=results}{
+\begin{minipage}[t]{7.1cm}
+  \vspace{-2.8cm}
+ Matrices can be treated as bitmaps.
+\begin{itemize}
+  \item We can use convolutional networks.
+  \item Images can be easely resized.
+  \item Data locality is saved.
+\end{itemize}
+\end{minipage}
+~
+\begin{minipage}[b]{3cm}
+  \fbox{\includegraphics[width=2.8cm]{figures/mt1.png}}
+\end{minipage}
+}
+
+\headerbox{Solution Overview}{name=solution,span=4,column=0,row=1,below=pElim}{
 
 \begin{tikzpicture}[->,>=stealth']
+
+  \node[state,
+        line width=0.5mm,
+        %above left=2.25cm and -1.5cm of NN,
+        align=left,
+        text width = 2cm] (grm)
+   {
+    \textbf{Grammar}
+   };
+
+  \node[state,
+        line width=0.5mm,
+        below of=grm,
+        node distance=1cm,
+        align = left,
+        text width = 2cm] (sqs)
+   {
+   \textbf{Sequences}
+   };
+
 
 \node[state,
       line width=0.5mm,
       align = left,
-      text width = 5cm](parser)
+      below right = -0.7 and 0.5 of grm,
+      node distance = 5cm,
+      text width = 6cm](parser)
 {
 \textbf{Parser}\\
-Parser extracts secondary structure features described by grammar. We use a matrix-based parsing algorithm~\cite{gsv}.
+Extracts secondary structure features described by grammar.\\
+Matrix-based parsing algorithm~\cite{gsv}.
 };
 
 \node[state,
       line width=0.5mm,
       right of=parser,
-      node distance=6cm,
+      node distance=6.3cm,
       align = left,
       text width = 5cm] (mtrx)
 {
   \textbf{Matrices}\\
-Parsing result for sequence $w$ and nonterminal $N$ is an upper-triangular boolean matrix $M_N$, where $M_N [i,j] = 1$, iff $w[i,j-1]$ is derivable from $N$.
+$w$ -- sequence,  $N$ -- nonterminal \\ $M_N [i,j] = 1$, iff $w[i,j-1]$ is derivable from $N$.
 };
 
 \node[state,
       line width=0.5mm,
       right of=mtrx,
-      node distance=7.5cm,
+      node distance=6cm,
       align = left,
-      text width = 8cm](vector)
+      text width = 5.5cm](vector)
 {
 \textbf{Vectors}\\
-We drop out the bottom left triangle
-and vectorize the rest of matrix row by row. It requires the equal length of the input sequences, therefore we propose to either cut sequences or add some empty symbol till the definite length.
+%\begin{enumerate}
+  Drop out the bottom left triangle. \\
+  Vectorize matrix row by row. \\
+  Length normalization is requried. \\
+%\end{enumerate}
 };
 
 \node[state,
       line width=0.5mm,
-      below of=vector,
+      below right = 1 and -1 of mtrx,
       node distance=3cm,
       align = left,
-      text width = 8cm](image)
+      text width = 3.4cm](image)
 {
 \textbf{Images}\\
-We represent the false bits of matrix as white pixels and the true bits as black ones to get a bitmap image. This approach makes it possible to process sequences with different lengths since the images can be easily resized.
+\vspace{-0.2cm}
+\begin{center}
+\fbox{\includegraphics[width=3cm]{figures/mt1.png}}
+\end{center}
 };
 
 \node[state,
       line width=0.5mm,
       below of=parser,
-      node distance=6cm,
+      node distance=5.8cm,
       align = left,
-      text width = 9.4cm](NN)
+      text width = 11.6cm](NN)
 {
 \textbf{Neural Networks}\\
- \vspace{0.2cm}
-\includegraphics[width=9.4cm]{figures/nn_arch.pdf}
+ %\vspace{0.2cm}
+\includegraphics[width=11.4cm]{figures/nn_arch.pdf}
 
 };
 
-\node[state,
-      line width=0.5mm,
-      above left=2.25cm and -1.5cm of NN,
-      align=left,
-      text width = 2cm] (grm)
- {
-  \textbf{Grammar}
- };
 
 \node[state,
       line width=0.5mm,
-      below of=grm,
-      node distance=1cm,
-      align = left,
-      text width = 2cm] (sqs)
- {
- \textbf{Sequences}
- };
-
-\node[state,
-      line width=0.5mm,
-      below right=4.1cm and 3cm of parser,
+      below of = image,
+      node distance = 4 cm,
       align = left,
       text width = 6cm](NN_info)
 {
 \textbf{Neural Networks}\\
-\textbf{\texttt{N1}} is a model for images classification, \textbf{\texttt{N2}} is a model that classifies vectorized data and \textbf{\texttt{N0}} is the extension block which converts the original nucleotide sequence into a set of features which can be handled by using weights of \textbf{\texttt{N1}} or \textbf{\texttt{N2}}.
+\textbf{\texttt{N1}} -- images classification.\\
+\textbf{\texttt{N2}} -- vectorized data classification.\\
+\textbf{\texttt{N0}} -- the extension block which converts the nucleotide sequence into a~set of features for \textbf{\texttt{N1}} or \textbf{\texttt{N2}}.
 
 
 };
 
-\path (grm.east) edge (parser.171.5)
- (sqs.east) edge (parser.193.5)
+\node[
+      line width=0.5mm,
+      below right = -1.3 and 1.9 of NN_info,
+      align = left,
+      text width = 2.7cm](qr)
+{
+\includegraphics[width=2.5cm]{figures/qr-research-jetbra.pdf}
+};
+
+
+
+\path (grm.east) edge (parser)
+ (sqs.east) edge (parser)
  (parser) edge (mtrx)
  (mtrx) edge (vector)
- (mtrx) edge [bend right] (image.west)
- (NN.-10.5) edge [-,dashed,black] (NN_info)
- (image.south) edge [bend left] (NN_info.12);
-\draw (vector.east) -- (17.8,0) -- (17.8,-7.4) -- (NN_info.-11.5);
-\draw (sqs.south) -- (-4.35,-1.7) --(6.05,-1.7) -- (NN_info.147.5);
+ (mtrx) edge (image)
+ (vector) edge [bend left] (NN_info)
+ (NN.-17) edge [-,dashed,black] (NN_info)
+ (image) edge (NN_info);
+\draw (sqs.south) -- (0.0,-1.6) --(11.5,-1.6) -- (NN_info.155);
 
 \end{tikzpicture}
 }
 
 
 \headerbox {Future Research}
-{name=app1,column=2,span=2, below=questions}
+{name=app1,column=0,span=2, below=solution}
 {
 \begin{itemize}
-\item Solve other genomic sequences analysis tasks, e.g. 16s rRNA processing and chimeric sequences filtration.
-\item Investigate applicability of the proposed approach for proteomic sequences processing, e.g. for proteins functions prediction.
-\item Utilize generative neural networks for sequences secondary structure prediction.
+\item 16s rRNA processing and chimeric sequences filtration.
+\item Proteomic sequences processing, proteins functions prediction.
+\item Generative networks for sequences secondary structure prediction.
 \end{itemize}
 
 }
@@ -264,22 +388,23 @@ We represent the false bits of matrix as white pixels and the true bits as black
 \headerbox {References}
 {name=app2,column=2,span=2, below=solution}
 {
-\smaller % Reduce the font size in this block
+%\smaller % Reduce the font size in this block
 \renewcommand{\section}[2]{\vskip 0.05em} % Get rid of the default "References" section title
 %\nocite{*} % Insert publications even if they are not cited in the poster
-
+\small
 \bibliographystyle{unsrt}
 %\bibliographystyle{IEEEtran}
 \bibliography{biblio} % Use biblio.bib as the bibliography file
+\vspace{0.34cm}
 }
 
 
-\headerbox {Acknowledgments}{name=ack,column=0,span=2,below=solution}{
-The research was supported by the Russian Science Foundation grant 18-11-00100 and a grant from JetBrains Research.
+\headerbox {Acknowledgments}{name=ack,column=0,span=2,below=app1}{
+The research was supported by the Russian Science Foundation grant \\ 18-11-00100 and a grant from JetBrains Research.
 }
 
 \headerbox {Information}{name=info,column=0,span=2,below=ack}{
-Trained mofels and other materials are pablished at GitHub:
+Trained mofels and other materials are pablished at GitHub:\\
 \url{https://github.com/LuninaPolina/SecondaryStructureAnalyzer}.
 }
 
