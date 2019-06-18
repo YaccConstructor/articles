@@ -1,0 +1,298 @@
+%20 min preso!
+\documentclass[xcolor=table]{beamer}
+\usepackage{beamerthemesplit}
+\usepackage{wrapfig}
+\usetheme{SPbGU}
+\usepackage{pdfpages}
+\usepackage{amsmath}
+\usepackage{cmap}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{multirow}
+\usepackage[noend]{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{fancyvrb}
+\usetikzlibrary{calc}
+\usetikzlibrary{shapes,arrows}
+\usetikzlibrary{arrows,automata}
+\usetikzlibrary{positioning}
+
+\usepackage{tabularx}
+\newcolumntype{Y}{>{\raggedleft\arraybackslash}X}
+
+
+\newtheorem{mytheorem}{Theorem}
+\renewcommand{\thealgorithm}{}
+
+\newcommand{\tikzmark}[1]{\tikz[overlay,remember picture] \node (#1) {};}
+\def\Put(#1,#2)#3{\leavevmode\makebox(0,0){\put(#1,#2){#3}}}
+
+\newcommand{\ltz}{$< 1$}
+
+
+\tikzset{
+    state/.style={
+           rectangle,
+           rounded corners,
+           draw=black, very thick,
+           minimum height=2em,
+           inner sep=2pt,
+           text centered,
+           },
+}
+
+\beamertemplatenavigationsymbolsempty
+
+\title[CFPQ on GPGPU]{Evaluation of the Context-Free Path Querying Algorithm Based on Matrix Multiplication}
+%\subtitle[YaccConstructor]{Parsing techniques for graph analysis}
+% То, что в квадратных скобках, отображается в левом нижнем углу.
+\institute[JetBrains Research]{
+JetBrains Research, Programming Languages and Tools Lab  \\
+Saint Petersburg University
+}
+
+% То, что в квадратных скобках, отображается в левом нижнем углу.
+\author[Semyon Grigorev]{Nikita Mishin, Iaroslav Sokolov, Egor Spirin, Vladimir Kutuev, Egor Nemchinov, Sergey Gorbatyuk, \textbf{Semyon Grigorev}}
+
+\date{June 30, 2019}
+
+\begin{document}
+{
+\begin{frame}[fragile]
+  \begin{table}
+  \centering
+  \begin{tabularx}{\linewidth}{YcX}
+    \includegraphics[height=1.5cm]{pictures/jetbrainsResearch.pdf} \hfill
+    & \begin{minipage}[t]{0.3\textwidth}\center \vspace{-1cm}  GRADES-NDA 2019
+      \end{minipage}
+    & \hfill \includegraphics[height=1.5cm]{pictures/SPbGU_Logo.png}
+  \end{tabularx}
+  \end{table}
+  \titlepage
+\end{frame}
+}
+
+\begin{frame} \frametitle{Context-Free Path Querying}
+  \begin{minipage}[m]{0.45\linewidth}
+  \raisebox{-0.5\totalheight}{\includegraphics[width=\textwidth]{pictures/hierarchical.pdf}}
+  \end{minipage}\hfill
+  \begin{minipage}[m]{0.5\linewidth}
+  Navigation through a graph
+  \begin{itemize}
+        \item Are nodes A and B on the same level of hierarchy?
+        \item Is there a path of form $\textbf{Up}^n \, \textbf{Down}^n$?
+        \item Find all paths of form $\textbf{Up}^n \, \textbf{Down}^n$ which start from the~node A
+  \end{itemize}
+
+  \end{minipage}
+
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Context-Free Path Querying: Relational Query Semantics}
+    \begin{itemize}
+      \item $\mathbb{G} = (\Sigma, N, P)$ --- context-free grammar in normal form
+      \begin{itemize}
+        \item $A \rightarrow B C$, where $A, B, C \in N$
+        \item $A \rightarrow x$, where $A \in N, x \in \Sigma$
+        \item $L(\mathbb{G},A) = \{ \omega \mid A \rightarrow^* \omega \}$
+      \end{itemize}
+      \item $G = (V,E,L)$ --- directed graph
+        \begin{itemize}
+          \item $v \xrightarrow{l} u \in E$
+          \item $L \subseteq \Sigma$
+        \end{itemize}
+      %\item $p = v_0 \xrightarrow{l_0} v_1 \xrightarrow{l_1} \cdots \xrightarrow{l_{n-2}} v_{n-1} \xrightarrow{l_{n-1}} v_n$ --- path in $G$
+      \item $\omega(\pi) = \omega(v_0 \xrightarrow{l_0} v_1 \xrightarrow{l_1} \cdots \xrightarrow{l_{n-2}} v_{n-1} \xrightarrow{l_{n-1}} v_n) = l_0 l_1 \cdots l_{n-1}$
+      \item $R_A = \{ (n, m) \mid \exists n \pi m$, such that $\omega(\pi) \in L(\mathbb{G},A)\}$
+    \end{itemize}
+  \end{frame}
+
+
+\begin{frame}[fragile] \frametitle{CPU-based implementations}
+  \begin{minipage}[t]{1cm}
+\hspace{1cm}
+  \end{minipage}
+  ~
+\begin{minipage}[t]{0.85\textwidth}
+\begin{itemize}
+  \item[\textbf{[Scipy]}] Sparse matrices multiplication by using Scipy in Python programming language
+\pause
+  \item[\textbf{[M4RI]}] Dense matrices multiplication by using \textbf{m4ri2} library which implements the Method of Four Russians in \textbf{C} language
+\end{itemize}
+\end{minipage}
+\end{frame}
+
+
+\begin{frame}[fragile] \frametitle{CPU-based implementations}
+  \begin{minipage}[t]{1cm}
+\hspace{1cm}
+  \end{minipage}
+  ~
+\begin{minipage}[t]{0.85\textwidth}
+\begin{itemize}
+\item[\textbf{[GPU4R]}] Our own implementation of the Method of Four
+Russians in CUDA C.
+\pause
+\item[\textbf{[GPU\_N]}] Our own implementation of the na\"ive boolean
+matrix multiplication in CUDA C with boolean values treated
+as bits and packed into uint\_32.
+\pause
+\item[\textbf{[GPU\_Py]}] Manual implementation of na\"ive boolean matrix
+multiplication in Python by using numba compiler. Boolean
+values are packed into uint\_32.
+\end{itemize}
+\end{minipage}
+\end{frame}
+
+
+\begin{frame} \frametitle{Evaluation: worst case}
+  \begin{centering}
+  \rowcolors{1}{}{lightgray}
+  \begin{tabular}{| l | c | c | c | c | c | c | }
+      \hline
+      \#V  & Scipy    & M4RI    & GPU4R  & GPU\_N  & GPU\_Py & CuSprs   \\
+      \hline
+      \hline
+      16   & 0.032    & \ltz    & 0.008  & 0.002   & 0.027   & 0.309    \\
+      32   & 0.118    & 0.001   & 0.034  & 0.008   & 0.136   & 0.441    \\
+      64   & 0.476    & 0.041   & 0.133  & 0.032   & 0.524   & 0.988    \\
+      128  & 2.194    & 0.226   & 0.562  & 0.129   & 2.751   & 3.470    \\
+      256  & 15.299   & 1.994   & 3.088  & 0.544   & 11.883  & 15.317   \\
+      512  & 121.287  & 23.204  & 13.685 & 2.499   & 43.563  & 102.269  \\
+      1024 & 1593.284 & 528.521 & 88.064 & 19.357  & 217.326 & 1122.055 \\
+      2048 & -        & -       & -      & 325.174 & -       & -        \\
+      \hline
+    \end{tabular}
+  \end{centering}
+\end{frame}
+
+\begin{frame} \frametitle{Evaluation: sparse}
+
+{\small
+  \rowcolors{1}{}{lightgray}
+  \begin{tabular}{| l | c | c | c | c | c | c | }
+      \hline
+      Graph              & Scipy   & M4RI     & GPU4R  & GPU\_N & GPU\_Py & CuSprs  \\
+      \hline
+      \hline
+      \small{G5k-0.001}  & 10.352  & 0.647    & 0.113  & 0.041  & 0.216   & 5.729   \\
+      \small{G10k-0.001} & 37.286  & 2.395    & 0.435  & 0.215  & 1.331   & 35.937  \\
+      \small{G10k-0.01}  & 97.607  & 1.455    & 0.273  & 0.138  & 0.763   & 47.525  \\
+      \small{G10k-0.1}   & 601.182 & 1.050    & 0.223  & 0.114  & 0.859   & 395.393 \\
+      \small{G20k-0.001} & 150.774 & 11.025   & 1.842  & 1.274  & 6.180   & -       \\
+      \small{G40k-0.001} & -       & 97.841   & 11.663 & 8.393  & 37.821  & -       \\
+      \small{G80k-0.001} & -       & 1142.959 & 88.366 & 65.886 & -       & -       \\
+      \hline
+    \end{tabular}
+}
+\end{frame}
+
+\begin{frame}[fragile] \frametitle{Example 2: Pseudoknot}
+\begin{center}
+  {\tiny
+  \rowcolors{1}{}{lightgray}
+  \begin{tabular}{| p{1.25cm} | c | c | c | c | c | c | c | c | }
+      \hline
+      \multicolumn{3}{|c|}{RDF}        & \multicolumn{6}{|c|}{Query $G_4$}  \\
+      \hline
+      Name                                & \#V & \#E  & Scipy & M4RI  & GPU4R & GPU\_N & GPU\_Py & CuSprs \\
+      \hline
+      \hline
+      \tiny{atm-prim}                    & 291 & 685  & 3     &  2    & 2     & 1      & 5       & 269  \\
+      \tiny{biomed}                      & 341 & 711  & 3     &  5    & 2     & 1      & 5       & 283  \\
+      \tiny{foaf}                        & 256 & 815  & 2     &  9    & 2     & \ltz   & 5       & 270  \\
+      \tiny{funding}                     & 778 & 1480 & 4     &  7    & 4     & 1      & 5       & 279  \\
+      \tiny{generations}                 & 129 & 351  & 3     &  3    & 2     & \ltz   & 5       & 273  \\
+      \tiny{people\_pets}                & 337 & 834  & 3     &  3    & 3     & 1      & 7       & 284  \\
+      \tiny{pizza}                       & 671 & 2604 & 6     &  8    & 3     & 1      & 6       & 292  \\
+      \tiny{skos}                        & 144 & 323  & 2     &  4    & 2     & \ltz   & 5       & 273  \\
+      \tiny{travel}                      & 131 & 397  & 3     &  5    & 2     & \ltz   & 6       & 268  \\
+      \tiny{unv-bnch}                    & 179 & 413  & 2     &  4    & 2     & \ltz   & 5       & 266  \\
+      \tiny{wine}                        & 733 & 2450 & 7     &  6    & 4     & 1      & 7       & 294  \\
+      \hline
+    \end{tabular}
+    }
+    {\tiny
+      \rowcolors{1}{}{lightgray}
+      \begin{tabular}{| p{1.25cm} | c | c | c | c | c | c | c | c | }
+          \hline
+          \multicolumn{3}{|c|}{RDF}        & \multicolumn{6}{|c|}{Query $G_5$}                              \\
+          %\cline{2-13}
+          \hline
+          Name                                & \#V & \#E  & Scipy & M4RI  & GPU4R & GPU\_N & GPU\_Py & CuSprs \\
+          \hline
+          \hline
+          \tiny{atm-prim}                    & 291 & 685   & 1     & \ltz & 1     & \ltz   & 2       & 267  \\
+          \tiny{biomed}                      & 341 & 711   & 4     & \ltz & 1     & \ltz   & 5       & 280  \\
+          \tiny{foaf}                        & 256 & 815   & 1     & \ltz & 1     & \ltz   & 2       & 263  \\
+          \tiny{funding}                     & 778 & 1480  & 2     & \ltz & 3     & \ltz   & 4       & 274  \\
+          \tiny{generations}                 & 129 & 351   & 1     & \ltz & 1     & \ltz   & 2       & 263  \\
+          \tiny{people\_pets}                & 337 & 834   & 1     & \ltz & 1     & \ltz   & 3       & 277  \\
+          \tiny{pizza}                       & 671 & 2604  & 2     & \ltz & 2     & \ltz   & 5       & 278  \\
+          \tiny{skos}                        & 144 & 323   & \ltz  & \ltz & 1     & \ltz   & 2       & 265  \\
+          \tiny{travel}                      & 131 & 397   & 1     & \ltz & 1     & \ltz   & 3       & 271  \\
+          \tiny{unv-bnch}                    & 179 & 413   & 1     & \ltz & 1     & \ltz   & 3       & 266  \\
+          \tiny{wine}                        & 733 & 2450  & 1     & \ltz & 3     & \ltz   & 3       & 281  \\
+          \hline
+        \end{tabular}
+        }
+        \end{center}
+
+\end{frame}
+
+\begin{frame}[fragile] \frametitle{Example 2: Pseudoknot}
+\begin{center}
+  {\tiny
+  \rowcolors{1}{}{lightgray}
+  \begin{tabular}{| p{1.25cm} | c | c | c | c | c | c | c | c | }
+      \hline
+      \multicolumn{3}{|c|}{RDF}        & \multicolumn{6}{|c|}{Query $G_5$}                              \\
+      %\cline{2-13}
+      \hline
+      Name                                & \#V & \#E  & Scipy & M4RI  & GPU4R & GPU\_N & GPU\_Py & CuSprs \\
+      \hline
+      \hline
+      \tiny{atm-prim}                    & 291 & 685   & 1     & \ltz & 1     & \ltz   & 2       & 267  \\
+      \tiny{biomed}                      & 341 & 711   & 4     & \ltz & 1     & \ltz   & 5       & 280  \\
+      \tiny{foaf}                        & 256 & 815   & 1     & \ltz & 1     & \ltz   & 2       & 263  \\
+      \tiny{funding}                     & 778 & 1480  & 2     & \ltz & 3     & \ltz   & 4       & 274  \\
+      \tiny{generations}                 & 129 & 351   & 1     & \ltz & 1     & \ltz   & 2       & 263  \\
+      \tiny{people\_pets}                & 337 & 834   & 1     & \ltz & 1     & \ltz   & 3       & 277  \\
+      \tiny{pizza}                       & 671 & 2604  & 2     & \ltz & 2     & \ltz   & 5       & 278  \\
+      \tiny{skos}                        & 144 & 323   & \ltz  & \ltz & 1     & \ltz   & 2       & 265  \\
+      \tiny{travel}                      & 131 & 397   & 1     & \ltz & 1     & \ltz   & 3       & 271  \\
+      \tiny{unv-bnch}                    & 179 & 413   & 1     & \ltz & 1     & \ltz   & 3       & 266  \\
+      \tiny{wine}                        & 733 & 2450  & 1     & \ltz & 3     & \ltz   & 3       & 281  \\
+      \hline
+    \end{tabular}
+    }
+    \end{center}
+\end{frame}
+
+
+
+
+\begin{frame}
+\frametitle{Contact Information}
+\begin{itemize}
+  \item Semyon Grigorev:
+    \begin{itemize}
+      \item \href{mailto:s.v.grigoriev@spbu.ru}{s.v.grigoriev@spbu.ru}
+      \item \href{mailto:Semen.Grigorev@jetbrains.com}{Semen.Grigorev@jetbrains.com}
+    \end{itemize}
+  \item Polina Lunina:
+  \begin{itemize}
+    \item  \href{mailto:lunina_polina@mail.ru}{lunina\_polina@mail.ru}
+  \end{itemize}
+  \item Trained models: \href{https://github.com/YaccConstructor/YC.Bio}{https://github.com/YaccConstructor/YC.Bio}
+\end{itemize}
+\vspace{2cm}
+\center{\huge{Thanks!}}
+\end{frame}
+\end{document}
