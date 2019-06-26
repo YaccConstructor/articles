@@ -12,49 +12,57 @@ It may be necessary, for example, for hierarchy analysis. Let suppose that we ha
 In our work we suppose that constraints are formulated in terms of context-free grammar which is in normal form.
 Note that start nonterminal is not fixed in grammar definition.
 We do this for description simplification.
-So, to specify language we should specify grammar and start nonterminal.
+So, to specify language we should specify both a grammar and the start nonterminal.
 
-The graph is a directed, edge-labeled graph. We suppose that labels are a subset of terminal symbols.
+When I say "graph", I mean directed, edge-labeled graph. We suppose that labels are a subset of terminal symbols.
 
-Each path in the graph forms a word. We introduce the function omega which converts the path to a word.
+Each path in a graph forms a word. We introduce the function omega which converts a path to a word.
 
-Now we can state that our goal is to find all pairs of vertices such that there is a path between them which forms a word in the given language.
-In other words, we should create a reachability relation over vertices.
+Having all necessary definitions introduced, I can state that goal of CFPQ is to find all pairs of vertices such that there is a path between them which forms a word in the given language.
+In other words, we should construct a reachability relation over vertices.
 
 4
 
-One of the algorithms to construct such relation is a matrix based algorithm which was recently proposed by Rustam Azimov.
-This algorithm takes grammar and adjacency matrix of a graph, and iteratively compute the special type of transitive closure of the given matrix.
-Thus context-free path querying is reduced to matrix multiplication.
+One of the algorithms to construct such relation is based on matrix multiplication and it was recently proposed by Rustam Azimov.
+This algorithm takes a grammar and an adjacency matrix of a graph, and iteratively computes the special type of transitive closure of the given matrix.
+This is the way to reduce context-free path querying to the multiplication of matrices.
 
 
 5
 
 Note that the matrix T can be represented as a set of boolean matrices: one matrix per each nonterminal.
-This way we can formulate the algorithm in terms of boolean matrices multiplication. This representation is better for implementation.
-Also note, that the number of matrices and its size is known at the start of computations. So, we can allocate all necessary memory statically.
-This fact can simplify implementation and improve performance by reducing expensive memory operations.
+Abd dealing with boolean matrices is really good for implementation.
+Also note, that the number of matrices and its size is known at the start of computations. So, we can allocate all necessary memory statically, improving performance by reducing expensive memory operations.
 
-So, this algorithm is very simple to implement, and it was shown that it outperforms other algorithms even if float matrices are used for implementation.
-We want to do more deep empirical evaluation of this algorithm.
+So, this algorithm is very simple to implement, and it was shown that it outperforms other existing algorithms more ten ten times even if float matrices are used.
+Our aim was to deeply evaluate this algorithm.
+
+!!!!
+Also we want to create open infrastructure for CFPQ algorithms benchmarking.
+I think that it is important step.
+Practical CFPQ algorithms development at the start now and there is a set of different datasets which are described in different papers.
+They should be collected and properly organized.
+More over, such infrastructure can be useful for different algorithms comparison.
+It is a classical way in different areas.
 
 6
 
-We stay the next questions in our research.
+We pose the next questions in our research.
 
-The first question is about GPUs utilization for CFPQ. GPU is a good choice for matrices manipulation, but in some cases, data transfer between CPU and GPU can be very expensive.
-Does it reasonable to use GPUs for CFPQ?
+The first question is about GPUs utilization for CFPQ. GPU is a good choice for matrices manipulation, but in some cases, data transfer between CPU and GPU cancels this performance gain.
+Is it reasonable to use GPUs for CFPQ?
 
-It is good practice to reuse existing components.
-But we use boolean matrices, not double or int. And our algorithm is not only about matrix multiplication.
+It is good practice in software engineering to reuse existing components.
+But we use boolean matrices, not double or int which are more popular and better supported.
+And our algorithm is not only about matrix multiplication.
 It requires more complex manipulation with matrices.
-So, we should check whether it is reasonable to use existing libraries of matrices operations.
+So, we should check whether it make sense to use existing libraries for matrices operations.
 
-Another question is whether it is possible to achieve high performance by using high-level languages, or we must use low-level C.
+Another question is whether it is possible to achieve high performance by using high-level languages, or we better stick old low-level C.
 
-And the last one is about data representation.
+And the last one is how we represent data.
 Real-world data is often sparse.
-So, sparse matrices representation looks preferable, but operations with sparse matrices require more memory operations which are very expensive.
+It may seem obvious that we should use sparse matrix representation, but on the same time, operations with sparse matrices require more memory operations which are very expensive.
 So, it is not evident that sparse matrices is a good choice for our algorithm.
 
 7
@@ -65,7 +73,7 @@ First of all, we implement two CPU-based versions.
 
 The first one is implemented in Python and uses Scipy library for sparse matrices manipulation.
 
-The second one is implemented in C and uses M4RI library provides one of the fastest implementation of Four Russians Method for boolean matrices multiplication.
+The second one is implemented in C and uses M4RI library which provides one of the fastest implementation of Four Russians Method for boolean matrices multiplication. Four Russians Method is a practcal fastest algorithm for boolean matrices multiplication.
 
 8
 
@@ -81,11 +89,12 @@ Here we use numba just-in-time compiler to convert Python code to GPU executable
 
 9
 
-Also, we include in our experimnts two existing implementations.
+Also, we include two existing implementations to our experiments.
 
 The first one is a CuSpare-based implementation of a matrix-based algorithm which is provided by Rustam Azimov.
 
-And the second one is a Java implementation of CYK-based algorithm.
+And the second one is a Java implementation of CYK-based algorithm which is represented by Zhang et al within a set of RDFs for evaluation.
+This set we use this work and other our works.
 
 10
 
@@ -93,11 +102,11 @@ The second important part of our research is data set collecting.
 We could not find an open data set for CFPQ evaluation, so we collect and publish such data set.
 It contains both real-world and synthetic data and queries in simple textual format.
 
-The data set contains the next parts.
+The data set contains the following parts.
 
-The first one is a set of real-world RDFs which are represented as graphs.
+The first one is a set of real-world RDFs which we converted to graphs.
 
-The next one is data for the theoretical worst-case behavior demonstration. This structure of the graph and this query was proposed by Jelle Hellings. It is shown that CYK-based and matrix-based algorithms demonstrates theoretically worst behavior on this input.
+The second one is data on which the theoretical worst-case behavior is achieved. This structure of the graph and this query was proposed by Jelle Hellings. It is shown that CYK-based and matrix-based algorithms demonstrates theoretically worst behavior on this input.
 
 11
 
@@ -108,6 +117,9 @@ And the last one is a set of sparse graphs which are generated by special sparse
 12
 
 For evaluation, we use PC with modern GPU and a big amount of RAM.
+Note that biggest graphs in our data set require all available memory on GPU.
+It is because we allocate all necessary memory at GPU statically at he start of computations.
+This way we can avoid data transferring and increase performance. But it reduces size of graphs which can be processed. 
 
 Now we discuss the results of our evaluation.
 
@@ -140,7 +152,7 @@ And the last case is a sparse input graph and full graph as a result. We can see
 
 Finally, we can conclude that GPU utilization for CFPQ can significantly increase performance. Utilization of appropriate high-performance libraries is a good idea. It is not necessary to create your own matrix multiplication library. So, it is easy to implement the matrix-based algorithm with good performance.
 
-We can see, that automatic translation from high-level languages to GPU code can be a good way to find a balance between implementation complexity and performance.
+We can see, that automatic translation from high-level languages to GPU code can be a good way to achieve balance between implementation complexity and performance.
 
 Also, we can conclude that the utilization of sparse matrices may be a good idea for real-world data processing. But here we should do more research.
 
