@@ -1,0 +1,870 @@
+\documentclass[xcolor=table]{beamer}
+\usepackage{beamerthemesplit}
+\usepackage{wrapfig}
+\usetheme{SPbGU}
+\usepackage{pdfpages}
+\usepackage{amsmath}
+\usepackage{cmap}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{multirow}
+\usepackage[noend]{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{fancyvrb}
+\usetikzlibrary{shapes,arrows}
+\usepackage{tikz}
+\usetikzlibrary{automata,positioning}
+\usepackage{listings}
+\usepackage{multicol}
+\setbeamertemplate{itemize items}[circle]
+
+\lstdefinelanguage{scala}{
+  morekeywords={%
+          abstract,case,catch,class,def,do,else,extends,%
+          false,final,finally,for,forSome,if,implicit,import,lazy,%
+          match,new,null,object,override,package,private,protected,%
+          return,sealed,super,this,throw,trait,true,try,type,%
+          val,var,while,with,yield},
+  otherkeywords={=>,<-,<\%,<:,>:,\#,@},
+  sensitive=true,
+  morecomment=[l]{//},
+  morecomment=[n]{/*}{*/},
+  morestring=[b]",
+  morestring=[b]',
+  morestring=[b]"""
+}[keywords,comments,strings]
+
+\lstset{language=Scala}
+
+\beamertemplatenavigationsymbolsempty
+
+\title[Поиск путей с КС ограничениями]{Использование алгоритмов синтаксического анализа для поиска путей с контекстно-свободными ограничениями}
+\institute[СПбГУ]{
+JetBrains Research, Лаборатория языковых инструментов  \\
+Санкт-Петербургский государственный университет
+}
+
+\author[Екатерина Вербицкая]{Екатерина Вербицкая \\
+\and
+  {\bfseries Научный руководитель:} д.т.н. Д.В. Кознов  \\
+\and
+  {\bfseries Рецензент:}  д.т.н. Ф.А. Новиков
+}
+
+
+
+\date{18 июня 2019}
+
+\definecolor{orange}{RGB}{179,36,31}
+
+\begin{document}
+{
+\begin{frame}[fragile]
+  \begin{tabular}{p{5.5cm} p{5.5cm}}
+   \begin{center}
+      \includegraphics[height=1.5cm]{pictures/jetbrainsResearch.pdf}
+    \end{center}
+    &
+    \begin{center}
+      \includegraphics[height=1.5cm]{pictures/SPbGU_Logo.png}
+    \end{center}
+  \end{tabular}
+  \titlepage
+\end{frame}
+}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Поиск путей в графах}
+\begin{minipage}[m]{0.42\linewidth}
+\begin{tikzpicture}[shorten >=1pt,node distance=2cm,on grid,auto]
+   \node[state] (a) {\textbf{X}};
+   \node[state] (b) [left=of a] {B};
+   \node[state] (c) [right=of a] {C};
+   \node[state] (d) [below=of c] {D};
+   \node[state] (e) [below=of b] {E};
+   \node[state] (f) [below=of a] {F};
+   \node[state] (g) [below=of f] {\textbf{Y}};
+   \node[state] (h) [below=of d] {H};
+    \path[->]
+    (a) edge node {} (b)
+    (a) edge node {} (c)
+    (a) edge node {} (f)
+    (b) edge node {} (e)
+    (c) edge node {} (d)
+    (d) edge node {} (h)
+    (d) edge node {} (a)
+    (e) edge node {} (f)
+    (e) edge node {} (g)
+    (f) edge node {} (b)
+    (f) edge node {} (g)
+    (h) edge node {} (g);
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[m]{0.5\linewidth}
+\pause    Найти путь из  \textbf{X} в \textbf{Y}
+\end{minipage}
+\end{frame}
+
+\begin{frame}[noframenumbering]
+  \transwipe[direction=90]
+  \frametitle{Поиск путей в графах}
+\begin{minipage}[m]{0.42\linewidth}
+\begin{tikzpicture}[shorten >=1pt,node distance=2cm,on grid,auto]
+   \node[state] (a) {\textbf{X}};
+   \node[state] (b) [left=of a] {B};
+   \node[state] (c) [right=of a] {C};
+   \node[state] (d) [below=of c] {D};
+   \node[state] (e) [below=of b] {E};
+   \node[state] (f) [below=of a] {F};
+   \node[state] (g) [below=of f] {\textbf{Y}};
+   \node[state] (h) [below=of d] {H};
+    \path[->]
+    (a) edge[red, line width=2pt] node {} (b)
+    (a) edge node {} (c)
+    (a) edge node {} (f)
+    (b) edge[red, line width=2pt] node {} (e)
+    (c) edge node {} (d)
+    (d) edge node {} (h)
+    (d) edge node {} (a)
+    (e) edge[red, line width=2pt] node {} (f)
+    (e) edge node {} (g)
+    (f) edge node {} (b)
+    (f) edge[red, line width=2pt] node {} (g)
+    (h) edge node {} (g);
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[m]{0.5\linewidth}
+Найти путь из  \textbf{X} в \textbf{Y}
+\end{minipage}
+\end{frame}
+
+\begin{frame}[noframenumbering]
+  \transwipe[direction=90]
+  \frametitle{Поиск путей в графах}
+\begin{minipage}[m]{0.42\linewidth}
+\begin{tikzpicture}[shorten >=1pt,node distance=2cm,on grid,auto]
+   \node[state] (a) {\textbf{X}};
+   \node[state] (b) [left=of a] {B};
+   \node[state] (c) [right=of a] {C};
+   \node[state] (d) [below=of c] {D};
+   \node[state] (e) [below=of b] {E};
+   \node[state] (f) [below=of a] {F};
+   \node[state] (g) [below=of f] {\textbf{Y}};
+   \node[state] (h) [below=of d] {H};
+    \path[->]
+    (a) edge node {} (b)
+    (a) edge node {} (c)
+    (a) edge node {} (f)
+    (b) edge node {} (e)
+    (c) edge node {} (d)
+    (d) edge node {} (h)
+    (d) edge node {} (a)
+    (e) edge node {} (f)
+    (e) edge node {} (g)
+    (f) edge node {} (b)
+    (f) edge node {} (g)
+    (h) edge node {} (g);
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[m]{0.5\linewidth}
+Найти путь длины 13 из  \textbf{X} в \textbf{Y}
+\end{minipage}
+\end{frame}
+
+\begin{frame}[noframenumbering]
+  \transwipe[direction=90]
+  \frametitle{Поиск путей в графах}
+\begin{minipage}[m]{0.42\linewidth}
+\begin{tikzpicture}[shorten >=1pt,node distance=2cm,on grid,auto]
+   \node[state] (a) {\textbf{X}};
+   \node[state] (b) [left=of a] {B};
+   \node[state] (c) [right=of a] {C};
+   \node[state] (d) [below=of c] {D};
+   \node[state] (e) [below=of b] {E};
+   \node[state] (f) [below=of a] {F};
+   \node[state] (g) [below=of f] {\textbf{Y}};
+   \node[state] (h) [below=of d] {H};
+    \path[->]
+    (a) edge node {} (b)
+    (a) edge[red, line width=2pt] node {} (c)
+    (a) edge[red, line width=2pt] node {} (f)
+    (b) edge[red, line width=2pt] node {} (e)
+    (c) edge[red, line width=2pt] node {} (d)
+    (d) edge node {} (h)
+    (d) edge[red, line width=2pt] node {} (a)
+    (e) edge node {} (f)
+    (e) edge[red, line width=2pt] node {} (g)
+    (f) edge[red, line width=2pt] node {} (b)
+    (f) edge node {} (g)
+    (h) edge node {} (g);
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[m]{0.5\linewidth}
+Найти путь длины 13 из  \textbf{X} в \textbf{Y}
+\end{minipage}
+\end{frame}
+
+\begin{frame}[noframenumbering]
+  \transwipe[direction=90]
+  \frametitle{Поиск путей в графах}
+\begin{minipage}[m]{0.42\linewidth}
+\begin{tikzpicture}[shorten >=1pt,node distance=2cm,on grid,auto]
+   \node[state] (a) {\textbf{X}};
+   \node[state] (b) [left=of a] {B};
+   \node[state] (c) [right=of a] {C};
+   \node[state] (d) [below=of c] {D};
+   \node[state] (e) [below=of b] {E};
+   \node[state] (f) [below=of a] {F};
+   \node[state] (g) [below=of f] {\textbf{Y}};
+   \node[state] (h) [below=of d] {H};
+    \path[->]
+    (a) edge node {} (b)
+    (a) edge node {} (c)
+    (a) edge node {} (f)
+    (b) edge node {} (e)
+    (c) edge node {} (d)
+    (d) edge node {} (h)
+    (d) edge node {} (a)
+    (e) edge node {} (f)
+    (e) edge node {} (g)
+    (f) edge node {} (b)
+    (f) edge node {} (g)
+    (h) edge node {} (g);
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[m]{0.5\linewidth}
+    Найти кратчайший путь из  \textbf{X} в \textbf{Y}
+\end{minipage}
+\end{frame}
+
+\begin{frame}[noframenumbering]
+  \transwipe[direction=90]
+  \frametitle{Поиск путей в графах}
+\begin{minipage}[m]{0.42\linewidth}
+\begin{tikzpicture}[shorten >=1pt,node distance=2cm,on grid,auto]
+   \node[state] (a) {\textbf{X}};
+   \node[state] (b) [left=of a] {B};
+   \node[state] (c) [right=of a] {C};
+   \node[state] (d) [below=of c] {D};
+   \node[state] (e) [below=of b] {E};
+   \node[state] (f) [below=of a] {F};
+   \node[state] (g) [below=of f] {\textbf{Y}};
+   \node[state] (h) [below=of d] {H};
+    \path[->]
+    (a) edge node {} (b)
+    (a) edge node {} (c)
+    (a) edge[red, line width=2pt] node {} (f)
+    (b) edge node {} (e)
+    (c) edge node {} (d)
+    (d) edge node {} (h)
+    (d) edge node {} (a)
+    (e) edge node {} (f)
+    (e) edge node {} (g)
+    (f) edge node {} (b)
+    (f) edge[red, line width=2pt] node {} (g)
+    (h) edge node {} (g);
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[m]{0.5\linewidth}
+Найти кратчайший путь из  \textbf{X} в \textbf{Y}
+\end{minipage}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Поиск путей в графах: регулярные ограничения}
+\begin{minipage}[m]{0.42\linewidth}
+\begin{tikzpicture}[shorten >=1pt,node distance=2cm,on grid,auto]
+   \node[state] (a) {\textbf{X}};
+   \node[state] (b) [left=of a] {B};
+   \node[state] (c) [right=of a] {C};
+   \node[state] (d) [below=of c] {D};
+   \node[state] (e) [below=of b] {E};
+   \node[state] (f) [below=of a] {F};
+   \node[state] (g) [below=of f] {\textbf{Y}};
+   \node[state] (h) [below=of d] {H};
+    \path[->]
+    (a) edge node[above] {f} (b)
+    (a) edge node {f} (c)
+    (a) edge node {l} (f)
+    (b) edge node[left] {t} (e)
+    (c) edge node {o} (d)
+    (d) edge node {o} (h)
+    (d) edge node[above] {i} (a)
+    (e) edge node {t} (f)
+    (e) edge node[below] {w} (g)
+    (f) edge node[above] {a} (b)
+    (f) edge node {e} (g)
+    (h) edge node {d} (g);
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[m]{0.5\linewidth}
+\pause    Найти путь из \textbf{X} в \textbf{Y}, удовлетворяющий регулярному выражению $f \, o^*(d \mid l)$
+
+\bigskip
+
+\textcolor{white}{Constraints are a regular language}
+\end{minipage}
+\end{frame}
+
+\begin{frame}[noframenumbering]
+  \transwipe[direction=90]
+  \frametitle{Поиск путей в графах: регулярные ограничения}
+\begin{minipage}[m]{0.42\linewidth}
+\begin{tikzpicture}[shorten >=1pt,node distance=2cm,on grid,auto]
+   \node[state] (a) {\textbf{X}};
+   \node[state] (b) [left=of a] {B};
+   \node[state] (c) [right=of a] {C};
+   \node[state] (d) [below=of c] {D};
+   \node[state] (e) [below=of b] {E};
+   \node[state] (f) [below=of a] {F};
+   \node[state] (g) [below=of f] {\textbf{Y}};
+   \node[state] (h) [below=of d] {H};
+    \path[->]
+    (a) edge node[above] {f} (b)
+    (a) edge[red, line width=2pt] node {f} (c)
+    (a) edge node {l} (f)
+    (b) edge node[left] {t} (e)
+    (c) edge[red, line width=2pt] node {o} (d)
+    (d) edge[red, line width=2pt] node {o} (h)
+    (d) edge node[above] {i} (a)
+    (e) edge node {t} (f)
+    (e) edge node[below] {w} (g)
+    (f) edge node[above] {a} (b)
+    (f) edge node {e} (g)
+    (h) edge[red, line width=2pt] node {d} (g);
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[m]{0.5\linewidth}
+    Найти путь из \textbf{X} в \textbf{Y}, удовлетворяющий регулярному выражению $f \, o^*(d \mid l)$
+    \pause
+\bigskip
+
+Ограничения --- регулярный язык
+\end{minipage}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Поиск путей в графах: КС ограничения}
+\begin{minipage}[m]{0.42\linewidth}
+\begin{tikzpicture}[shorten >=1pt,node distance=2cm,on grid,auto]
+   \node[state] (a) {\textbf{X}};
+   \node[state] (b) [left=of a] {B};
+   \node[state] (c) [right=of a] {C};
+   \node[state] (d) [below=of c] {D};
+   \node[state] (e) [below=of b] {E};
+   \node[state] (f) [below=of a] {F};
+   \node[state] (g) [below=of f] {\textbf{Y}};
+   \node[state] (h) [below=of d] {H};
+   \path[->]
+    (a) edge node[above] {(} (b)
+    (a) edge node        {)} (c)
+    (a) edge node        {(} (f)
+    (b) edge node[left]  {(} (e)
+    (c) edge node        {(} (d)
+    (d) edge node        {(} (h)
+    (d) edge node[above] {)} (a)
+    (e) edge node        {)} (f)
+    (e) edge node[below] {)} (g)
+    (f) edge node[above] {)} (b)
+    (f) edge node        {)} (g)
+    (h) edge node        {)} (g);
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[m]{0.5\linewidth}
+    Найти путь из \textbf{X} в \textbf{Y}, который является сбалансированной скобочной последовательностью
+
+    \bigskip
+
+    Ограничения --- контекстно-свободный язык, заданный грамматикой:
+
+    \begin{center}
+    $ S \rightarrow \varepsilon \mid ( S ) S $
+    \end{center}
+
+\bigskip
+
+\begin{center}
+\textcolor{white}{(())()} \textcolor{white}{()} \textcolor{white}{()()}
+\end{center}
+
+\end{minipage}
+\end{frame}
+
+\begin{frame}[noframenumbering]
+  \transwipe[direction=90]
+  \frametitle{Поиск путей в графах: КС ограничения}
+\begin{minipage}[m]{0.42\linewidth}
+\begin{tikzpicture}[shorten >=1pt,node distance=2cm,on grid,auto]
+   \node[state] (a) {\textbf{X}};
+   \node[state] (b) [left=of a] {B};
+   \node[state] (c) [right=of a] {C};
+   \node[state] (d) [below=of c] {D};
+   \node[state] (e) [below=of b] {E};
+   \node[state] (f) [below=of a] {F};
+   \node[state] (g) [below=of f] {\textbf{Y}};
+   \node[state] (h) [below=of d] {H};
+   \path[->]
+    (a) edge[red, line width=2pt] node[above] {(} (b)
+    (a) edge node        {)} (c)
+    (a) edge[green, line width=2pt] node        {(} (f)
+    (b) edge[red, line width=2pt] node[left]  {(} (e)
+    (c) edge node        {(} (d)
+    (d) edge node        {(} (h)
+    (d) edge node[above] {)} (a)
+    (e) edge[red, line width=2pt] node        {)} (f)
+    (e) edge[red, line width=2pt] node[below] {)} (g)
+    (f) edge[red, line width=2pt] node[above] {)} (b)
+    (f) edge[green, line width=2pt] node        {)} (g)
+    (h) edge node        {)} (g);
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[m]{0.5\linewidth}
+Найти путь из \textbf{X} в \textbf{Y}, который является сбалансированной скобочной последовательностью
+
+\bigskip
+
+Ограничения --- контекстно-свободный язык, заданный грамматикой:
+
+\begin{center}
+$ S \rightarrow \varepsilon \mid ( S ) S $
+\end{center}
+
+\bigskip
+
+\begin{center}
+\textcolor{red}{(())()} \hspace{1cm} \textcolor{green}{()} \hspace{1cm} ()()
+\end{center}
+
+\end{minipage}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Поиск путей в графах с КС ограничениями}
+  Входные данные:
+
+  \begin{itemize}
+    \item ориентированный граф с метками на ребрах из алфавита $\Sigma$
+    \item описание контекстно-свободного языка над алфавитом $\Sigma$
+  \end{itemize}
+
+\medskip
+
+  Задача: найти все пути в графе, которые являются строками языка
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Области применения}
+\begin{itemize}
+	\item Запросы к графовым базам данных
+	\item Статический анализ кода
+	\item Анализ семантических сетей
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Синтаксический анализ для поиска путей}
+
+Необходимо производить синтаксический анализ строк на путях
+
+\bigskip
+
+Обобщаем синтаксический анализ для работы с графами
+
+\end{frame}
+
+
+\begin{frame}
+  \transwipe[direction=90]
+  \frametitle{Существующие решения}
+
+  \begin{itemize}
+      \item Hellings Jelle ``Conjunctive context-free path queries'' 2014 --- теория КС запросов
+      \item Xiaowang Zhang et al ``Context-free path queries on RDF graphs'' 2016 --- основано на CYK
+      \item Kröni Daniel et al ``Parsing Graphs: Applying Parser Combinators to Graph Traversals'' 2013 --- комбинаторы для обходов графов
+      \item Grigorev Semyon et al ``Context-free Path Querying with Structural Representation of Result'' 2017 --- основано на GLL
+      \item Verbitskaia Ekaterina et al ``Relaxed parsing of regular approximations of string-embedded languages'' 2015 --- основано на RNGLR
+  \end{itemize}
+
+Не предоставляют средство прозрачной интеграции запросов в основной язык программирования
+
+\end{frame}
+
+\begin{frame}
+  \transwipe[direction=90]
+  \frametitle{Постановка задачи}
+
+  Цель: разработка средства прозрачной интеграции КС запросов в язык программирования общего назначения
+
+  Задачи:
+
+  \begin{itemize}
+      \item Разработать библиотеку парсер-комбинаторов для КС запросов, которая:
+      \begin{itemize}
+         \item поддерживает произвольные КС грамматики
+         \item поддерживает произвольные входные графы
+         \item не ограничивает формат входных данных
+         \item позволяет в явном виде получать пути, удовлетворяющие ограничениям
+         \item предоставляет механизм выполнения пользовательских семантических функций над путями
+      \end{itemize}
+      % \item Оценить применимость библиотеки для решения задач в прикладных областях
+      \item Сравнить производительность реализованной библиотеки с существующими решениями
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Парсер-комбинаторы: прозрачная интеграция}
+\begin{itemize}
+  \item КС спецификация формулируется на языке программирования общего назначения
+  \item Статические свойства основного языка затрудняют описание бессмысленных КС спецификаций
+  \item Естественное представление результата
+  \item Композициональность
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Библиотека Meerkat}
+\begin{itemize}
+  \item Библиотека обобщенных парсер-комбинаторов на Scala
+  \item Поддерживает произвольные КС спецификации (включая леворекурсивные и неоднозначные)
+  \item Синтаксический анализ в стиле передачи продолжений с мемоизацией
+  \item Вычисляет пользовательскую семантику
+\end{itemize}
+
+\begin{lstlisting}
+val E: Nonterminal
+= syn ( E ~ "^" ~ E
+      | "-" ~ E
+      | E ~ "*" ~ E
+      | E ~ "/" ~ E
+      | E ~ "+" ~ E
+      | E ~ "-" ~ E
+      | "(" ~ E ~ ")"
+      | "[0-9]".r
+      )
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Поиск путей при помощи Meerkat}
+\begin{minipage}[m]{0.42\linewidth}
+\begin{tikzpicture}[shorten >=1pt,node distance=2cm,on grid,auto]
+   \node[state] (a) {\textbf{X}};
+   \node[state] (b) [left=of a] {B};
+   \node[state] (c) [right=of a] {C};
+   \node[state] (d) [below=of c] {D};
+   \node[state] (e) [below=of b] {E};
+   \node[state] (f) [below=of a] {F};
+   \node[state] (g) [below=of f] {\textbf{Y}};
+   \node[state] (h) [below=of d] {H};
+   \path[->]
+    (a) edge[red, line width=2pt] node[above] {(} (b)
+    (a) edge node        {)} (c)
+    (a) edge[green, line width=2pt] node        {(} (f)
+    (b) edge[red, line width=2pt] node[left]  {(} (e)
+    (c) edge node        {(} (d)
+    (d) edge node        {(} (h)
+    (d) edge node[above] {)} (a)
+    (e) edge[red, line width=2pt] node        {)} (f)
+    (e) edge[red, line width=2pt] node[below] {)} (g)
+    (f) edge[red, line width=2pt] node[above] {)} (b)
+    (f) edge[green, line width=2pt] node        {)} (g)
+    (h) edge node        {)} (g);
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[m]{0.5\linewidth}
+Найти путь из \textbf{X} в \textbf{Y}, который является сбалансированной скобочной последовательностью
+
+    \bigskip
+
+\begin{lstlisting}
+val S: Nonterminal
+= syn ( "(" ~ S ~ ")" ~ S
+      | ""
+      )
+\end{lstlisting}
+
+\bigskip
+
+\begin{center}
+\textcolor{red}{(())()} \hspace{1cm} \textcolor{green}{()} \hspace{1cm} ()()
+\end{center}
+
+\end{minipage}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Набор парсер-комбинаторов}
+
+\begin{table}[h]
+\small
+\centering
+\begin{tabular}{l@{}|l}
+\multicolumn{1}{c|}{Комбинатор} & \multicolumn{1}{|c}{Описание} \\ \hline
+{\lstinline!a ~ b!} & последовательное применение: {\lstinline!a!} затем {\lstinline!b!}   \\
+{\lstinline!a | b!} & выбор: {\lstinline!a!} или {\lstinline!b!}         \\ \pause
+{\lstinline!a ?!}   & опциональный разбор: {\lstinline!a!} или ничего   \\
+{\lstinline!a *!}   & повторение, 0 или больше  {\lstinline!a!} \\
+{\lstinline!a +!}   & повторение, 1 или больше {\lstinline!a!} \\
+{\lstinline!a ^ f!} & применение функции {\lstinline!f!} к {\lstinline!a!}, если  {\lstinline!a!}~--- терминал \\
+{\lstinline!a ^^!}  & вернуть результат применения {\lstinline!a!}, если  {\lstinline!a!}~--- терминал    \\
+{\lstinline!a & f!} & применение функции {\lstinline!f!} к {\lstinline!a!}, если  {\lstinline!a!}~--- парсер \\
+{\lstinline!a &&!}  &  вернуть результат {\lstinline!a!}, если  {\lstinline!a!}~--- парсер    \\
+\hline
+\end{tabular}
+\end{table}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Реализация: входные данные}
+\begin{center} Строка = линейный граф \end{center}
+\begin{center}
+\begin{tikzpicture}[shorten >=1pt,node distance=1.5cm,on grid,auto]
+\tikzstyle{point} = [circle, minimum width = 3pt, fill]
+   \node[point] (a) {};
+   \node[point] (b)[right=of a] {};
+   \node[point] (c)[right=of b] {};
+   \node[point] (d)[right=of c] {};
+   \node[point] (e)[right=of d] {};
+   \node[point] (f)[right=of e] {};
+   \node[point] (g)[right=of f] {};
+   \path[->]
+    (a) edge node {С} (b)
+    (b) edge node {Т} (c)
+    (c) edge node {Р} (d)
+    (d) edge node {О} (e)
+    (e) edge node {К} (f)
+    (f) edge node {А} (g);
+\end{tikzpicture}
+\end{center}
+
+\bigskip
+
+\bigskip
+
+\pause
+
+\begin{center} В чем отличия графа от строки? \end{center}
+
+\pause
+
+\begin{multicols}{2}
+\begin{center} Ветвления \end{center}
+
+\begin{multicols}{2}
+\begin{center}
+\begin{tikzpicture}[shorten >=1pt,node distance=1.5cm,on grid,auto]
+\tikzstyle{point} = [circle, minimum width = 3pt, fill]
+   \node[point] (a) {};
+   \node[point] (b)[right=of a, above right=of a] {};
+   \node[point] (c)[right=of a, below=of b] {};
+   \path[->]
+    (a) edge node {A} (b)
+    (a) edge[below] node {B} (c);
+\end{tikzpicture}
+\end{center}
+
+\columnbreak
+
+\begin{center}
+\begin{tikzpicture}[shorten >=1pt,node distance=1.5cm,on grid,auto]
+\tikzstyle{point} = [circle, minimum width = 3pt, fill]
+   \node[point] (a) {};
+   \node[point] (b)[left=of a, above left=of a] {};
+   \node[point] (c)[left=of a, below=of b] {};
+   \path[->]
+    (b) edge node {A} (a)
+    (c) edge[below] node {B} (a);
+\end{tikzpicture}
+\end{center}
+\end{multicols}
+
+\columnbreak
+
+\pause
+
+\begin{center} Циклы \end{center}
+\begin{center}
+\begin{tikzpicture}[shorten >=1pt,node distance=1.5cm,on grid,auto]
+\tikzstyle{point} = [circle, minimum width = 3pt, fill]
+   \node[point] (a) {};
+   \node[point] (b)[right=of a] {};
+   \node[point] (c)[below=of b] {};
+   \node[point] (d)[left=of c] {};
+   \path[->]
+    (a) edge node {Y} (b)
+    (b) edge node {A} (c)
+    (c) edge node {D} (d)
+    (d) edge node {A} (a);
+\end{tikzpicture}
+\end{center}
+\end{multicols}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Общая идея}
+\begin{itemize}
+  \item Каждая позиция во входном потоке соответсвует набору промежуточных результатов синтаксического анализа
+  \item В случае ветвления осуществляем синтаксический анализ независимо вдоль исходящих ребер
+  \item Объединяем промежуточные результаты, если несколько путей приводят в одну вершину
+  \item Не анализируем одни и те же позиции дважды
+  \item Мемоизируем промежуточные результаты
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Учет информации в вершинах}
+\begin{minipage}[m]{0.42\linewidth}
+\begin{tikzpicture}[shorten >=1pt,node distance=2cm,on grid,auto]
+   \node[state] (a) {\textbf{X}};
+   \node[state] (b) [left=of a] {B};
+   \node[state] (c) [right=of a] {C};
+   \node[state] (d) [below=of c] {D};
+   \node[state] (e) [below=of b] {E};
+   \node[state] (f) [below=of a] {F};
+   \node[state] (g) [below=of f] {\textbf{Y}};
+   \node[state] (h) [below=of d] {H};
+   \path[->]
+    (a) edge[red, line width=2pt] node[above] {(} (b)
+    (a) edge node        {)} (c)
+    (a) edge[green, line width=2pt] node        {(} (f)
+    (b) edge[red, line width=2pt] node[left]  {(} (e)
+    (c) edge node        {(} (d)
+    (d) edge node        {(} (h)
+    (d) edge node[above] {)} (a)
+    (e) edge[red, line width=2pt] node        {)} (f)
+    (e) edge[red, line width=2pt] node[below] {)} (g)
+    (f) edge[red, line width=2pt] node[above] {)} (b)
+    (f) edge[green, line width=2pt] node        {)} (g)
+    (h) edge node        {)} (g);
+\end{tikzpicture}
+\end{minipage}\hfill
+\begin{minipage}[m]{0.5\linewidth}
+Найти путь из \textbf{X} в \textbf{Y}, который является сбалансированной скобочной последовательностью
+
+    \bigskip
+
+\begin{lstlisting}
+val Query : Nonterminal
+= syn (LV("X") ~ S ~
+       LV("Y"))
+
+val S: Nonterminal
+= syn ( "(" ~ S ~ ")" ~ S
+      | ""
+      )
+\end{lstlisting}
+
+\bigskip
+
+\begin{center}
+\textcolor{red}{(())()} \hspace{1cm} \textcolor{green}{()} \hspace{1cm} ()()
+\end{center}
+
+\end{minipage}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Абстракция входных данных}
+\begin{lstlisting}
+trait Input[+E, +N] {
+  def checkNode(nodeId: Int,
+      predicate: N => Boolean): Option[N]
+  def filterEdges(nodeId: Int,
+      predicate: E => Boolean): Seq[(E, Int)] }
+\end{lstlisting}
+
+\bigskip
+
+Мы предоставляем интеграцию с scalax.collection.Graph и Neo4j
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Пример}
+\begin{lstlisting}
+val query =
+  syn((
+    syn(LV("Actor") ^^) ~ outLE("ACTS_IN") ~
+    LV("Movie")) & (a => (a.name, a.toInt)))
+executeQuery(query, input)
+  .groupBy{ case(a, i) => i }
+  .toIndexedSeq
+  .map{ case(i, ms) => (ms.head._1, ms.length) }
+  .sortBy{ case(a, mc) => -mc }}
+  .take (10)
+\end{lstlisting}
+\end{frame}
+
+
+\begin{frame}
+  \transwipe[direction=90]
+  \frametitle{Эксперименты}
+\begin{itemize}
+  \item Запросы к онтологиям
+  \begin{itemize}
+    \item Примерно в 3 раза быстрее, чем решение, основанное на GLL
+  \end{itemize}
+  \item Статический анализ кода: may-alias отношения
+  \begin{itemize}
+    \item До 5 раз быстрее, чем Trails
+  \end{itemize}
+  \item Запросы к базе данных ``Фильмы''
+  \begin{itemize}
+    \item До 10 раз медленее, чем Neo4j + Cypher
+    \item Все запросы регулярны
+  \end{itemize}
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}
+  \transwipe[direction=90]
+  \frametitle{Ограничения}
+\begin{itemize}
+  \item Накладные расходы при выполнении регулярных запросов
+  \item Неизвестно, как вычислять произвольную семантику для найденных путей
+  \begin{itemize}
+    \item Если извлекать пути лениво, то в каком порядке?
+    \item Как вычислять семантику, если в графе есть циклы?
+  \end{itemize}
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+  \transwipe[direction=90]
+  \frametitle{Результаты}
+
+  \begin{itemize}
+      \item На языке программирования Scala реализована библиотека парсер-комбинаторов для запросов к графам
+      % \item Показана применимость библиотеки для решения задач в прикладных областях
+      \item Произведено сравнение производительности реализованной библиотеки с существующими решениями: она не уступает другим в выполнении контекстно-свободных запросов
+      \item Основные результаты, полученные в данной работе были представлены на конференциях Scala Symposium 2018 (SCOPUS) и ``Языки программирования и компиляторы 2017'' (РИНЦ)
+  \end{itemize}
+
+\end{frame}
+
+\end{document}

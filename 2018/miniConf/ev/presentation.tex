@@ -1,0 +1,688 @@
+\documentclass{beamer}
+\usepackage{beamerthemesplit}
+\usepackage{wrapfig}
+\usetheme{SPbGU}
+\usepackage{pdfpages}
+\usepackage{amsmath}
+\usepackage{cmap} 
+\usepackage[T2A]{fontenc} 
+\usepackage[utf8]{inputenc}
+\usepackage[english,russian]{babel}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{multirow}
+\usepackage[noend]{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{listings}
+\usepackage{pifont}% http://ctan.org/pkg/pifont
+\usepackage{xcolor}
+\usepackage{mdframed}
+\usepackage{multicol}
+\newcommand{\cmark}{\ding{51}}%
+\newcommand{\xmark}{\ding{55}}%
+
+\usepackage{epstopdf}
+\usepackage{forest}
+\usetikzlibrary{shapes,arrows}
+\usepackage{fancyvrb}
+\newtheorem{rutheorem}{Theorem}
+\beamertemplatenavigationsymbolsempty
+\setbeamertemplate{itemize items}[circle]
+
+\lstdefinelanguage{ocaml}{
+%keywords={fresh, let, begin, end, in, match, type, and, fun, function, try, with, when, class, 
+%object, method, of, rec, %repeat, 
+%until, while, not, do, done, as, val, inherit, 
+%new, module, sig, deriving, datatype, struct, if, then, else, open, private, virtual, ostap},
+sensitive=true,
+basicstyle=\small,
+commentstyle=\small\itshape\ttfamily,
+keywordstyle=\ttfamily\underbar,
+identifierstyle=\ttfamily,
+basewidth={0.5em,0.5em},
+columns=fixed,
+fontadjust=true,
+literate={->}{{$\;\;\to\;\;$}}1
+         {===}{{$\equiv$}}1
+         {&&&}{{$\wedge$}}1
+         {|||}{{$\vee$}}1
+         {fresh}{{$\exists$}}1,
+morecomment=[s]{(*}{*)}
+}
+
+\lstset{
+basicstyle=\small,
+identifierstyle=\ttfamily,
+keywordstyle=\bfseries,
+commentstyle=\scriptsize\rmfamily,
+basewidth={0.5em,0.5em},
+fontadjust=true,
+%escapechar=~,
+language=ocaml,
+mathescape=true,
+moredelim=[is][\bfseries]{[*}{*]}
+}
+
+\definecolor{SadRed}{RGB}{255, 180, 180}
+\definecolor{MehYellow}{RGB}{255, 255, 180}
+\definecolor{HappyGreen}{RGB}{180, 255, 180}
+
+\newmdenv[backgroundcolor=SadRed, innertopmargin=8,innerbottommargin=1, linecolor=SadRed]{badcode}
+
+\newmdenv[backgroundcolor=MehYellow, innertopmargin=8,innerbottommargin=1, linecolor=MehYellow]{mehcode}
+
+\newmdenv[backgroundcolor=HappyGreen, innertopmargin=8,innerbottommargin=1, linecolor=HappyGreen]{goodcode}
+
+\title[]{Суперкомпиляция для miniKanren}
+\institute[]{
+Лаборатория языковых инструментов JetBrains
+\\
+Санкт-Петербургский государственный университет }
+
+\author[Екатерина Вербицкая]{Екатерина Вербицкая}
+
+\date{15 декабря 2018}
+
+\definecolor{orange}{RGB}{179,36,31}
+
+\begin{document}
+{
+
+\begin{frame}
+  \begin{columns} 
+    \begin{column}{4.1cm}
+      \begin{center} 
+        {\includegraphics[width=1.5cm]{pics/jb.png}} 
+      \end{center}
+    \end{column}
+    \begin{column}{4.1cm}
+      \begin{center} 
+        {\includegraphics[width=1.5cm]{pics/SPbGU_Logo.png}} 
+      \end{center}
+    \end{column}
+  \end{columns}
+
+  \titlepage
+\end{frame}
+}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Реляционное программирование}
+  Программа --- отношение 
+  
+\begin{center}
+$append^{o} \subseteq [A] \times [A] \times [A] $ 
+
+$$
+\begin{array}{lrcl}
+append^{o} & = & \{ & ([\,], [\,], [\,]); \\
+           &   &    & ([0], [\,], [0]); \\ 
+           &   &    & ([1], [\,], [1]); \\
+           &   &    & \dots \\
+           &   &    & ([\,], [0], [0]); \\
+           &   &    & \dots \\
+           &   &    & ([4], [2], [4, 2]); \\
+           &   &    & \dots \\
+           &   &    & ([4, 2], [13], [4, 2, 13]); \\
+           &   &    & \dots \\
+           &   & \}
+\end{array}
+$$ 
+\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Пример программы на miniKanren}
+\begin{center}
+\begin{minipage}{4.5cm}
+\begin{lstlisting}[frame=single]  
+appendo x y z = 
+  (x === [] &&& z === y)
+  ||| (fresh h t r
+       ( x === h : t 
+       &&& z === h : r 
+       &&& appendo t y r))
+\end{lstlisting}
+\end{minipage}
+\end{center}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Вычисление в реляционном программировании}
+  
+$$ 
+\begin{array}{lccccccl}
+append^o & [1] & [2, 3] & q         &\rightarrow& \{ &  [1, 2, 3] & \} \\
+append^o & [1] & q      & [1, 2, 3] &\rightarrow& \{ & [2, 3] & \} \\
+append^o & q   & [1]    & [2, 3]    &\rightarrow& \{ & & \}  \\
+\end{array}
+$$
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Вычисление в реляционном программировании}
+
+$$ 
+\begin{array}{rccl}
+append^o \, q \, p \, [1, 2] &\rightarrow& \{ &                \\
+                    &           &    & ([\,], [1,2]), \\
+                    &           &    & ([1], [2]), \\
+                    &           &    & ([1,2], [\,]) \\
+                    &           & \} \\
+                    &           & \\ 
+append^o \, q \, q \, [2, 4, 2, 4] &\rightarrow& \{ &  [2, 4] \quad \} \\
+                    &           & \\ 
+append^o \, q \, p \, r      &\rightarrow& \{ &  \\
+                    &           &    &([\,], \ \alpha, \ \alpha), \\
+                    &           &    & ([\alpha], \  \beta, \ (\alpha:\beta)) \\
+                    &           &    & ((\alpha : \beta),\  \gamma, \ (\alpha:(\beta:\gamma))) \\
+                    &           &    & \dots \\
+                    &           &    \}  \\
+\end{array}
+$$
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Направление вычислений}
+
+\begin{center}
+  $foo^o \subseteq A \times B$
+\end{center}
+
+\begin{itemize}
+  \item $foo^o \ \alpha \ q : A \rightarrow [B]$
+  \item $foo^o \ q \ \beta  : B \rightarrow [A]$ --- в ``обратном'' направлении
+  \item $foo^o \ q \ p      : () \rightarrow [(A \times B)] $ 
+\end{itemize}  
+  
+\pause  
+
+\bigskip
+
+Время вычисления в разных направлениях часто отличается
+
+\pause 
+
+$$
+factorize \ num = mult^o \ [p, q] \ num 
+$$
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Цель}
+
+Улучшать производительность реляционных программ, не уменьшая декларативности подхода
+
+\begin{itemize}
+  \item Для заданного направления
+  \item Учитывая частично определенные входные данные
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Оптимизации: известные данные}
+\begin{columns}[t]
+\begin{column}{7cm}
+\begin{badcode}
+\begin{lstlisting}[frame=single]      
+foo p q &&& repeat x p
+\end{lstlisting}
+
+\begin{lstlisting}[frame=single]  
+foo $\subseteq$ [A] $\times$ [B]
+foo x y = 
+  (x === [] &&& [*heavy*] y)
+  ||| (fresh h t (x === h : t &&& light y))
+      
+repeat $\subseteq$ A $\times$ [A]
+repeat x xs = 
+  fresh r (xs === x : r &&& repeat x r)
+\end{lstlisting}
+\end{badcode}
+\end{column}
+
+\pause
+
+\begin{column}{4cm}
+\begin{goodcode}
+\begin{lstlisting}[frame=single]  
+foo_r q
+\end{lstlisting}
+
+\begin{lstlisting}[frame=single]  
+foo_r $\subseteq$ [A] $\times$ [B]
+foo_r y = light y
+\end{lstlisting}
+\end{goodcode}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Оптимизации: промежуточные структуры данных}
+
+\begin{columns}[t]
+  \begin{column}{5.3cm}
+\begin{badcode}
+\begin{lstlisting}[frame=single]      
+map f p [*q*] &&& map g [*q*] r
+\end{lstlisting}
+
+\begin{lstlisting}[frame=single]  
+map f $\subseteq$ [A] $\times$ [B]
+map f x y = 
+ (x === [] &&& y === [])
+ ||| (fresh h t r ( x === h : t 
+            &&& y === f h : r
+            &&& map f t r))
+\end{lstlisting}
+\end{badcode}
+\end{column}
+
+\pause
+
+\begin{column}{6.1cm}
+\begin{goodcode}
+\begin{lstlisting}[frame=single]      
+map_fg f g p r
+\end{lstlisting}
+
+\begin{lstlisting}[frame=single]  
+map_fg f g $\subseteq$ [A] $\times$ [B]
+map_fg f g x y = 
+ (x === [] &&& y === [])
+ ||| (fresh h t r ( x === h : t 
+            &&& y === [*g (f h)*] : r
+            &&& map_fg f g t r))
+\end{lstlisting}
+\end{goodcode}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Оптимизации: группировка вычислений}
+\vspace{-15pt}
+
+\begin{columns}[t]
+\begin{column}{5.8cm}
+\begin{badcode}  
+\begin{lstlisting}[frame=single]      
+sum [*p*] s &&& len [*p*] l
+\end{lstlisting}
+
+\begin{lstlisting}[frame=single]  
+sum $\subseteq$ [A] $\times$ Int
+sum x s = (x === [] &&& s === 0)
+          ||| (fresh h t r
+              ( x === h : t 
+              &&& sum t r
+              &&& s = r + h))
+ 
+len $\subseteq$ [A] $\times$ Int
+len x l = (x === [] &&& l === 0)
+          ||| (fresh h t m 
+              ( x === h : t 
+              &&& len t m
+              &&& l = m + 1 ))
+\end{lstlisting}
+\end{badcode}
+\end{column}
+
+\pause
+
+\begin{column}{5.55cm}
+\begin{goodcode}
+\begin{lstlisting}[frame=single]      
+sum_len p s l
+\end{lstlisting}
+
+\begin{lstlisting}[frame=single]  
+sum_len $\subseteq$ [A] $\times$ Int $\times$ Int
+sum_len x [*s l*] = 
+  (x === [] &&& s === 0 &&& l === 0)
+  ||| (fresh h t r m
+      ( x === h : t 
+      &&& sum_len t r m
+      &&& [*s = r + h*]
+      &&& [*l = m + 1*]))
+\end{lstlisting}
+\end{goodcode}
+\end{column}
+\end{columns}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{За счет чего можно улучшать производительность}
+\begin{itemize}
+  \item Статически вычислить все, что можно: специализация
+  \begin{itemize}
+    \item Если известны некоторые аргументы
+    \item Если известно направление вычисления
+  \end{itemize}
+  \item Не делать одну и ту же работу дважды
+  \begin{itemize}
+    \item Не строить промежуточные структуры данных: deforestation
+    \item Группировать вычисления, выполняемые во время обхода одной структуры данных: tupling
+  \end{itemize}
+\end{itemize}
+
+\bigskip
+
+Все это может делать конъюнктивная частичная дедукция (суперкомпиляция) для логических языков 
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Суперкомпиляция для miniKanren: дерево процессов}
+  \begin{columns}
+    \begin{column}{3.1cm}
+\begin{minipage}[t]{3.1cm}
+\begin{lstlisting}[frame=single]  
+foo $\subseteq$ [A] $\times$ [B]
+foo x y =
+ (x === [] &&& bar y)
+ ||| (fresh h t 
+     ( x === h : t 
+     &&& baz h y))
+\end{lstlisting}
+\end{minipage}
+    \end{column}
+    \begin{column}{7cm}
+\vspace{-30pt}
+   
+    \begin{flushright}
+\begin{forest}
+  [$<>$ foo x y[{$<x \rightarrow [\,]>$ bar y}[\dots]][$<x \rightarrow (h:t)>$ baz h y[\dots]]]]
+\end{forest}
+\end{flushright}
+    \end{column}
+\end{columns}
+
+\bigskip 
+
+\begin{center}
+В какой момент завершать символические вычисления? 
+\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Дерево процессов: применение отношения}
+\begin{center}
+\begin{forest}
+  [\dots[$<s>$ foo x y[\dots]]]
+\end{forest}
+\end{center}
+
+\begin{itemize}
+  \item Если цель (с точностью до подстановки) встречалась раньше, перестаем исследовать эту ветвь
+  \item Если цель \emph{похожа} на какого-то ее предка, попробовать ее \emph{абстрагировать} и продолжить строить дерево
+  \item Если цель ни на что не похожа, продолжаем строить дерево для применения отношения
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Дерево процессов: конъюнкция}
+\begin{columns}[t]
+\begin{column}{6cm}
+\begin{center}
+\begin{forest}
+  [\dots[$<s>$ g $\wedge$ (t $\equiv$ u) $\wedge$ h[$<s'>$ g $\wedge$ h[\dots]]]]
+\end{forest}
+\end{center}
+\end{column}
+
+\begin{column}{6cm}
+\begin{center}
+
+\begin{forest}
+  [\dots[$<s>$ g $\wedge$ (t $\equiv$ u) $\wedge$ h[\xmark]]]
+\end{forest}
+\end{center}
+\end{column}
+\end{columns}
+  
+\begin{itemize}
+  \item Все унификации проталкиваем вверх и вычисляем в подстановки
+  \item Остается конъюнкция применений отношений
+  \begin{itemize}
+    \item Проверяем на совпадение с предками
+    \item Проверяем на \emph{похожесть} с предками
+    \item Иначе разворачиваем применения отношений
+  \end{itemize}
+\end{itemize}
+
+Ошибка: слишком агрессивное разворачивание вызовов
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Трудности}
+\begin{itemize}
+  \item Определить, что значит, что цели \emph{похожи}
+  \item Определить, как \emph{абстрагировать}
+  \item Определить, как учитывать связи между переменными
+  \item Проверка на похожесть и абстракция связаны между собой существенно теснее, чем в функциональных языках
+\end{itemize}
+
+\bigskip
+
+Ошибка: считать, что решение для функциональных языков применимо для трансформации реляционных программ
+\end{frame}
+
+\begin{frame}[fragile,t]
+  \transwipe[direction=90]
+  \frametitle{Примеры, которые уже работают}
+\begin{center}
+\begin{minipage}[c]{9.5cm}
+\begin{lstlisting}[frame=single]  
+appendo x y z = 
+  (x === [] &&& y === z)
+  ||| (fresh h t r (x === h : t &&& z === h : r &&& appendo t y r))
+\end{lstlisting}
+\end{minipage}
+\end{center}
+
+\begin{columns}[t]
+\begin{column}{3.4cm}
+\begin{badcode}
+\begin{lstlisting}[frame=single]  
+appendo [] y z
+\end{lstlisting}
+\end{badcode}
+\end{column}
+
+\pause
+
+\begin{column}{5.5cm}
+\begin{goodcode}
+\begin{lstlisting}[frame=single]  
+empty_appendo y z
+\end{lstlisting}
+
+\begin{lstlisting}[frame=single]  
+empty_appendo y z = y === z
+\end{lstlisting}
+\end{goodcode}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile,t]
+  \transwipe[direction=90]
+  \frametitle{Примеры, которые уже работают}
+\begin{center}
+\begin{minipage}[c]{9.5cm}
+\begin{lstlisting}[frame=single]  
+appendo x y z = 
+  (x === [] &&& y === z)
+  ||| (fresh h t r (x === h : t &&& z === h : r &&& appendo t y r))
+\end{lstlisting}
+\end{minipage}
+\end{center}
+
+\begin{columns}[t]
+\begin{column}{4.3cm}
+\begin{badcode}
+\begin{lstlisting}[frame=single]  
+appendo [1,2,3] y z
+\end{lstlisting}
+\end{badcode}
+\end{column}
+
+\pause
+
+\begin{column}{4.8cm}
+\begin{goodcode}
+\begin{lstlisting}[frame=single]  
+app_123 y z 
+\end{lstlisting}
+
+\begin{lstlisting}[frame=single]  
+app_123 y z = 
+  z === 1 : (2 : (3 : y))
+\end{lstlisting}
+\end{goodcode}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile,t]
+  \transwipe[direction=90]
+  \frametitle{Примеры, которые уже работают}
+\begin{center}
+\begin{minipage}[c]{9.5cm}
+\begin{lstlisting}[frame=single]  
+appendo x y z = 
+  (x === [] &&& y === z)
+  ||| (fresh h t r (x === h : t &&& z === h : r &&& appendo t y r))
+\end{lstlisting}
+\end{minipage}
+\end{center}
+
+\begin{columns}[t]
+\begin{column}{4.3cm}
+\begin{badcode}
+\begin{lstlisting}[frame=single]  
+appendo x [1,2,3] z
+\end{lstlisting}
+\end{badcode}
+\end{column}
+
+\pause
+
+\begin{column}{5.8cm}
+\begin{mehcode}
+\begin{lstlisting}[frame=single]  
+app_123 x z 
+\end{lstlisting}
+
+\begin{lstlisting}[frame=single]  
+app_123 x z = 
+  (x === [] &&& z === [1,2,3])
+  ||| (fresh h t r ( x === h : t 
+             &&& z === h : r 
+             &&& app_123 t r)) 
+\end{lstlisting}
+\end{mehcode}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile,t]
+  \transwipe[direction=90]
+  \frametitle{Примеры, которые уже работают}
+\begin{center}
+\begin{minipage}[c]{9.5cm}
+\begin{lstlisting}[frame=single]  
+appendo x y z = 
+  (x === [] &&& y === z)
+  ||| (fresh h t r (x === h : t &&& z === h : r &&& appendo t y r))
+\end{lstlisting}
+\end{minipage}
+\end{center}
+
+\vspace{-0.5cm}
+
+\begin{columns}[t]
+\begin{column}{4cm}
+\begin{badcode}
+\begin{lstlisting}[frame=single]  
+appendo x y [*i*] 
+ &&&  appendo [*i*] z r
+\end{lstlisting}
+\end{badcode}
+\end{column}
+
+\pause
+
+\begin{column}{6cm}
+\begin{goodcode}
+\begin{lstlisting}[frame=single]  
+double_app x y z r
+\end{lstlisting}
+
+\begin{lstlisting}[frame=single]  
+double_app x y z r = fresh h t s 
+  (x === [] &&& y === [] &&& z === r)
+  ||| ( x === [] 
+    &&& y === h : t 
+    &&& r === h : s 
+    &&& appendo t z s)
+  ||| ( x === h : t 
+    &&& r === h : s 
+    &&& double_app t y z s)
+\end{lstlisting}
+\end{goodcode}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Текущее положение дел}
+\begin{itemize}
+  \item Попробовали реализовать несколько версий суперкомпиляции
+  \begin{itemize}
+    \item Некоторые программы успешно преобразовываются
+    \item Некоторые преобразовываются с ухудшением производительности
+    \item На некоторых суперкомпиляция не завершается
+  \end{itemize}
+  \item Стало понятно, \emph{что} мы делали неправильно
+  \item Решено сначала \emph{буквально} адаптировать для miniKanren технику конъюнктивной частичной дедукции для логических языков
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Дальнейшие планы}
+\begin{itemize}
+  \item Доведение до работоспособности конъюнктивной частичной дедукции
+  \item Поддержка отношений высшего порядка
+  \item ``Негативная'' суперкомпиляция
+  \item Адаптация более мощных техник символьных вычислений
+\end{itemize}
+\end{frame}
+
+
+\end{document}
