@@ -93,6 +93,13 @@ Relational intepreter being run backward = solver
 
 \lstinline{run q (isPatho q graph True)} --- searches for all paths in the \lstinline{graph}
 
+\begin{itemize}
+  \item Implement a functional program which verifies the solution for a program
+  \item Transform it into a relation
+  \item Specialize for the backward direction
+  \item The result can search for solutions
+\end{itemize}
+
 \end{frame}
 
 \begin{frame}[fragile]
@@ -273,13 +280,13 @@ Computes \lstinline{f$_2$ x$_2$ res} only if \lstinline{f$_1$ x$_1$ p} fails
 
 \vspace{6pt}
 
-It is not the best strategy, if we know what \lstinline{res} is
+It is not the best strategy, if \lstinline{res} is known
 
 \end{frame}
 
 \begin{frame}[fragile]
   \transwipe[direction=90]
-  \frametitle{Relational Conversion aimed at Backward Execution}
+  \frametitle{Relational Conversion Aimed at Backward Execution}
 
 This coversion of  \lstinline{f$_1$ x$_1$ && f$_2$ x$_2$} is better for backward execution, but not forward
 
@@ -312,7 +319,7 @@ Consider that a part of the input is known: \lstinline{input == (static, dynamic
 
 \vspace{6pt}
 
-Specializer: given a program and static input, generates a new program, which evaluated to the same output as the original
+Specializer: given a program and static input, generates a new program, which evaluates to the same output as the original
 
 \vspace{6pt}
 
@@ -326,33 +333,144 @@ Specializer: given a program and static input, generates a new program, which ev
 \begin{frame}[fragile]
   \transwipe[direction=90]
   \frametitle{Conjunctive Partial Deduction}
-CPD --- specialization for prolog
+\begin{itemize}
+  \item Fully automatic program transformation
+  \item For pure logic language
+  \item Features: 
+  \begin{itemize}
+    \item Specialization
+    \item Deforestation
+    \item Tupling 
+  \end{itemize}
+\end{itemize}
 
-Features: specialization, deforestation, tupling 
+
 \end{frame}
 
 \begin{frame}[fragile]
   \transwipe[direction=90]
   \frametitle{Deforestation}
-<example doubleAppendo>
+Deforestation --- program transformation which eliminates intermediate data structures
+
+\begin{columns}
+\begin{column}{0.45\textwidth}
+\begin{lstlisting}[basicstyle=\footnotesize]
+let doubleAppend$^o$ x y z xyz = 
+  (fresh (@t@) (
+     (append$^o$ x y @t@) /\
+     (append$^o$ @t@ z xyz)))
+
+let rec append$^o$ x y xy = conde [
+  (x === nil () /\ xy === y);
+  (fresh (h t ty) (
+     (x  === h % t)  /\  
+     (xy === h % t') /\
+     (append$^o$ t y t')))]
+\end{lstlisting}
+\end{column}
+\begin{column}{0.55\textwidth}  
+\begin{lstlisting}[basicstyle=\footnotesize]
+let rec doubleAppend$^o$ x y z xyz = conde [
+   (x === nil () /\ append$^o$ y z xyz);
+   (fresh (h t t') (
+      (x === h % t)  /\  
+      (xyz === h % t') /\
+      (doubleAppend$^o$ t y z t')))]
+\end{lstlisting}
+\end{column}
+\end{columns}
 \end{frame}
 
 \begin{frame}[fragile]
   \transwipe[direction=90]
   \frametitle{Tupling}
-<example maxLengtho>
+Tupling --- program transformation which eliminates multiple traversals of the same data structure
+
+\begin{lstlisting}[basicstyle=\footnotesize]
+let maxLength$^o$ xs m l = max$^o$ xs m /\ length$^o$ xs l
+
+let rec length$^o$ xs l = conde [
+  (xs === nil () /\ l === zero ());
+  (fresh (h t m) (
+    xs === h % t /\ l === succ m /\ length$^o$ t m))]
+
+let max$^o$ xs m = max$_1^o$ xs (zero ()) m
+
+let rec max$_1^o$ xs n m = conde [
+  (xs === nil () /\ m === n);
+  (fresh (h t) (
+    (xs === h % t) /\
+    (conde [
+      (le$^o$ h n ^true /\ max$_1^o$ t n m); 
+      (gt$^o$ h n ^true /\ max$_1^o$ t h m)])))]
+\end{lstlisting}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Tupling}
+Tupling --- program transformation which eliminates multiple traversals of the same data structure
+
+\begin{lstlisting}[basicstyle=\footnotesize]
+let maxLength$^o$ xs m l = maxLength$_1^o$ xs m (zero ()) l
+
+let rec maxLength$_1^o$ xs m n l = conde [
+  (xs === nil () /\ m === n /\ l === zero ());
+  (fresh (h t l$_1$)
+     (xs === h % t) /\
+     (l === succ l$_1$) /\
+     (conde [
+       (le$^o$ h n /\ maxLength$_1^o$ t m n l);
+       (gt$^o$ h n /\ maxLength$_1^o$ t m h l)]))]
+\end{lstlisting}
+
+
 \end{frame}
 
 \begin{frame}[fragile]
   \transwipe[direction=90]
   \frametitle{CPD: Intuition}
-Symbolic execution + ensuring termination
-
-Treating conjunctions as a whole
-
-Embedding + Generalization? 
+\begin{itemize} 
+  \item Local control: compute a partial SLDNF-tree per a relation of interest
+  \begin{itemize} 
+    \item Having a conjunction of atoms, which atom should be selected? 
+    \item When to stop building a tree? 
+  \end{itemize}  
+  \item Global control: determine which relations are of interest
+  \begin{itemize}
+    \item Do not process the same conjunction twice
+    \item If a conjunction \textit{embeds} something processed before, \textit{generalize} it
+    \item How to define \textit{embedding}?
+    \item How to \textit{generalize}? 
+  \end{itemize} 
+\end{itemize}   
 \end{frame}
 
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{CPD: Implementation}
+\begin{itemize} 
+  \item Local control
+  \begin{itemize} 
+    \item Deterministic unfold (only one nondeterministic unfold per tree) 
+    \item Selectable conjunct: leftmost atom which do not have any predecessor embedded into it
+    \item Variant check
+    \item Stop when there are no selectable atoms
+  \end{itemize}  
+  \item Global control
+  \begin{itemize}
+    \item Variant check
+    \item Generalization: split conjunction in maximally connected subconjunctions + most specific generalization
+    \item Homeomorphic embedding extended for conjunctions
+  \end{itemize} 
+  \item Residualization
+  \begin{itemize}
+    \item A definition per a partial SLDNF-tree
+    \item Redundant Argument Filtering
+  \end{itemize} 
+\end{itemize}   
+\end{frame}
 
 \begin{frame}[fragile]
   \transwipe[direction=90]
@@ -383,7 +501,24 @@ Tasks
 
 <The size of the program before and after unnesting and specialization>
 
-<Table with time mesurements>  
+\begin{table}
+\footnotesize
+\centering
+\begin{tabular}{c|c|c|c|c|c|c}
+Path length                   & 5      & 7     & 9      & 11      & 13     & 15        \\
+\hline\hline
+Only conversion               & 0.01  & 1.39 &  82.13 & >300     & ---      & ---     \\
+\hline
+Backward oriented conversion  & 0.01 & 0.37 &  2.68 & 2.91   & 4.88    & 10.63   \\
+\hline
+Conversion and CPD            & 0.01  & 0.06 &  0.34 & 2.66   & 3.65    & 6.22  \\
+\hline
+Scheme interpreter            & 0.80  & 8.22 & 88.14 & 191.44 & >300   & ---   \\
+\end{tabular}
+
+ \caption{Searching for paths in the graph (seconds)}
+    \label{tab:isPath}
+\end{table}
 \end{frame}
 
 \begin{frame}[fragile]
@@ -394,7 +529,27 @@ Tasks
 
 <The size of the program before and after unnesting and specialization>
 
-<Table with time mesurements>  
+\begin{table}
+\tiny
+\centering
+\begin{tabular}{c|c|c|c}
+\multirow{ 2}{*}{Terms} & 
+f(X, a) & f(a \% b \% nil, c \% d \% nil, L) & f(X, X, g(Z, t))  \\
+\cline{2-4} &
+f(a, X) & f(X \% XS, YS, X \% ZS) & f(g(p, L), Y, Y)  \\
+\hline\hline
+Only conversion               & 0.01  &  >300 & >300 \\
+\hline
+Backward oriented conversion  & 0.01  &  0.11 & 2.26  \\
+\hline
+Conversion and CPD            & 0.01  &  0.07 & 0.90  \\
+\hline
+
+Scheme interpreter            & 0.04  & 5.15 & >300   \\
+\end{tabular}
+ \caption{Searching for a unifier of two terms (seconds)}
+    \label{tab:uni}
+\end{table}
 \end{frame}
 
 \begin{frame}[fragile]
