@@ -495,12 +495,87 @@ Tasks
 
 \begin{frame}[fragile]
   \transwipe[direction=90]
+  \frametitle{Path Search}
+
+\emph{Directed graph} is a tuple $(N, E, start, end)$, where: 
+
+\begin{itemize}
+	\item $N$ --- set of nodes
+	\item $E$ --- set of edges
+	\item Functions $start, end: E \rightarrow N$ return a start (end) node of an edge
+\end{itemize} 
+
+\vspace{10pt}
+
+\emph{Path} is a sequence $\langle n_0, e_0, n_1, e_1, \dots, n_k, e_k, n_{k+1} \rangle$, such that 
+\[
+\forall i \in \{ 0 \dots k \}\; :\; n_i = start\,(e_i) \text{ and } n_{i+1} = end\,(e_i)
+\]
+
+\vspace{10pt}
+
+\emph{Path search problem} is to find the set of paths in a given graph
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Path Search: Relational Conversion }
+
+\begin{lstlisting}[numbers=left,numberstyle=\small]
+let rec isPath ns g =
+  match ns with
+  | x$_1$ :: x$_2$ :: xs ->   elem (x$_1$, x$_2$) g && isPath (x$_2$ :: xs) g 
+  | [_]            -> true
+\end{lstlisting}
+
+\pause
+
+\begin{lstlisting}[numbers=left,numberstyle=\small]
+let rec isPath$^o$ ns g res = conde [
+  (fresh (el) ((ns === el % nil ()) /\ (res === ^true));
+  (fresh (x$_1$ x$_2$ xs resElem resIsPath) (
+    (ns === x$_1$ % (x$_2$ % xs)) /\ 
+    (elem$^o$ (pair x$_1$ x$_2$) g resElem) /\
+    (isPath$^o$ (x$_2$ % xs) g resIsPath) /\ 
+    (conde [
+      (resElem === ^false /\ res === ^false); 
+      (resElem === ^true  /\ res === resIsPath)])))]
+\end{lstlisting}
+
+This relation is inefficient for ``\lstinline{isPath$^o$ q <graph> true}''
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Path Search: Specialized Relation}
+
+\begin{lstlisting}[]
+let rec isPath$^o$ ns g res = conde [
+  (fresh (el) ((ns === el % nil ()) /\ (res === ^true)));
+  (fresh (x$_1$ x$_2$ xs resElem resIsPath) (
+    (resElem === ^true) /\
+    (resIsPath === ^true) /\
+    (ns === x$_1$ % (x$_2$ % xs)) /\ 
+    (elem$^o$ (pair x$_1$ x$_2$) g resElem) /\
+    (isPath$^o$ (x$_2$ % xs) g resIsPath)))]
+\end{lstlisting}
+
+Better performance for ``\lstinline{isPath$^o$ q <graph> true}''
+
+\pause 
+\vspace{10pt}
+
+This can be achieved automatically with CPD
+
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
   \frametitle{Evaluation: Path Search}
-
-<Task formulation>
-
-<The size of the program before and after unnesting and specialization>
-
+  
 \begin{table}
 \footnotesize
 \centering
@@ -521,14 +596,85 @@ Scheme interpreter            & 0.80  & 8.22 & 88.14 & 191.44 & >300   & ---   \
 \end{table}
 \end{frame}
 
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Unification}
+
+\emph{Term}:
+\begin{itemize}
+	\item Variable ($X, Y, \dots$) 
+	\item Some constructor applied to terms ($nil, cons(H, T), \dots$) 
+\end{itemize}	
+	
+\vspace{10pt}	
+	
+\emph{Substitution} maps variables to terms
+
+\vspace{10pt}
+
+Substitution can be \emph{applied} to a term by simultaneously substituting variables for their images
+
+\vspace{10pt}
+
+\emph{Unifier} is a substitution $\sigma$ which equalizes terms: $t \sigma = s \sigma$	
+	
+\vspace{10pt}
+
+Problem: given two terms with free variables, find their unifier	
+	
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Unification: Functional Verifier}
+
+\begin{comment}
+  let rec forall2 subst l1 l2 =
+    match l1, l2 with
+    | []   , []    -> true
+    | x::xs, y::ys -> check_uni subst x y &&
+                      forall2 subst xs ys in
+\end{comment}
+
+\begin{lstlisting}[basicstyle=\footnotesize]
+let rec check_uni subst t1 t2 =
+  match t1, t2 with
+  | Constr (n1, a1), Constr (n2, a2) ->
+      eq_nat n1 n2 && forall2 subst a1 a2
+  | Var_ v         , Constr (n, a)   ->
+    begin match get_term v subst with
+    | None   -> false
+    | Some t -> check_uni subst t t2
+    end
+  | Constr (n, a)  , Var_ v          ->
+    begin match get_term v subst with
+    | None   -> false
+    | Some t -> check_uni subst t1 t
+    end
+  | Var_ v1        , Var_ v2         ->
+    match get_term v1 subst with
+    | Some t1' -> check_uni subst t1' t2
+    | None     -> match get_term v2 subst with
+                  | Some _ -> false
+                  | None   -> eq_nat v1 v2
+\end{lstlisting}
+
+\end{frame}
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Unification: Relational Conversion}
+Does not fit the slide. 
+
+
+\end{frame}
+
+
 \begin{frame}[fragile]
   \transwipe[direction=90]
   \frametitle{Evaluation: Unification}
-
-<Task formulation>
-
-<The size of the program before and after unnesting and specialization>
-
 \begin{table}
 \tiny
 \centering
