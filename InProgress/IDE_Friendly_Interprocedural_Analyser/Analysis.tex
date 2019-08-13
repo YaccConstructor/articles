@@ -1,11 +1,11 @@
 
 %I.e. there are a graph which is image of the source code and constraints that describe the sort of paths in the graph we want to select.
 
-To apply the framework, the first thing to do is to define the roles and representation of the graph and the path restrictions.
+To apply the CFL-reachability framework, the first thing to do is to define the representation of a graph and path restrictions.
 We propose the following division.
 Let's graph be image of a program and stores the information about the source code that can be mapped back to locate issues in the sources that are found by analysis of the graph.
 Then restrictions on paths define the sequences of operations leading to an issue.
-In order to keep the expressive power of the CFL-reachability approach but make the implementation easier, we propose to use pushdown automata instead of grammars which have equivalent power.
+In order to keep the expressive power of the CFL-reachability approach but make the implementation easier, we propose to use pushdown automata instead of grammars which have equivalent power~\cite{AutomataTheory}.
 Now, let's take closer look at each component and consider the construction of them in application to our example.
 
 \subsection{Graph extraction}
@@ -23,9 +23,27 @@ Each edge contains an operation that represents a statement in the source code a
 For example, there exist three different types of operations: invocations, assignments and returns.
 Each of them is an image of some source instruction. 
 Invocations are produced from call sites and have the same information as ones in original code.
-I.e. it contains a reference to the entity which method is called, the name of target, a set of arguments and the information about returned values.
-Each assignment corresponds to real assignment and has references to the source entity and the target one.
+Their notation has the following form: 
+\begin{equation}
+\begin{split}
+	& \text{invoke:} \\
+	& o.m \rightarrow v \\
+	& (f_1 := c_1; \ldots; f_k := c_k)
+\end{split}
+\end{equation}
+Where $o$ is an object or a class which method is called, $m$ is the name of a method, $v$ is a variable where the result is stored and $f_i, c_i$ are pairs of formal and actual parameter respectively.
+
+Each assignment corresponds to real assignment and is written in the following way:
+\begin{equation}
+\begin{split}
+	& \text{assign:} \\
+	& s \rightarrow t
+\end{split}
+\end{equation}
+Where $s$ is a source of data and $t$ is the a target variable.
+
 And return just indicates the end of a method. It can be not present explicitly in the source code but is still needed to be added to inform analyser about return point.
+
 However, the number of instruction types is not fixed and some analysis-specific operations can be added if necessary. 
 Nodes have no any data and correspond to positions between instructions in the source code.
 
@@ -36,8 +54,9 @@ First of them is to expand invocations statically, i.e. add a pair of edges for 
 One to represent a jump from the call site to the entry point of target and one to emulate return from the final node of the method to the caller.
 But this approach leads to the need to update all these additional connections if some method is removed or its body is changed.
 So, we propose to resolve invocations dynamically right during an analysis.
-It allows us not to modify initial graphs structure at all.
-Nevertheless, it is still needed to have a mechanism that can perform the resolution, i.e. there must be an entity that can collect all targets of any invocation using references stored there. 
+It allows us to use the graph which is composed right of graphs of methods and has no any additional edges.
+Also, it does not require to modify any other method when some one is updated.
+Nevertheless, it is still needed to have a mechanism that can collect all targets of any invocation using references stored there.
 
 To implement such mechanism, called resolver, we offer to accumulate some meta-information about the program besides graphs themselves.
 The relations in required data is shown at fig.~\ref{fig:Metadata}.
@@ -53,10 +72,11 @@ Secondly, it is needed to know which methods are contained in each class to find
 Thirdly, methods can have local functions and it is necessary to keep their hierarchy too to support, for example, anonymous function invocations, delegates passing and so on.
 And finally, methods themselves has references to nodes they own which is used to find the entry point and update the graph when the body of method is changed.
 This structure also contains such data as class fields and local variables of a method which can be referenced by operations.
-So, the resolver takes the class name and the identifier of a method or a field and walks through the hierarchy tying to find all suitable entities.
+So, the resolver takes the class name and the identifier of a method or a field and walks through the hierarchy trying to find all suitable entities.
 
 \subsection{PDA construction}
 
+Further, we need to define restrictions on paths in the graph in terms of pushdown automata.
 Formally, nondeterministic pushdown automaton is a tuple $(Q, \Sigma, \Gamma, \delta, q_0, Z_0, F)$, where $Q$, $\Sigma$ and $\Gamma$ are finite sets of states, input symbols and stack symbols respectively, $q_0 \in Q$ and $Z_0 \in \Gamma$ are initial state and stack symbol, $F \subseteq Q$ is a set of final states and $\delta: Q \times \Sigma \cup \{\epsilon\} \times \Gamma \rightarrow \mathcal P (Q \times \Gamma^*)$ is a transition relation which computes new state and stack by current ones and input symbol.
 We also add following restriction on transition relation.
 The resulting stack must differ from the source one by no more than one top symbol. I.e. only one symbol can be pushed or popped during the transition.
