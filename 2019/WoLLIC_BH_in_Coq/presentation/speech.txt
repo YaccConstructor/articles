@@ -1,93 +1,207 @@
-1. Hi, my name is Semyon. I want to talk about our solution for secondary structure handling by means ordinary grammars and dense neural networks.
+1
 
-2. Our goal is to simplify long sequences analysis. For example, there is a long sequence and we suppose that this sequence is an rRNA. We want to use it for classification. We know that the textual analysis is not powerful enough in this case and that the secondary structure analysis should be run.
+Hello. My name is Semyon.
+I want to present our results in mechanization of the formal language theory.
 
-It is even more complex, if we get this sequence from metagenomic assembly. Here, we should first check that this sequence is not chimeric. Secondary structure analysis helps to do it, because even if we concatenate two substrings with some  information overlapping, global secondary structure will be broken for chimeric sequence.
+2
 
-So, we can see that secondary structure analysis is an important step in sequences processing. But this step is very time-consuming. It is almost cubic in terms of the input size. It would be best to move this step to the preprocessing phase.
+There is a number of systems which automate theorem proving.
+They are generally used in two scenarios.
+The first one is to ensure the correctness of nontrivial proofs.
+Theorem proving automation is really valuable now, when most proofs are too big and complex.
+Without automation, it is really hard to guarantee, that a proof is correct, and nobody, who was involved in the development of it, had made any mistakes.
 
-3. How we want to do it? Our solution consists of two components. First component is parsing, and we propose to use parsing only for the extraction of secondary structures features, not for modelling or prediciton of the secondary structure. This way, we reduce complexity of secondary structure processing.
+One other thing is a  development of correct-by-construction algorithms.
+This way, one can prove that their algorithm works as intended, extract it into their favorite executable programming language and be sure that there won't be any surprises when the program actually runs.
 
-We describe features with formal grammars. Note that here we use ordinary grammars, not probabilistic.
 
-Then we run the parser to extract features.
+In our work we are interested in the second one.
 
-As the last step, we employ neural network as a probabilistic model for processing of extracted features.
+One of the classical systems which provide such ability is a Coq proof assistant.
+This proof assistant is based on the calculus of inductive constructions and provides the ability to extract executable code from the proof.
 
-4. To use our solution you should specify two things: the first is an ordinary formal grammar. We don't restrict the grammar to be context-free. One can use other types of grammars, for example, conjunctive or multiple context-free grammars. The second thing is sequences to be parsed.
+3
 
-We use Valiant's algorithm for parsing. This algorithm is based on matrices multiplication, so we can utilize GPUs to increase parsing performance.
+The area of our research is a formal language theory. The goal of proof assistants utilization here is, first of all, to check nontrivial proofs.
 
-Parsing result is a set of matrices: one per each nonterminal. Each matrix has the information about all possible derivations for the given nonterminal for all possible substrings. Note that the left bottom triangle of each matrix is always empty, so we ignore it it.
+At the same time, results from this area are widely used in applications.
+For example, in programming languages analysis, database querying, search engines and so on.
+And for some of these applications, it is important to guarantee the correctness of used algorithms. For example, for security reasons.
 
-We should vectorize matrices in order to get standard input representation for neural network.
+So, there is a big amount of work which is aimed to provide certified algorithms for parsing, regular expressions manipulation and so on.
 
-After this, we are ready to use artificial neural network to process extracted features. We use a dense network of up to 10 layers and we use batch normalization and dropout for learning stabilization.
+4
 
-The shape of results depends on the task which we are to solve.
+Our work is about Bar-Hillel theorem mechanization.
+This theorem says that context-free languages are closed under intersection with regular languages.
+And we prove this fact in Coq.
 
-5. The first parameter of our solution is a grammar and here you can see grammar which we use for the evaluation. It is a context-free grammar and s-one (being the start nonterminal) describes the pattern which we want to detect.
+What is the reason to do it?
+Of course, it is mechanization of yet another part of the formal language theory and it may be important by itself.
+But why this theorem? Why not something else?
 
-The next two rules are helpers for arbitrary unfoldable string description. This string should have the length between two and ten.
+5
 
-The following set of rules describe a primitive feature. We consider the primitive feature to be a stem of the fixed minimal height. 
+The answer is simple: "Because this theorem is very important for applications".
 
-There is no such feature as a stem with a mismatch. A stem with a mismatch can be viewed as two stems embedded into one another and connected by two short unfoldable strings.
+One of the applications of this theorem is context-free path querying.
+Context-Free path querying is a way to find paths in edge-labeled graphs.
 
-So, the first rule describes a stem of height exactly one. You can see that this rule has a parameter s. This parameter can specify the embedding of something into the stem.
+Suppose we have a graph.
 
-The next rule specifies the stem of height exactly three.
+And for some reasons, we want to find such paths in this graph that each of them forms a well-balanced sequence over A and B.
 
-And the last rule in this set describes arbitrary stem of height more than three.
+In other words, we want to find paths which form words in Dyck language.
 
-The last rule in this grammar describes recursive composition of stems. This rule states that the stems can be connected with unfoldable substrings, that one stem can be embedded into another, and, moreover, any recursive composition of stems may be embedded into a stem.
+To do it, we can specify a grammar for Dyck language over A and B and use it as a filter for edges.
+And the answer in our case is an infinite set of paths which meet the condition.
 
-Note that we infered this grammar as a result of our experiments. One can add nonclassical base-pairs or change minimal height of stem. In this case you can get grammar which is more suitable for your problem. And, of course, it may be necessary to tune neural network for the different grammar.
+And it is one of possible formulation of CFPQ.
 
-6. Now I demonstrate you an example of parsing. Sequence in the first example folds into a stem. How can we see it? Here you can see parsing results and a contact map which shows the stem in the input sequence. Now I show you this stem in the parsing matrix. I will use boxes for navigation in the matrix.
+6
 
-First, or left, part of stem is selected now.
+Formally, we have a context-free grammar, we use it as a filter or query.
+And we have a directed edge-labeled graph, where labels are a subset of the terminals of the grammar.
+Each path in such graph forms a word, and we introduce a helper function omega which converts the path to a word.
+Now, having all the necessary definitions, we can provide some possible formal definitions of context-free path querying.
 
-Now the second part is selected.
+The first one is to find all pairs of vertices, such that there exists a path between them which forms a word in the given language.
+It is a reachability problem.
 
-Representation of the stem is a chain of ones. Each one meens that the substring can be folded into a stem of heigh 3 or more.
+Another possible formulation is to find all possible paths which form words in the given language.
 
-You can see, that there are other non-zero cells in this matrix. It is because our parser detects all possible foldings for all possible substrings. It is not always noise. It may provide with an important piece of information about secondary structure.
+There are many other variants of this task. For example, it may be necessary to check the existence of the paths in the graph, or it may be necessary to find paths between two specified vertices.
 
-7. For example, in this case, when there is a pseudoknot in the sequence. We can think of the pseudoknot as a composition of two interleaved stems. As you can see, the parsing result for this example has information about two stems. One is here and one is here.
+7
 
-So, if our network is powerful enough, then it can infer that such composition of stems is a pseudoknot.
+So, we have a context-free language.
+Also, we have a regular language: we only need to select the start and final states.
+Note that in the most general case, all vertices are both start states and final states.
 
-Pseudoknots cannot be described in the terms of context-free grammars, but we still can detect them, even though we use only context-free grammar in our framework.
+So, our goal is to find the intersection of the context-free language and the regular one and to analyze it.
 
-8. And the last example is a real tRNA. We have a sequence from tRNA database and we predict possible secondary structures of it by using standalone tool.
+And Bar-Hillel theorem says that context-free path querying is decidable.
+As far as the result of intersection is a context-free language and emptiness of a context-free language is decidable, path existence problem is decidable.
 
-We predicted the two most possible predicted structures by parsing.
+Moreover, the constructive proof of this theorem shows how to construct a representation of paths, how to get pairs of vertices, and so on.
 
-9. Here is the first predicted structure, and these are parts of matrix which represent the information about the three stems shown in the picture.
+8
 
-The second possible secondary structure is represented in the matrix too.
+Context-free path querying is used for graph analysis in different areas.
 
-Finally you can see, that the parsing result contains the information about all possible structures. But it also contains some other data. It is because we extract all possible features, even impossible in practice. To filter out the impossible in practice secondary structures is why we need a neural network.
+One natural application is graph database querying.
+It was introduced by Yannakakis, and is actively developed now.
 
-10. We use dense network for features processing. This network contains more that ten layers.
+Tomas Reps showed how to apply it for static code analysis.
 
-Our experiments have shown that only composition of aggressive dropout and batch normalization prevents overfitting.
+Mechanization of the Bar-Hillel theorem is a first step in developing certified algorithms for static code analysis and database querying.
 
-11. Now I'll demonstrate some basic evaluation. By this evaluation we show our solution can be applied for real data processing.
+9
 
-The first case is an rRNA detection. The aim is to create a binary classifier which separate rRNA and non-rRNA sequences. We use subsequences of fixed length, and after the training we get the model which demonstrates the accuracy of 90% on the validation set.
+In our work we use slightly nonconventional way to prove this theorem.
+We use grammar-based proof instead of classical PDA-based one.
+This way is not new but seems to be slightly less known.
 
-12. The second case is a tRNA classification. We use two different databases for training and validation. Accuracy in this task is 97%.
+So, our way contains the following steps.
 
-Thus, we conclude that our solution can be applied for real data processing.
+First of all, we assume, that every context-free language can be described by a grammar in the Chomsky Normal Form.
 
-13. The first task for the future work is to eliminate the parsing from the sequence processing function. We believe that it is possible by creating a network which can handle a sequence and not a parsing result. We can create such network by staged learning.
+The next, it is much easier to deal with deterministic finite automata which only have one final state.
+Luckily, there is a lemma which states that any nonempty regular language can be represented as the union of the regular languages represented with a finite automaton with the single final state.
 
-Also we want to experiment with other types of networks because it can increase quality of our solution.
+After that, we can construct a grammar of intersection of each regular language from the set and the grammar of the given language in CNF.
 
-And, of course, we should do more evaluation and comparison with other tools.
+Finally, we should construct an intersection of grammars created at the previous step.
 
-14. To summarize, we propose the approach to handle secondary structure by using ordinary grammars and artificial neural networks. We reduce parsing utilization from secondary structure modelling to features extraction, and propose the way to exclude parsing from sequence processing. We demonstrate that it is possible to detect features which can not be expressed in terms of the grammar used. And we show that our solution can be used for real data processing. 
+10
 
-15.  Thank you for the attention. I'm ready to answer your questions.
+Of course, we planned to reuse existing results in formal languages mechanization in Coq.
+As we can see, we need both context-free languages and automata mechanization.
+
+Initially, it was the reason to use Hofmann and Smolka results: they provide mechanization of parts of context-free and regular languages.
+
+So, Jana Hofmann provides a set of basic definitions, such as language, grammar and so on, and, what is important for our work, conversion of context-free grammar to CNF.
+
+But, to be reused in our work, Hofmann's results should be improved.
+Changes are required in basic definitions: in the definition of terminal symbol and in the definition of the nonterminal symbol.
+
+Initially, both of them were natural numbers. And this fact actively uses in other proves.
+
+But in our case, we need to be able to use arbitrary type as a terminal and nonterminal.
+It is necessary to construct triples of two states of the automaton and nonterminal of the original grammar.
+
+So, we generalize terminal and nonterminal types.
+
+And after that, we had carefully refactored everything.
+
+Finally, we get proof for the first part: any context-free language can be described by grammar in the Chomsky normal form.
+
+11
+
+Next, we show that a DFA can be represented as a union of DFAs with single final state.
+
+This lemma states that the procedure split_dfa which we have encoded, indeed creates a correct splitting.
+
+Note, that the fact that all DFAs in the splitting result contain precisely one final state is encoded at the type level.
+DFAs in the set have a special type which guarantees that there is only one final state.
+
+12
+
+Next steps require to introduce Chomsky induction. We want to have structural induction which is based on the word derivation steps.
+
+Namely, if the given word w of length at least two is derivable from some nonterminal N, then, there exists a rule in the grammar for N, with two nonterminals in the right-hand side: N1 and N2.
+There also exist two subwords w1 and w2, such that w is a concatenation of them, and each of them is derivable from the corresponding nonterminal.
+
+13
+
+We formalize this inductive construction as the next definition.
+Note that in the original definition the grammar is a list of productions, without specification of start nonterminal, so we should specify start nonterminal explicitly.
+
+This construction allows us to explicitly construct grammars for the intersection of the grammar in CNF and automaton with single final state.
+
+14
+
+And the final step is to build a union of these grammars and to prove that our procedure grammar_union which do it is correct. Namely, we prove that grammar_union preserves the language.
+It means that the result of union contains the word if and only if there exists the grammar in the initial set, such that the corresponding language contains the same word.
+
+15
+
+Now we are ready to state the final theorem.
+
+It states that for every decidable type for nonterminals and terminals, if there exists a bijection between natural numbers and the type for nonterminals, and syntactic analysis in terms of our definition is possible, then for any DFA and a context free grammar, there exists a grammar which specifies the languages for the intersection.
+
+16
+
+Here you can see this theorem in Coq.
+
+First of all, we request a type for new nonterminals, which should be triples.
+Then there exists a new grammar over original terminals and new nonterminals and new start nonterminal,
+such that the language which is specified by this grammar with given start nonterminal is exactly the same as the intersection of languages which specified by the given DFA and the given grammar.
+
+17
+
+To sum up, we present mechanization in Coq proof of the fact that context-free languages are closed under intersection with regular languages.
+
+Also, we generalize results of Jana Hofmann. So, we hope that now it should be easier to use them for other researches.
+
+Everything is published on GitHub.
+Coq code is equipped with automatically generated documentation to simplify navigation through the code.
+
+18
+
+The first question for future research is the integration with other results on formal language theory mechanization.
+In the current work we use results of Jana Hofmann. But there is, for example, a great work by Markus Romas which seem more mature.
+
+It is not obvious whether it would be better to use this results for our work.
+Because it is not evident that we can create one general solution for every problem.
+For example, one can have a case when PDA-based proof is more appropriate than our grammar-based one.
+But, maybe, we should create one extensible platform for formal language theory mechanization.
+I believe that it is a question for further discussion.
+
+In any case, our result is the first step towards certification of algorithms which are based on the Bar-Hillel theorem.
+Which may be helpful to ensure security in database engines.
+And it is a direction for future work.
+
+19
+
+Thank you for attention. I'm ready to answer your questions.
