@@ -22,6 +22,9 @@
 \usetikzlibrary{arrows,automata}
 \usetikzlibrary{positioning}
 
+\usepackage{minted}
+\usepackage{verbments}
+
 \usepackage{tabularx}
 \newcolumntype{Y}{>{\raggedleft\arraybackslash}X}
 
@@ -45,7 +48,7 @@
 
 \beamertemplatenavigationsymbolsempty
 
-\title[DNN + Formal Grammars]{The Composition of Dense Neural Networks and Formal~Grammars for Secondary Structure Analysis}
+\title[Bar-Hillel Theorem in Coq]{Bar-Hillel Theorem Mechanization in Coq}
 %\subtitle[YaccConstructor]{Parsing techniques for graph analysis}
 % То, что в квадратных скобках, отображается в левом нижнем углу.
 \institute[JetBrains Research]{
@@ -54,9 +57,9 @@ Saint Petersburg University
 }
 
 % То, что в квадратных скобках, отображается в левом нижнем углу.
-\author[Semyon Grigorev]{Polina Lunina, \textbf{Semyon Grigorev}}
+\author[Semyon Grigorev]{Sergey Bozhko, Leyla Khatbullina, \textbf{Semyon Grigorev}}
 
-\date{Febrary 24, 2019}
+\date{July 05, 2019}
 
 \begin{document}
 {
@@ -65,7 +68,7 @@ Saint Petersburg University
   \centering
   \begin{tabularx}{\linewidth}{YcX}
     \includegraphics[height=1.5cm]{pictures/jetbrainsResearch.pdf} \hfill
-    & \begin{minipage}[t]{0.3\textwidth}\center \vspace{-1cm}  BIOINFORMATICS 2019
+    & \begin{minipage}[t]{0.3\textwidth}\center \vspace{-1cm}  WoLLIC 2019
       \end{minipage}
     & \hfill \includegraphics[height=1.5cm]{pictures/SPbGU_Logo.png}
   \end{tabularx}
@@ -74,423 +77,360 @@ Saint Petersburg University
 \end{frame}
 }
 
-\begin{frame} \frametitle{Long Sequences Analysis}
-  $$
-  \underbrace{\texttt{CACATGGAGAGTTTGA\dots CTGGATCACCTCCTTT}}_{\sim 1500 \text{ symbols}}
-  $$
-  \begin{minipage}[t]{0.5\textwidth}
+\begin{frame} \frametitle{Automated Theorem Proving}
+  \begin{itemize}
+    \item Automation of checking of the proofs correctness
+    \pause
+    \item Also a way to create correct-by-construction algorithms
     \begin{itemize}
-      \item Classification
-      \pause
+      \item Coq proof assistant
       \begin{itemize}
-        \item Secondary structure handling
+        \item Based on the calculus of inductive constructions
+        \item Supports extraction of certified programs to executable programming languages
       \end{itemize}
-      \pause
-      \item Metagenomic assembly processing
-      \begin{itemize}
-        \item Filter out chimeric sequences
-        \item Secondary structure handling
-      \end{itemize}
+
     \end{itemize}
-  \end{minipage}
-~
-  \begin{minipage}[t]{0.45\textwidth}
-    \onslide<2-3>\includegraphics[height=6cm]{pictures/16s.pdf}
-  \end{minipage}
+
+  \end{itemize}
 
 \end{frame}
 
 
-\begin{frame} \frametitle{Proposed Solution: Parsing + Artificial Neural Network}
+\begin{frame}
+\frametitle{Mechanization of Formal Language Theory}
+
+Goals:
 
 \begin{itemize}
-  \item Use parsing to extract features, not to model secondary structure
+  \item Check nontrivial proofs
+  \item Ensure correctness of algorithms
   \begin{itemize}
-    \item As compared to the classical way of probabilistic CF grammars utilization
+    \item Parsing algorithms
+    \item Algorithms over regular expressions
+    \item Algorithms over finite automata
   \end{itemize}
-  \pause
-  \item Formal grammars as secondary structure description
-  \item Parsing as features extraction
-  \item Artificial neural network as probabilistic model for features processing
 \end{itemize}
 
 \end{frame}
 
+\begin{frame}
+\frametitle{The Bar-Hillel Theorem}
+\begin{theorem}[Bar-Hillel]
+	If $L_1$ is a context-free language and $L_2$ is a regular language, \\ then $L_1 \cap L_2$ is context-free languege.
+\end{theorem}
+\end{frame}
 
-\begin{frame} \frametitle{Solution Structure}
-\tiny %\hspace{-2cm}
-  \begin{tikzpicture}[->,>=stealth']
+\begin{frame} \frametitle{Context-Free Path Quierying (CFPQ)}
+  \pause
+  \begin{minipage}[m]{0.45\linewidth}
+  \onslide<2-7>{Navigation through an edge-labelled graph}
 
+  \begin{itemize}
+    \onslide<4-7>{
+    \item Are there paths in graph, which form well-balanced sequences over \texttt{A} and \texttt{B}?
+    }
+    \onslide<5-7>{
+    \item Find all paths, such that each path forms a word in the Dyck language over \texttt{A} and \texttt{B}
+    }
+  \end{itemize}
 
-  \node[state,
-        align=left,
-        text width = 3.5cm] (grm)
-   {
-    \textbf{Grammar}\\
-  Fixed formal grammar (not necessarily context-free) describes features of secondary structure and can be tuned to increase the quality of result.
-
-   };
-
-
-  \node[state,
-        below of=grm,
-        node distance=1.5cm,
-        align = left,
-        text width = 3.5cm] (sqs)
-   {
-   \textbf{Sequences}\\
-  Each sequence is treated as a text in $\{A, C, G, T\}$ alphabet.
-   };
-
-
-  \node[state,
-        right of=grm,
-        node distance=4cm,
-        align = left,
-        text width = 3.5cm](parser)
-  {
-  \textbf{Parser}\\
-  Parser extracts features of the given sequence secondary structure.
-  Implementation of parsing algorithm is based on matrix multiplications (Valiant, Okhotin) and utilizes GPGPU.
-  };
-
-  \node[state,
-        right of=parser,
-        node distance=4cm,
-        align = left,
-        text width = 3.5cm] (mtrx)
-  {
-    \textbf{Matrices}\\
-    %\vspace{0.05cm}
-    \[ \left( \begin{array}{cccc}
-    0 & \textbf{1} & 0 & \textbf{1}\\
-    0 & 0 & \textbf{1} & 0\\
-    0 & 0 & 0 & \textbf{1}\\
-    0 & 0 & 0 & 0
-    \end{array} \right)\]
-    \vspace{-0.1cm}
-
-  Parsing result is (0-1) matrix~$M$ which represents secondary structure features for sequence $\omega$: $ M[i,j] = 1 \iff \text{\ttfamily{s1}} \xrightarrow{*}{} \omega[i,j]$, and $0$ otherwise.
-  };
-
-  \node[state,
-        below of=sqs,
-        node distance=1cm,
-        align = left,
-        text width = 3.5cm](result)
-  {
-  \textbf{Result of classification}
-
-  };
-
-
-  \node[state,
-        below of=parser,
-        node distance=4.2cm,
-        align = left,
-        text width = 3.5cm](DNN)
-  {
-  \textbf{Neural Network}\\
-
-  Dense neural network with more than 10 dense layers.
-  Agressive dropout and batch normalization for learning process stabilization.\\
-  Typical building block:
-  \\
-  \vspace{-0.3cm}
-  \begin{center}
-  \includegraphics[width=2.5cm]{pictures/bb.pdf}
-  \end{center}
-
-  };
-
-
-  \node[state,
-        right of=DNN,
-        node distance=4cm,
-        align = left,
-        text width = 3.5cm](vector)
-  {
-  \textbf{Vectors}\\
-  \vspace{-0.1cm}
-
-\[ \left( \begin{array}{cccc}
-0 & 1 & 0 & 1\\
-0 & 0 & 1 & 0\\
-0 & 0 & 0 & 1\\
-0 & 0 & 0 & 0
-\end{array} \right) \]
-\vspace{-0.35cm}
-$$\Downarrow$$
-\vspace{-0.35cm}
-$$\texttt{[0,1,0,1,0,1,0,0,1,0]}$$
-\vspace{-0.35cm}
-$$\Downarrow$$
-\vspace{-0.35cm}
-$$\texttt{[84,128]}$$
-%\vspace{-0.1cm}
-  Line-by-line compressed matrix representation: sequence of 8 cells (bits) is compressed into a byte. Bottom left triangle of the matrix is always empty, so can be ignored.
-  };
-
-
-  \path (grm) edge  (parser)
-   (sqs) edge [bend right] (parser)
-  % (sqs) edge (parser)
-   (parser) edge (mtrx)
-   (mtrx) edge (vector)
-   (vector) edge (DNN)
-   (DNN) edge (result)
-   ;
-
-  \end{tikzpicture}
-
-  \tikzmark{zzz}{
+  \end{minipage}
+  \hfill
+  \begin{minipage}[m]{0.5\linewidth}
+  \onslide<3-7>{
+  \begin{figure}
+        \begin{tikzpicture}[shorten >=1pt,node distance=2cm,on grid,auto]
+   \node[state] (q_1)   {$1$};
+   \node[state] (q_2) [above=of q_1] {$2$};
+   \node[state] (q_3) [above right=of q_1, below right=of q_2] {$0$};
+   \node[state] (q_4) [right=of q_3] {$3$};
+    \path[->]
+    (q_1) edge  node {A} (q_2)
+    (q_2) edge  node {A} (q_3)
+    (q_3) edge  node {A} (q_1)
+    (q_3) edge[bend left, above]  node {B} (q_4)
+    (q_4) edge[bend left, below]  node {B} (q_3);
+\end{tikzpicture}
+\end{figure}
   }
-  %}
-  \pause
-  \onslide<2>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (zzz) + (-0.1,7.9)$) rectangle ($ (zzz) + (3.8,4.8)$);}}
-
-  \onslide<3>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (zzz) + (3.8,7.9)$) rectangle ($ (zzz) + (7.8,5.9)$);}}
-
-  \onslide<4>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (zzz) + (7.8,8.5)$) rectangle ($ (zzz) + (11.8,5.25)$);}}
-
-  \onslide<5>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (zzz) + (7.8,5.1)$) rectangle ($ (zzz) + (11.8,0.35)$);}}
-
-  \onslide<6>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (zzz) + (3.9,5.2)$) rectangle ($ (zzz) + (7.8,0.2)$);}}
-
-  \onslide<7>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (zzz) + (-0.1,4.8)$) rectangle ($ (zzz) + (3.8,4.0)$);}}
-
-
-\end{frame}
-
-\begin{frame}[fragile] \frametitle{Grammar}
-%\onslide<1-4>{
-
-\begin{verbatim}
-s1: stem<s0>
-any_str: any_smb*[2..10]
-any_smb: A | T | C | G
-stem1<s>:               \\ stem of height exactly 1
-      A s T | T s A | C s G | G s C
-stem3<s>:               \\ stem of height exactly 3
-      stem1< stem1< stem1<s> > >
-stem<s>:                \\ stem of height 3 or more
-      A stem<s> T
-    | T stem<s> A
-    | C stem<s> G
-    | G stem<s> C
-    | stem3<s>
-s0: any_str | any_str stem<s0> s0
-\end{verbatim}
-\tikzmark{yyy}{
-}
-%}
-\pause
-\onslide<2>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (yyy) + (-0.2,7.5)$) rectangle ($ (yyy) + (12,7)$);}}
-\onslide<3>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (yyy) + (-0.2,7)$) rectangle ($ (yyy) + (12,6)$);}}
-\onslide<4>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (yyy) + (-0.2,6)$) rectangle ($ (yyy) + (12,5.1)$);}}
-\onslide<5>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (yyy) + (-0.2,5.1)$) rectangle ($ (yyy) + (12,4.1)$);}}
-\onslide<6>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (yyy) + (-0.2,4.1)$) rectangle ($ (yyy) + (12,1.2)$);}}
-\onslide<7>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2] ($ (yyy) + (-0.2,1.2)$) rectangle ($ (yyy) + (12,0.7)$);}}
-\end{frame}
-
-\begin{frame}[fragile] \frametitle{Example 1: Stem}
-\centering
- \texttt{CCCC{\color{red}ATTGCCAAGG}ACCCCA{\color{red}CCTTGGCAAT}CCC}
-\vspace{1cm}
-
-\tikzmark{xx}{\includegraphics[width=.8\textwidth]{pictures/4.pdf}}
-\onslide<2-3>{
-\tikz[overlay,remember picture]{
-\draw[draw=red,thick,fill opacity=0.2] ($(xx) + (1.1,4.97)$) rectangle ($(xx) + (9.05,3.235)$);
-}
-}
-
-\onslide<3>{
-\tikz[overlay,remember picture]{
-\draw[draw=red,thick,fill opacity=0.2] ($(xx) + (5.8,4.97)$) rectangle ($(xx) + (8.75,0.4)$);
-}
-}
-
-\end{frame}
-
-\begin{frame}[fragile] \frametitle{Example 2: Pseudoknot}
-\centering
- \texttt{CC{\color{red}ACTTA}CC{\color{blue}TATGA}CC{\color{red}TAAGT}CC{\color{blue}TCATA}CC}
-\vspace{1cm}
-
-\tikzmark{y}{\includegraphics[width=.8\textwidth]{pictures/5.pdf}}
-
-\onslide<2-3>{
-\tikz[overlay,remember picture]{
-\draw[draw=red,thick,fill opacity=0.2] ($(y) + (0.6,5.37)$) rectangle ($(y) + (7.15,4.4)$);
-\draw[draw=red,thick,fill opacity=0.2] ($(y) + (5.15,5.37)$) rectangle ($(y) + (6.8,1.7)$);
-}
-}
-
-\onslide<3>{
-\tikz[overlay,remember picture]{
-\draw[draw=blue,thick,fill opacity=0.2] ($(y) + (2.8,4.01)$) rectangle ($(y) + (9.42,3.05)$);
-\draw[draw=blue,thick,fill opacity=0.2] ($(y) + (7.45,4.01)$) rectangle ($(y) + (9.1,0.3)$);
-}
-}
-
-\end{frame}
-
-
-\begin{frame}[fragile] \frametitle{Example 3: real tRNA}
-\centering
- \texttt{CAGGGCATAACCTAGCCCAACCTTGCCAAGG\\TTGGGGTCGAGGGTTCGAATCCCTTCGCCCGCTCCA}
-\vspace{0.5cm}
+  \vspace{0.5cm}
+  \onslide<6-7>{
+  Paths filter (query):
+  $$s \to A \ s \ B \ s \mid \varepsilon$$
+  }
+  \end{minipage}
+  \vspace{0.2cm}
+\onslide<7>{
+Answer:
 \begin{itemize}
-  \item Novosphingobium aromaticivorans DSM 12444 chr.trna57-GlyGCC(268150-268084) Gly (GCC) 67 bp Sc: 22.9, from \href{http://gtrnadb2009.ucsc.edu/download.html}{GtRNAdb}
-  \item Predicted secondary structures are given by using the \href{http://rna.urmc.rochester.edu/RNAstructureWeb/Servers/Fold/Fold.html}{Fold Web Server with default settings}
-
+  \item $2 \xrightarrow{A} 0 \xrightarrow{B} 3$
+  \item $1 \xrightarrow{A} 2 \xrightarrow{A} 0 \xrightarrow{B} 3 \xrightarrow{B} 0$
+  \item $\ldots$
 \end{itemize}
-\end{frame}
-
-\begin{frame}[fragile] \frametitle{Example 3: real tRNA}
-\centering
-
-\tikzmark{an}{\includegraphics[width=\textwidth]{pictures/0m.pdf}}
-
-\onslide<2-3>{\Put(-175,150){\includegraphics[height=6cm]{pictures/Fold1.pdf}}}
-\onslide<3-3,7>{
-\tikz[overlay,remember picture]{
-\draw[draw=blue,thick,fill opacity=0.2] ($(an) + (0.28,6.885)$) rectangle ($(an) + (11.22,6.415)$);
-\draw[draw=blue,thick,fill opacity=0.2] ($(an) + (10.3,6.885)$) rectangle ($(an) + (11.025,0.57)$);
-
-\draw[draw=blue,thick,fill opacity=0.2] ($(an) + (2.65,5.49)$) rectangle ($(an) + (6.68,4.42)$);
-\draw[draw=blue,thick,fill opacity=0.2] ($(an) + (4.65,5.49)$) rectangle ($(an) + (6.46,3.2)$);
-
-\draw[draw=blue,thick,fill opacity=0.2] ($(an) + (7.2,2.85)$) rectangle ($(an) + (10.12,2.4)$);
-\draw[draw=blue,thick,fill opacity=0.2] ($(an) + (9.23,2.85)$) rectangle ($(an) + (9.95,1.2)$);
-}
-}
-
-\onslide<5-6>{\Put(-10,130){\includegraphics[height=4.3cm]{pictures/Fold2.pdf}}}
-\onslide<6-7>{
-\tikz[overlay,remember picture]{
-
-\draw[draw=red,thick,fill opacity=0.2] ($(an) + (0.31,6.86)$) rectangle ($(an) + (3.4,6.44)$);
-\draw[draw=red,thick,fill opacity=0.2] ($(an) + (2.5,6.86)$) rectangle ($(an) + (3.2,5.1)$);
-
-\draw[draw=red,thick,fill opacity=0.2] ($(an) + (3.4,5.06)$) rectangle ($(an) + (5.95,4.535)$);
-\draw[draw=red,thick,fill opacity=0.2] ($(an) + (4.83,5.06)$) rectangle ($(an) + (5.73,3.6)$);
-
-\draw[draw=red,thick,fill opacity=0.2] ($(an) + (6.1,3.47)$) rectangle ($(an) + (11.2,3.15)$);
-\draw[draw=red,thick,fill opacity=0.2] ($(an) + (10.5,3.47)$) rectangle ($(an) + (11,0.6)$);
-
-\draw[draw=red,thick,fill opacity=0.2] ($(an) + (7.2,2.85)$) rectangle ($(an) + (10.12,2.4)$);
-\draw[draw=red,thick,fill opacity=0.2] ($(an) + (9.23,2.85)$) rectangle ($(an) + (9.95,1.2)$);
-}
 }
 \end{frame}
 
 
-\begin{frame} \frametitle{Artificial Neural Networks}
-
-\begin{itemize}
-  \item Dense neural network
+\begin{frame} \frametitle{CFPQ: Formal View}
   \begin{itemize}
-    \item About 10 dense layers
-    \item \texttt{Relu} activation function
+    \item $\mathbb{G} = (\Sigma, N, P, S)$ --- context-free grammar
+    \begin{itemize}
+    %  \item $A \rightarrow B C$, where $A, B, C \in N$
+   %   \item $A \rightarrow x$, where $A \in N, x \in \Sigma$
+      \item $L(\mathbb{G}) = \{ w \mid S \Rightarrow^* w \}$
+    \end{itemize}
+    \pause
+    \item $G = (V,E,T)$ --- directed graph
+      \begin{itemize}
+        \item $v \xrightarrow{t} u \in E$
+        \item $T \subseteq \Sigma$
+      \end{itemize}
+      \pause
+    %\item $p = v_0 \xrightarrow{l_0} v_1 \xrightarrow{l_1} \cdots \xrightarrow{l_{n-2}} v_{n-1} \xrightarrow{l_{n-1}} v_n$ --- path in $G$
+    \item $\omega(\pi) = \omega(v_0 \xrightarrow{t_0} v_1 \xrightarrow{t_1} \cdots \xrightarrow{t_{n-2}} v_{n-1} \xrightarrow{t_{n-1}} v_n) = t_0 t_1 \cdots t_{n-1}$
+    \pause
+    \item $R = \{ (n, m) \mid \exists n \pi m$, such that $\omega(\pi) \in L(\mathbb{G})\}$
+    \pause
+    \item $P = \{ \pi \mid \pi$ is a path in $G$, such that $\omega(\pi) \in L(\mathbb{G})\}$
   \end{itemize}
-  %\item Problem: input size is fixed, but the length of sequences is variable \\
-  %\begin{center}
-  %\begin{minipage}[t]{0.28\textwidth}
-  %  \texttt{ACACAC \\
-  %  CGTACGCT \\
-  %  GCT}
-  %\end{minipage}~
-  %\begin{minipage}[m]{0.18\textwidth}
-  %  \vspace{1cm}
-  %  $\Rightarrow$
-  %\end{minipage}~
-  %\begin{minipage}[t]{0.28\textwidth}
-  %  \texttt{ACACAC\$\$ \\
-  %  CGTACGCT \\
-  %  GCT\$\$\$\$\$}
-  %\end{minipage}
-  %\end{center}
-
-  \item Agressive dropout (up to 90\% after each layer) and batch normalization (after each layer) for learning stabilization
-\end{itemize}
-
-\end{frame}
-
-\begin{frame} \frametitle{Evaluation: 16s rRNA detection}
-\begin{itemize}
- \item Training data
- \begin{itemize}
-   \item All sequences are 512 symbols in length
-   \item Totally up to 310000 sequences
-  \item Positive: random subsequences of 16s rRNA sequences from the Green Genes database
-  \item Negative: random subsequences of full genes from the NCBI database
- \end{itemize}
-\item Validation set: up to 81000 sequences
-\item Accuracy is 90\% after training
-\end{itemize}
-
-\end{frame}
-
-\begin{frame} \frametitle{Evaluation: tRNA classification}
-\begin{itemize}
- \item Training data: 50000 sequences from GtRNADB
- \item Input data normalization
- \begin {itemize}
-    \item Set the upper bound of sequence length to 220
-    \item First $k$ symbols of the input are tRNA and the rest $220 - k$ symbols are filled by the special symbol
-\end{itemize}
-
-\item Validation set:  217984 sequences for prokaryotes and 62656 sequences for eukaryotes from tRNADB-CE 3
-\item Accuracy is 97\% after training
-\begin{itemize}
-  \item 3276 of eukaryotes (5.23\% of all eukaryotes in the validation set) are classified as prokaryotes \item 4373 of prokaryotes (2.01\% of all prokaryotes in the validation set) are classified as eukaryotes
-\end{itemize}
-
-\end{itemize}
-
 \end{frame}
 
 
-\begin{frame} \frametitle{Future work}
 
+\begin{frame} \frametitle{CFPQ: Bar-Hillel Theorem}
+
+\begin{theorem}[Bar-Hillel]
+	If $L_1$ is a context-free language and $L_2$ is a regular language, \\ then $L_1 \cap L_2$ is context-free languege.
+\end{theorem}
+
+  \begin{itemize}
+    \item The grammar $\mathbb{G}$ specifies context-free language $L_1 = L(\mathbb{G})$
+    \pause
+    \item The graph $G$ is a regular language $L_2$
+    \begin{itemize}
+      \item Some vertices are start and final states
+      \pause
+      \item In general, every vertex is both start and final
+    \end{itemize}
+    \pause
+    \item CFPQ is computing $L_1 \cap L_2$
+    \pause
+    \item The Bar-Hillel theorem
+      \begin{itemize}
+        \item States that CFPQ is decidable
+        \item Shows how to construct the solution
+      \end{itemize}
+
+  \end{itemize}
+\end{frame}
+
+\begin{frame} \frametitle{Applications of CFPQ}
 \begin{itemize}
- \item Create DNN which does not requre input parsing
- \begin{itemize}
-   \item Create a training set of matrices using parsing
-   \item Train the network $NN_1$ which can handle vectorized matrices
-   \item Create network $NN_2$ by extending $NN_1$ with a set of layers which convert the sequence to input for $NN_1$
-   \item Train $NN_2$, weights of layers from $NN_1$ are fixed
- \end{itemize}
- \item Try to use other types of neural networks: bitwise networks, convolutional networks
- \item Do more evaluation
- \item Perform comparison with other tools
+	\item Graph database querying
+  \begin{itemize}
+  	\item Mihalis Yannakakis, ``Graph-theoretic methods in database theory'' (1990)
+    \item X. Zhang et al, ``Context-free path queries on RDF graphs'' (2016)
+  \end{itemize}
+  \pause
+  \item Static code analysis
+  \begin{itemize}
+  	\item Thomas Reps. ``Program Analysis via Graph Reachability'' (1997)
+    \item Andrei Marian Dan et al, ``Finding Fix Locations for CFL-Reachability Analyses via Minimum Cuts'' (2017)
+  \end{itemize}
 \end{itemize}
+\end{frame}
+
+
+\begin{frame} \frametitle{Sketch of the Proof\footnote{Richard Beigel and William Gasarch}}
+
+\begin{theorem}[Bar-Hillel]
+	If $L_1$ is a context-free language and $L_2$ is a regular language, \\ then $L_1 \cap L_2$ is context-free.
+\end{theorem}
+
+
+\begin{enumerate}
+  \item Assume that there is a context-free grammar $\mathbb{G}_{CNF}$ in Chomsky Normal Form, such that $L(\mathbb{G}_{CNF}) = L_1$
+  \pause
+  \item Assume that there is a set of regular languages $\{A_1 \ldots A_n\}$ where each $A_i$ is recognized by a DFA with precisely one final state and $L_2 = A_1 \cup \ldots \cup A_n$
+  \pause
+  \begin{itemize}
+    \item If $ L \neq \varnothing $ and $L$ is regular then $L$ is the union of regular languages $A_1, \ldots , A_n$ where each $A_i$ is accepted by a DFA with a single final state
+  \end{itemize}
+  \pause
+  \item For each $A_i$ we can explicitly define a grammar of the intersection: $L(\mathbb{G}_{CNF}) \cap A_i$
+  \pause
+  \item Finally, join them together with the operation of the union
+\end{enumerate}
+
+\end{frame}
+
+\begin{frame}[fragile] \frametitle{Hofmann's Results Generalization}
+
+Jana Hofmann provides mechanization of some theorems for context-free languages in Coq
+\begin{itemize}
+    \item Basic definitions: terminal, nonterminal, grammar, word, $\dots$
+    \pause
+    \item \textbf{Context-Free grammar to the Chomsky Normal Form convertion}
+\end{itemize}
+\pause
+
+\begin{center}
+  \begin{minipage}[t]{0.47\textwidth}
+\begin{center}
+    \begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
+    Inductive var : Type :=
+     | V : nat -> var.
+  	\end{pyglist}
+
+    Jana Hofmann
+  \end{center}
+  \end{minipage}
+  \pause
+  ~ \vline \vline ~
+  \begin{minipage}[t]{0.47\textwidth}
+\begin{center}
+    \begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
+    Inductive var : Type :=
+     | V : Tt -> var.
+    \end{pyglist}
+
+    We needed an arbitrary type for terminals and nontermianls!
+  \end{center}
+  \end{minipage}
+
+\pause
+\vspace{0.5cm}
+We had to carefully refactor everything\dots
+\end{center}
+
+
+\end{frame}
+
+
+\begin{frame}[fragile] \frametitle{DFA Splitting}
+If $ L \neq \varnothing $ and $L$ is regular, then $L$ is the union of regular languages $A_1, \ldots , A_n$ where each $A_i$ is accepted by a DFA with precisely one final state
+\pause
+\begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
+Lemma correct_split:
+   forall dfa w,
+     dfa_language dfa w <->
+     exists sdfa,
+        In sdfa (split_dfa dfa) /\ s_dfa_language sdfa w.
+\end{pyglist}
+\end{frame}
+
+\begin{frame}[fragile] \frametitle{Chomsky Induction}
+
+  \begin{lemma} \label{lemma:chomskyind1}
+  Let $\mathbb{G}$ be a grammar in CNF. Consider an arbitrary nonterminal $N \in \mathbb{G}$ and phrase which consists only of terminals $w$.
+  If $w$ is derivable from $N$ ($der(\mathbb{G}, N, w)$) and $|w| \ge 2$, then there exists two nonterminals $N_1, N_2$ and two phrases $w_1, w_2$ such that: $N \to N_1 N_2 \in \mathbb{G}$, $der(\mathbb{G}, N_1, w_1)$, $der(\mathbb{G}, N_2, w_2)$, $|w_1| \ge 1$, $|w_2| \ge 1$ and $w_1 \mathbin{++} w_2 = w$.
+  \pause
+  \end{lemma}
+\begin{center}
+  \includegraphics[height=4.5cm]{pictures/ChomskyInductionIntuition.pdf}
+\end{center}
+\end{frame}
+
+\begin{frame}[fragile] \frametitle{Chomsky Induction in Coq}
+
+\begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
+Definition syntactic_analysis_is_possible :=
+forall (G : grammar) (A : var) (w : phrase),
+   der G A w -> (R A w \in G)
+                \/
+                (exists rhs, R A rhs \in G /\ derf G rhs w).
+
+\end{pyglist}
+\end{frame}
+
+\begin{frame}[fragile] \frametitle{Languges Union}
+%Variable grammars: seq (var * grammar).
+  \begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
+
+  Theorem correct_union:
+  forall word,
+    language (grammar_union grammars) (V (start Vt))
+             (to_phrase word)
+    <->
+    exists s_l,
+      language (snd s_l) (fst s_l) (to_phrase word)
+      /\
+      In s_l grammars.
+  \end{pyglist}
+
+\end{frame}
+
+
+
+\begin{frame}[fragile] \frametitle{The Final Theorem}
+
+\begin{theorem}
+    For any two decidable types $\textbf{Tt}$ and $\textbf{Nt}$ for types of terminals and nonterminals correspondingly. If there exists a bijection from $\textbf{Nt}$ to $\mathbb{N}$ and syntactic analysis is possible (in the sense of our definition), then for any DFA \textbf{\textit{dfa}} and any context-free grammar $\mathbb{G}$, there exists the context-free grammar $\mathbb{G}_{INT}$, such that $L(\mathbb{G}_{INT}) = L(\mathbb{G}) \cap L(\textit{dfa})$.
+\end{theorem}
+
+\end{frame}
+
+\begin{frame}[fragile] \frametitle{The Final Theorem in Coq}
+
+  %\begin{listing}[h]
+      \begin{pyglist}[language=coq, numbers=none, numbersep=5pt]
+
+  Theorem grammar_of_intersection_exists:
+    exists
+     (NewNonterminal: Type)
+     (IntersectionGrammar: @grammar Terminal NewNonterminal)
+     St,
+    forall word,
+      dfa_language dfa word /\ language G S (to_phrase word)
+      <->
+      language IntersectionGrammar St (to_phrase word).
+     \end{pyglist}
+  %\caption{Final theorem}
+  %\label{lst:lang-eq}
+  %\end{listing}
 
 \end{frame}
 
 \begin{frame} \frametitle{Conclusion}
 
 \begin{itemize}
- \item We propose the approach to handle secondary structure of sequences
+ \item We present mechanization in Coq of the proof of the Bar-Hillel theorem on the closure of context-free languages under intersection with regular languages
+ \pause
+ \item We generalize the results of Jana Hofmann and Gert Smolka
  \begin{itemize}
-   \item Parser is only a features extractor
-   \item Parsing result contains all possible foldings (w.r.t. grammar) including impossible in practice
-   \item Grammar is a parameter: one can add a \texttt{G-T} pair, change minimal height of the stem, etc
-   \item It is possible to detect features which are not expressible in the language class in use
-   \item It is possible to use more expressive classes of formal languages
-   \begin{itemize}
-     \item Conjunctive and boolean grammars
-     \item Multiple context-free grammars
-   \end{itemize}
- \end{itemize}
+   \item The definition of the terminal and nonterminal alphabets in context-free grammar were made generic
+   \item All related definitions and theorems were adjusted to work with the updated definition
 
- \item This approach can be applied for real data processing
+ \end{itemize}
+ \pause
+ \item All results are published at GitHub and are equipped with the automatically generated documentation
 
 \end{itemize}
 
 \end{frame}
+
+\begin{frame} \frametitle{Future work}
+
+\begin{itemize}
+ \item Marcus Ramos vs Jana Hifmann
+ \begin{itemize}
+   \item We use results of Jana Hofman
+   \item Results of Marcus Ramos seem more mature
+   \item Is it possible to create one ``true'' solution in this area?
+   \begin{itemize}
+     \item Is our grammar-based proof better then PDA-based one in all contexts?
+   \end{itemize}
+ \end{itemize}
+ \pause
+ \item Mechanization of practical algorithms which are just implementation of the Bar-Hillel theorem
+ \begin{itemize}
+   \item Context-free path querying algorithm, based on CYK or even on GLL parsing algorithm
+   \item Certified algorithm for context-free constrained path querying for graph databases
+ \end{itemize}
+\end{itemize}
+
+\end{frame}
+
 
 
 \begin{frame}
@@ -501,13 +441,19 @@ s0: any_str | any_str stem<s0> s0
       \item \href{mailto:s.v.grigoriev@spbu.ru}{s.v.grigoriev@spbu.ru}
       \item \href{mailto:Semen.Grigorev@jetbrains.com}{Semen.Grigorev@jetbrains.com}
     \end{itemize}
-  \item Polina Lunina:
+  \item Sergey Bozhko:
   \begin{itemize}
-    \item  \href{mailto:lunina_polina@mail.ru}{lunina\_polina@mail.ru}
+    \item  Max Planck Institute for Software Systems (MPI-SWS), Saarbrcken, Germany
+    \item  \href{mailto:sbozhko@mpi-sws.com}{sbozhko@mpi-sws.com}
   \end{itemize}
-  \item Trained models: \href{https://github.com/YaccConstructor/YC.Bio}{https://github.com/YaccConstructor/YC.Bio}
+    \item Leyla Khatbullina:
+  \begin{itemize}
+    \item St.Petersburg Electrotechnical University ``LETI'', St.Petersburg, Russia
+    \item  \href{mailto:leila.xr@gmail.com}{leila.xr@gmail.com}
+  \end{itemize}
+  \item Sources: \href{https://github.com/YaccConstructor/YC_in_Coq}{https://github.com/YaccConstructor/YC\_in\_Coq}
 \end{itemize}
-\vspace{2cm}
+\vspace{0.5cm}
 \center{\huge{Thanks!}}
 \end{frame}
 \end{document}

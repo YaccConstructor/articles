@@ -3,7 +3,7 @@
 % www.microwave.fr
 % http://www.microwave.fr/LaTeX.html
 % ---------------------------------------
-% 
+%
 % Original template created by:
 % Brian Amberg (baposter@brian-amberg.de)
 %
@@ -35,6 +35,8 @@
 \usepackage{graphicx}
 \usepackage{listings}
 \usepackage{mathtools}
+
+\usepackage{multirow}
 %\usepackage{verbatimbox}
 %\usepackage{hyperref}
 
@@ -46,6 +48,21 @@
 \usetikzlibrary{automata,positioning}
 
 \usepackage{multicol}
+
+\usepackage{hyperref}
+
+\usepackage[font=small,labelfont=bf]{caption}
+
+\usepackage{makecell}
+\usepackage{enumitem}
+
+\renewcommand\theadalign{bc}
+\renewcommand\theadfont{\bfseries}
+\renewcommand\theadgape{\Gape[4pt]}
+\renewcommand\cellgape{\Gape[4pt]}
+
+
+\setlist[itemize]{leftmargin=*}
 
 \graphicspath{{figures/}} % Directory in which figures are stored
 
@@ -66,14 +83,14 @@
            },
     horiz/.style={
            % font=\tiny,
-		   inner sep=3pt, 
-		   font=\bf
+           inner sep=3pt,
+           font=\bf
 
            } ,
     point/.style={
-           circle, 
-           minimum width = 5pt, 
-           fill 
+           circle,
+           minimum width = 5pt,
+           fill
            }
 }
 
@@ -103,470 +120,252 @@ background=none,
 headerborder=none, % Change to closed for a line under the content box headers
 boxshade=plain
 }
-{\includegraphics[width=3cm]{jetbrains.png}}
+{\includegraphics[width=3cm]{sigm0d2.png}}
 %
 %----------------------------------------------------------------------------------------
 %   TITLE AND AUTHOR NAME
 %----------------------------------------------------------------------------------------
 %
-{\bf \huge{Graph Querying by Parsing} }
+{\bf \huge{Evaluation of \ the Context-Free Path Querying Algorithm Based on Matrix Multiplication} }
 %\\  \Large \it Context-free grammars and neural networks for secondary structure} % Poster title
-{\vspace{0.6em} \smaller \textbf{Kate Verbitskaia} \\  % Author names
-\smaller \it {JetBrains Research, Saint Petersburg State University, Russia } \\ % Author email addresses
-\smaller  {kajigor@gmail.com}}
+{\vspace{0.6em} \smaller \textbf{Semyon Grigorev} \\  % Author names
+\smaller \it {JetBrains Research, Saint Petersburg University, Russia } \\ % Author email addresses
+\smaller  {s.v.grigoriev@spbu.ru, Semyon.Grigorev@jetbrains.com}}
 {\includegraphics[width=2.5cm]{SPbGU_Logo.png}} % University/lab logo
 
 
 %----------------------------------------------------------------------------------------
 %   INTRODUCTION
 %----------------------------------------------------------------------------------------
-\begin{posterbox}[name=appSA,column=0,row=0, span=3]{Application}
+\begin{posterbox}[name=CFPQ,column=0,row=0, span=4]{Context-Free Path Querying}
 
-\begin{center} Static code analysis \end{center}
+  Find paths which satisfy constraints in form of a formal language $L=\{a^n b^n \mid n > 0\}$
+    \includegraphics[width=7cm]{example_graph_transparent.png}
 
-\begin{multicols}{2}
-\lstset{language=C,basicstyle=\small}
-\begin{lstlisting}
-int id(int u)
-{
-  v = u;
-  return v;
-}
-int main() 
-{
-  //taint
-  int x;
-  int z, y;
-  //untaint
-  int t;
-  z = id(x);
-  t = id(y);
-}
-\end{lstlisting}
-\columnbreak
+    Query = grammar for $L$: $S  \rightarrow a  \ b \ | \ a \ S \ b  \\$
 
-\begin{tikzpicture}[shorten >=1pt, >=stealth', node distance=1.4cm,on grid,auto]
-\tikzstyle{none} = [draw=none, minimum height=0.4cm, minimum width=1cm]
-   \node[none]  (a)              {\emph{taint}};
-   \node[state] (b) [below of=a] {$x$};
-   \node[state] (d) [below of=b] {$u$};
-   \node[state] (c) [below of=d] {$y$};
-   \node[state] (e) [right of=d] {$v$};
-   \node[state] (f) [above of=e] {$z$};
-   \node[state] (g) [below of=e] {$t$};
-   \node[none]  (h) [below of=g] {\emph{untaint}};
-   \path[->]
-    (a) edge[horiz] node[left]  {s} (b)
-    (b) edge[horiz] node[left]  {$\boldsymbol{(}_1$} (d)
-    (c) edge[horiz] node        {$\boldsymbol{(}_2$} (d)
-    (d) edge[horiz] node        {s} (e)
-    (e) edge[horiz] node[right] {$\boldsymbol{)}_1$} (f)
-    (e) edge[horiz] node        {$\boldsymbol{)}_2$} (g)
-    (g) edge[horiz] node        {s} (h)
-
-    ;    
-\end{tikzpicture}
-
-\end{multicols}
+  Result: $ \{(u,v) \mid \exists p \text{ from } u \text{ to } v: \text{word}(p) \in L\} $
 
 \end{posterbox}
 
-\headerbox {Problem}{name=problem,column=3,row=0, span=6, bottomaligned=appSA}{
-\begin{center} 
-Find paths which satisfy constraints in form of a formal language
-\end{center}
+\headerbox {Matrix-Based Algorithm~\cite{Azimov:2018:CPQ:3210259.3210264}}
+{name=matrices,column=0,span=4, row=2, below=CFPQ}%,bottomaligned=sol2}
+{
 
-\vspace{0.4cm}
+$T$ is an adjacency matrix of the input graph\\
+The grammar is in the normal form
+\vspace{-0.5cm}
 
-\begin{minipage}[m]{0.42\linewidth}
-\begin{tikzpicture}[shorten >=1pt, >=stealth', node distance=1.9cm,on grid,auto]
-%\tikzstyle{point} = [circle, minimum width = 3pt, fill]
-   \node[state] (a) {Here};
-   \node[state] (b) [left=of a] {B};
-   \node[state] (c) [right=of a] {C};
-   \node[state] (d) [below=of c] {D};
-   \node[state] (e) [below=of b] {E};
-   \node[state] (f) [below=of a] {F};
-   \node[state] (g) [below=of f] {There};
-   \node[state] (h) [below=of d] {H};
-   \path[->]
-    (a) edge[red, horiz] node[above] {(} (b)
-    (a) edge[horiz] node        {)} (c)
-    (a) edge[horiz, blue] node        {(} (f)
-    (b) edge[horiz, red] node[left]  {(} (e)
-    (c) edge[horiz] node        {(} (d)
-    (d) edge[horiz] node        {(} (h)
-    (d) edge[horiz] node[above] {)} (a)
-    (e) edge[horiz, red] node        {)} (f)
-    (e) edge[horiz, red] node[below] {)} (g)
-    (f) edge[horiz, red] node[above] {)} (b)
-    (f) edge[horiz, blue] node        {)} (g)
-    (h) edge[horiz] node        {)} (g);    
-\end{tikzpicture}
-\end{minipage}\hfill
-\begin{minipage}[m]{0.52\linewidth}
-    \begin{center}
-
-    Is there a path from \textbf{Here} to \textbf{There} which is a balanced string of brackets?
-    
-    \bigskip 
-    
-    Constraints are context-free
-    
-    $$ S \rightarrow \varepsilon \mid \boldsymbol{(} \, S \, \boldsymbol{)} \, S $$
-    \end{center}
-
-\bigskip
-
-\begin{center}
-\textcolor{red}{\textbf{(())()}} \hspace{1cm} \textcolor{blue}{\textbf{()}} \hspace{1cm} \textbf{()()}
-\end{center}
-\end{minipage}
-}
-
-\headerbox {Application}{name=appDB,column=9,row=0, span=3, bottomaligned=appSA}{
-
-\begin{center}
-Querying of graph databases 
-
-\vspace{0.4cm}
-
-\begin{tikzpicture}[shorten >=1pt, >=stealth', node distance=1.3cm,on grid,auto]
-   \node[state] (0) {July};
-   \node[state] (1) [below left=of 0]  {Mark};
-   \node[state] (2) [below right=of 0] {Anna};
-   \node[state] (3) [below=of 1]  {Steve};
-   \node[state, blue] (4) [below=of 2] {You};
-   \node[state, red] (5) [below left=of 3]  {John};
-   \node[state, red] (6) [below right=of 5, right=of 5] {Alice};
-   \node[state] (7) [below=of 4, right=of 6] {Will};
-   \node[state] (8) [below=of 4, right=of 7] {Lisa};
-   
-   \path[->]
-%    (0) edge[horiz] node[sloped, above] {child} (1)
-    (0) edge node        {} (2)
-    (0) edge node        {} (1)
-    (1) edge node        {} (3)
-    (3) edge node        {} (5)
-    (3) edge node        {} (6)
-    (2) edge node        {} (4)
-    (4) edge node        {} (7)
-    (4) edge node        {} (8)
-       ;
-\end{tikzpicture}
-
-\bigskip 
-
-Find your cousins once removed
 \begin{align*}
-S& \rightarrow H \boldsymbol{\downarrow}  \\
-H& \rightarrow \varepsilon \mid  \, \boldsymbol{\uparrow} \, H \, \boldsymbol{\downarrow} 
-\end{align*}
-\end{center}
-}
-
-    
-\headerbox{Solution: Idea}{name=CFParsing,span=12,column=0,row=1,below=problem}{
-
-%Constraints are a formal language. Searching the paths in the graph which meet the constraints is constructing a language intersection. 
-
-%Vertices in the graph are positions in the input. Calculate parser states while traversing the graph. 
-
-\begin{multicols}{2}
-
-\begin{center}
-
-\begin{center} String = linear graph \end{center} 
-\begin{center}
-\begin{tikzpicture}[shorten >=1pt, >=stealth', node distance=1.5cm,on grid,auto]
-%\tikzstyle{point} = [circle, minimum width = 5pt, fill]
-   \node[point] (a) {};
-   \node[point] (b)[right=of a] {};
-   \node[point] (c)[right=of b] {};
-   \node[point] (d)[right=of c] {};
-   \node[point] (e)[right=of d] {};
-   \node[point] (f)[right=of e] {};
-   \node[point] (g)[right=of f] {};
-   \path[->]
-    (a) edge[horiz] node {S} (b)
-    (b) edge[horiz] node {T} (c)
-    (c) edge[horiz] node {R} (d)
-    (d) edge[horiz] node {I} (e)
-    (e) edge[horiz] node {N} (f)
-    (f) edge[horiz] node {G} (g);
-\end{tikzpicture}
-\end{center}
-
-\begin{center} Parsing = checking if the (only) path satisfies the constraints \end{center} 
-
-\bigskip 
-
-\bigskip 
-
-\begin{center} What makes a graph \textbf{not} a string? \end{center}
-
-
-\begin{multicols}{2}
-\begin{center} Branches \end{center}
-
-\begin{multicols}{2}
-\begin{center}
-\begin{tikzpicture}[shorten >=1pt, >=stealth', node distance=1.5cm,on grid,auto]
-%\tikzstyle{point} = [circle, minimum width = 3pt, fill]
-   \node[point] (a) {};
-   \node[point] (b)[right=of a, above right=of a] {};
-   \node[point] (c)[right=of a, below=of b] {};
-   \path[->]
-    (a) edge[horiz] node {A} (b)
-    (a) edge[horiz, below] node {B} (c);
-\end{tikzpicture}
-
-\vspace{0.4cm}
-
-Parse along each branch 
-\end{center}
-
-\columnbreak
-
-\begin{center}
-\begin{tikzpicture}[shorten >=1pt, >=stealth', node distance=1.5cm,on grid,auto]
-   \node[point] (a) {};
-   \node[point] (b)[left=of a, above left=of a] {};
-   \node[point] (c)[left=of a, below=of b] {};
-   \path[->]
-    (b) edge[horiz] node {A} (a)
-    (c) edge[horiz, below] node {B} (a);
-\end{tikzpicture}
-
-\vspace{0.4cm}
-
-Merge the parsing results
-\end{center}
-\end{multicols}
-
-\columnbreak 
-
-\begin{center} Cycles 
-
-%\end{center}
-%\begin{center}
-\begin{tikzpicture}[shorten >=1pt, >=stealth', node distance=1.5cm,on grid,auto]
-%\tikzstyle{point} = [circle, minimum width = 3pt, fill]
-   \node[point] (a) {};
-   \node[point] (b)[right=of a] {};
-   \node[point] (c)[below=of b] {};
-   \node[point] (d)[left=of c] {};
-   \path[->]
-    (a) edge[horiz] node {Y} (b)
-    (b) edge[horiz] node {A} (c)
-    (c) edge[horiz] node {D} (d)
-    (d) edge[horiz] node {A} (a);
-\end{tikzpicture}
-
-\vspace{0.2cm}
-
-Make sure to not do 
-
-the job twice
-\end{center}
-\end{multicols}
-\end{center}
-
-\columnbreak
-
-\begin{minipage}[m]{\linewidth}
-
-\vspace{2cm}
-
-\begin{itemize}
-  \item Each input position corresponds to a set of intermidiate parsing results
-  \item Continue parsing along each branch independently
-  \item Merge the sets of intermidiate results whenever two paths lead to the~same input position
-  \item Continue parsing only from the \textbf{new} results
-  \item Memoize the results obtained 
-\end{itemize}
-
-
-\end{minipage}
-\end{multicols}
-}
-
-\headerbox{Generalized Parsing}
-{name=sol1,column=0,span=4, row=2, below=CFParsing}
-{ 
-\begin{center}
-Modification of the GLR and GLL algorithms 
-\end{center}
-
-\begin{multicols}{2}
-\begin{center}
-\begin{tikzpicture}[shorten >=1pt, >=stealth', node distance=1.5cm,on grid,auto]
-   \node[point] (a) {};
-   \node[point] (b)[right=of a] {};
-   \path[->]
-    (a) edge[horiz, bend left=30] node {(} (b)
-    (b) edge[horiz, bend left=30] node {)} (a);
-\end{tikzpicture}
-\end{center}
-\columnbreak
-\begin{minipage}[m]{\linewidth}
-\begin{align*}
-S & \rightarrow \varepsilon \mid \boldsymbol{(} S \boldsymbol{)} S 
-\end{align*}
-\end{minipage}
-\end{multicols}
-
-\begin{center}
-All derivation trees are constructed explicitly
-\end{center}
-
-\begin{center}
-\begin{tikzpicture}[shorten >=1pt, >=stealth', node distance=1.5cm,on grid,auto]
-   \node[state] (0) {S};
-   \node[state] (1) [below left=1cm and 1.5cm of 0] {prod 0};
-   \node[state] (2) [below right=1cm and 1.5cm of 0]  {prod 0};
-   \node[state] (3) [below left=of 1]  {(};   
-   \node[state] (4) [below=of 1]       {S};   
-   \node[state] (5) [below right=of 1] {)};         
-   \node[state] (6) [below left=of 2]  {(};   
-   \node[state] (7) [below=of 2]       {S};   
-   \node[state] (8) [below right=of 2] {)};
-   \node[state] (9) [below=of 4]       {$\varepsilon$};   
-   \node[state] (10)[below=of 7]       {$\varepsilon$};   
-
-   \path[->]
-    (0) edge[horiz              ] node {} (1)
-    (0) edge[horiz,bend right=20] node {} (2)
-    (1) edge[horiz              ] node {} (3)
-    (1) edge[horiz              ] node {} (4)
-    (1) edge[horiz              ] node {} (5)
-    (2) edge[horiz              ] node {} (6)
-    (2) edge[horiz              ] node {} (7)
-    (2) edge[horiz              ] node {} (8)
-    (2) edge[horiz,bend right=20] node {} (0)
-    (4) edge[horiz              ] node {} (9)
-    (7) edge[horiz              ] node {} (10)    
-    ;
-\end{tikzpicture}
-\end{center}
-
-}
-
-\begin{posterbox}[name=sol2,column=4,row=4, span=4, below=CFParsing, bottomaligned=sol1]{Parser Combinators}
-
-\begin{center}
-CPS Parser Combinators with memoization
-\end{center}
-
-\lstset{language=Scala}
-
-\begin{lstlisting}
-val Query: Nonterminal
-= syn ("Here" ~ S ~ "There")
-
-val S: Nonterminal
-= syn(sameGen(List(("(", ")")))
-
-def sameGen(brs) =
-  reduceChoice(
-    brs.map {case (lbr, rbr) =>
-      lbr ~ 
-      syn(sameGen(brs).?) ~ 
-      rbr
-    }
-  )
-\end{lstlisting}
-
-\begin{center}
-Common query patterns can be written as parser combinators and reused
-\end{center}
-\end{posterbox}
-
-\headerbox {Matrix Multiplication}
-{name=sol3,column=8,span=4, row=2, below=CFParsing,bottomaligned=sol2}
-{ 
-
-\begin{center}
-Transitive closure of a special matrix
-
-\medskip
-
-$T$ --- adjacency matrix
-
-The grammar in the normal form
-
-\begin{align*} 
-T_{ij} &=\{ N \mid N \xRightarrow[]{*} \omega,  \omega \text{ path bw } i \text{ and } j \} \\
+T_{ij} &=\{ N \mid N \xRightarrow[]{*} \omega,  \omega \text{ -- path bw } i \text{ and } j \} \\
 T_{ik} \times T_{kj} &= \{ A \mid B \in T_{ik}, C \in T_{kj}, A \rightarrow B C \} \\
 T^{(i)} &= T^{(i-1)} \cup (T^{(i-1)} \times T^{(i-1)})
 \end{align*}
 
-\medskip
+\begin{itemize}
+  \item Can be formulated in terms of boolean \\ matrices multiplication
+  \item Easy to run in parallel environments: GPUs, multithreaded CPUs, clusters
+%  \item Existing matrix multiplication library can be used
+\end{itemize}
+\vspace{0.1cm}
+}
 
-\begin{minipage}[m]{\linewidth}
-\[
-\begin{pmatrix}
-	\{S\}     & \{A\}       & \varnothing & \{B, S\}    \\
-	\{S\}       & \varnothing & \{A\}       & \{S\}     \\
-	\{A, S\}  & \varnothing & \varnothing & \{S\} \\
-	\{B\}       & \varnothing & \varnothing & \varnothing \\
-\end{pmatrix}
-\]
+\headerbox {Results}{name=results,column=4,row=0, span=4, bottomaligned=CFPQ}{
+\begin{itemize}
+  \item Dataset for CFPQ evaluation is collected and published
+  \begin{itemize}
+    \item Contains both graphs and queries
+    \item Contains both real-world and synthetic graphs
+  \end{itemize}
+  \item Several CFPQ algorithms implementations are created, evaluated and published
+\end{itemize}
+}
+
+\headerbox {Future Research}{name=answers,column=8,row=0, span=4, bottomaligned=results}{
+
+\begin{itemize}
+  \item Create an open extensible platform for CFPQ \\ algorithms evaluation
+  \item Extend dataset with new data
+  \item Implement and evaluate distributed \\ matrix-based CFPQ algorithms
+  \item Implement and evaluate sparse boolean matrix-based CFPQ algorithms
+\end{itemize}
+
+}
+
+
+\headerbox {Implementations}
+{name=impl,column=4,span=8, row=2, below=results,bottomaligned=matrices}
+{
+\textbf{Our implementations~\cite{Mishin:2019:ECP:3327964.3328503}:}\\
+\begin{minipage}[t]{0.6cm}
+\hspace{0.6cm}
+\end{minipage}
+~
+\begin{minipage}[t]{0.93\textwidth}
+\begin{itemize}
+\item[\textbf{[Scipy]}] Matrix-based algorithm which uses sparse matrices from \textbf{Scipy} library (\textbf{Python})
+\item[\textbf{[M4RI]}] Matrix-based algorithm which uses dense matrices multiplication from \textbf{m4ri} library (Method of Four Russians, \textbf{C})
+\item[\textbf{[GPU]}] Matrix-based algorithm which uses our own implementation of the na\"{\i}ve boolean matrix multiplication in \textbf{CUDA C}
+\end{itemize}
 \end{minipage}
 
-\bigskip
+\vspace{0.5cm}
+\textbf{Reference implementations:}\\
+\begin{minipage}[t]{1cm}
+\hspace{1cm}
+\end{minipage}
+~
+\begin{minipage}[t]{0.91\textwidth}
+\begin{itemize}
+\item[\textbf{[CuSprs]}] Matrix-based algorithm~\cite{Azimov:2018:CPQ:3210259.3210264} uses NVIDIA cuSPARSE library (\textbf{CUDA C, GPGPU})
+\item[\textbf{[CYK]}]  CYK-based algorithm~\cite{10.1007/978-3-319-46523-4_38} implemented in \textbf{Java} (CPU)
+  %\item X. Zhang et al, 2016, ``Context-free path queries on RDF graphs''
 
-Easy to run in parallel environments: 
+\end{itemize}
 
-GPUs, multithreaded CPUs, clusters
-
-\medskip
-
-Any matrix multiplication library can be used
-\end{center}
+\end{minipage}
 }
 
-%----------------------------------------------------------------------------------------
-%   REFERENCES
-%----------------------------------------------------------------------------------------
-
-%\headerbox {References}
-%{name=app2,column=2,span=2, below=CFParsing}
-%{
-%\smaller % Reduce the font size in this block
-%\renewcommand{\section}[2]{\vskip 0.05em} % Get rid of the default "References" section title
-%%\nocite{*} % Insert publications even if they are not cited in the poster
-%
-%\bibliographystyle{unsrt}
-%%\bibliographystyle{IEEEtran}
-%\bibliography{biblio} % Use biblio.bib as the bibliography file
-%}
 
 
 
+\headerbox{We Need More Real-World Data}{name=rdfs,span=12,column=0,row=3,below=matrices}{
+\vspace{0.05cm}
+%\begin{table}[h]
+%\rowcolors{1}{}{red}
+\begin{minipage}[t]{0.5\textwidth}
+Graph: classical ontologies (RDFs)\\
+Query: same-generation query over \textbf{\texttt{type}} and \textbf{\texttt{SubClassOf}} relations \\
+Grammar: $S \to \textit{scor} \ S \ \textit{sco} \ | \ \textit{tr} \ S \ \textit{t} \ | \ \textit{scor} \ \textit{sco} \ | \ \textit{tr} \ \textit{t}$ \\
 
-    
-\headerbox {\smaller{Contact us}}{name=contact,column=0,span=4,below=sol1}{
+\vspace{-0.1cm}
+
+\begin{tabular}{| p{1.5cm} | c | c | c | c | c | c | c |}
+    \hline
+    \multicolumn{3}{|c|}{RDF}        & \multicolumn{5}{|c|}{Algorithms}  \\
+    \hline
+    Name                               & \#V & \#E  & Scipy & M4RI & GPU & CuSprs & CYK \\ %~\footnote{Results from X. Zhang et al, 2016, ``Context-Free Path Queries on RDF Graphs''} \\
+    \hline
+    \hline
+    {atm-prim}                    & 291 & 685  & 3 ms     &  2 ms    & 1 ms      & 269 ms  & 8.5 min  \\
+    {biomed}                      & 341 & 711  & 3 ms     &  5 ms    & 1 ms      & 283 ms  & 7.1 min  \\
+    {pizza}                       & 671 & 2604 & 6 ms     &  8 ms    & 1 ms      & 292 ms  & 54 min \\
+    {wine}                        & 733 & 2450 & 7 ms     &  6 ms    & 1 ms      & 294 ms  & 68 min \\
+    \hline
+  \end{tabular}
+%  \captionof{table}{}
+
+\end{minipage}
+~
+\begin{minipage}[t]{0.48\textwidth}
+%\vspace{-1.5cm}
+  \begin{itemize}
+    \item 2019 (GPU) is $10^6$ times faster than 2016 (CYK) on real-world data
+    \begin{itemize}
+       \item Reasonable time even for CPU based implementations
+    \end{itemize}
+    \item We should find bigger RDFs
+    \item We should find other real-world cases for CFPQ
+    \begin{itemize}
+       \item Both graphs and queries
+    \end{itemize}
+
+  \end{itemize}
+\end{minipage}
+}
+
+\setlength{\tabcolsep}{5pt}
+\headerbox{We Should Do More Research on the Algorithms Scaling}{name=scaling,span=12,column=0,row=2,below=rdfs}{
+\vspace{0.05cm}
+\begin{minipage}[t]{0.52\textwidth}
+
+  \begin{tabular}{r | l | c | c | c | c | }
+      \cline{2-6}
+%      & Graph              & \makecell{Scipy \\ \small sec}  & M4RI      & GPU & CuSprs  \\
+      & Graph              & Scipy  & M4RI      & GPU & CuSprs  \\
+      \hline
+      \hline
+      \multirow{4}{3.5cm}{{\small Sparse graphs are generated by GTgraph \\
+  Query: $S \to a \ S \ b \ | \ a \ b$}}&
+       \small{G10k-0.001} & 37 s  & 2 s    & 0.2 s  & 35 s  \\
+      &\small{G10k-0.1}   & 601 s & 1 s    & 0.1 s  & 395 s \\
+      &\small{G40k-0.001} & -       & 97 s   & 8.1 s  & -       \\
+      &\small{G80k-0.001} & -       & 1142 s & 65 s & -       \\
+      \hline
+      \hline
+      \multirow{3}{3.5cm}{{\small Graph is a cycle \\ Query: $S \to S \ S \ | \ a$}}&
+       G25k                & -       & 33 s   & 5 s   & -           \\
+      &G50k                & -       & 360 s  & 44 s  & -           \\
+      &G80k                & -       & 1292 s & 190 s & -           \\
+      \hline
+    \end{tabular}
+\end{minipage}
+~
+\begin{minipage}[t]{0.46\textwidth}
+\vspace{-2cm}
+  \begin{itemize}
+    \item We can handle graphs with 80k vertices in a reasonable time by using GPGPU
+    \begin{itemize}
+     \item Technical bound: GPGPU RAM does not fit bigger graphs
+    \end{itemize}
+    \item We should evaluate multi-GPU systems
+    \item We should evaluate distributed solutions
+    \item We should implement a sparse boolean matrices library for GPGPU
+   \end{itemize}
+\end{minipage}
+}
+
+
+
+\headerbox {\smaller{Contact Us}}{name=contact,column=0,span=5,below=scaling}{
 \scriptsize
-Everything is available on GitHub: 
+\begin{minipage}[t]{0.65\textwidth}
+  \vspace{-3cm}
+Our team:
+\begin{itemize}
+  \item Semyon Grigorev: \href{mailto:s.v.grigoriev@spbu.ru}{s.v.grigoriev@spbu.ru}
+  \item Nikita Mishin: \href{mailto:mishinnikitam@gmail.com}{mishinnikitam@gmail.com}
+  \item Iaroslav Sokolov: \href{mailto:sokolov.yas@gmail.com}{sokolov.yas@gmail.com}
+  \item Egor Spirin: \href{mailto:egor@spirin.tech}{egor@spirin.tech}
+  \item Egor Nemchinov: \href{mailto:nemchegor@gmail.com}{nemchegor@gmail.com}
+\end{itemize}
 
-\footnotesize{https://github.com/YaccConstructor}
+
+\end{minipage}
+~
+\begin{minipage}[t]{3cm}
+\includegraphics[width=3cm]{qr-research-jetbra.pdf}
+\end{minipage}
+\begin{itemize}
+  \item Vladimir Kutuev: \href{mailto:vladimir.kutuev@gmail.com}{vladimir.kutuev@gmail.com}
+  \item Sergey Gorbatyuk: \href{mailto:sergeygorbatyuk171@gmail.com}{sergeygorbatyuk171@gmail.com}
+\end{itemize}
+\vspace{1cm}
+{\normalsize
+Both dataset and implementations are available on GitHub:\\
+\url{https://github.com/SokolovYaroslav/CFPQ-on-GPGPU}
 }
 
-\headerbox {\smaller{Acknowledgments}}{name=ack,column=0,span=4,below=contact}{
-\scriptsize
-The research is supported by the JetBrains Research grant and the~Russian Science Foundation grant 18-11-00100.
+
+
 }
 
-\headerbox{\smaller{References}}{name=references,column=4,span=8,below=sol1, bottomaligned=ack}{
-	
-	\scriptsize % Reduce the font size in this block
-	\renewcommand{\section}[2]{\vskip 0.05em} % Get rid of the default "References" section title
-	\nocite{*} % Insert publications even if they are not cited in the poster
-	\bibliographystyle{unsrt}
-	\bibliographystyle{IEEEtran}
-	\bibliography{biblio} % Use biblio.bib as the bibliography file
+\headerbox{\smaller{References}}{name=references,column=5,span=7,below=scaling}{
+
+    \scriptsize % Reduce the font size in this block
+    \renewcommand{\section}[2]{\vskip 0.05em} % Get rid of the default "References" section title
+    \nocite{*} % Insert publications even if they are not cited in the poster
+    \bibliographystyle{unsrt}
+    \bibliographystyle{IEEEtran}
+    \bibliography{biblio} % Use biblio.bib as the bibliography file
 }
+
+\headerbox {\smaller{Acknowledgments}}{name=ack,column=5,span=7,below=references,bottomaligned=contact}{
+\small
+The research is supported by the JetBrains Research grant and the~Russian Science Foundation grant 18-11-00100
+}
+
+
 \end{poster}
 
 

@@ -1,0 +1,715 @@
+\documentclass[xcolor=table]{beamer}
+\usepackage{beamerthemesplit}
+\usepackage{wrapfig}
+\usetheme{SPbGU}
+\usepackage{pdfpages}
+\usepackage{amsmath}
+\usepackage{cmap}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{multirow}
+\usepackage[noend]{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{fancyvrb}
+\usetikzlibrary{shapes,arrows}
+\usepackage{tikz}
+\usetikzlibrary{automata,positioning}
+\usepackage{listings}
+\usepackage{multicol}
+\usepackage{comment}
+\setbeamertemplate{itemize items}[circle]
+
+\lstdefinelanguage{ocanren}{
+keywords={run, conde, fresh, let, in, match, with, when, class, type,
+object, method, of, rec, repeat, until, while, not, do, done, as, val, inherit,
+new, module, sig, deriving, datatype, struct, if, then, else, open, private, virtual, include, success, failure,
+true, false},
+sensitive=true,
+commentstyle=\small\itshape\ttfamily,
+keywordstyle=\textbf,%\ttfamily\underline,
+identifierstyle=\ttfamily,
+basewidth={0.5em,0.5em},
+columns=fixed,
+mathescape=true,
+fontadjust=true,
+literate={fun}{{$\lambda$}}1 {->}{{$\to$}}3 {===}{{$\equiv$}}1 {=/=}{{$\not\equiv$}}1 {|>}{{$\triangleright$}}3 {\\/}{{$\vee$}}2 {/\\}{{$\wedge$}}2 {^}{{$\uparrow$}}1,
+morecomment=[s]{(*}{*)},
+ moredelim=**[is][\color{red}]{@}{@}
+}
+
+\lstset{
+language=ocanren
+}
+
+
+\beamertemplatenavigationsymbolsempty
+
+\title[Relational Interpreters for Search Problems]{Relational Interpreters for Search Problems}
+\institute[JetBrains Research]{
+JetBrains Research, Programming Languages and Tools Lab  \\
+Saint Petersburg State University
+}
+
+\author[Kate Verbitskaia]{Petr Lozov, \textbf{Kate Verbitskaia}, Dmitry Boulytchev}
+
+\date{22.08.2019}
+
+\definecolor{orange}{RGB}{179,36,31}
+
+\begin{document}
+{
+\begin{frame}[fragile]
+  \begin{tabular}{p{5.5cm} p{5.5cm}}
+   \begin{center}
+      \includegraphics[height=1.5cm]{pictures/jetbrainsResearch.pdf}
+    \end{center}
+    &
+    \begin{center}
+      \includegraphics[height=1.5cm]{pictures/SPbGU_Logo.png}
+    \end{center}
+  \end{tabular}
+  \titlepage
+\end{frame}
+}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Solvers from Verifiers}
+
+Relational interpeter = verifier 
+
+Relational intepreter being run backward = solver
+
+\lstinline{evalo prog ?? res}
+
+\lstinline{isPatho path graph res} 
+
+\lstinline{unifyo term term' subst res} 
+
+\lstinline{run q (isPatho q graph True)} --- searches for all paths in the \lstinline{graph}
+
+\begin{itemize}
+  \item Implement a functional program which verifies the solution for a program
+  \item Transform it into a relation
+  \item Specialize for the backward direction
+  \item The result can search for solutions
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Relational Conversion [Byrd 2009]}
+
+Relational programming is complicated, why not let users write a verifier as a function and then translate it into miniKanren?
+
+\begin{itemize}
+  \item Introduce a new variable for each subexpression
+  \item For every n-ary function create an (n+1)-ary relation, where the last argument is unified with the result
+  \item Transform \lstinline{if}-expressions and pattern matchings into disjunctions with unifications for patterns
+  \item Introduce into scope free variables (with \lstinline{fresh})
+  \item Pop unifications to the top
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Relational Conversion: Step 1}
+  
+Introduce a new variable for each subexpression
+
+\begin{columns}
+\begin{column}{0.5\textwidth}
+\begin{lstlisting}
+let rec append a b =
+  match a with
+  | []      -> b
+  | x :: xs -> 
+    x :: append xs b
+\end{lstlisting}
+\end{column}
+\begin{column}{0.5\textwidth}  
+\begin{lstlisting}
+let rec append a b =
+  match a with 
+  | []      -> b
+  | x :: xs -> 
+    let @q@ = append xs b in
+    x :: @q@
+\end{lstlisting}
+\end{column}
+\end{columns}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Relational Conversion: Step 2}
+  
+Introduce a new variable for each subexpression
+
+\begin{columns}
+\begin{column}{0.5\textwidth}
+\begin{lstlisting}
+let rec append a b = ...
+\end{lstlisting}
+\end{column}
+\begin{column}{0.5\textwidth}  
+\begin{lstlisting}
+let rec append$^o$ a b @c@ = ...
+\end{lstlisting}
+\end{column}
+\end{columns}  
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Relational Conversion: Step 3}
+  
+Transform \lstinline{if}-expressions and pattern matchings into disjunctions with unifications for patterns
+
+\begin{columns}
+\begin{column}{0.5\textwidth}
+\begin{lstlisting}
+let rec append a b =
+  match a with 
+  | []      -> b
+  | x :: xs -> 
+    let q = append xs b in
+    x :: q
+\end{lstlisting}
+\end{column}
+\begin{column}{0.5\textwidth}  
+\begin{lstlisting}
+let rec append$^o$ a b c =
+  (a === [] /\ b === c) \/
+  (  (a === x :: xs) /\
+     (append$^o$ xs b q) /\
+     (c === x :: q))
+\end{lstlisting}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Relational Conversion: Step 4}
+
+Introduce free variables into scope  (with \lstinline{fresh})
+
+\begin{columns}
+\begin{column}{0.5\textwidth}
+\begin{lstlisting}
+let rec append$^o$ a b c =
+  (a === [] /\ b === c) \/
+  (  (a === x :: xs) /\
+     (append$^o$ xs b q) /\
+     (c === x :: q))
+\end{lstlisting}
+\end{column}
+\begin{column}{0.5\textwidth}  
+\begin{lstlisting}
+let rec append$^o$ a b c =
+  (a === [] /\ b === c) \/
+  (@fresh (x xs q)@ (
+     (a === x :: xs) /\
+     (append$^o$ xs b q) /\
+     (c === x :: q)))
+\end{lstlisting}
+\end{column}
+\end{columns}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Relational Conversion: Step 5}
+  
+Pop unifications to the top
+
+\begin{columns}
+\begin{column}{0.5\textwidth}
+\begin{lstlisting}
+let rec append$^o$ a b c =
+  (a === [] /\ b === c) \/
+  (fresh (x xs q) (
+     (a === x :: xs) /\
+     (append$^o$ xs b q) /\
+     (c === x :: q)))
+\end{lstlisting}
+\end{column}
+\begin{column}{0.5\textwidth}  
+\begin{lstlisting}
+let rec append$^o$ a b c =
+  (a === [] /\ b === c) \/
+  (fresh (x xs q) (
+     (a === x :: xs) /\
+     @(c === x :: q)@ /\
+     (append$^o$ xs b q))
+\end{lstlisting}
+\end{column}
+\end{columns}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Forward Execution is Efficient, Backward Execution is not}
+  
+  Forward execution is efficient, since it mimics the execution of a function
+  
+\vspace{6pt}  
+  
+Relational conversion for \lstinline{f$_1$ x$_1$ && f$_2$ x$_2$}: 
+ 
+\begin{lstlisting}
+fun res ->
+  fresh (p) (
+    (f$_1$ x$_1$ p) /\
+    (conde [
+      (p === ^false /\ res === ^false);
+      (p === ^true  /\ f$_2$ x$_2$ res)]))
+\end{lstlisting} 
+
+Computes \lstinline{f$_2$ x$_2$ res} only if \lstinline{f$_1$ x$_1$ p} fails
+
+\vspace{6pt}
+
+It is not the best strategy, if \lstinline{res} is known
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Relational Conversion Aimed at Backward Execution}
+
+This coversion of  \lstinline{f$_1$ x$_1$ && f$_2$ x$_2$} is better for backward execution, but not forward
+
+\begin{lstlisting}
+fun res ->
+    conde [
+      (res === ^false /\ f$_1$ x$_1$ ^false);
+      (f$_1$ x$_1$ ^true    /\ f$_2$ x$_2$ res)]
+\end{lstlisting}
+
+
+  There is no one strategy suitable for all cases
+  
+  \vspace{6pt} 
+  
+  Better is to use an automatic specializer
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Specialization}
+
+Interpreter: given a program and input computes an output
+
+\lstinline{eval prog input} == \lstinline{output} 
+
+\vspace{6pt}
+
+Consider that a part of the input is known: \lstinline{input == (static, dynamic)}
+
+\vspace{6pt}
+
+Specializer: given a program and static input, generates a new program, which evaluates to the same output as the original
+
+\vspace{6pt}
+
+\lstinline{spec prog static} $\Rightarrow$ \lstinline{prog$_{spec}$}
+
+
+\lstinline{eval prog (static, dynamic) == eval prog$_{spec}$ dynamic}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Conjunctive Partial Deduction}
+\begin{itemize}
+  \item Fully automatic program transformation
+  \item For pure logic language
+  \item Features: 
+  \begin{itemize}
+    \item Specialization
+    \item Deforestation
+    \item Tupling 
+  \end{itemize}
+\end{itemize}
+
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Deforestation}
+Deforestation --- program transformation which eliminates intermediate data structures
+
+\begin{columns}
+\begin{column}{0.45\textwidth}
+\begin{lstlisting}[basicstyle=\footnotesize]
+let doubleAppend$^o$ x y z xyz = 
+  (fresh (@t@) (
+     (append$^o$ x y @t@) /\
+     (append$^o$ @t@ z xyz)))
+
+let rec append$^o$ x y xy = conde [
+  (x === nil () /\ xy === y);
+  (fresh (h t ty) (
+     (x  === h % t)  /\  
+     (xy === h % t') /\
+     (append$^o$ t y t')))]
+\end{lstlisting}
+\end{column}
+\begin{column}{0.55\textwidth}  
+\begin{lstlisting}[basicstyle=\footnotesize]
+let rec doubleAppend$^o$ x y z xyz = conde [
+   (x === nil () /\ append$^o$ y z xyz);
+   (fresh (h t t') (
+      (x === h % t)  /\  
+      (xyz === h % t') /\
+      (doubleAppend$^o$ t y z t')))]
+\end{lstlisting}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Tupling}
+Tupling --- program transformation which eliminates multiple traversals of the same data structure
+
+\begin{lstlisting}[basicstyle=\footnotesize]
+let maxLength$^o$ xs m l = max$^o$ xs m /\ length$^o$ xs l
+
+let rec length$^o$ xs l = conde [
+  (xs === nil () /\ l === zero ());
+  (fresh (h t m) (
+    xs === h % t /\ l === succ m /\ length$^o$ t m))]
+
+let max$^o$ xs m = max$_1^o$ xs (zero ()) m
+
+let rec max$_1^o$ xs n m = conde [
+  (xs === nil () /\ m === n);
+  (fresh (h t) (
+    (xs === h % t) /\
+    (conde [
+      (le$^o$ h n ^true /\ max$_1^o$ t n m); 
+      (gt$^o$ h n ^true /\ max$_1^o$ t h m)])))]
+\end{lstlisting}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Tupling}
+Tupling --- program transformation which eliminates multiple traversals of the same data structure
+
+\begin{lstlisting}[basicstyle=\footnotesize]
+let maxLength$^o$ xs m l = maxLength$_1^o$ xs m (zero ()) l
+
+let rec maxLength$_1^o$ xs m n l = conde [
+  (xs === nil () /\ m === n /\ l === zero ());
+  (fresh (h t l$_1$)
+     (xs === h % t) /\
+     (l === succ l$_1$) /\
+     (conde [
+       (le$^o$ h n /\ maxLength$_1^o$ t m n l);
+       (gt$^o$ h n /\ maxLength$_1^o$ t m h l)]))]
+\end{lstlisting}
+
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{CPD: Intuition}
+\begin{itemize} 
+  \item Local control: compute a partial SLDNF-tree per a relation of interest
+  \begin{itemize} 
+    \item Having a conjunction of atoms, which atom should be selected? 
+    \item When to stop building a tree? 
+  \end{itemize}  
+  \item Global control: determine which relations are of interest
+  \begin{itemize}
+    \item Do not process the same conjunction twice
+    \item If a conjunction \textit{embeds} something processed before, \textit{generalize} it
+    \item How to define \textit{embedding}?
+    \item How to \textit{generalize}? 
+  \end{itemize} 
+\end{itemize}   
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{CPD: Implementation}
+\begin{itemize} 
+  \item Local control
+  \begin{itemize} 
+    \item Deterministic unfold (only one nondeterministic unfold per tree) 
+    \item Selectable conjunct: leftmost atom which do not have any predecessor embedded into it
+    \item Variant check
+    \item Stop when there are no selectable atoms
+  \end{itemize}  
+  \item Global control
+  \begin{itemize}
+    \item Variant check
+    \item Generalization: split conjunction in maximally connected subconjunctions + most specific generalization
+    \item Homeomorphic embedding extended for conjunctions
+  \end{itemize} 
+  \item Residualization
+  \begin{itemize}
+    \item A definition per a partial SLDNF-tree
+    \item Redundant Argument Filtering
+  \end{itemize} 
+\end{itemize}   
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Evaluation}
+  Compare 
+  
+\begin{itemize}
+  \item Unnesting 
+  \item Unnesting strategy aimed at backward execution
+  \item Unnesting + CPD
+  \item Interpretation of functional verifier with relational interpreter
+\end{itemize}
+
+Tasks 
+
+\begin{itemize}
+  \item Path search
+  \item Search for a unifier of two terms
+\end{itemize}
+  
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Path Search}
+
+\emph{Directed graph} is a tuple $(N, E, start, end)$, where: 
+
+\begin{itemize}
+	\item $N$ --- set of nodes
+	\item $E$ --- set of edges
+	\item Functions $start, end: E \rightarrow N$ return a start (end) node of an edge
+\end{itemize} 
+
+\vspace{10pt}
+
+\emph{Path} is a sequence $\langle n_0, e_0, n_1, e_1, \dots, n_k, e_k, n_{k+1} \rangle$, such that 
+\[
+\forall i \in \{ 0 \dots k \}\; :\; n_i = start\,(e_i) \text{ and } n_{i+1} = end\,(e_i)
+\]
+
+\vspace{10pt}
+
+\emph{Path search problem} is to find the set of paths in a given graph
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Path Search: Relational Conversion }
+
+\begin{lstlisting}[numbers=left,numberstyle=\small]
+let rec isPath ns g =
+  match ns with
+  | x$_1$ :: x$_2$ :: xs ->   elem (x$_1$, x$_2$) g && isPath (x$_2$ :: xs) g 
+  | [_]            -> true
+\end{lstlisting}
+
+\pause
+
+\begin{lstlisting}[numbers=left,numberstyle=\small]
+let rec isPath$^o$ ns g res = conde [
+  (fresh (el) ((ns === el % nil ()) /\ (res === ^true));
+  (fresh (x$_1$ x$_2$ xs resElem resIsPath) (
+    (ns === x$_1$ % (x$_2$ % xs)) /\ 
+    (elem$^o$ (pair x$_1$ x$_2$) g resElem) /\
+    (isPath$^o$ (x$_2$ % xs) g resIsPath) /\ 
+    (conde [
+      (resElem === ^false /\ res === ^false); 
+      (resElem === ^true  /\ res === resIsPath)])))]
+\end{lstlisting}
+
+This relation is inefficient for ``\lstinline{isPath$^o$ q <graph> true}''
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Path Search: Specialized Relation}
+
+\begin{lstlisting}[]
+let rec isPath$^o$ ns g res = conde [
+  (fresh (el) ((ns === el % nil ()) /\ (res === ^true)));
+  (fresh (x$_1$ x$_2$ xs resElem resIsPath) (
+    (resElem === ^true) /\
+    (resIsPath === ^true) /\
+    (ns === x$_1$ % (x$_2$ % xs)) /\ 
+    (elem$^o$ (pair x$_1$ x$_2$) g resElem) /\
+    (isPath$^o$ (x$_2$ % xs) g resIsPath)))]
+\end{lstlisting}
+
+Better performance for ``\lstinline{isPath$^o$ q <graph> true}''
+
+\pause 
+\vspace{10pt}
+
+This can be achieved automatically with CPD
+
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Evaluation: Path Search}
+  
+\begin{table}
+\footnotesize
+\centering
+\begin{tabular}{c|c|c|c|c|c|c}
+Path length                   & 5      & 7     & 9      & 11      & 13     & 15        \\
+\hline\hline
+Only conversion               & 0.01  & 1.39 &  82.13 & >300     & ---      & ---     \\
+\hline
+Backward oriented conversion  & 0.01 & 0.37 &  2.68 & 2.91   & 4.88    & 10.63   \\
+\hline
+Conversion and CPD            & 0.01  & 0.06 &  0.34 & 2.66   & 3.65    & 6.22  \\
+\hline
+Scheme interpreter            & 0.80  & 8.22 & 88.14 & 191.44 & >300   & ---   \\
+\end{tabular}
+
+ \caption{Searching for paths in the graph (seconds)}
+    \label{tab:isPath}
+\end{table}
+\end{frame}
+
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Unification}
+
+\emph{Term}:
+\begin{itemize}
+	\item Variable ($X, Y, \dots$) 
+	\item Some constructor applied to terms ($nil, cons(H, T), \dots$) 
+\end{itemize}	
+	
+\vspace{10pt}	
+	
+\emph{Substitution} maps variables to terms
+
+\vspace{10pt}
+
+Substitution can be \emph{applied} to a term by simultaneously substituting variables for their images
+
+\vspace{10pt}
+
+\emph{Unifier} is a substitution $\sigma$ which equalizes terms: $t \sigma = s \sigma$	
+	
+\vspace{10pt}
+
+Problem: given two terms with free variables, find their unifier	
+	
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Unification: Functional Verifier}
+
+\begin{comment}
+  let rec forall2 subst l1 l2 =
+    match l1, l2 with
+    | []   , []    -> true
+    | x::xs, y::ys -> check_uni subst x y &&
+                      forall2 subst xs ys in
+\end{comment}
+
+\begin{lstlisting}[basicstyle=\footnotesize]
+let rec check_uni subst t1 t2 =
+  match t1, t2 with
+  | Constr (n1, a1), Constr (n2, a2) ->
+      eq_nat n1 n2 && forall2 subst a1 a2
+  | Var_ v         , Constr (n, a)   ->
+    begin match get_term v subst with
+    | None   -> false
+    | Some t -> check_uni subst t t2
+    end
+  | Constr (n, a)  , Var_ v          ->
+    begin match get_term v subst with
+    | None   -> false
+    | Some t -> check_uni subst t1 t
+    end
+  | Var_ v1        , Var_ v2         ->
+    match get_term v1 subst with
+    | Some t1' -> check_uni subst t1' t2
+    | None     -> match get_term v2 subst with
+                  | Some _ -> false
+                  | None   -> eq_nat v1 v2
+\end{lstlisting}
+
+\end{frame}
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Unification: Relational Conversion}
+Does not fit the slide. 
+
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Evaluation: Unification}
+\begin{table}
+\tiny
+\centering
+\begin{tabular}{c|c|c|c}
+\multirow{ 2}{*}{Terms} & 
+f(X, a) & f(a \% b \% nil, c \% d \% nil, L) & f(X, X, g(Z, t))  \\
+\cline{2-4} &
+f(a, X) & f(X \% XS, YS, X \% ZS) & f(g(p, L), Y, Y)  \\
+\hline\hline
+Only conversion               & 0.01  &  >300 & >300 \\
+\hline
+Backward oriented conversion  & 0.01  &  0.11 & 2.26  \\
+\hline
+Conversion and CPD            & 0.01  &  0.07 & 0.90  \\
+\hline
+
+Scheme interpreter            & 0.04  & 5.15 & >300   \\
+\end{tabular}
+ \caption{Searching for a unifier of two terms (seconds)}
+    \label{tab:uni}
+\end{table}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Conclusion \& Future Work}
+Funcional verifier + unnesting + specialization = solver
+ 
+Future
+ 
+\begin{itemize} 
+  \item Generate functional program from relational to reduce interpretation overhead
+  \item Another specialization technique, less ad-hoc than CPD
+
+\end{itemize} 
+\end{frame}
+
+\end{document}
