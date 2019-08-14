@@ -1,8 +1,8 @@
 \newcommand{\CS}{C\nolinebreak\hspace{-.05em}\raisebox{.4ex}{\scriptsize\bf \#}}
 
-Static analyses are important part of modern development tools. 
+Static analysis is an important part of modern development tools. 
 They take care of verifying correctness of some program's behaviour freeing a programmer from this duty.
-By used scope of program, an analyze can be classified as intraprocedural or interprocedural, i.e. as those which make decisions based on only one current procedure or based on the whole program respectively.
+By used scope of program, an analyze can be classified as intraprocedural and interprocedural, i.e. as those which make decisions based on only one current procedure or based on the whole program respectively.
 And interprocedural analyses, in theory, can be more precise due to amount of available information.
 
 \begin{figure}[h]
@@ -11,23 +11,31 @@ And interprocedural analyses, in theory, can be more precise due to amount of av
 	\label{fig:SampleCode}
 \end{figure}
 
-For example, let's consider the listing in \CS at fig.~\ref{fig:SampleCode}.
-It is known that method \textit{Sink} is vulnerable to invalid arguments and so, it is marked by appropriate attribute.
-The method \textit{Filter} validates its argument and possibly modifies it to ensure that returned data is definitely valid. Methods with such behaviour are marked with attribute \textit{Filter}. The most common example of such method is the one that adds escape characters into the string to avoid affecting internal behaviour of the system by user input.
-And the field \textit{Source} is known as potentially tainted that is also indicated by attribute.
-Class \textit{D} extracts data using class \textit{A} as a source, then validates it using class \textit{B} then performs some computations involving class \textit{C}.
-So, there might appear an issue that leads to usage of data that are not been validated yet as it happens during the invocation of method \textit{Consume}.
-The problem is to find all such issues, i.e. we want an analysis that finds all possible ways how data from source can reach sink bypassing filters.
+For example, let's consider the classic taint tracking problem (e.g. described in \cite{TaintTrackingIntro} and \cite{TaintTrackingISO}) which is very advisable to solve using interprocedural analysis.
+The core idea of the problem is that some input data can have inappropriate format or contain an exploit, such data are called \textit{tainted}, and this data can reach some vulnerable operation that would lead to an incorrect behaviour.
+Let's introduce the key entities using the listing at fig.~\ref{fig:SampleCode} in \CS.
+
+The first type of them is \textit{source}.
+In our case \textit{source} is some field that can potentially contain the tainted data, for example, let it be the field \textit{Source} of the class \textit{A}.
+The second type is \textit{sink}.
+\textit{Sink} is a method which is vulnerable to tainted data.
+In our example, the method \textit{Sink} of the class \textit{C} has this property.
+And the third important type of entities is \textit{filter} (or \textit{sanitizer} in some other definitions).
+It is a method that checks the correctness of data passing through it and if they are incorrect, \textit{filter} throws an exception or modifies them to ensure the correctness of the result.
+Let the method \textit{Filter} of the class \textit{B} in the given snippet be a filter.
+
+Let's assume that each entity is marked by a programmer with an appropriate attribute: \textit{[Tainted]} for sources, \textit{[Filter]} for filters and \textit{[Sink]} for sinks.
+So, the problem stands for finding all paths being passed through which the tainted data can flow into a sink bypassing any filter.
 
 This problem is a special case of interprocedural label flow analysis, so there are several approaches of solving such problems.
 One of them is CFL-reachability and the solution involving this approach is present by Rehof et al. in~\cite{CFLr}.
 Moreover, CFL-reachability is a long-time studied framework and thus there are a lot of other possible applications to static analyses and also there developed algorithms which can reach acceptable performance in practice (TODO: CITE GLL?).
 The main idea of this approach is to find paths in a graph that satisfy constraints defined by context-free grammar.
-In particular, path is accepted if the concatenation of its edges can be derived in the grammar.
+In particular, a path is accepted if the concatenation of labels on its edges gives a word which can be derived in the grammar.
 However, in practice, there are a few drawbacks of such definition.
 Firstly, grammar-driven parsing is based on exact matching of terminals which forces to generate a very large grammars in case when edges contain some unique attributes.
 For example, brackets matching described in~\cite{CFLr} requires to generate as many rules as there are call sites in the source code.
-Secondly, the structure of a grammar may not follow the structure of concrete semantics of a language, so the construction of it becomes non-obvious. (NEED-HELP: IS PREVIOUS PROPOSITION DANGEROUS???).
+Secondly, ???
 
 Moreover, there is another engineering problem that it is needed to extract a graph from a program to perform further computations.
 So, the main purpose of our work is to implement a tool solving all mentioned problems and thus allowing to use CFL-reachability in practical cases.
@@ -35,7 +43,7 @@ In the further sections:
 \begin{itemize}
 	\item We describe scalable representation of a graph which allows to contain as much information about the program as necessary
 	\item We introduce another approach for definition of constraints based on pushdown automata instead of grammars which makes formulating of analyses easier
-	\item We present the extensible solution which allows to implement new analyses using introduced abtractions
+	\item We present the extensible solution which allows to implement new types of analysis using introduced abtractions and the plugin which uses the solution to provide analysis results to ReSharper, Rider and InspectCode (source code and executables can be downloaded here: \url{github.com/gsvgit/CoFRA})
 	\item We evaluate it by testing on a few synthetic tests and estimate performance by running an analysis on a large open-source project
 \end{itemize}
 
