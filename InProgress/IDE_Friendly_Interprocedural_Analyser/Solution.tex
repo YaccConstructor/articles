@@ -1,4 +1,5 @@
-The solution is an extensible infrastructure which is responsible for extracting graphs from the source code, aggregating them and their metadata into one database and finding paths in this database accepted by PDAs representing different analyses.
+Using the described idea of automata-based CFL-reachability approach, we have implemented the solution in practice.
+Our solution is an extensible infrastructure which is responsible for extracting graphs from the source code, aggregating them and their metadata into one database and finding paths in this database accepted by PDAs representing different analyses.
 Logically, it is divided into two separate entities which are shown on fig.~\ref{fig:SolutionStructure}.
 
 \begin{figure}[h]
@@ -11,16 +12,19 @@ The first entity, the core of the solution, is a backend implemented as a remote
 Architecturally, it is also divided into two subsystems.
 First of them is a database which provides the continuous incremental updating of the graph and its metadata, and supports dumping to a disk and further restoration in the beggining of next session.
 The second is responsible for execution of analyses.
-It contains an implementation of the resolver, the algorithm of PDAs running and the first extension point making the adding new analyses possible.
+It contains an implementation of the resolver improving the one which is provided by IDE by adding dynamic invocations resolving such as lambdas propagation, the algorithm of PDAs running and the first extension point making the adding new analyses possible.
 The set of analyses contained in the backend can be extended by adding a new PDA as just a new implementation of appropriate generic abstract class.
 Furhter, it is possible to run this new anaysis using existing internal algorithm of PDA simulation and get any finite subset of paths in the graph which are accepted by the PDA.
 
 Second main entity is a frontend that is also divided into two subsystems.
 First of them is a graph extractor which parses source code, extracts graphs and metadata from it and sends collected data to the backend.
-The second is a results interpreter that receives the set of paths in the graph leading to an error, maps it into the source code and does something with this information.
+The second is a results interpreter that receives the set of paths in the graph each of which leads to an error, maps it to the source code and does something with this information.
 For example, it can highlight pieces of code which participate in the error producing.
-Also, the frontend is the second extension point because the backend, in general, can interact with any implementation supporting the protocol.
+
+Since a frontend is completely separate from the backend and the only requirement for it is to follow the protocol, the frontend can be considered as the second extension point.
+I.e. it is possible to replace the currently implemented frontend with any other implementation having the same functions as the original one including graphs extraction and results processing. 
+The current implementation is also open to modifications which add support for new types of analysis or any other features which requires interaction with IDE.
 
 The protocol itself is based on request-response behaviour where the frontend acts as a master and the backend acts as a slave.
-I.e. the frontend informs the backend if there are some changes in the source code and asks it to update the database according to them. 
-And when there is a need to get the results of some analysis, for example, when the IDE performs the code highliglighting, the frontend asks the backend for found issues and waits until it responses.
+I.e. the frontend informs the backend if there are some changes in the source code and asks it to update the database according to them.
+And when there is a need to get the results of the analysis, for example, when the IDE performs the code highliglighting, the frontend asks the backend for found issues, maps results to the source code and highlights corresponding lines.
