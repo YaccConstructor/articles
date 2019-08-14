@@ -113,9 +113,8 @@ And $\delta$ is defined by the case analysis~(\ref{fig:TransitionRelation}).
 		\end{split} \\
 		&\begin{split}
 			4)\ \delta(v, & i@\textrm{invocation}, \gamma) \coloneqq \\
-			\bigcup_{j=0}^{n} 
 			&\begin{split}
-				\{&(v_{j0}, i::\gamma, s_j), \ldots, (v_{jm}, i::\gamma, s_j), (v, \gamma, \nu): \\
+				\bigcup_{j=0}^{n} \{&(v_{j0}, i::\gamma, s_j), \ldots, (v_{jm}, i::\gamma, s_j), (v, \gamma, \nu): \\
 				& v_{jk} \in A(i, j, v)\}, s_j \in R(i)
 			\end{split}
 		\end{split} \\
@@ -123,7 +122,7 @@ And $\delta$ is defined by the case analysis~(\ref{fig:TransitionRelation}).
 			5)\ \delta(v, & r@return, i::\gamma) \coloneqq \\
 			&\begin{cases}
 				\{(RV(i), \gamma, T(i))\},& \textrm{if}\ \textit{returned(v)} \\
-				\{\}, & \textrm{otherwise}
+				\emptyset, & \textrm{otherwise}
 			\end{cases}
 		\end{split} \\
 		& 6)\ \delta(q, \_, \gamma) := \{(q, \gamma, \nu)\}
@@ -136,7 +135,7 @@ Where \textit{source} checks if a variable is a source, \textit{returned} checks
 	\begin{cases}
 		\{q_f\},  \begin{split}&\textrm{if $j$-th target of invocation $i$} \\ & \textrm{is sink and $v$ is its argument}\end{split} \\
 			\{v_k: v \mapsto v_k\}, \begin{split}&\textrm{if $j$-th target of i} \\ & \textrm{is not filter}\end{split} \\
-		\{\}, \textrm{otherwise}
+		\emptyset, \textrm{otherwise}
 	\end{cases}
 \end{equation}
 Where $v \mapsto v_k$ means that $v$ is passed as $k$-th parameter and becomes local variable $v_k$ of the target after passing.
@@ -149,28 +148,45 @@ Since the automaton accepts such sequences, we can simulate the switching of its
 Let's write down this process step by step using the following notation.
 $(q, \gamma_1 :: \ldots :: \gamma_k, n)$ is the current configuration of the simulation where $q$ is the current state, $\gamma_j$ is a symbol on the stack and $n$ is the current position in the input graph.
 $c_1 \xrightarrow[k]{r} c_2$ is the $k$-th transition which switches configuration $c_1$ to $c_2$ using rule $r$ from equation~(\ref{fig:TransitionRelation}).
-Since the automaton is non-deterministic, it can produce a graph of configurations, so let's explore only the most interesting branch.
+Local variables are written as $\text{\textlangle{}Name of the containing method\textrangle{}}.\text{\textlangle{}Variable identifier\textrangle{}}$.
+Since the automaton is non-deterministic, it can produce a graph of configurations, so let's explore only the branch where the final state is reached.
 The initial configuration is $(q_0, Z_0, 1)$.
 Configurations which appear after the first step are produced by accepting the first rule to the current configuration and the input symbol located at the edge between nodes 1 and 2.
 First of them is the one corresponding to the performed invocation of the \textit{Read} method, the invocation statement is pushed onto the stack and the position is changed to 7. Second of them is the branch where invocation is just skipped. 
 Let's continue with the first configuration $(q_0, i_1 :: Z_0, 7)$ where $i_1$ is the invocation statement.
-Next step changes the state to the local \textlangle{}result\textrangle{} variable according to the rule 2 because the right part of the assignment is a source. Configuration switches to $(\text{\textlangle{}result\textrangle{}}, i_1 :: Z_0, 8)$.
+Next step changes the state to the local \textlangle{}result\textrangle{} variable according to the rule 2 because the right part of the assignment is a source. Configuration switches to $(\text{Read.\textlangle{}result\textrangle{}}, i_1 :: Z_0, 8)$.
 Further step processes the return statement using rule 5 and performs two important actions.
 Firstly, it pops the invocation stored on the top of the stack and jumps to the return point.
 Secondly, there is performed a change of currently tracked variable from the local one of the method \textit{Read} to the local variable \textit{d} of the method \textit{Process} because it stores a result of invocation.
-So, next configuration is $(\text{d}, Z_0, 2)$.
+So, next configuration is $(\text{Process.d}, Z_0, 2)$.
 Processing of the edge between nodes 2 and 3 uses rule 4 and produces only one branch which just skips the invocation because the target is a filter and there is no need to enter this method.
-However, the invocation of \textit{Consume} is processed fairly and there is produced the configuration $(\text{d}, i_2 :: Z_0, 11)$ which, further, iterates until the \textit{Sink} invocation and reaches the final state $q_f$.
+However, the invocation of \textit{Consume} is processed fairly and there is produced the configuration $(\text{Consume.d}, i_2 :: Z_0, 11)$ which, further, iterates until the \textit{Sink} invocation and reaches the final state $q_f$.
 
 The full chain of configurations is shown in equation~\ref{fig:Configurations}.
 
 \begin{equation}
 	\label{fig:Configurations}
 	\begin{split}
-		& (q_0, Z_0, 1) \xrightarrow[1]{1} (q_0, i_1 :: Z_0, 7) \xrightarrow[2]{2} (\text{\textlangle{}result\textrangle{}}, i_1 :: Z_0, 8) \xrightarrow[3]{5} \\
-		& (\text{Process.d}, Z_0, 2) \xrightarrow[4]{4} (\text{Process.d}, Z_0, 3) \xrightarrow[5]{4} (\text{Process.d}, i_2 :: Z_0, 10) \xrightarrow[6]{4} \\
-		& (\text{Consume.d}, i_2 :: Z_0, 11) \xrightarrow[7]{4} (q_f, i_3 :: i_2 :: Z_0, \text{\textlangle{}\textit{Sink} entry point\textrangle{}})
+		& (q_0, Z_0, 1) \xrightarrow[1]{1} (q_0, i_1 :: Z_0, 7) \xrightarrow[2]{2} \\
+		& (\text{Read.\textlangle{}result\textrangle{}}, i_1 :: Z_0, 8) \xrightarrow[3]{5} \\
+		& (\text{Process.d}, Z_0, 2) \xrightarrow[4]{4} (\text{Process.d}, Z_0, 3) \xrightarrow[5]{4} \\
+		& (\text{Process.d}, i_2 :: Z_0, 10) \xrightarrow[6]{4} (\text{Consume.d}, i_2 :: Z_0, 11) \xrightarrow[7]{4} \\
+		& (q_f, i_3 :: i_2 :: Z_0, \text{\textlangle{}\textit{Sink} entry point\textrangle{}})
 	\end{split}
 \end{equation}
 
-So, the path in the graph which includes nodes 1, 7, 8, 2, 3, 10, 11 and \textlangle{}\textit{Sink} entry point\textrangle{} is accepted by the automaton and contains an issue.
+So, the path in the graph which is present in equation~(\ref{fig:Path}) is accepted by the automaton and contains an issue.
+
+\begin{equation}
+	\label{fig:Path}
+	\begin{split}
+		& 1 \xdashrightarrow{\begin{subarray}{l} \text{invoke:} \\ \text{this.Read $\rightarrow$ local d} \\ \text{(a := local a)} \end{subarray}} 7
+			\xrightarrow{\begin{subarray}{l} \text{assign:} \\ \text{(local a).Source $\rightarrow$ \textlangle{}result\textrangle{}} \end{subarray}} \\
+		& 8 \xdashrightarrow{\text{return}} 2 \xrightarrow{\begin{subarray}{l} \text{invoke:} \\ \text{B.Filter $\rightarrow$ local f} \\ \text{(d := local d)} \end{subarray}} 3
+		 	\xdashrightarrow{\begin{subarray}{l} \text{invoke:} \\ \text{this.Consume} \\ \text{(d := local d)} \end{subarray}} \\
+		& 10 \xrightarrow{\begin{subarray}{l} \text{invoke:} \\ \text{C..ctor $\rightarrow$ local c} \end{subarray}} 11
+			\xdashrightarrow{\begin{subarray}{l} \text{invoke:} \\ \text{(local c).Sink} \\ \text{(d := local d)} \end{subarray}} \text{\textlangle{}\textit{Sink} entry point\textrangle{}}
+	\end{split}
+\end{equation}
+
+Where dashed arrows indicate jumps and solid ones correspond to straightforward transitions.
