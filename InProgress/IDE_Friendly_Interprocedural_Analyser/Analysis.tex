@@ -4,27 +4,28 @@
 To apply the CFL-reachability framework, the first thing to do is to define the representation of a graph and path restrictions.
 We assume that a graph is an image of a program and it stores the information about the source code that can be mapped back to locate issues in the sources which are found by the analysis of the graph.
 Then restrictions on paths define the sequences of operations leading to an issue.
+
 In order to keep the expressive power of the CFL-reachability approach but make the implementation easier, we propose to use pushdown automata instead of grammars which still have equivalent power~\cite{AutomataTheory}.
 Further, we take closer look at each component and consider the construction of them in application to our example.
 
 \subsection{Graph extraction}
 
 The graph that is explored during the analysis is the union of control flow graphs each of which is extracted from one distinct method.
-The graph which corresponds to our example is shown in fig.~\ref{fig:SampleGraph}. 
+The graph which corresponds to our example is shown in fig.~\ref{fig:SampleGraph}.
 
 \begin{figure}[h]
 	\includegraphics[width=\linewidth]{pictures/{SampleGraph.dia}.png}
-	\caption{Sample graph}
+	\caption{Extracted graph for the code presented in fig.~\ref{fig:SampleCode}}
 	\label{fig:SampleGraph}
 \end{figure}
 
 Each edge contains an operation that represents a statement in the source code and in the same time the target of the edge indicates where to jump after the execution of the operation.
 We classify operations into a few types and operations which have the same type differs only by unique attributes.
-However, the number of types is not fixed and some analysis-specific operations can be added if necessary. 
+However, the number of types is not fixed and some analysis-specific operations can be added if necessary.
 In our example, we consider three different types of operations: invocations, assignments and returns.
-Each of them is an image of some source instruction. 
+Each of them is an image of some source code instruction.
 Invocations are produced from call sites and have the same information as ones in the original code.
-Their notation has the following form: 
+Their notation has the following form:
 \begin{equation}
 \begin{split}
 	& \text{invoke:} \\
@@ -47,7 +48,7 @@ And a return statement just indicates the end of a method. It can be not present
 
 Nodes have no any data and correspond to positions between instructions in the source code.
 
-So, we have a bunch of graphs each of which represents the content of one method. 
+So, we have a bunch of graphs each of which represents the content of one method.
 Next step is to interconnect them to have an opportunity to perform interprocedural jumps during invocations.
 There are several possible way to do that.
 First of them is to expand invocations statically, i.e. add a pair of edges for each target of each invocation.
@@ -63,7 +64,7 @@ The relations in required data is shown at fig.~\ref{fig:Metadata}.
 
 \begin{figure}[h]
 	\includegraphics[width=\linewidth]{pictures/{TopLevelEntitiesHierarchy.dia}.png}
-	\caption{Metadata}
+	\caption{Structure of the metadata for extracted graph}
 	\label{fig:Metadata}
 \end{figure}
 
@@ -74,7 +75,7 @@ And finally, methods themselves has references to nodes they own which is used t
 This structure also contains such data as class fields and local variables of a method which can be referenced by operations.
 So, the resolver takes the class name and the identifier of a method or a field and walks through the hierarchy trying to find all suitable entities.
 
-\subsection{PDA construction}
+\subsection{Push-down automata construction}
 
 Further, we need to define restrictions on paths in the graph in terms of pushdown automata.
 Formally, nondeterministic pushdown automaton~\cite{AutomataTheory} is a tuple $(Q, \Sigma, \Gamma, \delta, q_0, Z_0, F)$, where $Q$, $\Sigma$ and $\Gamma$ are finite sets of states, input symbols and stack symbols respectively, $q_0 \in Q$ and $Z_0 \in \Gamma$ are initial state and stack symbol, $F \subseteq Q$ is a set of final states and $\delta: Q \times \Sigma \cup \{\epsilon\} \times \Gamma \rightarrow \mathcal P (Q \times \Gamma^*)$ is a transition relation which takes the current state, an input symbol, the top of the stack and computes a new state and the sequence of stack symbols which must replace the top one.
@@ -132,7 +133,7 @@ And $\delta$ is defined by the case analysis~(\ref{fig:TransitionRelation}).
 Where notation $v@\textit{pattern}$ means that $v$ must be an object which is constructed by \textit{pattern}, \textit{source} checks if a variable is a source, \textit{returned} checks if current variable is a return value of some method, $T$ returns target node of an edge, $RV$ returns the variable where the result of an invocation must be put, $R$ is the resolver returning entry points of all possible targets of an invocation and $A$ is defined by equation~(\ref{fig:FunctionA}).
 \begin{equation}
 	\label{fig:FunctionA}
-	A(i, j, v) \coloneqq 
+	A(i, j, v) \coloneqq
 	\begin{cases}
 		\{q_f\},  \begin{split}&\textrm{if $j$-th target of invocation $i$} \\ & \textrm{is sink and $v$ is its argument}\end{split} \\
 			\{v_k: v \mapsto v_k\}, \begin{split}&\textrm{if $j$-th target of i} \\ & \textrm{is not filter}\end{split} \\
