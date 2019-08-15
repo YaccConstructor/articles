@@ -1,8 +1,8 @@
 \newcommand{\CS}{C\nolinebreak\hspace{-.05em}\raisebox{.4ex}{\scriptsize\bf \#}}
 
-Static analyses are important part of modern development tools. 
-They take care of verifying correctness of some program's behaviour freeing a programmer from this duty.
-By used scope of program, an analyze can be classified as intraprocedural or interprocedural, i.e. as those which make decisions based on only one current procedure or based on the whole program respectively.
+Static code analysis is an important part of modern software development tools.
+It take care of verifying correctness of some program's behaviour freeing a programmer from this duty.
+By used scope of program, an static analysis can be classified as intraprocedural and interprocedural, i.e. as those which make decisions based on only one current procedure or based on the whole program respectively.
 And interprocedural analyses, in theory, can be more precise due to amount of available information.
 
 \begin{figure}[h]
@@ -11,32 +11,57 @@ And interprocedural analyses, in theory, can be more precise due to amount of av
 	\label{fig:SampleCode}
 \end{figure}
 
-For example, let's consider the listing in \CS at fig.~\ref{fig:SampleCode}.
-It is known that method \textit{Sink} is vulnerable to invalid arguments and so, it is marked by appropriate attribute.
-The method \textit{Filter} validates its argument and possibly modifies it to ensure that returned data is definitely valid. Methods with such behaviour are marked with attribute \textit{Filter}. The most common example of such method is the one that adds escape characters into the string to avoid affecting internal behaviour of the system by user input.
-And the field \textit{Source} is known as potentially tainted that is also indicated by attribute.
-Class \textit{D} extracts data using class \textit{A} as a source, then validates it using class \textit{B} then performs some computations involving class \textit{C}.
-So, there might appear an issue that leads to usage of data that are not been validated yet as it happens during the invocation of method \textit{Consume}.
-The problem is to find all such issues, i.e. we want an analysis that finds all possible ways how data from source can reach sink bypassing filters.
+One of the classical problem which reqires interprocedural analysis is taint tracking problem (e.g. described in \cite{TaintTrackingIntro} and \cite{TaintTrackingISO}).
+The problem is that the input data can has inappropriate format or contains an exploit such as SQL injection.
+Such data is called \textit{tainted}.
+Tainted data can reach vulnerable operation that can lead to an incorrect behaviour in case of incorrect format, or can be a reason of security issue.
 
-This problem is a special case of interprocedural label flow analysis, so there are several approaches of solving such problems.
-One of them is CFL-reachability and the solution involving this approach is present by Rehof et al. in~\cite{CFLr}.
-Moreover, CFL-reachability is a long-time studied framework and thus there are a lot of other possible applications to static analyses and also there developed algorithms which can reach acceptable performance in practice (TODO: CITE GLL?).
-The main idea of this approach is to find paths in a graph that satisfy constraints defined by context-free grammar.
-In particular, path is accepted if the concatenation of its edges can be derived in the grammar.
-However, in practice, there are a few drawbacks of such definition.
+
+Simple example of C\# code which may requre taint analysis is presented in fig.~\ref{fig:SampleCode}.
+We will use this example for our solution explanation.
+First of all, we introduce a number of entities which play importatnt roles in tis analysis.
+The first type of them is \textit{source}.
+In our case \textit{source} is a field that can potentially contains the tainted data, for example, the field \textit{Source} of the class \textit{A}.
+The second type of entities is \textit{sink}.
+\textit{Sink} is a method which is vulnerable to tainted data.
+In our example, the method \textit{Sink} of the class \textit{C} has this property.
+And the third important type of entities is a \textit{filter} (or \textit{sanitizer} in some other definitions).
+It is a method that checks the correctness of data passing through it and if it is incorrect, \textit{filter} throws an exception or modifies data to ensure the correctness of the result.
+The method \textit{Filter} of the class \textit{B} in the given snippet be a filter.
+
+We assume that each entity is marked by a programmer with an appropriate attribute: \textit{[Tainted]} for sources, \textit{[Filter]} for filters and \textit{[Sink]} for sinks.
+So, the problem stands for finding all paths being passed through which the tainted data can flow into a sink bypassing any filter.
+
+In our example the class \textit{D} extracts data using the class \textit{A} as a source, then validates it using class \textit{B} then performs some computations involving the class \textit{C}.
+We can see, that there might appear an issue that leads to usage of data that are not been validated if we invoke the method \textit{Consume}.
+The problem is to find all such issues, i.e. we need an interprocedural analysis that finds all possible ways how data from source can reach sink bypassing filters.
+
+The one of the well-known framework for interprocedural static code analysis is a CFL-reachability framework which was proposed by Thomas Reps~\cite{Reps}.
+This framework is generic: it provides the abstraction which allaws one to implement meny different types of interprocedural static code analysis, sach as pointer analysis~\cite{Zheng, JavaCFL}, taint analysis~\cite{Huang:2015:SPT:2771783.2771803}, lable flow analysis~\cite{10.1007/11823230_7,CFLr}, library summarization~\cite{10.1007/978-3-662-54434-1_33}.
+Moreover, CFL-reachability is a long-time studied framework and thus there are a number of specific solutions which demonstrate reasonable performance in practice~\cite{Wang:2017:GSD:3093315.3037744}.
+
+Note, that this framework allows one to implement analysis which can be flow-sensitive or context-sensitive, but not both at the same time~\cite{Reps:2000:UCD:345099.345137}. In our examples we implement flow-sensitive analysis, but one can modify it ti be context-sensitive.
+
+The main idea of this approach is to find paths in a graph that satisfy constraints defined by a context-free grammar.
+In particular, a path is accepted if the concatenation of labels on its edges gives a word which can be derived in the grammar.
+However, in practice, there are a few drawbacks of such grammar-based definition.
 Firstly, grammar-driven parsing is based on exact matching of terminals which forces to generate a very large grammars in case when edges contain some unique attributes.
-For example, brackets matching described in~\cite{CFLr} requires to generate as many rules as there are call sites in the source code.
-Secondly, the structure of a grammar may not follow the structure of concrete semantics of a language, so the construction of it becomes non-obvious. (NEED-HELP: IS PREVIOUS PROPOSITION DANGEROUS???).
+For example, brackets matching described in~\cite{CFLr} or~\cite{Zheng, JavaCFL} requires to generate as many rules as there are call sites in the source code.
+Secondly, grammar is a additional lelvel of abstraction.
+This level is useful for algorithms formalization, but it is not such flexible as direct maniulation with correspondend push-down automaton.
 
-Moreover, there is another engineering problem that it is needed to extract a graph from a program to perform further computations.
-So, the main purpose of our work is to implement a tool solving all mentioned problems and thus allowing to use CFL-reachability in practical cases.
-In the further sections: 
+Also, there is engineering problem is extraction of a graph from a program to perform further computations.
+First of all, it should be possible to update the graph locally to synchronise it with source code modifications with minimal effort.
+Another importatnt requirement is to provide generic graph representation to be able to implement difeerent types of analysis. 
+
+The main goal of our work is to implement a tool solving all mentioned problems and thus allowing to use CFL-reachability in practical cases.
+We make the following contributions in the paper.
 \begin{itemize}
-	\item We describe scalable representation of a graph which allows to contain as much information about the program as necessary
-	\item We introduce another approach for definition of constraints based on pushdown automata instead of grammars which makes formulating of analyses easier
-	\item We present the extensible solution which allows to implement new analyses using introduced abtractions
-	\item We evaluate it by testing on a few synthetic tests and estimate performance by running an analysis on a large open-source project
+	\item We describe scalable representation of a graph which allows to contain as much information about the program as necessary.
+	\item We introduce the approach for definition of constraints based on pushdown automata instead of grammars which makes formulating of analyses easier.
+	\item We present the implementation of proposed approach which allows to create new types of analysis using introduced abtractions.
+	Also we implemet the plugin which uses the solution to provide analysis results to ReSharper, Rider and InspectCode (source code and executables can be downloaded here: \url{github.com/gsvgit/CoFRA}).
+	\item We evaluate the proposed solution by testing on a few synthetic tests and estimate performance by running an analysis on a large open-source project.
 \end{itemize}
 
 %Another approach is abstract interpretation which main idea is to define the semantics abstracting the concrete one.
