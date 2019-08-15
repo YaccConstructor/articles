@@ -3,20 +3,20 @@ The source code is parsed by internal ReSharper tools and the result is used to 
 The issues found by the backend are shown using code highlighting.
 
 The sample analysis which has been implemented is the considered taint tracking analysis.
-It is defined by the PDA constructed in the section 2 translated into the code with some slight modifications which make it possible to process interactions with object fields.
-To provide more information about an issue found by this analysis, the higlighting is accompanied by bulbs containing the full path of a tainted variable from the source to the sink represented as the sequence of operations.
+It is defined by the PDA constructed in section 2 translated into the code with some slight modifications which make it possible to process interactions with object fields.
+To provide more information about an issue found by this analysis, the highlighting is accompanied by bulbs containing the full path of a tainted variable from the source to the sink represented as the sequence of operations.
 
 \subsection{Taint analysis sample cases}
 
 The resulting solution has been tested on a few common cases which can be found in the corresponding folder~\footnote{Test cases: \url{github.com/gsvgit/CoFRA/tree/master/test/data/TaintAnalysis}}.
-We take a closer look at three of them which help to illustrate main properties of the analyzer.
-Each case is shown at a screenshot taken exactly from the runned Rider IDE with some small relocations of bulbs to make them not to overlap the code.
+We take a closer look at three of them which help to illustrate the main properties of the analyzer.
+Each case is shown at a screenshot taken exactly from the run Rider IDE with some small relocations of bulbs to make them not to overlap the code.
 
 Firstly, the solution ensures flow sensitivity. I.e. it processes the flow of variables passed into methods and returned from them distinguishing between different call sites and returning a result to the appropriate return point.
 It can be seen at fig~\ref{fig:ReturnsAndBrackets}.
 This example illustrates the most common cases of interprocedural data passing.
 \textit{Brackets} method gets the data, possibly performs some computations on them and returns the result.
-Invocations at lines 37 and 38 shows that the solution can distinguish two data flow paths despite both of them passes through the same method.
+Invocations at lines 37 and 38 show that the solution can distinguish two data flow paths despite both of them passes through the same method.
 So, \textit{e} becomes tainted because \textit{c} is tainted and \textit{f} does not because \textit{d} is clear.
 Moreover, the analyzer can track paths where passes and returns do not form the correct bracket sequence that is shown by method \textit{PostSource} which does not take any parameter and just returns tainted data.
 
@@ -26,13 +26,13 @@ Moreover, the analyzer can track paths where passes and returns do not form the 
 	\label{fig:ReturnsAndBrackets}
 \end{figure}
 
-Secondly, the solution has the limited context sensitivity. I.e. it allows to track propagation of objects that are tainted by assigning of some fields inside them both by their own methods and by outer code interacting with their fields directly.
-However, there is no possibility to provide true context sensitivity since it cannot be expressed alongside with flow-sensitivity~\cite{Spath:2019:CFF:3302515.3290361}.
+Secondly, the solution has limited context sensitivity. I.e. it allows tracking the propagation of objects that are tainted by assigning of some fields inside them both by their own methods and by outer code interacting with their fields directly.
+However, there is no possibility to provide true context-sensitivity since it cannot be expressed alongside with flow-sensitivity~\cite{Spath:2019:CFF:3302515.3290361}.
 The first case is shown at fig~\ref{fig:ObjectTainting}.
-There is the field \textit{B} at the line 18.
-This field can be used widely in the logic of the \textit{Container} class and by this the tainting of this field is considered as the tainting of the whole object.
+There is the field \textit{B} at line 18.
+This field can be used widely in the logic of the \textit{Container} class and by this, the tainting of this field is considered as the tainting of the whole object.
 However, while processing of the method \textit{Store} during the analysis it is hard to decide what the object need to be tainted because in the inner context of \textit{Store} it is just \textit{this} object.
-I.e. we must consider the calling context to make such decision.
+I.e. we must consider the calling context to make such a decision.
 So, the solution provides this opportunity which is shown by lines 33-36 where the first invocation of \textit{Store} leads to the tainting of object \textit{d} and the second invocation does not taint object \textit{e}.
 
 \begin{figure}[h]
@@ -56,13 +56,13 @@ The solution checks all possible paths of passing even those which includes cycl
 
 It is also necessary to measure the performance of the resulting solution.
 Because the implemented taint tracking analysis forces to mark all participating entities manually, it is difficult to perform it on some large project.
-However, there is another intermediate analysis which is runned before any other one to collect some information required by resolver.
-In particular, it tracks propagation of all variables to discover all possible concrete types of each variable.
-So, it involves each variable and each method in the whole program and thus the time and space required for execution of this analysis may be consistent estimation of the efficiency of the solution.
+However, there is another intermediate analysis which is run before any other one to collect some information required by the resolver.
+In particular, it tracks the propagation of all variables to discover all possible concrete types of each variable.
+So, it involves each variable and each method in the whole program and thus the time and space required for the execution of this analysis may be the consistent estimation of the efficiency of the solution.
 
-The code base which has been chosen as a source of data is the full solution of the Mono project.
+The codebase which has been chosen as a source of data is the full solution of the Mono project.
 The solution has been tested on a computer running Windows~10 with quad-core Intel Core i7 3.4 GHz CPU and 16 GB of RAM.
-The results is shown in the table~\ref{tab:Performance}.
+The results are shown in the table~\ref{tab:Performance}.
 
 \begin{table}[h]
 	\begin{tabular}{|l|l|l|l|l|}
