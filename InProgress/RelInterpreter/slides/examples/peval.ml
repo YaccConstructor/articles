@@ -68,6 +68,41 @@ module Elaborated =
     | Neg   e     -> not (eval st e)
     | Var   x     -> List.assoc x st
                    
+    let _ = Printf.printf "%s\n%!" (string_of_bool @@ eval [("x", true)] (Conj (Neg (Var "x"), (Var "x"))))           
+                       
+    let empty = []
+    
+    let extend v n b = (n, b) :: v
+ 
+    let rec solve env b = function
+    | Var n -> ( match List.assoc_opt n env with 
+                 | None -> [extend env n b]
+                 | Some b' -> if b == b' then [env] else [] )
+    | Neg e -> solve env (not b) e
+    | Conj (l, r) -> if b 
+                     then let envs = solve env b l 
+                          in  List.concat (List.map (fun env -> solve env b r) envs)
+                     else solve env b l @ solve env b r
+    | Disj (l, r) -> solve env b (Neg (Conj (Neg l, Neg r))) 
+                   
+    let check f = List.map (fun env -> eval env f ) (solve empty true f)               
+    
+    let s f = solve empty true f 
+    
+    let f1 = Disj (Neg (Var "x"), (Var "x"))
+    let f2 = Conj (Neg (Var "x"), (Var "x"))
+    
+    let show_env = show(list) (show(pair) id string_of_bool)
+    
+    let _ = Printf.printf "%s\n%!" @@ show(list) show_env @@ s f1
+                 
+    let check f = List.for_all (fun env -> eval env f) (s f)
+                   
+    let _ = Printf.printf "%s\n%!" @@ string_of_bool @@ check f1
+    let _ = Printf.printf "%s\n%!" @@ string_of_bool @@ check f2
+
+    (* let check f = and [let r = eval v f in r == Nothing || r == Just True  | v <- solve f]               *)
+                   
     let rec evalo st fm u =
       fresh (x y z v w) (
         conde [
