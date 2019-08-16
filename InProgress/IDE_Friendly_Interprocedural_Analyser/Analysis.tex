@@ -3,7 +3,7 @@
 
 To apply the CFL-reachability framework, the first thing to do is to define the representation of a graph and path restrictions.
 We assume that a graph is an image of a program and it stores the information about the source code that can be mapped back to locate issues in the sources which are found by the analysis of the graph.
-Then restrictions on paths define the sequences of operations leading to an issue.
+Then restrictions on paths define sequences of operations leading to an issue.
 
 In order to keep the expressive power of the CFL-reachability approach but make the implementation easier, we propose to use pushdown automata instead of grammars which still have equivalent power~\cite{AutomataTheory}.
 Further, we take a closer look at each component and consider the construction of them in application to our example.
@@ -19,9 +19,9 @@ The graph which corresponds to our example is shown in fig.~\ref{fig:SampleGraph
 	\label{fig:SampleGraph}
 \end{figure}
 
-Each edge contains an operation that represents a statement in the source code and at the same time, the target of the edge indicates the target to jump after the execution of the operation.
-We classify operations into a few types and operations which have the same type differs only by unique attributes.
-However, the number of types is not fixed and some analysis-specific operations can be added if necessary.
+Each edge contains an operation that represents a statement in the source code and at the same time, the target of the edge indicates the position to jump after the execution of the operation.
+Each operation has a type and a set of attributes such as invocation target or passed arguments.
+The number of types is not fixed and some analysis-specific operations can be added if necessary.
 In our example, we consider three different types of operations: invocations, assignments, and returns.
 Each of them is an image of some source code instruction.
 Invocations are produced from call sites and have the same information as ones in the original code.
@@ -30,12 +30,12 @@ Their notation has the following form:
 \begin{split}
 	& \text{invoke:} \\
 	& o.m \rightarrow v \\
-	& (f_1 := c_1; \ldots; f_k := c_k)
+	& (f_1 := a_1; \ldots; f_k := a_k)
 \end{split}
 \end{equation}
-Where $o$ is an object or a class which method is called, $m$ is the name of a method, $v$ is a variable where the result is stored and $f_i, c_i$ are pairs of the formal and the actual parameter respectively.
+Where $o$ is an object or a class which method is called, $m$ is the name of a method, $v$ is a variable where the result is stored and $f_i, a_i$ are pairs of the formal and the actual parameter respectively.
 
-Each assignment corresponds to a real assignment and is written in the following way:
+Each assignment operation represents the related operation in the source code and is written in the following way:
 \begin{equation}
 \begin{split}
 	& \text{assign:} \\
@@ -44,7 +44,8 @@ Each assignment corresponds to a real assignment and is written in the following
 \end{equation}
 Where $s$ is a source of data and $t$ is the target variable.
 
-And a return statement just indicates the end of a method. It can be not present explicitly in the source code but is still needed to be added to inform the analyzer about the return point.
+Return statement just indicates the end of a method. 
+It is necessary to add this statement even it does not exist in source code to inform the analyzer about the return point.
 
 Nodes have no data and correspond to positions between instructions in the source code.
 
@@ -54,7 +55,7 @@ There are several possible ways to do that.
 First of them is to expand invocations statically, i.e. add a pair of edges for each target of each invocation.
 One to represent a jump from the call site to the entry point of target and one to emulate return from the final node of the method to the caller.
 But this approach leads to the need to update all these additional connections if some method is removed or its body is changed.
-So, we propose to resolve invocations dynamically right during an analysis.
+So, we propose to resolve invocations dynamically during analysis.
 It allows us to use the graph which is composed right of graphs of methods and has no additional edges.
 Also, it does not require to modify any other method when someone is updated.
 Nevertheless, it is still needed to have a mechanism that can collect all targets of any invocation using references stored there.
