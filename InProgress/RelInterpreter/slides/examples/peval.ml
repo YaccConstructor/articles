@@ -1,4 +1,4 @@
-open MiniKanrenStd
+open MiniKanren.Std
 open MiniKanren
 open GT
 
@@ -25,17 +25,18 @@ module Simple =
         conde [
           fm === conj x y &&& evalo st x &&& evalo st y;
           fm === disj x y &&& (evalo st x ||| evalo st y);
-          fm === var  v   &&& List.membero st v
+          fm === var  v   &&& LList.membero st v
       ])
 
     let _ =
       Printf.printf "%d\n" @@
-      List.length @@ Stream.take @@
+      List.length @@ RStream.take @@
       run qrs
-        (fun q r s -> (List.lengtho s (nat 2)) &&& (r =/= q) &&& evalo s (disj (var r) (var q)))
+        (*fun q r s -> ocanren (LList.lengtho s 2 & r =/= q & evalo s (Disj (Var (r), Var (q))))*)
+        (fun q r s -> (LList.lengtho s (nat 2)) &&& (r =/= q) &&& evalo s (disj (var r) (var q)))
         (fun q r s -> s);
   
-      List.iter (fun s -> Printf.printf "%s\n" @@ show(f) (s#reify reify_f)) @@ Stream.take ~n:10 @@
+      List.iter (fun s -> Printf.printf "%s\n" @@ show(f) (s#reify reify_f)) @@ RStream.take ~n:10 @@
       run qrs
         (fun q r s -> (r =/= q) &&& evalo (r %< q) s)
         (fun _ _ s -> s)
@@ -51,7 +52,9 @@ module Elaborated =
     | Neg  of 'a
     | Var  of 'b with show, gmap
 
-    @type f = (f, string logic) fa logic with show, gmap
+    @type name = [ `x | `y | `z ] with show, gmap
+
+    @type f = (f, name logic) fa logic with show, gmap
 
     module F = Fmap2 (struct type ('a, 'b) t = ('a, 'b) fa let fmap f g x = gmap(fa) f g x end)
 
@@ -68,31 +71,35 @@ module Elaborated =
     | Neg   e     -> not (eval st e)
     | Var   x     -> List.assoc x st
                    
-    let _ = Printf.printf "%s\n%!" (string_of_bool @@ eval [("x", true)] (Conj (Neg (Var "x"), (Var "x"))))           
+    let _ = Printf.printf "%s\n%!" (string_of_bool @@ eval [(`x, true)] (Conj (Neg (Var `x), (Var `x))))           
                        
     let empty = []
     
     let extend v n b = (n, b) :: v
- 
+     
+    open List
+     
     let rec solve env b = function
-    | Var n -> ( match List.assoc_opt n env with 
+    | Var n -> ( match assoc_opt n env with 
                  | None -> [extend env n b]
-                 | Some b' -> if b == b' then [env] else [] )
+                 | Some b' when b == b' -> [env] 
+                 | _   -> [])
+    | Conj (l, r) when b ->
+        concat @@ 
+        map (fun env -> solve env b r) @@ 
+        solve env b l
+    | Conj (l, r) -> solve env b l @ solve env b r
     | Neg e -> solve env (not b) e
-    | Conj (l, r) -> if b 
-                     then let envs = solve env b l 
-                          in  List.concat (List.map (fun env -> solve env b r) envs)
-                     else solve env b l @ solve env b r
     | Disj (l, r) -> solve env b (Neg (Conj (Neg l, Neg r))) 
                    
     let check f = List.map (fun env -> eval env f ) (solve empty true f)               
     
     let s f = solve empty true f 
     
-    let f1 = Disj (Neg (Var "x"), (Var "x"))
-    let f2 = Conj (Neg (Var "x"), (Var "x"))
+    let f1 = Disj (Neg (Var `x), (Var `x))
+    let f2 = Conj (Neg (Var `x), (Var `x))
     
-    let show_env = show(list) (show(pair) id string_of_bool)
+    let show_env c = show(list) (show(pair) (show(name)) string_of_bool) c
     
     let _ = Printf.printf "%s\n%!" @@ show(list) show_env @@ s f1
                  
@@ -106,24 +113,24 @@ module Elaborated =
     let rec evalo st fm u =
       fresh (x y z v w) (
         conde [
-          ?& [fm === conj x y; evalo st x v; evalo st y w; Bool.ando v w u];
-          ?& [fm === disj x y; evalo st x v; evalo st y w; Bool.oro  v w u];
-          ?& [fm === neg  x  ; evalo st x v; Bool.noto v u];
-          ?& [fm === var  z  ; List.assoco z st u];
+          ?& [fm === conj x y; evalo st x v; evalo st y w; LBool.ando v w u];
+          ?& [fm === disj x y; evalo st x v; evalo st y w; LBool.oro  v w u];
+          ?& [fm === neg  x  ; evalo st x v; LBool.noto v u];
+          ?& [fm === var  z  ; LList.assoco z st u];
         ])
 
     let _ =
       Printf.printf "*********************************\n";
       List.iter (fun s ->
-          Printf.printf "%s\n" @@ show(List.logic)
-                                    (show(Pair.logic)
-                                       (show(logic) (show(string)))
+          Printf.printf "%s\n" @@ show(LList.logic)
+                                    (show(LPair.logic)
+                                       (show(logic) (show(name)))
                                        (show(logic) (show(bool)))
                                     )
                                   
-                                    (s#reify (List.reify (Pair.reify reify reify)))) @@ Stream.take ~n:10 @@
+                                    (s#reify (LList.reify (LPair.reify reify reify)))) @@ RStream.take ~n:10 @@
       run q
-        (fun st -> evalo st (conj (neg @@ var !!"x") (var !!"y")) !!true)
+        (fun st -> evalo st (conj (neg @@ var !!`x) (var !!`y)) !!true)
         (fun st -> st)
   
   end

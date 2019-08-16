@@ -23,6 +23,7 @@
 \usepackage{multicol}
 \usepackage{comment}
 \setbeamertemplate{itemize items}[circle]
+\setbeamertemplate{enumerate items}[circle]
 
 \lstdefinelanguage{ocanren}{
 keywords={run, conde, fresh, let, in, match, with, when, class, type,
@@ -37,9 +38,9 @@ basewidth={0.5em,0.5em},
 columns=fixed,
 mathescape=true,
 fontadjust=true,
-literate={fun}{{$\lambda$}}1 {->}{{$\to$}}3 {===}{{$\equiv$}}1 {=/=}{{$\not\equiv$}}1 {|>}{{$\triangleright$}}3 {\\/}{{$\vee$}}2 {/\\}{{$\wedge$}}2 {^}{{$\uparrow$}}1,
+literate={fun}{{$\lambda$}}1 {function}{function}8 {->}{{$\to$}}3 {===}{{$\equiv$}}1 {=/=}{{$\not\equiv$}}1 {|>}{{$\triangleright$}}3 {\\/}{{$\vee$}}2 {/\\}{{$\wedge$}}2 {^}{{$\uparrow$}}1,
 morecomment=[s]{(*}{*)},
- moredelim=**[is][\color{red}]{@}{@}
+ moredelim=**[is][\color{red}]{@!}{@}
 }
 
 \lstset{
@@ -79,6 +80,285 @@ Saint Petersburg State University
 
 \begin{frame}[fragile]
   \transwipe[direction=90]
+  \frametitle{Recognition vs Search}
+\[ X \text{ --- alphabet}\] 
+
+\[ L \subseteq X^* \] 
+  
+\[ if \omega \in L, \text{ denote the \emph{witness} of this fact } p_{\omega}  \]
+
+\[ 
+\begin{array}{rl}
+\text{Recognition:} &  V(\omega, p_{\omega}) = \left\{
+  \begin{array}{lr}
+    1, &\omega \in L \\
+    0, &\omega \notin L
+  \end{array}
+\right. \\ 
+ & \\
+\text{Search:} & S(\omega) = p_{\omega}
+\end{array}
+\]
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Propositional Formulas: Recognition}
+
+\begin{lstlisting}
+let rec eval st = function
+| Conj (l, r) -> eval st l && eval st r
+| Disj (l, r) -> eval st l || eval st r
+| Neg   e     -> not (eval st e)
+| Var   x     -> List.assoc x st
+
+\end{lstlisting}
+
+\begin{lstlisting}
+
+# eval [(`x,true);(`y,false)] (Conj (Var `x) (Neg (Var `y)));;
+
+- : bool = true
+\end{lstlisting}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Propositional Formulas: Search}
+
+\begin{lstlisting}
+let rec solve env b = function
+| Var n -> ( match assoc_opt n env with 
+             | None -> [extend env n b]
+             | Some b' when b == b' -> [env] 
+             | _   -> [])
+| Conj (l, r) when b ->
+    concat @@ 
+    map (fun env -> solve env b r) @@ 
+    solve env b l
+| Conj (l, r) -> solve env b l @ solve env b r
+| Neg e -> solve env (not b) e
+| Disj (l, r) -> solve env b (Neg (Conj (Neg l, Neg r))) 
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Search is Hard\footnote{compared to recognition}}
+\begin{center}
+Is it possible to generate a search procedure by a recognizer? 
+\end{center}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Relational Interpreter}
+\[ V^R(\omega, p_{\omega}, q) \]
+
+\[
+\begin{array}{ll}
+  V^R(\omega, p_{\omega}, 1), & if \omega \in L, p_{\omega} \text{ --- witness} \\
+  & \\
+  V^R(\omega, p_{\omega}, 0), & otherwise
+\end{array}  
+\] 
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Relational Interpretation for Recognition and Search}
+
+\[
+\begin{array}{rcl}
+ V^R(\omega, p_{\omega}, ?) & \leadsto & V(\omega, p_{\omega}) \\
+ & \\ 
+ V^R(\omega, ?, 1) & \leadsto & S(\omega) 
+\end{array} 
+\]
+
+\vspace*{\fill}
+
+\begin{center} Only one program to implement! \end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Propositional Formulas: Relational Interpreter}
+\begin{comment}
+\begin{lstlisting}
+let rec eval st = function
+| Conj (l, r) -> eval st l && eval st r
+| Disj (l, r) -> eval st l || eval st r
+| Neg   e     -> not (eval st e)
+| Var   x     -> List.assoc x st
+
+\end{lstlisting} 
+\end{comment}  
+  
+\begin{lstlisting}
+let rec eval$^o$ st f u =
+  fresh (x y z v w) (
+    conde [
+      ?& [f === conj x y; eval$^o$ st x v; eval$^o$ st y w; and$^o$ v w u];
+      ?& [f === disj x y; eval$^o$ st x v; eval$^o$ st y w; or$^o$  v w u];
+      ?& [f === neg  x  ; eval$^o$ st x v; not$^o$ v u];
+      ?& [f === var  z  ; assoc$^o$ z st u];
+    ])
+
+\end{lstlisting}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Relational Programming is Hard\footnote{compared to functional programming}}
+\begin{lstlisting}[basicstyle=\tiny]
+let eval_hanoi a b c moves a' b' c' = 
+  conde [  
+    ?& [moves === nil (); a === a'; b === b'; c === c';];
+    fresh (f t moves' pin_f pin_t pin_f_res pin_t_res a'' b'' c'') (
+      ?& [ moves === (pair f t) % moves';
+           conde [
+             ?& [f === !!A; t === !!B; pin_f === a; pin_f_res === a''; pin_t === b; pin_t_res === b''; c'' === c]; 
+             ?& [f === !!A; t === !!C; pin_f === a; pin_f_res === a''; pin_t === c; pin_t_res === c''; b'' === b]; 
+             ?& [f === !!B; t === !!A; pin_f === b; pin_f_res === b''; pin_t === a; pin_t_res === a''; c'' === c]; 
+             ?& [f === !!B; t === !!C; pin_f === b; pin_f_res === b''; pin_t === c; pin_t_res === c''; a'' === a]; 
+             ?& [f === !!C; t === !!A; pin_f === c; pin_f_res === c''; pin_t === a; pin_t_res === a''; b'' === b]; 
+             ?& [f === !!C; t === !!B; pin_f === c; pin_f_res === c''; pin_t === b; pin_t_res === b''; a'' === a]; 
+           ];     
+           fresh (top_f rest_f) (
+             ?& [ 
+                  pin_f === top_f % rest_f;
+                  conde [ pin_t === nil (); 
+                          fresh (top_t rest_t) (
+                            ?& [pin_t === top_t % rest_t; 
+                                lt$^o$ top_f top_t tru$^o$;])];
+                  pin_f_res === rest_f;
+                  pin_t_res === top_f % pin_t;
+                  eval_hanoi a'' b'' c'' moves' a' b' c';])])])
+\end{lstlisting}
+
+\begin{center} This took 3 people 6 hours to implement it \end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Ways to Create Relational Interpreters}
+\begin{itemize}
+	\item Manual implementation
+	\item Relational interpretation of functional programs
+	\item Using relational conversion 
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Ways to Create Relational Interpreters}
+\begin{itemize}
+	\item Manual implementation
+	\item \textbf{Relational interpretation of functional programs}
+	\item Using relational conversion 
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Relational Interpretation of Functional Programs}
+\begin{itemize}
+	\item Implement good relational interpreter of a turing-complete language
+	\item Implement functional recognizer
+	\item Run functional recognizer with a relational interpreter 
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Interpretation Overhead}
+\begin{center} 
+Running relational interpreter comes with a price 
+\end{center} 
+
+
+\begin{center} 
+Are there ways to get rid of it? 
+\end{center} 
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Specialization}
+\begin{center} 
+
+Interpreter: 
+
+\vspace{6pt}
+
+\lstinline{eval prog input} == \lstinline{output} 
+
+\vspace{16pt}
+
+Consider that a part of the input is known: \lstinline{input == (static, dynamic)}
+
+\vspace{16pt}
+
+\begin{comment} Specializer: given a program and static input, generates a new program, which evaluates to the same output as the original
+
+\vspace{6pt}
+\end{comment}
+
+Specializer: 
+
+\vspace{6pt}
+
+\lstinline{spec prog static} $\Rightarrow$ \lstinline{prog$_{spec}$}
+
+\lstinline{eval prog (static, dynamic) == eval prog$_{spec}$ dynamic}
+\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Jones-Optimality}
+\begin{itemize}
+	\item Specializers also introduce interpretation overhead
+	\item Jones-optimal specializer: the specialized program is not slower than the interpretation
+	\item There exists a Jones-optimal specializer for a logical language [Leuschel,~2004]
+	\item Not for miniKanren
+	\item Jones-optimality is hard to achieve
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Ways to Create Relational Interpreters}
+\begin{itemize}
+	\item Manual implementation
+	\item Relational interpretation of functional programs
+	\item \textbf{Using relational conversion}
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Relational Conversion for Relational Interpreter}
+\begin{itemize}
+  \item Implement a functional recognizer (verifier)
+  \item Transform it into a relation
+  \item Specialize for the backward direction
+  \item The result is a search routine
+\end{itemize}
+\end{frame}
+
+\begin{comment}
+\begin{frame}[fragile]
+  \transwipe[direction=90]
   \frametitle{Solvers from Verifiers}
 
 Relational interpeter = verifier 
@@ -101,6 +381,7 @@ Relational intepreter being run backward = solver
 \end{itemize}
 
 \end{frame}
+\end{comment}
 
 \begin{frame}[fragile]
   \transwipe[direction=90]
@@ -139,8 +420,8 @@ let rec append a b =
   match a with 
   | []      -> b
   | x :: xs -> 
-    let @q@ = append xs b in
-    x :: @q@
+    let @!q@ = append xs b in
+    x :: @!q@
 \end{lstlisting}
 \end{column}
 \end{columns}
@@ -161,7 +442,7 @@ let rec append a b = ...
 \end{column}
 \begin{column}{0.5\textwidth}  
 \begin{lstlisting}
-let rec append$^o$ a b @c@ = ...
+let rec append$^o$ a b @!c@ = ...
 \end{lstlisting}
 \end{column}
 \end{columns}  
@@ -216,7 +497,7 @@ let rec append$^o$ a b c =
 \begin{lstlisting}
 let rec append$^o$ a b c =
   (a === [] /\ b === c) \/
-  (@fresh (x xs q)@ (
+  (@!fresh (x xs q)@ (
      (a === x :: xs) /\
      (append$^o$ xs b q) /\
      (c === x :: q)))
@@ -249,7 +530,7 @@ let rec append$^o$ a b c =
   (a === [] /\ b === c) \/
   (fresh (x xs q) (
      (a === x :: xs) /\
-     @(c === x :: q)@ /\
+     @!(c === x :: q)@ /\
      (append$^o$ xs b q))
 \end{lstlisting}
 \end{column}
@@ -356,9 +637,9 @@ Deforestation --- program transformation which eliminates intermediate data stru
 \begin{column}{0.45\textwidth}
 \begin{lstlisting}[basicstyle=\footnotesize]
 let doubleAppend$^o$ x y z xyz = 
-  (fresh (@t@) (
-     (append$^o$ x y @t@) /\
-     (append$^o$ @t@ z xyz)))
+  (fresh (@!t@) (
+     (append$^o$ x y @!t@) /\
+     (append$^o$ @!t@ z xyz)))
 
 let rec append$^o$ x y xy = conde [
   (x === nil () /\ xy === y);
