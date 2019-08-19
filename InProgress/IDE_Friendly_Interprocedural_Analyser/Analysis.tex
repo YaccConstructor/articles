@@ -58,7 +58,6 @@ First of them is to expand invocations statically, i.e. add a pair of edges for 
 In this approach, connections should be updated whenever a method is removed or changed. 
 To mitigate this shortcoming, we propose to instead resolve invocations dynamically during analysis.
 This way a graph is composed from the individual graphs for methods with no additional edges and no modifications are needed when methods are chaged.
-Also, it does not require to modify any other method when someone is updated.
 There still should be a \emph{resolver}: a mechanism which collects all targets of an invocation by the references stored.
 
 To implement a resolver, we use meta-information about the program structured as shown in fig~\ref{fig:Metadata}. 
@@ -76,29 +75,29 @@ There are several important aspects of which we should keep track.
  \item Methods can have local functions and it is necessary to keep their hierarchy too to support, for example, anonymous function invocations, delegates passing and so on.
  \item Methods themselves has references to nodes they own which is used to find the entry point and update the graph when the body of method is changed.
 \end{enumerate}
-This structure also contains such data as class fields and local variables of a method which can be referenced by operations.
+This structure also contains class fields and local variables of a method which can be referenced by operations.
 So, the resolver takes the class name and the identifier of a method or a field and walks through the hierarchy trying to find all suitable entities.
 
 \subsection{Push-down automata construction}
 
-Further, we need to define restrictions on paths in the graph in terms of pushdown automata.
-Formally, nondeterministic pushdown automaton~\cite{AutomataTheory} is a tuple $(Q, \Sigma, \Gamma, \delta, q_0, Z_0, F)$, where $Q$, $\Sigma$ and $\Gamma$ are finite sets of states, input symbols and stack symbols respectively, $q_0 \in Q$ and $Z_0 \in \Gamma$ are initial state and stack symbol, $F \subseteq Q$ is a set of final states and $\delta: Q \times \Sigma \cup \{\epsilon\} \times \Gamma \rightarrow \mathcal P (Q \times \Gamma^*)$ is a transition relation which takes the current state, an input symbol, the top of the stack and computes a new state and the sequence of stack symbols which must replace the top one.
-We also add the following restriction on the transition relation.
-The resulting stack must differ from the source one by no more than one top symbol. I.e. only one symbol can be pushed or popped during the transition.
+We define path constraints in terms of pushdown automata.
+Formally, nondeterministic pushdown automaton~\cite{AutomataTheory} is a tuple $(Q, \Sigma, \Gamma, \delta, q_0, Z_0, F)$, where $Q$, $\Sigma$ and $\Gamma$ are finite sets of states, input symbols and stack symbols respectively, $q_0 \in Q$ and $Z_0 \in \Gamma$ are initial state and stack symbol, $F \subseteq Q$ is a set of final states and $\delta: Q \times \Sigma \cup \{\epsilon\} \times \Gamma \rightarrow \mathcal P (Q \times \Gamma^*)$ is a transition relation which takes the current state, an input symbol, the top of the stack and computes a new state and the sequence of stack symbols to replace the top one.
+We also impose the following restriction on the transition relation.
+Only one symbol can be pushed during the transition.
 It does not affect the expressive power of the resulting abstraction because push of a sequence of symbols can be emulated using the chain of states connected by $\varepsilon$-transitions each of which pushes one symbol.
 
 Next, we propose to take the set of all edges in the control flow graph as $\Sigma$.
 %So, the transition relation can be understood as a structural operational semantics that defines how a configuration is changed during the execution of a statement.
-All other sets can be taken arbitrary.
+All other sets can be chosen arbitrary.
 
 However, there is one more problem.
-Semantics of invocation contains the need to make a jump from the current position to the entry point of the target instead of just going to the node that is pointed by the current edge.
-To support such behaviour we propose to change the codomain of $\delta$ such that $\delta: Q \times \Sigma \cup \{\epsilon\} \times \Gamma \rightarrow \mathcal P (Q \times \Gamma^* \times N \cup \{\nu\})$, where $N$ is the set of nodes of the graph and $\nu$ is the dummy value that means that there is no need to jump and PDA just goes to the next node.
+Invocation semantics is to jump from the current position to the entry point of the target instead of following the current edge.
+To reflect this behaviour we change the codomain of $\delta$ to $\mathcal P (Q \times \Gamma^* \times N \cup \{\nu\})$, where $N$ is a set of graph nodes and $\nu$ is a dummy value which signifies no jump is needed.
 
-As an example, we construct the PDA performing the taint tracking analysis described in the introduction.
-Let $Q := V \cup \{q_0, q_f\}$, where $V$ is set of all local variables of all methods and $q_0$ and $q_f$ are dummy initial and final state, so $F \coloneqq \{q_f\}$.
-$\Gamma \coloneqq I \cup \{Z_0\}$, where $I \subset \Sigma$ is set of all edges containing an invocation and $Z_0$ is dummy initial stack symbol.
-And $\delta$ is defined by the case analysis~(\ref{fig:TransitionRelation}).
+To illustrate the construction of PDA by example we perform the taint tracking analysis described in the introduction.
+Let $Q := V \cup \{q_0, q_f\}$, where $V$ is a set of all local variables of every method and $q_0$ and $q_f$ are dummy initial and final states, so $F \coloneqq \{q_f\}$.
+$\Gamma \coloneqq I \cup \{Z_0\}$, where $I \subset \Sigma$ is a set of all edges containing an invocation and $Z_0$ is a dummy initial stack symbol.
+$\delta$ is defined by the case analysis~(\ref{fig:TransitionRelation}).
 \begin{equation}
     \label{fig:TransitionRelation}
     \begin{split}
@@ -134,27 +133,27 @@ And $\delta$ is defined by the case analysis~(\ref{fig:TransitionRelation}).
         & 6)\ \delta(q, \_, \gamma) := \{(q, \gamma, \nu)\}
     \end{split}
 \end{equation}
-Where notation $v@\textit{pattern}$ means that $v$ must be an object which is constructed by \textit{pattern}, \textit{source} checks if a variable is a source, \textit{returned} checks if current variable is a return value of some method, $T$ returns target node of an edge, $RV$ returns the variable where the result of an invocation must be put, $R$ is the resolver returning entry points of all possible targets of an invocation and $A$ is defined by equation~(\ref{fig:FunctionA}).
+Here notation $v@\textit{pattern}$ means that $v$ must be an object which is constructed by \textit{pattern}; \textit{source} checks if a variable is a source; \textit{returned} checks if current variable is a return value of some method; $T$ returns the target node of an edge; $RV$ returns the variable which stores the result of an invocation; $R$ is the resolver returning entry points of all possible targets of an invocation and $A$ is defined by the equation~(\ref{fig:FunctionA}).
 \begin{equation}
     \label{fig:FunctionA}
     A(i, j, v) \coloneqq
     \begin{cases}
-        \{q_f\},  \begin{split}&\textrm{if $j$-th target of invocation $i$} \\ & \textrm{is sink and $v$ is its argument}\end{split} \\
+        \{q_f\},  \begin{split}&\textrm{if $j$-th target of the invocation $i$} \\ & \textrm{is a sink and $v$ is its argument}\end{split} \\
             \{v_k: v \mapsto v_k\}, \begin{split}&\textrm{if $j$-th target of i} \\ & \textrm{is not filter}\end{split} \\
         \varnothing, \textrm{otherwise}
     \end{cases}
 \end{equation}
-Where $v \mapsto v_k$ means that $v$ is passed as $k$-th parameter and becomes local variable $v_k$ of the target after passing.
+Here $v \mapsto v_k$ means that $v$ is passed as the $k$-th parameter and becomes the local variable $v_k$ of the target.
 
 \subsection{Analysis execution}
 
 In this section we describe how the constructed automaton can be used to find an issue in the sample source code.
-The goal is to find the sequence of operations which starts in the entry point and ends at the invocation which uses the data from an unfiltered source.
+The goal is to find the sequence of operations which starts in the entry point and ends in the entry point of a sink method.
 Since the automaton accepts such sequences, we can simulate the switching of its configurations according to the input statements taken from the source graph.
-We use the following notation for the PDA steps description.
+We use the following notation to describe the PDA steps.
 $(q, \gamma_1 \ldots \gamma_k, n)$ is the current configuration of the simulation where $q$ is the current state, $\gamma_j$ is a symbol on the stack and $n$ is the current position in the input graph.
 $c_1 \xrightarrow[k]{r} c_2$ is the $k$-th transition which switches configuration $c_1$ to $c_2$ using rule $r$ from equation~(\ref{fig:TransitionRelation}).
-Local variables are written as $\text{\textlangle{}Name of the containing method\textrangle{}}.\text{\textlangle{}Variable identifier\textrangle{}}$.
+Local variables are denoted by $\text{\textlangle{}Name of the containing method\textrangle{}}.\text{\textlangle{}Variable identifier\textrangle{}}$.
 Since the automaton is non-deterministic, it can produce a graph of configurations, so, in this example, we explore only the branch where the final state is reached.
 
 According to our example, we start with the configuration $(q_0, Z_0, 1)$.
