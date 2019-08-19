@@ -1,161 +1,165 @@
 
 %I.e. there are a graph which is image of the source code and constraints that describe the sort of paths in the graph we want to select.
 
-To apply the CFL-reachability framework, the first thing to do is to define the representation of a graph and path restrictions.
-We assume that a graph is an image of a program and it stores the information about the source code that can be mapped back to locate issues in the sources which are found by the analysis of the graph.
-Then restrictions on paths define the sequences of operations leading to an issue.
+To apply the CFL-reachability framework, the first thing to do is to define the representation of a graph and path constraints.
+We assume that a graph is an image of a program.
+It stores the information about the source code that can be mapped back to locate issues in the sources which are found by the analysis of the graph.
+Constraints on paths define sequences of operations leading to an issue.
 
-In order to keep the expressive power of the CFL-reachability approach but make the implementation easier, we propose to use pushdown automata instead of grammars which still have equivalent power~\cite{AutomataTheory}.
+In order to keep the expressive power of the CFL-reachability approach but facilitate implementation, we propose to use pushdown automata instead of grammars which still have equivalent expressiveness~\cite{AutomataTheory}.
 Further, we take a closer look at each component and consider the construction of them in application to our example.
 
 \subsection{Graph extraction}
 
-The graph that is explored during the analysis is the union of control flow graphs each of which is extracted from one distinct method.
+The graph that is explored during the analysis is a union of control flow graphs each of which is extracted from one distinct method.
 The graph which corresponds to our example is shown in fig.~\ref{fig:SampleGraph}.
 
 \begin{figure}[h]
-	\includegraphics[width=\linewidth]{pictures/{SampleGraph.dia}.png}
-	\caption{Extracted graph for the code presented in fig.~\ref{fig:SampleCode}}
-	\label{fig:SampleGraph}
+    \includegraphics[width=\linewidth]{pictures/{SampleGraph.dia}.png}
+    \caption{Extracted graph for the code presented in fig.~\ref{fig:SampleCode}}
+    \label{fig:SampleGraph}
 \end{figure}
 
-Each edge contains an operation that represents a statement in the source code and at the same time, the target of the edge indicates the target to jump after the execution of the operation.
-We classify operations into a few types and operations which have the same type differs only by unique attributes.
-However, the number of types is not fixed and some analysis-specific operations can be added if necessary.
+Each edge contains an operation that represents a statement in the source code.
+The target of the edge indicates the position to jump after the execution of the operation.
+Each operation has a type and a set of attributes such as invocation target or passed arguments.
+The number of types is not fixed and some analysis-specific operations can be added if necessary.
 In our example, we consider three different types of operations: invocations, assignments, and returns.
 Each of them is an image of some source code instruction.
-Invocations are produced from call sites and have the same information as ones in the original code.
+Invocations are produced from call sites and have the same information as in the original code.
 Their notation has the following form:
 \begin{equation}
 \begin{split}
-	& \text{invoke:} \\
-	& o.m \rightarrow v \\
-	& (f_1 := c_1; \ldots; f_k := c_k)
+    & \text{invoke:} \\
+    & o.m \rightarrow v \\
+    & (f_1 := a_1; \ldots; f_k := a_k)
 \end{split}
 \end{equation}
-Where $o$ is an object or a class which method is called, $m$ is the name of a method, $v$ is a variable where the result is stored and $f_i, c_i$ are pairs of the formal and the actual parameter respectively.
+Here $m$ is a method of an object (or a class) $o$, $v$ is a variable which stores result, and $(f_i, a_i)$ are pairs of the formal and the actual parameters respectively.
 
-Each assignment corresponds to a real assignment and is written in the following way:
+Assignment operation in the source code is represented in the following way:
 \begin{equation}
 \begin{split}
-	& \text{assign:} \\
-	& s \rightarrow t
+    & \text{assign:} \\
+    & s \rightarrow t
 \end{split}
 \end{equation}
-Where $s$ is a source of data and $t$ is the target variable.
+Here $s$ is a source of data and $t$ is the target variable.
 
-And a return statement just indicates the end of a method. It can be not present explicitly in the source code but is still needed to be added to inform the analyzer about the return point.
+Return statement indicates the end of a method. 
+It is necessary to add this statement even it does not exist in the source code (for example, if return type of metod is \textit{void}) to inform the analyzer about the return point.
 
-Nodes have no data and correspond to positions between instructions in the source code.
+Nodes correspond to positions between instructions in the source code.
 
-So, we have a bunch of graphs each of which represents the content of one method.
-Next step is to interconnect them to have an opportunity to perform interprocedural jumps during invocations.
-There are several possible ways to do that.
-First of them is to expand invocations statically, i.e. add a pair of edges for each target of each invocation.
-One to represent a jump from the call site to the entry point of target and one to emulate return from the final node of the method to the caller.
-But this approach leads to the need to update all these additional connections if some method is removed or its body is changed.
-So, we propose to resolve invocations dynamically right during an analysis.
-It allows us to use the graph which is composed right of graphs of methods and has no additional edges.
-Also, it does not require to modify any other method when someone is updated.
-Nevertheless, it is still needed to have a mechanism that can collect all targets of any invocation using references stored there.
+Each constructed graph represents the content of a single method.
+To represent interprocedural jumps taknig place during the invocation, individual graphs should be interconnected.
+There are several ways to do that.
+First of them is to expand invocations statically, i.e. add a pair of edges for each target of each invocation: one to represent a jump from the call site to the entry point of the target and one to emulate the return from the final node of the method to the caller.
+In this approach, connections should be updated whenever a method is removed or changed. 
+To mitigate this shortcoming, we propose to instead resolve invocations dynamically during analysis.
+This way a graph is composed from the individual graphs for methods with no additional edges and no modifications are needed when methods are chaged.
+There still should be a \emph{resolver}: a mechanism which collects all targets of an invocation by the references stored.
 
-To implement such a mechanism, called resolver, we offer to accumulate some meta-information about the program besides graphs themselves.
-The relations in required data is shown at fig.~\ref{fig:Metadata}.
+To implement a resolver, we use meta-information about the program structured as shown in fig~\ref{fig:Metadata}. 
 
 \begin{figure}[h]
-	\includegraphics[width=\linewidth]{pictures/{TopLevelEntitiesHierarchy.dia}.png}
-	\caption{Structure of the metadata for extracted graph}
-	\label{fig:Metadata}
+    \includegraphics[width=\linewidth]{pictures/{TopLevelEntitiesHierarchy.dia}.png}
+    \caption{Structure of the metadata for extracted graph}
+    \label{fig:Metadata}
 \end{figure}
 
-Firstly, it is important to keep the hierarchy of inheritance to support polymorphic calls and invocations of methods of a basic class.
-Secondly, it is needed to know which methods are contained in each class to find the method by its name and its location.
-Thirdly, methods can have local functions and it is necessary to keep their hierarchy too to support, for example, anonymous function invocations, delegates passing and so on.
-And finally, methods themselves has references to nodes they own which is used to find the entry point and update the graph when the body of method is changed.
-This structure also contains such data as class fields and local variables of a method which can be referenced by operations.
+There are several important aspects of which we should keep track. 
+\begin{enumerate}
+ \item It is important to keep the hierarchy of inheritance to support polymorphic calls and invocations of methods of a basic class.
+ \item It is needed to know which methods are contained in each class to find the method by its name and its location.
+ \item Methods can have local functions and it is necessary to keep their hierarchy too to support, for example, anonymous function invocations, delegates passing and so on.
+ \item Methods themselves has references to nodes they own which is used to find the entry point and update the graph when the body of method is changed.
+\end{enumerate}
+This structure also contains class fields and local variables of a method which can be referenced by operations.
 So, the resolver takes the class name and the identifier of a method or a field and walks through the hierarchy trying to find all suitable entities.
 
 \subsection{Push-down automata construction}
 
-Further, we need to define restrictions on paths in the graph in terms of pushdown automata.
-Formally, nondeterministic pushdown automaton~\cite{AutomataTheory} is a tuple $(Q, \Sigma, \Gamma, \delta, q_0, Z_0, F)$, where $Q$, $\Sigma$ and $\Gamma$ are finite sets of states, input symbols and stack symbols respectively, $q_0 \in Q$ and $Z_0 \in \Gamma$ are initial state and stack symbol, $F \subseteq Q$ is a set of final states and $\delta: Q \times \Sigma \cup \{\epsilon\} \times \Gamma \rightarrow \mathcal P (Q \times \Gamma^*)$ is a transition relation which takes the current state, an input symbol, the top of the stack and computes a new state and the sequence of stack symbols which must replace the top one.
-We also add the following restriction on the transition relation.
-The resulting stack must differ from the source one by no more than one top symbol. I.e. only one symbol can be pushed or popped during the transition.
+We define path constraints in terms of pushdown automata.
+Formally, nondeterministic pushdown automaton~\cite{AutomataTheory} is a tuple $(Q, \Sigma, \Gamma, \delta, q_0, Z_0, F)$, where $Q$, $\Sigma$ and $\Gamma$ are finite sets of states, input symbols and stack symbols respectively, $q_0 \in Q$ and $Z_0 \in \Gamma$ are initial state and stack symbol, $F \subseteq Q$ is a set of final states and $\delta: Q \times \Sigma \cup \{\epsilon\} \times \Gamma \rightarrow \mathcal P (Q \times \Gamma^*)$ is a transition relation which takes the current state, an input symbol, the top of the stack and computes a new state and the sequence of stack symbols to replace the top one.
+We also impose the following restriction on the transition relation.
+Only one symbol can be pushed during the transition.
 It does not affect the expressive power of the resulting abstraction because push of a sequence of symbols can be emulated using the chain of states connected by $\varepsilon$-transitions each of which pushes one symbol.
 
 Next, we propose to take the set of all edges in the control flow graph as $\Sigma$.
 %So, the transition relation can be understood as a structural operational semantics that defines how a configuration is changed during the execution of a statement.
-All other sets can be taken arbitrary.
+All other sets can be chosen arbitrary.
 
 However, there is one more problem.
-Semantics of invocation contains the need to make a jump from the current position to the entry point of the target instead of just going to the node that is pointed by the current edge.
-To support such behaviour we propose to change the codomain of $\delta$ such that $\delta: Q \times \Sigma \cup \{\epsilon\} \times \Gamma \rightarrow \mathcal P (Q \times \Gamma^* \times N \cup \{\nu\})$, where $N$ is the set of nodes of the graph and $\nu$ is the dummy value that means that there is no need to jump and PDA just goes to the next node.
+Invocation semantics is to jump from the current position to the entry point of the target instead of following the current edge.
+To reflect this behaviour we change the codomain of $\delta$ to $\mathcal P (Q \times \Gamma^* \times N \cup \{\nu\})$, where $N$ is a set of graph nodes and $\nu$ is a dummy value which signifies no jump is needed.
 
-As an example, we construct the PDA performing the taint tracking analysis described in the introduction.
-Let $Q := V \cup \{q_0, q_f\}$, where $V$ is set of all local variables of all methods and $q_0$ and $q_f$ are dummy initial and final state, so $F \coloneqq \{q_f\}$.
-$\Gamma \coloneqq I \cup \{Z_0\}$, where $I \subset \Sigma$ is set of all edges containing an invocation and $Z_0$ is dummy initial stack symbol.
-And $\delta$ is defined by the case analysis~(\ref{fig:TransitionRelation}).
+To illustrate the construction of PDA by example we perform the taint tracking analysis described in the introduction.
+Let $Q := V \cup \{q_0, q_f\}$, where $V$ is a set of all local variables of every method and $q_0$ and $q_f$ are dummy initial and final states, so $F \coloneqq \{q_f\}$.
+$\Gamma \coloneqq I \cup \{Z_0\}$, where $I \subset \Sigma$ is a set of all edges containing an invocation and $Z_0$ is a dummy initial stack symbol.
+$\delta$ is defined by the case analysis~(\ref{fig:TransitionRelation}).
 \begin{equation}
-	\label{fig:TransitionRelation}
-	\begin{split}
-		&\begin{split}
-			1)\ \delta(q_0, & i@\textrm{invocation}, \gamma) \coloneqq \\
-			\{& (q_0, i\gamma, s_0), \ldots, (q_0, i\gamma, s_n), (q_0, \gamma, \nu): \\
-			& s_0, \ldots, s_n \in R(i)\} \\
-		\end{split} \\
-		&\begin{split}
-			2)\ \delta(q_0, & a@\textrm{assignment} (v_s, v_t), \gamma) \coloneqq \\
-			&\begin{cases}
-				\{(v_t, \gamma, \nu), (q_0, \gamma, \nu)\},& \textrm{if}\ \textit{source}(v_s) \\
-				\{(q_0, \gamma, \nu)\},& \textrm{otherwise}
-			\end{cases}
-		\end{split} \\
-		&\begin{split}
-			3)\ \delta(v, a@\textrm{assignment}(v, v_t), & \gamma) \coloneqq {(v_t, \gamma, \nu)}
-		\end{split} \\
-		&\begin{split}
-			4)\ \delta(v, & i@\textrm{invocation}, \gamma) \coloneqq \\
-			&\begin{split}
-				\bigcup_{j=0}^{n} \{&(v_{j0}, i\gamma, s_j), \ldots, (v_{jm}, i\gamma, s_j), (v, \gamma, \nu): \\
-				& v_{jk} \in A(i, j, v)\}, s_j \in R(i)
-			\end{split}
-		\end{split} \\
-		&\begin{split}
-			5)\ \delta(v, & r@return, i@invocation) \coloneqq \\
-			&\begin{cases}
-				\{(RV(i), \epsilon, T(i))\},& \textrm{if}\ \textit{returned(v)} \\
-				\varnothing, & \textrm{otherwise}
-			\end{cases}
-		\end{split} \\
-		& 6)\ \delta(q, \_, \gamma) := \{(q, \gamma, \nu)\}
-	\end{split}
+    \label{fig:TransitionRelation}
+    \begin{split}
+        &\begin{split}
+            1)\ \delta(q_0, & i@\textrm{invocation}, \gamma) \coloneqq \\
+            \{& (q_0, i\gamma, s_0), \ldots, (q_0, i\gamma, s_n), (q_0, \gamma, \nu): \\
+            & s_0, \ldots, s_n \in R(i)\} \\
+        \end{split} \\
+        &\begin{split}
+            2)\ \delta(q_0, & a@\textrm{assignment} (v_s, v_t), \gamma) \coloneqq \\
+            &\begin{cases}
+                \{(v_t, \gamma, \nu), (q_0, \gamma, \nu)\},& \textrm{if}\ \textit{source}(v_s) \\
+                \{(q_0, \gamma, \nu)\},& \textrm{otherwise}
+            \end{cases}
+        \end{split} \\
+        &\begin{split}
+            3)\ \delta(v, a@\textrm{assignment}(v, v_t), & \gamma) \coloneqq {(v_t, \gamma, \nu)}
+        \end{split} \\
+        &\begin{split}
+            4)\ \delta(v, & i@\textrm{invocation}, \gamma) \coloneqq \\
+            &\begin{split}
+                \bigcup_{j=0}^{n} \{&(v_{j0}, i\gamma, s_j), \ldots, (v_{jm}, i\gamma, s_j), (v, \gamma, \nu): \\
+                & v_{jk} \in A(i, j, v)\}, s_j \in R(i)
+            \end{split}
+        \end{split} \\
+        &\begin{split}
+            5)\ \delta(v, & r@return, i@invocation) \coloneqq \\
+            &\begin{cases}
+                \{(RV(i), \epsilon, T(i))\},& \textrm{if}\ \textit{returned(v)} \\
+                \varnothing, & \textrm{otherwise}
+            \end{cases}
+        \end{split} \\
+        & 6)\ \delta(q, \_, \gamma) := \{(q, \gamma, \nu)\}
+    \end{split}
 \end{equation}
-Where notation $v@\textit{pattern}$ means that $v$ must be an object which is constructed by \textit{pattern}, \textit{source} checks if a variable is a source, \textit{returned} checks if current variable is a return value of some method, $T$ returns target node of an edge, $RV$ returns the variable where the result of an invocation must be put, $R$ is the resolver returning entry points of all possible targets of an invocation and $A$ is defined by equation~(\ref{fig:FunctionA}).
+Here notation $v@\textit{pattern}$ means that $v$ must be an object which is constructed by \textit{pattern}; \textit{source} checks if a variable is a source; \textit{returned} checks if current variable is a return value of some method; $T$ returns the target node of an edge; $RV$ returns the variable which stores the result of an invocation; $R$ is the resolver returning entry points of all possible targets of an invocation and $A$ is defined by the equation~(\ref{fig:FunctionA}).
 \begin{equation}
-	\label{fig:FunctionA}
-	A(i, j, v) \coloneqq
-	\begin{cases}
-		\{q_f\},  \begin{split}&\textrm{if $j$-th target of invocation $i$} \\ & \textrm{is sink and $v$ is its argument}\end{split} \\
-			\{v_k: v \mapsto v_k\}, \begin{split}&\textrm{if $j$-th target of i} \\ & \textrm{is not filter}\end{split} \\
-		\varnothing, \textrm{otherwise}
-	\end{cases}
+    \label{fig:FunctionA}
+    A(i, j, v) \coloneqq
+    \begin{cases}
+        \{q_f\},  \begin{split}&\textrm{if $j$-th target of the invocation $i$} \\ & \textrm{is a sink and $v$ is its argument}\end{split} \\
+            \{v_k: v \mapsto v_k\}, \begin{split}&\textrm{if $j$-th target of i} \\ & \textrm{is not filter}\end{split} \\
+        \varnothing, \textrm{otherwise}
+    \end{cases}
 \end{equation}
-Where $v \mapsto v_k$ means that $v$ is passed as $k$-th parameter and becomes local variable $v_k$ of the target after passing.
+Here $v \mapsto v_k$ means that $v$ is passed as the $k$-th parameter and becomes the local variable $v_k$ of the target.
 
 \subsection{Analysis execution}
 
 In this section we describe how the constructed automaton can be used to find an issue in the sample source code.
-The goal is to find the sequence of operations which starts in the entry point and ends at the invocation which uses the data from an unfiltered source.
+The goal is to find the sequence of operations which starts in the entry point and ends in the entry point of a sink method.
 Since the automaton accepts such sequences, we can simulate the switching of its configurations according to the input statements taken from the source graph.
-We use the following notation for the PDA steps description.
+We use the following notation to describe the PDA steps.
 $(q, \gamma_1 \ldots \gamma_k, n)$ is the current configuration of the simulation where $q$ is the current state, $\gamma_j$ is a symbol on the stack and $n$ is the current position in the input graph.
 $c_1 \xrightarrow[k]{r} c_2$ is the $k$-th transition which switches configuration $c_1$ to $c_2$ using rule $r$ from equation~(\ref{fig:TransitionRelation}).
-Local variables are written as $\text{\textlangle{}Name of the containing method\textrangle{}}.\text{\textlangle{}Variable identifier\textrangle{}}$.
+Local variables are denoted by $\text{\textlangle{}Name of the containing method\textrangle{}}.\text{\textlangle{}Variable identifier\textrangle{}}$.
 Since the automaton is non-deterministic, it can produce a graph of configurations, so, in this example, we explore only the branch where the final state is reached.
 
 According to our example, we start with the configuration $(q_0, Z_0, 1)$.
 Configurations which appear after the first step are produced by accepting the first rule to the current configuration and the input symbol located at the edge between nodes 1 and 2.
-First of them is the one corresponding to the performed invocation of the \textit{Read} method, the invocation statement is pushed onto the stack and the position is changed to 7. Second of them is the branch where invocation is just skipped.
+First of them is the one corresponding to the performed invocation of the \textit{Read} method, the invocation statement is pushed onto the stack and the position is changed to 7.
+Second of them is the branch where invocation is just skipped.
 Since the second configuration does not lead to an error, we continue with the first configuration $(q_0, i_1 Z_0, 7)$ where $i_1$ is the invocation statement.
 Next step changes the state to the local \textlangle{}result\textrangle{} variable according to the rule 2 because the right part of the assignment is a source. Configuration switches to $(\text{Read.\textlangle{}result\textrangle{}}, i_1 Z_0, 8)$.
 Further step processes the return statement using rule 5 and performs two important actions.
@@ -168,28 +172,28 @@ However, the invocation of \textit{Consume} is processed fairly and there is pro
 The full chain of configurations is shown in equation~\ref{fig:Configurations}.
 
 \begin{equation}
-	\label{fig:Configurations}
-	\begin{split}
-		& (q_0, Z_0, 1) \xrightarrow[1]{1} (q_0, i_1 Z_0, 7) \xrightarrow[2]{2} \\
-		& (\text{Read.\textlangle{}result\textrangle{}}, i_1 Z_0, 8) \xrightarrow[3]{5} \\
-		& (\text{Process.d}, Z_0, 2) \xrightarrow[4]{4} (\text{Process.d}, Z_0, 3) \xrightarrow[5]{4} \\
-		& (\text{Process.d}, i_2 Z_0, 10) \xrightarrow[6]{4} (\text{Consume.d}, i_2 Z_0, 11) \xrightarrow[7]{4} \\
-		& (q_f, i_3 i_2 Z_0, \text{\textlangle{}\textit{Sink} entry point\textrangle{}})
-	\end{split}
+    \label{fig:Configurations}
+    \begin{split}
+        & (q_0, Z_0, 1) \xrightarrow[1]{1} (q_0, i_1 Z_0, 7) \xrightarrow[2]{2} \\
+        & (\text{Read.\textlangle{}result\textrangle{}}, i_1 Z_0, 8) \xrightarrow[3]{5} \\
+        & (\text{Process.d}, Z_0, 2) \xrightarrow[4]{4} (\text{Process.d}, Z_0, 3) \xrightarrow[5]{4} \\
+        & (\text{Process.d}, i_2 Z_0, 10) \xrightarrow[6]{4} (\text{Consume.d}, i_2 Z_0, 11) \xrightarrow[7]{4} \\
+        & (q_f, i_3 i_2 Z_0, \text{\textlangle{}\textit{Sink} entry point\textrangle{}})
+    \end{split}
 \end{equation}
 
 So, the path in the graph which is present in equation~(\ref{fig:Path}) is accepted by the automaton and contains an issue.
 
 \begin{equation}
-	\label{fig:Path}
-	\begin{split}
-		& 1 \xdashrightarrow{\begin{subarray}{l} \text{invoke:} \\ \text{this.Read $\rightarrow$ local d} \\ \text{(a := local a)} \end{subarray}} 7
-			\xrightarrow{\begin{subarray}{l} \text{assign:} \\ \text{(local a).Source $\rightarrow$ \textlangle{}result\textrangle{}} \end{subarray}} \\
-		& 8 \xdashrightarrow{\text{return}} 2 \xrightarrow{\begin{subarray}{l} \text{invoke:} \\ \text{B.Filter $\rightarrow$ local f} \\ \text{(d := local d)} \end{subarray}} 3
-		 	\xdashrightarrow{\begin{subarray}{l} \text{invoke:} \\ \text{this.Consume} \\ \text{(d := local d)} \end{subarray}} \\
-		& 10 \xrightarrow{\begin{subarray}{l} \text{invoke:} \\ \text{C..ctor $\rightarrow$ local c} \end{subarray}} 11
-			\xdashrightarrow{\begin{subarray}{l} \text{invoke:} \\ \text{(local c).Sink} \\ \text{(d := local d)} \end{subarray}} \text{\textlangle{}\textit{Sink} entry point\textrangle{}}
-	\end{split}
+    \label{fig:Path}
+    \begin{split}
+        & 1 \xdashrightarrow{\begin{subarray}{l} \text{invoke:} \\ \text{this.Read $\rightarrow$ local d} \\ \text{(a := local a)} \end{subarray}} 7
+            \xrightarrow{\begin{subarray}{l} \text{assign:} \\ \text{(local a).Source $\rightarrow$ \textlangle{}result\textrangle{}} \end{subarray}} \\
+        & 8 \xdashrightarrow{\text{return}} 2 \xrightarrow{\begin{subarray}{l} \text{invoke:} \\ \text{B.Filter $\rightarrow$ local f} \\ \text{(d := local d)} \end{subarray}} 3
+            \xdashrightarrow{\begin{subarray}{l} \text{invoke:} \\ \text{this.Consume} \\ \text{(d := local d)} \end{subarray}} \\
+        & 10 \xrightarrow{\begin{subarray}{l} \text{invoke:} \\ \text{C..ctor $\rightarrow$ local c} \end{subarray}} 11
+            \xdashrightarrow{\begin{subarray}{l} \text{invoke:} \\ \text{(local c).Sink} \\ \text{(d := local d)} \end{subarray}} \text{\textlangle{}\textit{Sink} entry point\textrangle{}}
+    \end{split}
 \end{equation}
 
 Where dashed arrows indicate jumps and solid ones correspond to straightforward transitions.

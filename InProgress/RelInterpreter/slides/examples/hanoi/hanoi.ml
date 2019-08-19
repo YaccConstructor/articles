@@ -1,15 +1,17 @@
+module L = List
+         
 open GT
-open MiniKanren
-open MiniKanrenStd
-      
+open OCanren
+open OCanren.Std
+   
 @type pin = A | B | C with show
 
 let rec eval c = function
 | [] -> c
 | (f, t) :: moves' ->
-   let top :: rest = List.assoc f c in
+   let top :: rest = L.assoc f c in
    let pin_t =
-     match List.assoc t c with
+     match L.assoc t c with
      | []                                 -> [top]
      | top' :: _ as pin_t when top < top' -> top :: pin_t
    in
@@ -17,9 +19,9 @@ let rec eval c = function
 
 let show_pins c =
   Printf.sprintf "(%s, %s, %s)"
-    (show(GT.list) (show(int)) @@ List.assoc A c)
-    (show(GT.list) (show(int)) @@ List.assoc B c)
-    (show(GT.list) (show(int)) @@ List.assoc C c)
+    (show(GT.list) (show(int)) @@ L.assoc A c)
+    (show(GT.list) (show(int)) @@ L.assoc B c)
+    (show(GT.list) (show(int)) @@ L.assoc C c)
 
 let _ =
   let c0 = [(A, [1; 2; 3]); (B, []); (C, [])] in
@@ -40,13 +42,13 @@ let rec eval_pins' a b c moves a' b' c' = ocanren (
      pin_f == top_f :: rest_f &
      (pin_t == [] | 
       fresh top_t, rest_t in
-        pin_t == top_t :: rest_t & Nat.lto top_f top_t Bool.truo
+        pin_t == top_t :: rest_t & Std.Nat.lto top_f top_t Std.Bool.truo
      ) &
      pin_f_res == rest_f &
      pin_t_res == top_f :: pin_t &
      eval_pins' a'' b'' c'' moves' a' b' c'
 )
-                                      
+   
 let rec eval_pins a b c moves a' b' c' = 
   conde [
     ?& [moves === nil (); a === a'; b === b'; c === c';];
@@ -76,7 +78,7 @@ let rec eval_pins a b c moves a' b' c' =
            )
          ]
     )
-  ]   
+  ]
       
 let show_pins' c =
   show(List.logic) (show(Pair.logic) (show(logic) (show(pin))) (show(List.logic) (show(Nat.logic)))) c
@@ -106,7 +108,7 @@ let findMoves a b c a' b' c' n =
   in
   if n > 0 
   then  
-    List.iter (fun c -> Printf.printf "%s\n%!" @@ show_list_of_moves @@ c#reify (List.reify reify_pin) ) 
+    L.iter (fun c -> Printf.printf "%s\n%!" @@ show_list_of_moves @@ c#reify (List.reify reify_pin) ) 
     @@ Stream.take ~n:n result 
   else 
     if Stream.is_empty result 
@@ -120,7 +122,7 @@ let _ =
           (fun a' -> eval_pins lst1 lste lste (ocanren([(A, B)])) (*!< (pair !!A !!C)*) lste a' lst1)
           (fun c -> c) 
   in 
-  List.iter (fun c -> Printf.printf "%s\n%!" @@ show_list_of_pins @@ c#reify (List.reify Nat.reify)) @@ Stream.take ~n:1 result
+  L.iter (fun c -> Printf.printf "%s\n%!" @@ show_list_of_pins @@ c#reify (List.reify Nat.reify)) @@ Stream.take ~n:1 result
 
 let _ = 
   ocanren (findMoves [1; 2; 3] [] [] [] [1; 2; 3] []) 1 (* lst1234 lste lste lste lst1234 lste 1 *);;
