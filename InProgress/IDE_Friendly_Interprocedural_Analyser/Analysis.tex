@@ -3,7 +3,7 @@
 
 To apply the CFL-reachability framework, the first thing to do is to define the representation of a graph and path constraints.
 We assume that a graph is an image of a program.
-It stores the information about the source code that can be mapped back to locate issues in the sources which are found by the analysis of the graph.
+It stores the information about the source code that can be mapped back to locate issues in the source code which are found by the analysis of the graph.
 Constraints on paths define sequences of operations leading to an issue.
 
 In order to keep the expressive power of the CFL-reachability approach but facilitate implementation, we propose to use pushdown automata instead of grammars which still have equivalent expressiveness~\cite{AutomataTheory}.
@@ -47,7 +47,7 @@ Assignment operation in the source code is represented in the following way:
 Here $s$ is a source of data and $t$ is the target variable.
 
 Return statement indicates the end of a method.
-It is necessary to add this statement even it does not exist in the source code (for example, if return type of metod is \textit{void}) to inform the analyzer about the return point.
+It is necessary to add this statement even it does not exist in the source code (for example, if return type of method is \textit{void}) to inform the analyzer about the return point.
 
 Nodes correspond to positions between instructions in the source code.
 
@@ -72,23 +72,23 @@ There are several important aspects of which we should keep track.
 \begin{enumerate}
  \item It is important to keep the hierarchy of inheritance to support polymorphic calls and invocations of methods of a basic class.
  This hierarch is supported by using the \textit{Base} filed of the \textit{Class} class.
- \item For each method we store which method it belongs to: each class conteins a list of methods.
+ \item For each method we store which method it belongs to: each class contains a list of methods.
  \item To support anonymous functions invocations and passing of delegates we also keep track of the local functions.
  This information is stored in the \textit{LocalFunctions} field of the \textit{Method} class.
- \item Methods are linked to nodes of the graphs constructed for them to find for their entry points.
+ \item Methods are linked to nodes of the graphs constructed for them to find for their entry points and to simplify metod's graph updating.
  The \textit{Nodes} field of the \textit{Method} class stores this information.
  \item To adjust analyzer's behaviour to attributes attached to entities, we store them in the field \textit{Attributes} of classes \textit{Class}, \textit{Method} and \textit{ClassField}.
 \end{enumerate}
 This structure also contains class fields and local variables of a method which can be referenced by operations.
 Given a class name and a method identifier, the resolver traverses the hierarchy to find all necessary entities.
 
-\subsection{Push-down automata construction}
+\subsection{Pushdown automata construction}
 
 We define path constraints in terms of pushdown automata.
 Formally, nondeterministic pushdown automaton or PDA~\cite{AutomataTheory} is a tuple $(Q, \Sigma, \Gamma, \delta, q_0, Z_0, F)$, where $Q$, $\Sigma$ and $\Gamma$ are finite sets of states, input symbols and stack symbols respectively, $q_0 \in Q$ and $Z_0 \in \Gamma$ are initial state and stack symbol, $F \subseteq Q$ is a set of final states and $\delta: Q \times \Sigma \cup \{\epsilon\} \times \Gamma \rightarrow \mathcal P (Q \times \Gamma^*)$ is a transition relation which takes the current state, an input symbol, the top of the stack and computes a new state and the sequence of stack symbols to replace the top one.
 We also impose the following restriction on the transition relation.
 Only one symbol can be pushed during the transition.
-It does not affect the expressive power of the resulting abstraction because push of a sequence of symbols can be emulated using the chain of states connected by $\varepsilon$-transitions each of which pushes one symbol.
+It does not affect the expressive power of the resulting abstraction: a sequence of symbols can be pushed one by one using the chain of states connected by $\varepsilon$-transitions each of which pushes one symbol.
 
 Denote the set of all edges in the control flow graph as $\Sigma$.
 %So, the transition relation can be understood as a structural operational semantics that defines how a configuration is changed during the execution of a statement.
@@ -117,12 +117,12 @@ $\delta$ is defined by the case analysis~(\ref{fig:TransitionRelation}).
             \end{cases}
         \end{split} \\
         &\begin{split}
-            3)\ \delta(v, a@\textrm{assignment}(v, v_t), & \gamma) \coloneqq {(v_t, \gamma, \nu)}
+            3)\ \delta(v, a@\textrm{assignment}(v, v_t), & \gamma) \coloneqq \{(v_t, \gamma, \nu)\}
         \end{split} \\
         &\begin{split}
             4)\ \delta(v, & i@\textrm{invocation}, \gamma) \coloneqq \\
             &\begin{split}
-                \bigcup_{j=0}^{n} \{&(v_{j0}, i\gamma, s_j), \ldots, (v_{jm}, i\gamma, s_j), (v, \gamma, \nu): \\
+		\{(v, \gamma, \nu)\} \cup \bigcup_{j=0}^{n} \{&(v_{j0}, i\gamma, s_j), \ldots, (v_{jm}, i\gamma, s_j): \\
                 & v_{jk} \in A(i, j, v)\}, s_j \in R(i)
             \end{split}
         \end{split} \\
@@ -136,7 +136,7 @@ $\delta$ is defined by the case analysis~(\ref{fig:TransitionRelation}).
         & 6)\ \delta(q, \_, \gamma) := \{(q, \gamma, \nu)\}
     \end{split}
 \end{equation}
-Here we use the fallowing notation.
+Here we use the following notation.
 \begin{itemize}
  \item $v@\textit{pattern}$ means that $v$ must be an object which is constructed by \textit{pattern}.
  \item \textit{source} checks if a variable is a source.
@@ -161,7 +161,7 @@ Here $v \mapsto v_k$ means that $v$ is passed as the $k$-th parameter and become
 \subsection{Analysis execution}
 
 In this section we describe how the constructed automaton can be used to find an issue in the sample source code.
-The goal is to find the sequence of operations which starts in the entry point and ends in the entry point of a sink method.
+The goal is to find the sequence of operations which starts in the entry point of the source methods and ends in the entry point of a sink method.
 Since the automaton accepts such sequences, we can simulate the switching of its configurations according to the input statements taken from the source graph.
 We use the following notation to describe the PDA steps.
 \begin{itemize}
@@ -176,14 +176,14 @@ In our work we use GLL-based~\cite{scott2010gll, GrigorevR16} interpreter.
 According to example, we start with the configuration $(q_0, Z_0, 1)$.
 Configurations which appear after the first step are produced by accepting the first rule to the current configuration and the input symbol located at the edge between nodes 1 and 2.
 First is the one corresponding to the performed invocation of the \textit{Read} method, the invocation statement is pushed onto the stack and the position is changed to 7.
-Second is the branch where invocation is just skipped.
+Second is the branch where invocation is skipped.
 Since the second configuration does not lead to an error, we continue with the first configuration $(q_0, i_1 Z_0, 7)$ where $i_1$ is the invocation statement.
 Next step changes the state to the local \textlangle{}result\textrangle{} variable according to the rule 2 because the right part of the assignment is a source. Configuration switches to $(\text{Read.\textlangle{}result\textrangle{}}, i_1 Z_0, 8)$.
 Further step processes the return statement using rule 5 and performs two important actions.
 Firstly, it pops the invocation stored on the top of the stack and jumps to the return point.
-Secondly, a change is performed of currently tracked variable from the local one of the method \textit{Read} to the local variable \textit{d} of the method \textit{Process} because it stores a result of the invocation.
+Secondly, \textit{Read.\textlangle{}result\textrangle{}} is changed to \textit{Process.\textlangle{}d\textrangle{}} because it stores a result of the invocation.
 The next configuration is $(\text{Process.d}, Z_0, 2)$.
-Processing of the edge between nodes 2 and 3 uses rule 4 and produces only one branch which just skips the invocation because the target is a filter and there is no need to enter this method.
+Processing of the edge between nodes 2 and 3 uses rule 4 and produces only one branch which skips the invocation because the target is a filter and there is no need to enter this method.
 The invocation of \textit{Consume} is a regular call, thus the next configuration is $(\text{Consume.d}, i_2 Z_0, 10)$.
 From this point algorithm iterates until the \textit{Sink} invocation and reaches the final state $q_f$.
 
