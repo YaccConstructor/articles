@@ -1,5 +1,4 @@
-open MiniKanren.Std
-open MiniKanren
+open OCanren
 open GT
 
 module Simple =
@@ -25,20 +24,20 @@ module Simple =
         conde [
           fm === conj x y &&& evalo st x &&& evalo st y;
           fm === disj x y &&& (evalo st x ||| evalo st y);
-          fm === var  v   &&& LList.membero st v
+          fm === var  v   &&& Std.List.membero st v
       ])
 
     let _ =
       Printf.printf "%d\n" @@
       List.length @@ RStream.take @@
       run qrs
-        (*fun q r s -> ocanren (LList.lengtho s 2 & r =/= q & evalo s (Disj (Var (r), Var (q))))*)
-        (fun q r s -> (LList.lengtho s (nat 2)) &&& (r =/= q) &&& evalo s (disj (var r) (var q)))
+        (*fun q r s -> ocanren (Std.List.lengtho s 2 & r =/= q & evalo s (Disj (Var (r), Var (q))))*)
+        (fun q r s -> (Std.List.lengtho s (Std.nat 2)) &&& (r =/= q) &&& evalo s (disj (var r) (var q)))
         (fun q r s -> s);
   
       List.iter (fun s -> Printf.printf "%s\n" @@ show(f) (s#reify reify_f)) @@ RStream.take ~n:10 @@
       run qrs
-        (fun q r s -> (r =/= q) &&& evalo (r %< q) s)
+        (fun q r s -> (r =/= q) &&& evalo (Std.(%<) r q) s)
         (fun _ _ s -> s)
       
   end
@@ -109,26 +108,26 @@ module Elaborated =
     let _ = Printf.printf "%s\n%!" @@ string_of_bool @@ check f2
 
     (* let check f = and [let r = eval v f in r == Nothing || r == Just True  | v <- solve f]               *)
+
                    
-    let rec evalo st fm u =
-      fresh (x y z v w) (
-        conde [
-          ?& [fm === conj x y; evalo st x v; evalo st y w; LBool.ando v w u];
-          ?& [fm === disj x y; evalo st x v; evalo st y w; LBool.oro  v w u];
-          ?& [fm === neg  x  ; evalo st x v; LBool.noto v u];
-          ?& [fm === var  z  ; LList.assoco z st u];
-        ])
+    let rec evalo st fm u = ocanren (
+      fresh x, y, z, v, w in 
+          fm == conj x y & evalo st x v & evalo st y w & Std.Bool.ando v w u | 
+          fm == disj x y & evalo st x v & evalo st y w & Std.Bool.oro  v w u |
+          fm == neg  x   & evalo st x v & Std.Bool.noto v u |
+          fm == var  z   & Std.List.assoco z st u
+        )
 
     let _ =
       Printf.printf "*********************************\n";
       List.iter (fun s ->
-          Printf.printf "%s\n" @@ show(LList.logic)
-                                    (show(LPair.logic)
+          Printf.printf "%s\n" @@ show(Std.List.logic)
+                                    (show(Std.Pair.logic)
                                        (show(logic) (show(name)))
                                        (show(logic) (show(bool)))
                                     )
                                   
-                                    (s#reify (LList.reify (LPair.reify reify reify)))) @@ RStream.take ~n:10 @@
+                                    (s#reify (Std.List.reify (Std.Pair.reify reify reify)))) @@ RStream.take ~n:10 @@
       run q
         (fun st -> evalo st (conj (neg @@ var !!`x) (var !!`y)) !!true)
         (fun st -> st)

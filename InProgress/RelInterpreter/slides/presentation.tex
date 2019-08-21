@@ -30,7 +30,7 @@
 
 \lstdefinelanguage{ocanren}{
 keywords={run, conde, fresh, let, in, match, with, when, class, type,
-object, method, of, rec, repeat, until, while, not, do, done, as, val, inherit,
+object, method, of, rec, repeat, until, while, \begin{comment}not,\end{comment} do, done, as, val, inherit,
 new, module, sig, deriving, datatype, struct, if, then, else, open, private, virtual, include, success, failure,
 true, false},
 sensitive=true,
@@ -84,25 +84,25 @@ Saint Petersburg State University
 \begin{frame}[fragile]
   \transwipe[direction=90]
   \frametitle{Recognition vs. Search}
-\[ X \text{ --- alphabet}\] 
+\[ X \text{ --- alphabet}\]
 
-\[ L \subseteq X^* \] 
-  
+\[ L \subseteq X^* \]
+
 \[ if \omega \in L, \text{ denote the \emph{witness} of this fact } p_{\omega}  \]
 
 \pause
 
-\[ 
+\[
 \begin{array}{rl}
 \text{Recognition:} &  V(\omega, p_{\omega}) = \left\{
   \begin{array}{lr}
     1, &\omega \in L \\
     0, &\omega \notin L
   \end{array}
-\right. \\ 
+\right. \\
  & \\
-\pause 
- 
+\pause
+
 \text{Search:} & S(\omega) = p_{\omega}
 \end{array}
 \]
@@ -139,17 +139,17 @@ let rec eval st = function
 
 \begin{lstlisting}
 let rec solve env b = function
-| Var n -> ( match assoc_opt n env with 
+| Var n -> ( match assoc_opt n env with
              | None -> [extend env n b]
-             | Some b' when b == b' -> [env] 
+             | Some b' when b == b' -> [env]
              | _   -> [])
 | Conj (l, r) when b ->
-    concat @@ 
-    map (fun env -> solve env b r) @@ 
+    concat @@
+    map (fun env -> solve env b r) @@
     solve env b l
 | Conj (l, r) -> solve env b l @ solve env b r
 | Neg e -> solve env (not b) e
-| Disj (l, r) -> solve env b (Neg (Conj (Neg l, Neg r))) 
+| Disj (l, r) -> solve env b (Neg (Conj (Neg l, Neg r)))
 \end{lstlisting}
 \end{frame}
 
@@ -157,7 +157,7 @@ let rec solve env b = function
   \transwipe[direction=90]
   \frametitle{Search is Hard\footnote{compared to recognition}}
 \begin{center}
-Is it possible to generate a search procedure from a recognizer? 
+Is it possible to generate a search procedure from a recognizer?
 \end{center}
 \end{frame}
 
@@ -172,8 +172,8 @@ Is it possible to generate a search procedure from a recognizer?
   V^R(\omega, p_{\omega}, 1), & if \omega \in L, p_{\omega} \text{ --- a witness} \\
   & \\
   V^R(\omega, p_{\omega}, 0), & otherwise
-\end{array}  
-\] 
+\end{array}
+\]
 \end{frame}
 
 
@@ -184,9 +184,9 @@ Is it possible to generate a search procedure from a recognizer?
 \[
 \begin{array}{rcl}
  V^R(\omega, p_{\omega}, ?) & \leadsto & V(\omega, p_{\omega}) \\
- & \\ 
- V^R(\omega, ?, 1) & \leadsto & S(\omega) 
-\end{array} 
+ & \\
+ V^R(\omega, ?, 1) & \leadsto & S(\omega)
+\end{array}
 \]
 
 \vspace*{\fill}
@@ -205,19 +205,17 @@ let rec eval st = function
 | Neg   e     -> not (eval st e)
 | Var   x     -> List.assoc x st
 
-\end{lstlisting} 
-\end{comment}  
-  
-\begin{lstlisting}
-let rec eval$^o$ st f u =
-  fresh (x y z v w) (
-    conde [
-      ?& [f === conj x y; eval$^o$ st x v; eval$^o$ st y w; and$^o$ v w u];
-      ?& [f === disj x y; eval$^o$ st x v; eval$^o$ st y w; or$^o$  v w u];
-      ?& [f === neg  x  ; eval$^o$ st x v; not$^o$ v u];
-      ?& [f === var  z  ; assoc$^o$ z st u];
-    ])
+\end{lstlisting}
+\end{comment}
 
+\begin{lstlisting}
+let rec eval$^o$ st fm u = ocanren (
+ fresh x, y, z, v, w in
+  fm == conj x y & eval$^o$ st x v & eval$^o$ st y w & and$^o$ v w u |
+  fm == disj x y & eval$^o$ st x v & eval$^o$ st y w & or$^o$     v w u |
+  fm == neg  x   & eval$^o$ st x v & not$^o$ v u |
+  fm == var  z   & assoc$^o$ z st u
+ )
 \end{lstlisting}
 
 \end{frame}
@@ -226,32 +224,29 @@ let rec eval$^o$ st f u =
   \transwipe[direction=90]
   \frametitle{Relational Programming is Hard\footnote{compared to functional programming}}
 \begin{lstlisting}[basicstyle=\tiny]
-let eval_hanoi a b c moves a' b' c' = 
-  conde [  
-    ?& [moves === nil (); a === a'; b === b'; c === c';];
-    fresh (f t moves' pin_f pin_t pin_f_res pin_t_res a'' b'' c'') (
-      ?& [ moves === (pair f t) % moves';
-           conde [
-             ?& [f === !!A; t === !!B; pin_f === a; pin_f_res === a''; pin_t === b; pin_t_res === b''; c'' === c]; 
-             ?& [f === !!A; t === !!C; pin_f === a; pin_f_res === a''; pin_t === c; pin_t_res === c''; b'' === b]; 
-             ?& [f === !!B; t === !!A; pin_f === b; pin_f_res === b''; pin_t === a; pin_t_res === a''; c'' === c]; 
-             ?& [f === !!B; t === !!C; pin_f === b; pin_f_res === b''; pin_t === c; pin_t_res === c''; a'' === a]; 
-             ?& [f === !!C; t === !!A; pin_f === c; pin_f_res === c''; pin_t === a; pin_t_res === a''; b'' === b]; 
-             ?& [f === !!C; t === !!B; pin_f === c; pin_f_res === c''; pin_t === b; pin_t_res === b''; a'' === a]; 
-           ];     
-           fresh (top_f rest_f) (
-             ?& [ 
-                  pin_f === top_f % rest_f;
-                  conde [ pin_t === nil (); 
-                          fresh (top_t rest_t) (
-                            ?& [pin_t === top_t % rest_t; 
-                                lt$^o$ top_f top_t tru$^o$;])];
-                  pin_f_res === rest_f;
-                  pin_t_res === top_f % pin_t;
-                  eval_hanoi a'' b'' c'' moves' a' b' c';])])])
+let rec hanoi$^o$ a b c moves a' b' c' = ocanren (
+ moves == [] & a == a' & b == b' & c == c' |
+ fresh f, t, moves', pin_f, pin_t, pin_f_res, pin_t_res, a'', b'', c'' in
+   moves == (f, t) :: moves' &
+   (f == A & t == B & pin_f == a & pin_f_res == a'' & pin_t == b & pin_t_res == b'' & c'' == c |
+    f == A & t == C & pin_f == a & pin_f_res == a'' & pin_t == c & pin_t_res == c'' & b'' == b |
+    f == B & t == A & pin_f == b & pin_f_res == b'' & pin_t == a & pin_t_res == a'' & c'' == c |
+    f == B & t == C & pin_f == b & pin_f_res == b'' & pin_t == c & pin_t_res == c'' & a'' == a |
+    f == C & t == A & pin_f == c & pin_f_res == c'' & pin_t == a & pin_t_res == a'' & b'' == b |
+    f == C & t == B & pin_f == c & pin_f_res == c'' & pin_t == b & pin_t_res == b'' & a'' == a) &
+   fresh top_f, rest_f in
+     pin_f == top_f :: rest_f &
+     (pin_t == [] |
+      fresh top_t, rest_t in
+        pin_t == top_t :: rest_t & lt$^o$ top_f top_t tru$^o$
+     ) &
+     pin_f_res == rest_f &
+     pin_t_res == top_f :: pin_t &
+     hanoi$^o$ a'' b'' c'' moves' a' b' c'
+)
 \end{lstlisting}
 
-\begin{center} This took 3 people 6 hours to implement it \end{center}
+\begin{center} It took 3 people 6 hours to implement  \end{center}
 \end{frame}
 
 \begin{frame}[fragile]
@@ -260,7 +255,7 @@ let eval_hanoi a b c moves a' b' c' =
 \begin{itemize}
 	\item Manual implementation
 	\item \textbf<2>{Interpretation of functional programs with a relational \linebreak interpreter}
-	\item Relational conversion 
+	\item Relational conversion
 \end{itemize}
 \end{frame}
 
@@ -270,7 +265,7 @@ let eval_hanoi a b c moves a' b' c' =
 \begin{itemize}
 	\item Implement good relational interpreter of a Turing-complete language
 	\item Implement functional recognizer
-	\item Run functional recognizer with a relational  interpreter 
+	\item Run functional recognizer with a relational  interpreter
 \end{itemize}
 \end{frame}
 
@@ -278,14 +273,14 @@ let eval_hanoi a b c moves a' b' c' =
 \begin{frame}[fragile]
   \transwipe[direction=90]
   \frametitle{Interpretation Overhead}
-\begin{center} 
-Running relational interpreter comes with a price 
-\end{center} 
+\begin{center}
+Running relational interpreter comes with a price
+\end{center}
 
 
-\begin{center} 
-Are there ways to get rid of it? 
-\end{center} 
+\begin{center}
+Are there ways to get rid of it?
+\end{center}
 
 \end{frame}
 
@@ -293,15 +288,15 @@ Are there ways to get rid of it?
 \begin{frame}[fragile]
   \transwipe[direction=90]
   \frametitle{Specialization}
-\begin{center} 
+\begin{center}
 
-Interpreter: 
+Interpreter:
 
 \vspace{6pt}
 
-\lstinline{eval prog input} == \lstinline{output} 
+\lstinline{eval prog input} == \lstinline{output}
 
-\pause 
+\pause
 
 \vspace{26pt}
 
@@ -315,7 +310,7 @@ Consider that a part of the input is known: \lstinline{input == (static, dynamic
 \vspace{6pt}
 \end{comment}
 
-Specializer: 
+Specializer:
 
 \vspace{6pt}
 
@@ -368,17 +363,17 @@ Specializer:
   \transwipe[direction=90]
   \frametitle{Solvers from Verifiers}
 
-Relational interpeter = verifier 
+Relational interpeter = verifier
 
 Relational intepreter being run backward = solver
 
 \lstinline{evalo prog ?? res}
 
-\lstinline{isPatho path graph res} 
+\lstinline{is_path$^o$ path graph res}
 
-\lstinline{unifyo term term' subst res} 
+\lstinline{unifyo term term' subst res}
 
-\lstinline{run q (isPatho q graph True)} --- searches for all paths in the \lstinline{graph}
+\lstinline{run q (is_path$^o$ q graph True)} --- searches for all paths in the \lstinline{graph}
 
 \begin{itemize}
   \item Implement a functional program which verifies the solution for a program
@@ -408,7 +403,7 @@ Relational intepreter being run backward = solver
 \begin{frame}[fragile]
   \transwipe[direction=90]
   \frametitle{Relational Conversion: Step 1}
-\begin{center}  
+\begin{center}
 Introduce a new variable for each subexpression
 \end{center}
 
@@ -418,16 +413,16 @@ Introduce a new variable for each subexpression
 let rec append a b =
   match a with
   | []      -> b
-  | x :: xs -> 
+  | x :: xs ->
     x :: append xs b
 \end{lstlisting}
 \end{column}
-\begin{column}{0.5\textwidth}  
+\begin{column}{0.5\textwidth}
 \begin{lstlisting}
 let rec append a b =
-  match a with 
+  match a with
   | []      -> b
-  | x :: xs -> 
+  | x :: xs ->
     let @!q@ = append xs b in
     x :: @!q@
 \end{lstlisting}
@@ -439,7 +434,7 @@ let rec append a b =
 \begin{frame}[fragile]
   \transwipe[direction=90]
   \frametitle{Relational Conversion: Step 2}
-\begin{center}  
+\begin{center}
 Introduce a new variable for each subexpression
 \end{center}
 
@@ -449,19 +444,19 @@ Introduce a new variable for each subexpression
 let rec append a b = ...
 \end{lstlisting}
 \end{column}
-\begin{column}{0.5\textwidth}  
+\begin{column}{0.5\textwidth}
 \begin{lstlisting}
 let rec append$^o$ a b @!c@ = ...
 \end{lstlisting}
 \end{column}
-\end{columns}  
+\end{columns}
 \end{frame}
 
 \begin{frame}[fragile]
   \transwipe[direction=90]
   \frametitle{Relational Conversion: Step 3}
 
-\begin{center}  
+\begin{center}
 Transform \lstinline{if}-expressions and pattern matchings into disjunctions with unifications for patterns
 \end{center}
 
@@ -469,20 +464,21 @@ Transform \lstinline{if}-expressions and pattern matchings into disjunctions wit
 \begin{column}{0.5\textwidth}
 \begin{lstlisting}
 let rec append a b =
-  match a with 
+  match a with
   | []      -> b
-  | x :: xs -> 
+  | x :: xs ->
     let q = append xs b in
     x :: q
 \end{lstlisting}
 \end{column}
-\begin{column}{0.5\textwidth}  
+\begin{column}{0.5\textwidth}
 \begin{lstlisting}
 let rec append$^o$ a b c =
-  (a === [] /\ b === c) \/
-  (  (a === x :: xs) /\
-     (append$^o$ xs b q) /\
-     (c === x :: q))
+ ocanren (
+  (a == [] & b == c) |
+  (  a == x :: xs &
+     append$^o$ xs b q &
+     c == x :: q))
 \end{lstlisting}
 \end{column}
 \end{columns}
@@ -499,20 +495,22 @@ Introduce free variables into scope  (with \lstinline{fresh})
 \begin{column}{0.5\textwidth}
 \begin{lstlisting}
 let rec append$^o$ a b c =
-  (a === [] /\ b === c) \/
-  (  (a === x :: xs) /\
-     (append$^o$ xs b q) /\
-     (c === x :: q))
+ ocanren (
+  (a == [] & b == c) |
+  (  (a == x :: xs) &
+     (append$^o$ xs b q) &
+     (c == x :: q)))
 \end{lstlisting}
 \end{column}
-\begin{column}{0.5\textwidth}  
+\begin{column}{0.5\textwidth}
 \begin{lstlisting}
 let rec append$^o$ a b c =
-  (a === [] /\ b === c) \/
-  (@!fresh (x xs q)@ (
-     (a === x :: xs) /\
-     (append$^o$ xs b q) /\
-     (c === x :: q)))
+ ocanren (
+  (a == [] & b == c) |
+  (@!fresh x, xs, q in@
+     a == x :: xs &
+     append$^o$ xs b q &
+     c == x :: q))
 \end{lstlisting}
 \end{column}
 \end{columns}
@@ -522,7 +520,7 @@ let rec append$^o$ a b c =
 \begin{frame}[fragile]
   \transwipe[direction=90]
   \frametitle{Relational Conversion: Step 5}
-\begin{center}  
+\begin{center}
 Pop unifications to the top
 \end{center}
 
@@ -530,21 +528,23 @@ Pop unifications to the top
 \begin{column}{0.5\textwidth}
 \begin{lstlisting}
 let rec append$^o$ a b c =
-  (a === [] /\ b === c) \/
-  (fresh (x xs q) (
-     (a === x :: xs) /\
-     (append$^o$ xs b q) /\
-     (c === x :: q)))
+ ocanren (
+  (a == [] & b == c) |
+  (fresh x, xs, q in
+     a == x :: xs &
+     append$^o$ xs b q &
+     c == x :: q))
 \end{lstlisting}
 \end{column}
-\begin{column}{0.5\textwidth}  
+\begin{column}{0.5\textwidth}
 \begin{lstlisting}
 let rec append$^o$ a b c =
-  (a === [] /\ b === c) \/
-  (fresh (x xs q) (
-     (a === x :: xs) /\
-     @!(c === x :: q)@ /\
-     (append$^o$ xs b q))
+ ocanren (
+  (a == [] & b == c) |
+  (fresh x, xs, q in
+     a == x :: xs &
+     @!c == x :: q@ &
+     append$^o$ xs b q))
 \end{lstlisting}
 \end{column}
 \end{columns}
@@ -554,21 +554,20 @@ let rec append$^o$ a b c =
 \begin{frame}[fragile]
   \transwipe[direction=90]
   \frametitle{Forward Execution is Efficient, Backward Execution is not}
-  
+
   Forward execution is efficient, since it mimics the execution of a function
-  
-\vspace{6pt}  
-  
-Relational conversion for \lstinline{f$_1$ x$_1$ && f$_2$ x$_2$}: 
- 
+
+\vspace{6pt}
+
+Relational conversion for \lstinline{f$_1$ x$_1$ && f$_2$ x$_2$}:
+
 \begin{lstlisting}
-fun res ->
-  fresh (p) (
-    (f$_1$ x$_1$ p) /\
-    (conde [
-      (p === ^false /\ res === ^false);
-      (p === ^true  /\ f$_2$ x$_2$ res)]))
-\end{lstlisting} 
+fun res -> ocanren (
+  fresh p in
+     f$_1$ x$_1$ p &
+    (p == fals$^o$ & res == fals$^o$ |
+     p == tru$^o$  & f$_2$ x$_2$ res))
+\end{lstlisting}
 
 Computes \lstinline{f$_2$ x$_2$ res} only if \lstinline{f$_1$ x$_1$ p} fails
 
@@ -585,10 +584,9 @@ It is not the best strategy, if \lstinline{res} is known
 This coversion of  \lstinline{f$_1$ x$_1$ && f$_2$ x$_2$} is better for the backward execution, but not for forward
 
 \begin{lstlisting}
-fun res ->
-    conde [
-      (res === ^false /\ f$_1$ x$_1$ ^false);
-      (f$_1$ x$_1$ ^true    /\ f$_2$ x$_2$ res)]
+fun res -> ocanren (
+  res == fals$^o$ & f$_1$ x$_1$ fals$^o$ |
+  f$_1$ x$_1$ tru$^o$    & f$_2$ x$_2$ res)
 \end{lstlisting}
 
 
@@ -598,11 +596,11 @@ fun res ->
 \begin{frame}[fragile]
   \transwipe[direction=90]
   \frametitle{There is no Single Good Strategy}
-  
-\begin{center}  
-Is there a way to automatically generate relations efficient in the specified directions? 
+
+\begin{center}
+Is there a way to automatically generate relations efficient in the specified directions?
 \end{center}
-  
+
 \end{frame}
 
 
@@ -610,7 +608,7 @@ Is there a way to automatically generate relations efficient in the specified di
   \transwipe[direction=90]
   \frametitle{Specialization: Not Only for Direction}
 \begin{center} When solving a search problem, we know its search space  \end{center}
-  
+
 \[  V^R(\omega, ?, 1) \leadsto S(\omega) \]
 \end{frame}
 
@@ -618,7 +616,7 @@ Is there a way to automatically generate relations efficient in the specified di
   \transwipe[direction=90]
   \frametitle{Partial Deduction: Specialization for Logic Language}
 \begin{itemize}
-	\item Given: 
+	\item Given:
 	\begin{itemize}
 		\item Logic program
 		\item Goal
@@ -644,7 +642,7 @@ l([], x, x).
 l([z|zs], x, r) $\leftarrow$ l(zs, z, r).
 
 $\leftarrow$ last([A,B|xs], r).
-\end{lstlisting}  
+\end{lstlisting}
 \end{column}
 \begin{column}{0.45\textwidth}
 \begin{center}
@@ -656,9 +654,9 @@ $\leftarrow$ last([A,B|xs], r).
 \end{center}
 \end{column}
 \end{columns}
-  
-  \pause 
-  
+
+  \pause
+
 \begin{center}
 \begin{minipage}{0.7\textwidth}
 \begin{lstlisting}
@@ -666,9 +664,9 @@ last([A,B], B).
 last([A,B,z'|zs'], r) $\leftarrow$ l(zs', z', r).
 l([], x, x).
 l([z|zs], x, r) $\leftarrow$ l(zs, z, r).
-\end{lstlisting}  
+\end{lstlisting}
 \end{minipage}
-\end{center}   
+\end{center}
 \end{frame}
 
 \begin{frame}[fragile]
@@ -715,11 +713,11 @@ $\Large\color{red}{X}$
 \begin{itemize}
   \item Fully automatic program transformation
   \item For pure logic language
-  \item Features: 
+  \item Features:
   \begin{itemize}
     \item Specialization
     \item Deforestation
-    \item Tupling 
+    \item Tupling
   \end{itemize}
 \end{itemize}
 \end{frame}
@@ -733,27 +731,27 @@ Deforestation --- program transformation which eliminates intermediate data stru
 \begin{columns}
 \begin{column}{0.45\textwidth}
 \begin{lstlisting}[basicstyle=\footnotesize]
-let doubleAppend$^o$ x y z xyz = 
-  (fresh (@!t@) (
-     (append$^o$ x y @!t@) /\
-     (append$^o$ @!t@ z xyz)))
+let double_append$^o$ x y z xyz = ocanren (
+  fresh @!t@ in
+    append$^o$ x y @!t@ &
+    append$^o$ @!t@ z xyz )
 
-let rec append$^o$ x y xy = conde [
-  (x === nil () /\ xy === y);
-  (fresh (h t ty) (
-     (x  === h % t)  /\  
-     (xy === h % t') /\
-     (append$^o$ t y t')))]
+let rec append$^o$ x y xy = ocanren (
+  x == [] & xy == y |
+  fresh h, t, ty in
+    x  == h :: t  &
+    xy == h :: t' &
+    append$^o$ t y t')
 \end{lstlisting}
 \end{column}
-\begin{column}{0.55\textwidth}  
+\begin{column}{0.55\textwidth}
 \begin{lstlisting}[basicstyle=\footnotesize]
-let rec doubleAppend$^o$ x y z xyz = conde [
-   (x === nil () /\ append$^o$ y z xyz);
-   (fresh (h t t') (
-      (x === h % t)  /\  
-      (xyz === h % t') /\
-      (doubleAppend$^o$ t y z t')))]
+let rec double_append$^o$ x y z xyz = ocanren (
+  x == [] & append$^o$ y z xyz |
+  (fresh h, t, t' in
+     x == h :: t  &
+     xyz == h :: t' &
+     double_append$^o$ t y z t')
 \end{lstlisting}
 \end{column}
 \end{columns}
@@ -765,22 +763,21 @@ let rec doubleAppend$^o$ x y z xyz = conde [
 Tupling --- program transformation which eliminates multiple traversals of the same data structure
 
 \begin{lstlisting}[basicstyle=\footnotesize]
-let maxLength$^o$ xs m l = max$^o$ xs m /\ length$^o$ xs l
+let max_length$^o$ xs m l = max$^o$ xs m & length$^o$ xs l
 
-let rec length$^o$ xs l = conde [
-  (xs === nil () /\ l === zero ());
-  (fresh (h t m) (
-    xs === h % t /\ l === succ m /\ length$^o$ t m))]
+let rec length$^o$ xs l = ocanren (
+  xs == [] & l == 0 |
+  (fresh h, t, m in
+    xs == h :: t & l == succ m & length$^o$ t m))
 
-let max$^o$ xs m = max$_1^o$ xs (zero ()) m
+let max$^o$ xs m = max$_1^o$ xs 0 m
 
-let rec max$_1^o$ xs n m = conde [
-  (xs === nil () /\ m === n);
-  (fresh (h t) (
-    (xs === h % t) /\
-    (conde [
-      (le$^o$ h n ^true /\ max$_1^o$ t n m); 
-      (gt$^o$ h n ^true /\ max$_1^o$ t h m)])))]
+let rec max$_1^o$ xs n m = ocanren (
+  xs == [] & m == n |
+  (fresh h, t in
+    xs == h :: t &
+    ( le$^o$ h n tru$^o$ & max$_1^o$ t n m |
+      gt$^o$ h n tru$^o$ & max$_1^o$ t h m)))
 \end{lstlisting}
 
 \end{frame}
@@ -791,16 +788,15 @@ let rec max$_1^o$ xs n m = conde [
 Tupling --- program transformation which eliminates multiple traversals of the same data structure
 
 \begin{lstlisting}[basicstyle=\footnotesize]
-let maxLength$^o$ xs m l = maxLength$_1^o$ xs m (zero ()) l
+let max_length$^o$ xs m l = max_length$_1^o$ xs m 0 l
 
-let rec maxLength$_1^o$ xs m n l = conde [
-  (xs === nil () /\ m === n /\ l === zero ());
-  (fresh (h t l$_1$)
-     (xs === h % t) /\
-     (l === succ l$_1$) /\
-     (conde [
-       (le$^o$ h n /\ maxLength$_1^o$ t m n l);
-       (gt$^o$ h n /\ maxLength$_1^o$ t m h l)]))]
+let rec max_length$_1^o$ xs m n l = ocanren (
+  xs == [] & m == n & l == 0 |
+  (fresh h, t, l$_1$ in
+     xs == h :: t &
+     l == succ l$_1$ &
+     ( le$^o$ h n & max_length$_1^o$ t m n l |
+       gt$^o$ h n & max_length$_1^o$ t m h l)))
 \end{lstlisting}
 
 
@@ -809,84 +805,84 @@ let rec maxLength$_1^o$ xs m n l = conde [
 \begin{frame}[fragile]
   \transwipe[direction=90]
   \frametitle{CPD: Intuition}
-\begin{itemize} 
+\begin{itemize}
   \item Local control: compute a partial SLDNF-tree per a relation of interest
-  \begin{itemize} 
-    \item Having a conjunction of atoms, which atom should be selected? 
-    \item When to stop building a tree? 
-  \end{itemize}  
+  \begin{itemize}
+    \item Having a conjunction of atoms, which atom should be selected?
+    \item When to stop building a tree?
+  \end{itemize}
   \item Global control: determine which relations are of interest
   \begin{itemize}
     \item Do not process the same conjunction twice
     \item If a conjunction \textit{embeds} something processed before, \textit{generalize} it
     \item How to define \textit{embedding}?
-    \item How to \textit{generalize}? 
-  \end{itemize} 
-\end{itemize}   
+    \item How to \textit{generalize}?
+  \end{itemize}
+\end{itemize}
 \end{frame}
 
 \begin{frame}[fragile]
   \transwipe[direction=90]
   \frametitle{CPD: Implementation}
-\begin{itemize} 
+\begin{itemize}
   \item Local control
-  \begin{itemize} 
-    \item Deterministic unfold (only one nondeterministic unfold per tree) 
+  \begin{itemize}
+    \item Deterministic unfold (only one nondeterministic unfold per tree)
     \item Selectable conjunct: leftmost atom which does not have any predecessor embedded into it
     \item Variant check
     \item Stop when there are no selectable atoms
-  \end{itemize}  
+  \end{itemize}
   \item Global control
   \begin{itemize}
     \item Variant check
     \item Generalization: split conjunction in maximally connected subconjunctions + most specific generalization
     \item Homeomorphic embedding extended for conjunctions
-  \end{itemize} 
+  \end{itemize}
   \item Residualization
   \begin{itemize}
     \item A definition per a partial SLDNF-tree
     \item Redundant Argument Filtering
-  \end{itemize} 
-\end{itemize}   
+  \end{itemize}
+\end{itemize}
 \end{frame}
 
 \begin{frame}[fragile]
   \transwipe[direction=90]
   \frametitle{Evaluation}
-  Compare 
-  
+  Compare
+
 \begin{itemize}
-  \item Unnesting 
+  \item Unnesting
   \item Unnesting strategy aimed at backward execution
   \item Unnesting + CPD
   \item Interpretation of functional verifier with relational interpreter
 \end{itemize}
 
-Tasks 
+Tasks
 
 \begin{itemize}
   \item Path search
   \item Search for a unifier of two terms
 \end{itemize}
-  
+
 \end{frame}
 
 \begin{frame}[fragile]
   \transwipe[direction=90]
   \frametitle{Path Search}
 
-\emph{Directed graph} is a tuple $(N, E, start, end)$, where: 
+\emph{Directed graph} is a tuple $(N, E, start, end)$, where:
 
 \begin{itemize}
 	\item $N$ --- set of nodes
 	\item $E$ --- set of edges
 	\item Functions $start, end: E \rightarrow N$ return a start (end) node of an edge
-\end{itemize} 
+\end{itemize}
 
 \pause
 \vspace{10pt}
 
-\emph{Path} is a sequence $\langle n_0, e_0, n_1, e_1, \dots, n_k, e_k, n_{k+1} \rangle$, such that 
+\emph{Path} is a sequence $\langle n_0, e_0, n_1, e_1, \dots, n_k, e_k, n_{k+1} \rangle$, such that
 \[
 \forall i \in \{ 0 \dots k \}\; :\; n_i = start\,(e_i) \text{ and } n_{i+1} = end\,(e_i)
 \]
@@ -903,27 +899,26 @@ Tasks
   \frametitle{Path Search: Relational Conversion }
 
 \begin{lstlisting}[numbers=left,numberstyle=\small]
-let rec isPath ns g =
+let rec is_path ns g =
   match ns with
-  | x$_1$ :: x$_2$ :: xs ->   elem (x$_1$, x$_2$) g && isPath (x$_2$ :: xs) g 
+  | x$_1$ :: x$_2$ :: xs ->   elem (x$_1$, x$_2$) g && is_path (x$_2$ :: xs) g
   | [_]            -> true
 \end{lstlisting}
 
 \pause
 
-\begin{lstlisting}[numbers=left,numberstyle=\small]
-let rec isPath$^o$ ns g res = conde [
-  (fresh (el) ((ns === el % nil ()) /\ (res === ^true));
-  (fresh (x$_1$ x$_2$ xs resElem resIsPath) (
-    (ns === x$_1$ % (x$_2$ % xs)) /\ 
-    (elem$^o$ (pair x$_1$ x$_2$) g resElem) /\
-    (isPath$^o$ (x$_2$ % xs) g resIsPath) /\ 
-    (conde [
-      (resElem === ^false /\ res === ^false); 
-      (resElem === ^true  /\ res === resIsPath)])))]
+\begin{lstlisting}[]
+let rec is_path$^o$ ns g res = ocanren (
+  fresh el in (ns == [el]  & res == tru$^o$) |
+  (fresh x$_1$, x$_2$, xs, res_elem, res_is_path in
+    ns == x$_1$ :: (x$_2$ :: xs) &
+    elem$^o$ (x$_1$, x$_2$) g res_elem &
+    is_path$^o$ (x$_2$ :: xs) g res_is_path &
+    ( res_elem == fals$^o$ & res == fals$^o$ |
+      res_elem == tru$^o$  & res == res_is_path )))
 \end{lstlisting}
 
-This relation is inefficient for ``\lstinline{isPath$^o$ q <graph> true}''
+This relation is inefficient for ``\lstinline{is_path$^o$ q <graph> true}''
 
 \end{frame}
 
@@ -932,19 +927,21 @@ This relation is inefficient for ``\lstinline{isPath$^o$ q <graph> true}''
   \frametitle{Path Search: Specialized Relation}
 
 \begin{lstlisting}[]
-let rec isPath$^o$ ns g res = conde [
-  (fresh (el) ((ns === el % nil ()) /\ (res === ^true)));
-  (fresh (x$_1$ x$_2$ xs resElem resIsPath) (
-    (resElem === ^true) /\
-    (resIsPath === ^true) /\
-    (ns === x$_1$ % (x$_2$ % xs)) /\ 
-    (elem$^o$ (pair x$_1$ x$_2$) g resElem) /\
-    (isPath$^o$ (x$_2$ % xs) g resIsPath)))]
+let rec is_path$^o$ ns g res = ocanren (
+  fresh el in (ns == [el] & res == tru$^o$) |
+  (fresh x$_1$, x$_2$, xs, res_elem, res_is_path in
+    res_elem == tru$^o$ &
+    res_is_path == tru$^o$ &
+    ns == x$_1$ :: (x$_2$ :: xs) &
+    elem$^o$ (x$_1$, x$_2$) g res_elem &
+    is_path$^o$ (x$_2$ :: xs) g res_is_path)))
 \end{lstlisting}
 
-Better performance for ``\lstinline{isPath$^o$ q <graph> true}''
+\vspace{16pt}
 
-\pause 
+Better performance for ``\lstinline{is_path$^o$ q <graph> true}''
+
+\pause
 \vspace{10pt}
 
 This can be achieved automatically with CPD
@@ -955,7 +952,7 @@ This can be achieved automatically with CPD
 \begin{frame}[fragile]
   \transwipe[direction=90]
   \frametitle{Evaluation: Path Search}
-  
+
 \begin{table}
 \footnotesize
 \centering
@@ -972,7 +969,7 @@ Scheme interpreter            & 0.80  & 8.22 & 88.14 & 191.44 & >300   & ---   \
 \end{tabular}
 
  \caption{Searching for paths in the graph (seconds)}
-    \label{tab:isPath}
+    \label{tab:is_path}
 \end{table}
 \end{frame}
 
@@ -984,13 +981,13 @@ Scheme interpreter            & 0.80  & 8.22 & 88.14 & 191.44 & >300   & ---   \
 
 \emph{Term}:
 \begin{itemize}
-	\item Variable ($X, Y, \dots$) 
-	\item Some constructor applied to terms ($nil, cons(H, T), \dots$) 
-\end{itemize}	
-	
+	\item Variable ($X, Y, \dots$)
+	\item Some constructor applied to terms ($nil, cons(H, T), \dots$)
+\end{itemize}
+
 \pause
-\vspace{10pt}	
-	
+\vspace{10pt}
+
 \emph{Substitution} maps variables to terms
 
 \vspace{10pt}
@@ -1000,13 +997,13 @@ Substitution can be \emph{applied} to a term by simultaneously substituting vari
 \vspace{10pt}
 \pause
 
-\emph{Unifier} is a substitution $\sigma$ which equalizes terms: $t \sigma = s \sigma$	
-	
+\emph{Unifier} is a substitution $\sigma$ which equalizes terms: $t \sigma = s \sigma$
+
 \vspace{10pt}
 
 \pause
-Problem: given two terms with free variables, find their unifier	
-	
+Problem: given two terms with free variables, find their unifier
+
 \end{frame}
 
 
@@ -1049,7 +1046,7 @@ let rec check_uni subst t1 t2 =
 \begin{frame}[fragile]
   \transwipe[direction=90]
   \frametitle{Unification: Relational Conversion}
-Does not fit the slide. 
+Does not fit the slide.
 
 
 \end{frame}
@@ -1062,7 +1059,7 @@ Does not fit the slide.
 \tiny
 \centering
 \begin{tabular}{c|c|c|c}
-\multirow{ 2}{*}{Terms} & 
+\multirow{ 2}{*}{Terms} &
 f(X, a) & f(a \% b \% nil, c \% d \% nil, L) & f(X, X, g(Z, t))  \\
 \cline{2-4} &
 f(a, X) & f(X \% XS, YS, X \% ZS) & f(g(p, L), Y, Y)  \\
@@ -1084,19 +1081,19 @@ Scheme interpreter            & 0.04  & 5.15 & >300   \\
 \begin{frame}[fragile]
   \transwipe[direction=90]
   \frametitle{Conclusion \& Future Work}
-\begin{center} 
-Funcional verifier + unnesting + specialization = solver
+\begin{center}
+Functional verifier + unnesting + specialization = solver
 \end{center}
- 
-\vspace{15pt} 
- 
+
+\vspace{15pt}
+
 Future work
- 
-\begin{itemize} 
+
+\begin{itemize}
   \item Generate functional program from relational to reduce interpretation overhead
   \item Some other specialization technique, less ad-hoc than CPD
 
-\end{itemize} 
+\end{itemize}
 \end{frame}
 
 \end{document}
