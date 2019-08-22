@@ -138,18 +138,18 @@ let rec eval st = function
   \frametitle{Propositional Formulas: Search}
 
 \begin{lstlisting}
-let rec solve env b = function
-| Var n -> ( match assoc_opt n env with
-             | None -> [extend env n b]
-             | Some b' when b == b' -> [env]
+let rec solve st b = function
+| Var n -> ( match assoc_opt n st with
+             | None -> [extend st n b]
+             | Some b' when b == b' -> [st]
              | _   -> [])
 | Conj (l, r) when b ->
     concat @@
-    map (fun env -> solve env b r) @@
-    solve env b l
-| Conj (l, r) -> solve env b l @ solve env b r
-| Neg e -> solve env (not b) e
-| Disj (l, r) -> solve env b (Neg (Conj (Neg l, Neg r)))
+    map (fun st -> solve st b r) @@
+    solve st b l
+| Conj (l, r) -> solve st b l @ solve st b r
+| Neg e -> solve st (not b) e
+| Disj (l, r) -> solve st b (Neg (Conj (Neg l, Neg r)))
 \end{lstlisting}
 \end{frame}
 
@@ -238,13 +238,15 @@ let rec hanoi$^o$ a b c moves a' b' c' = ocanren (
      pin_f == top_f :: rest_f &
      (pin_t == [] |
       fresh top_t, rest_t in
-        pin_t == top_t :: rest_t & lt$^o$ top_f top_t tru$^o$
+        pin_t == top_t :: rest_t & lt$^o$ top_f top_t true
      ) &
      pin_f_res == rest_f &
      pin_t_res == top_f :: pin_t &
      hanoi$^o$ a'' b'' c'' moves' a' b' c'
 )
 \end{lstlisting}
+
+\pause
 
 \begin{center} It took 3 people 6 hours to implement  \end{center}
 \end{frame}
@@ -435,7 +437,7 @@ let rec append a b =
   \transwipe[direction=90]
   \frametitle{Relational Conversion: Step 2}
 \begin{center}
-Introduce a new variable for each subexpression
+Introduce a new argument for result
 \end{center}
 
 \begin{columns}
@@ -474,11 +476,11 @@ let rec append a b =
 \begin{column}{0.5\textwidth}
 \begin{lstlisting}
 let rec append$^o$ a b c =
- ocanren (
-  (a == [] & b == c) |
-  (  a == x :: xs &
-     append$^o$ xs b q &
-     c == x :: q))
+  ocanren (
+    (a == [] & b == c) |
+    (  a == x :: xs &
+       append$^o$ xs b q &
+       c == x :: q))
 \end{lstlisting}
 \end{column}
 \end{columns}
@@ -495,22 +497,22 @@ Introduce free variables into scope  (with \lstinline{fresh})
 \begin{column}{0.5\textwidth}
 \begin{lstlisting}
 let rec append$^o$ a b c =
- ocanren (
-  (a == [] & b == c) |
-  (  (a == x :: xs) &
-     (append$^o$ xs b q) &
-     (c == x :: q)))
+  ocanren (
+    (a == [] & b == c) |
+    (  (a == x :: xs) &
+       (append$^o$ xs b q) &
+       (c == x :: q)))
 \end{lstlisting}
 \end{column}
 \begin{column}{0.5\textwidth}
 \begin{lstlisting}
 let rec append$^o$ a b c =
- ocanren (
-  (a == [] & b == c) |
-  (@!fresh x, xs, q in@
-     a == x :: xs &
-     append$^o$ xs b q &
-     c == x :: q))
+  ocanren (
+    (a == [] & b == c) |
+    (@!fresh x, xs, q in@
+       a == x :: xs &
+       append$^o$ xs b q &
+       c == x :: q))
 \end{lstlisting}
 \end{column}
 \end{columns}
@@ -528,23 +530,23 @@ Pop unifications to the top
 \begin{column}{0.5\textwidth}
 \begin{lstlisting}
 let rec append$^o$ a b c =
- ocanren (
-  (a == [] & b == c) |
-  (fresh x, xs, q in
-     a == x :: xs &
-     append$^o$ xs b q &
-     c == x :: q))
+  ocanren (
+    (a == [] & b == c) |
+    (fresh x, xs, q in
+       a == x :: xs &
+       append$^o$ xs b q &
+       c == x :: q))
 \end{lstlisting}
 \end{column}
 \begin{column}{0.5\textwidth}
 \begin{lstlisting}
 let rec append$^o$ a b c =
- ocanren (
-  (a == [] & b == c) |
-  (fresh x, xs, q in
-     a == x :: xs &
-     @!c == x :: q@ &
-     append$^o$ xs b q))
+  ocanren (
+    (a == [] & b == c) |
+    (fresh x, xs, q in
+       a == x :: xs &
+       @!c == x :: q@ &
+       append$^o$ xs b q))
 \end{lstlisting}
 \end{column}
 \end{columns}
@@ -565,8 +567,8 @@ Relational conversion for \lstinline{f$_1$ x$_1$ && f$_2$ x$_2$}:
 fun res -> ocanren (
   fresh p in
      f$_1$ x$_1$ p &
-    (p == fals$^o$ & res == fals$^o$ |
-     p == tru$^o$  & f$_2$ x$_2$ res))
+     ( p == false & res == false |
+       p == true  & f$_2$ x$_2$ res))
 \end{lstlisting}
 
 Computes \lstinline{f$_2$ x$_2$ res} only if \lstinline{f$_1$ x$_1$ p} fails
@@ -585,8 +587,8 @@ This coversion of  \lstinline{f$_1$ x$_1$ && f$_2$ x$_2$} is better for the back
 
 \begin{lstlisting}
 fun res -> ocanren (
-  res == fals$^o$ & f$_1$ x$_1$ fals$^o$ |
-  f$_1$ x$_1$ tru$^o$    & f$_2$ x$_2$ res)
+  res == false & f$_1$ x$_1$ false |
+  f$_1$ x$_1$ true    & f$_2$ x$_2$ res)
 \end{lstlisting}
 
 
@@ -731,27 +733,30 @@ Deforestation --- program transformation which eliminates intermediate data stru
 \begin{columns}
 \begin{column}{0.45\textwidth}
 \begin{lstlisting}[basicstyle=\footnotesize]
-let double_append$^o$ x y z xyz = ocanren (
-  fresh @!t@ in
-    append$^o$ x y @!t@ &
-    append$^o$ @!t@ z xyz )
+let double_append$^o$ x y z xyz = 
+  ocanren (
+    fresh @!t@ in
+      append$^o$ x y @!t@ &
+      append$^o$ @!t@ z xyz )
 
-let rec append$^o$ x y xy = ocanren (
-  x == [] & xy == y |
-  fresh h, t, ty in
-    x  == h :: t  &
-    xy == h :: t' &
-    append$^o$ t y t')
+let rec append$^o$ x y xy = 
+  ocanren (
+    x == [] & xy == y |
+    fresh h, t, ty in
+      x  == h :: t  &
+      xy == h :: t' &
+      append$^o$ t y t')
 \end{lstlisting}
 \end{column}
 \begin{column}{0.55\textwidth}
 \begin{lstlisting}[basicstyle=\footnotesize]
-let rec double_append$^o$ x y z xyz = ocanren (
-  x == [] & append$^o$ y z xyz |
-  (fresh h, t, t' in
-     x == h :: t  &
-     xyz == h :: t' &
-     double_append$^o$ t y z t')
+let rec double_append$^o$ x y z xyz = 
+  ocanren (
+    x == [] & append$^o$ y z xyz |
+    (fresh h, t, t' in
+       x == h :: t  &
+       xyz == h :: t' &
+       double_append$^o$ t y z t')
 \end{lstlisting}
 \end{column}
 \end{columns}
@@ -763,7 +768,7 @@ let rec double_append$^o$ x y z xyz = ocanren (
 Tupling --- program transformation which eliminates multiple traversals of the same data structure
 
 \begin{lstlisting}[basicstyle=\footnotesize]
-let max_length$^o$ xs m l = max$^o$ xs m & length$^o$ xs l
+let max_length$^o$ xs m l = ocanren (max$^o$ xs m & length$^o$ xs l)
 
 let rec length$^o$ xs l = ocanren (
   xs == [] & l == 0 |
@@ -776,8 +781,8 @@ let rec max$_1^o$ xs n m = ocanren (
   xs == [] & m == n |
   (fresh h, t in
     xs == h :: t &
-    ( le$^o$ h n tru$^o$ & max$_1^o$ t n m |
-      gt$^o$ h n tru$^o$ & max$_1^o$ t h m)))
+    ( le$^o$ h n true & max$_1^o$ t n m |
+      gt$^o$ h n true & max$_1^o$ t h m)))
 \end{lstlisting}
 
 \end{frame}
@@ -788,7 +793,7 @@ let rec max$_1^o$ xs n m = ocanren (
 Tupling --- program transformation which eliminates multiple traversals of the same data structure
 
 \begin{lstlisting}[basicstyle=\footnotesize]
-let max_length$^o$ xs m l = max_length$_1^o$ xs m 0 l
+let max_length$^o$ xs m l = ocanren (max_length$_1^o$ xs m 0 l)
 
 let rec max_length$_1^o$ xs m n l = ocanren (
   xs == [] & m == n & l == 0 |
@@ -806,7 +811,7 @@ let rec max_length$_1^o$ xs m n l = ocanren (
   \transwipe[direction=90]
   \frametitle{CPD: Intuition}
 \begin{itemize}
-  \item Local control: compute a partial SLDNF-tree per a relation of interest
+  \item Local control: compute a partial SLD-tree per a relation of interest
   \begin{itemize}
     \item Having a conjunction of atoms, which atom should be selected?
     \item When to stop building a tree?
@@ -828,9 +833,9 @@ let rec max_length$_1^o$ xs m n l = ocanren (
   \item Local control
   \begin{itemize}
     \item Deterministic unfold (only one nondeterministic unfold per tree)
-    \item Selectable conjunct: leftmost atom which does not have any predecessor embedded into it
+    \item Selectable conjunct: leftmost call which does not have any predecessor embedded into it
     \item Variant check
-    \item Stop when there are no selectable atoms
+    \item Stop when there are no selectable conjuncts
   \end{itemize}
   \item Global control
   \begin{itemize}
@@ -840,7 +845,7 @@ let rec max_length$_1^o$ xs m n l = ocanren (
   \end{itemize}
   \item Residualization
   \begin{itemize}
-    \item A definition per a partial SLDNF-tree
+    \item A definition per a local tree
     \item Redundant Argument Filtering
   \end{itemize}
 \end{itemize}
@@ -909,13 +914,13 @@ let rec is_path ns g =
 
 \begin{lstlisting}[]
 let rec is_path$^o$ ns g res = ocanren (
-  fresh el in (ns == [el]  & res == tru$^o$) |
+  fresh el in (ns == [el]  & res == true) |
   (fresh x$_1$, x$_2$, xs, res_elem, res_is_path in
     ns == x$_1$ :: (x$_2$ :: xs) &
     elem$^o$ (x$_1$, x$_2$) g res_elem &
     is_path$^o$ (x$_2$ :: xs) g res_is_path &
-    ( res_elem == fals$^o$ & res == fals$^o$ |
-      res_elem == tru$^o$  & res == res_is_path )))
+    ( res_elem == false & res == false |
+      res_elem == true  & res == res_is_path )))
 \end{lstlisting}
 
 This relation is inefficient for ``\lstinline{is_path$^o$ q <graph> true}''
@@ -928,10 +933,10 @@ This relation is inefficient for ``\lstinline{is_path$^o$ q <graph> true}''
 
 \begin{lstlisting}[]
 let rec is_path$^o$ ns g res = ocanren (
-  fresh el in (ns == [el] & res == tru$^o$) |
+  fresh el in (ns == [el] & res == true) |
   (fresh x$_1$, x$_2$, xs, res_elem, res_is_path in
-    res_elem == tru$^o$ &
-    res_is_path == tru$^o$ &
+    res_elem == true &
+    res_is_path == true &
     ns == x$_1$ :: (x$_2$ :: xs) &
     elem$^o$ (x$_1$, x$_2$) g res_elem &
     is_path$^o$ (x$_2$ :: xs) g res_is_path)))
@@ -1082,7 +1087,7 @@ Scheme interpreter            & 0.04  & 5.15 & >300   \\
   \transwipe[direction=90]
   \frametitle{Conclusion \& Future Work}
 \begin{center}
-Functional verifier + unnesting + specialization = solver
+Functional recognizer + unnesting + specialization = search
 \end{center}
 
 \vspace{15pt}
