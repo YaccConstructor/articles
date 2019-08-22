@@ -26,7 +26,7 @@ module Simple =
           fm === disj x y &&& (evalo st x ||| evalo st y);
           fm === var  v   &&& Std.List.membero st v
       ])
-
+(*
     let _ =
       Printf.printf "%d\n" @@
       List.length @@ RStream.take @@
@@ -39,7 +39,7 @@ module Simple =
       run qrs
         (fun q r s -> (r =/= q) &&& evalo (Std.(%<) r q) s)
         (fun _ _ s -> s)
-      
+  *)    
   end
     
 module Elaborated =
@@ -70,7 +70,7 @@ module Elaborated =
     | Neg   e     -> not (eval st e)
     | Var   x     -> List.assoc x st
                    
-    let _ = Printf.printf "%s\n%!" (string_of_bool @@ eval [(`x, true)] (Conj (Neg (Var `x), (Var `x))))           
+(*    let _ = Printf.printf "%s\n%!" (string_of_bool @@ eval [(`x, true)] (Conj (Neg (Var `x), (Var `x))))           *)
                        
     let empty = []
     
@@ -100,16 +100,15 @@ module Elaborated =
     
     let show_env c = show(list) (show(pair) (show(name)) string_of_bool) c
     
-    let _ = Printf.printf "%s\n%!" @@ show(list) show_env @@ s f1
+(*    let _ = Printf.printf "%s\n%!" @@ show(list) show_env @@ s f1 *)
                  
     let check f = List.for_all (fun env -> eval env f) (s f)
                    
-    let _ = Printf.printf "%s\n%!" @@ string_of_bool @@ check f1
-    let _ = Printf.printf "%s\n%!" @@ string_of_bool @@ check f2
+(*    let _ = Printf.printf "%s\n%!" @@ string_of_bool @@ check f1
+    let _ = Printf.printf "%s\n%!" @@ string_of_bool @@ check f2 *)
 
     (* let check f = and [let r = eval v f in r == Nothing || r == Just True  | v <- solve f]               *)
-
-                   
+             
     let rec evalo st fm u = ocanren (
       fresh x, y, z, v, w in 
           fm == conj x y & evalo st x v & evalo st y w & Std.Bool.ando v w u | 
@@ -119,7 +118,7 @@ module Elaborated =
         )
 
     let _ =
-      Printf.printf "*********************************\n";
+      Printf.printf "Conj (Neg `x) `y:\n\n";
       List.iter (fun s ->
           Printf.printf "%s\n" @@ show(Std.List.logic)
                                     (show(Std.Pair.logic)

@@ -116,7 +116,7 @@ let findMoves a b c a' b' c' n =
     else Printf.printf "Something is wrong: non empty result"
 
 let _ =
-  Printf.printf "Here what we get on the pin a':\n%!";
+(*  Printf.printf "Here what we get on the pin a':\n%!"; *)
   let result =
         run q
           (fun a' -> eval_pins lst1 lste lste (ocanren([(A, B)])) (*!< (pair !!A !!C)*) lste a' lst1)
