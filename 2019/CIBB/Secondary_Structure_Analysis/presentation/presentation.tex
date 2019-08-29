@@ -50,9 +50,9 @@
 
 \beamertemplatenavigationsymbolsempty
 
-\title[Formal grammars + Neural Networks]{ON SECONDARY STRUCTURE ANALYSIS BY USING
-FORMAL GRAMMARS AND ARTIFICIAL NEURAL
-NETWORKS}
+\title[Formal Grammars + Neural Networks]{On Secondary Structure Analysis by Using
+Formal Grammars and Artificial Neural
+Networks}
 %\subtitle[YaccConstructor]{Parsing techniques for graph analysis}
 % То, что в квадратных скобках, отображается в левом нижнем углу.
 \institute[]{
@@ -82,74 +82,181 @@ Saint Petersburg University
 }
 
 \begin{frame} \frametitle{Genomic sequences analysis}
-\begin{itemize}
-    \item Secondary structure handling
-    \begin{itemize}
-        \item Covariance models
-        \item Hidden Markov Models
-        \item Probabilistic grammars
-    \end{itemize}
-    \item Probability estimation for noisy data processing
+\begin{tabular}{cl}  
+    \parbox{0.44\linewidth}{
         \begin{itemize}
-        \item Covariance models
-        \item Probabilistic grammars
-        \item Neural networks
-    \end{itemize}
-\end{itemize}
+            \item Problems
+            \begin{itemize}
+                \item Genomic sequences classification
+                \item Subsequences detection
+                \item Secondary structure prediction
+            \end{itemize}
+            \item Secondary structure handling
+            \begin{itemize}
+                \item Covariance models
+                \item Hidden Markov Models
+                \item Probabilistic grammars
+            \end{itemize}
+            \item Probability estimation for noisy data processing
+        \end{itemize}
+    }
+    & \begin{tabular}{l}
+            \vspace{-0.8cm}
+            \hspace{-0.8cm}
+            \includegraphics[width=6.5cm]{pictures/molekula.pdf}
+         \end{tabular}  \\
+\end{tabular}
 \end{frame}
 
-\begin{frame}<1-2>[label=again]{Proposed solution: the earlier ideas}
-Our previous work: 
-\emph{S. Grigorev, P. Lunina} ``The Composition of Dense Neural Networks and Formal Grammars for Secondary Structure Analysis''
-\vspace{0.5cm}
-\begin{itemize}
-   \item \textbf<2>{Context-free grammar to encode only basic secondary structure features}
-    \begin{itemize}
-        \item Recursive compositions of stems
-        \item Conventional base pairing
-    \end{itemize}
-    \item \textbf<3>{Parsing for these features extraction}
-    \begin{itemize}
-        \item Matrix-based parsing algorithm 
-        \item Parsing result for sequence $w$ and nontermianl $N$ is a boolean matrix $M_N$, where $M_N [i,j] = 1$, iff $w[i,j-1]$ is derivable from $N$
-    \end{itemize}
-    \item \textbf<4>{Neural network to solve a given sequences analysis task}
-        \begin{itemize}
-        \item Input: parsing result linearized and compressed into a byte vector
-        \item Dense and dropout layers with batch normalization 
-    \end{itemize}
-\end{itemize}
+\begin{frame} \frametitle{Solution Structure}
+\tiny %\hspace{-2cm}
+  \begin{tikzpicture}[->,>=stealth']
+
+
+  \node[state,
+        align=left,
+        text width = 3.5cm] (grm)
+   {
+    \textbf{Grammar}\\
+  Fixed formal grammar (not necessarily context-free) describes features of secondary structure.
+
+   };
+
+  \node[state,
+        below of=grm,
+        node distance=1.2cm,
+        align = left,
+        text width = 3.5cm] (sqs)
+   {
+   \textbf{Sequences}\\
+  Each sequence is treated as a text in $\{A, C, G, U\}$ alphabet.
+   };
+
+
+  \node[state,
+        right of=grm,
+        node distance=4cm,
+        align = left,
+        text width = 3.5cm](parser)
+  {
+  \textbf{Parser}\\
+  Parser extracts features of the given sequence secondary structure.
+  Implementation of parsing algorithm is based on matrix multiplications (Valiant, Okhotin) and utilizes GPGPU.
+  };
+
+  \node[state,
+        right of=parser,
+        node distance=4cm,
+        align = left,
+        text width = 3.5cm] (mtrx)
+  {
+    \textbf{Matrices}\\
+    %\vspace{0.05cm}
+    \[ \left( \begin{array}{cccc}
+    0 & \textbf{1} & 0 & \textbf{1}\\
+    0 & 0 & \textbf{1} & 0\\
+    0 & 0 & 0 & \textbf{1}\\
+    0 & 0 & 0 & 0
+    \end{array} \right)\]
+    \vspace{-0.1cm}
+
+  Parsing result is a boolean matrix~$M$ which represents secondary structure features for sequence $\omega$: $ M[i,j] = 1 \iff \text{\ttfamily{s1}} \xrightarrow{*}{} \omega[i,j]$, and $0$ otherwise.
+  };
+
+  \node[state,
+        below of=sqs,
+        node distance=1cm,
+        align = left,
+        text width = 3.5cm](result)
+  {
+  \textbf{Result of classification}
+
+  };
+
+
+  \node[state,
+        below of=parser,
+        node distance=4.1cm,
+        align = left,
+        text width = 3.5cm](DNN)
+  {
+  \textbf{Neural Network}\\
+
+  Dense neural network with more than 10 dense layers.
+  Aggressive dropout and batch normalization for learning process stabilization.\\
+  Typical building block:
+  \\
+  \vspace{-0.3cm}
+  \begin{center}
+  \includegraphics[width=2.5cm]{pictures/bb.pdf}
+  \end{center}
+
+  };
+
+
+  \node[state,
+        right of=DNN,
+        node distance=4cm,
+        align = left,
+        text width = 3.5cm](vector)
+  {
+  \textbf{Vectors}\\
+  \vspace{-0.1cm}
+
+\[ \left( \begin{array}{cccc}
+0 & 1 & 0 & 1\\
+0 & 0 & 1 & 0\\
+0 & 0 & 0 & 1\\
+0 & 0 & 0 & 0
+\end{array} \right) \]
+\vspace{-0.35cm}
+$$\Downarrow$$
+\vspace{-0.35cm}
+$$\texttt{[0,1,0,1,0,1,0,0,1,0]}$$
+\vspace{-0.35cm}
+$$\Downarrow$$
+\vspace{-0.35cm}
+$$\texttt{[84,128]}$$
+%\vspace{-0.1cm}
+  Line-by-line compressed matrix representation: sequence of 8 cells (bits) is compressed into a byte. Bottom left triangle of the matrix is always empty, so, it can be ignored.
+  };
+
+
+  \path (grm) edge  (parser)
+   (sqs.east) edge [bend right=10] (parser.south)
+   (parser) edge (mtrx)
+   (mtrx) edge (vector)
+   (vector) edge (DNN)
+   (DNN.west) edge [bend left] (result.south)
+   ;
+
+  \end{tikzpicture}
+
+  \tikzmark{zzz}{
+  }
+  %}
+  \pause
+  \onslide<2>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2, rounded corners] ($ (zzz) + (-0.0,7.35)$) rectangle ($ (zzz) + (3.7,5.1)$);}}
+
+  \onslide<3>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2, rounded corners] ($ (zzz) + (4.0,7.7)$) rectangle ($ (zzz) + (7.7,5.85)$);}}
+
+  \onslide<4>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2, rounded corners] ($ (zzz) + (8.0,8.35)$) rectangle ($ (zzz) + (11.7,5.2)$);}}
+
+  \onslide<5>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2, rounded corners] ($ (zzz) + (8.0,4.95)$) rectangle ($ (zzz) + (11.7,0.4)$);}}
+
+  \onslide<6>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2, rounded corners] ($ (zzz) + (4.0,5.1)$) rectangle ($ (zzz) + (7.7,0.3)$);}}
+
+  \onslide<7>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2, rounded corners] ($ (zzz) + (-0.0,4.85)$) rectangle ($ (zzz) + (3.65,4.3)$);}}
+
 \end{frame}
 
-\begin{frame}[fragile] \frametitle{Grammar}
-\begin{verbatim}
-s1: stem<s0>
-any_str: any_smb*[2..10]
-any_smb: A | U | C | G
-stem1<s>:               \\ stem of height exactly 1
-      A s U | U s A | C s G | G s C
-stem3<s>:               \\ stem of height exactly 3
-      stem1< stem1< stem1<s> > >
-stem<s>:                \\ stem of height 3 or more
-      A stem<s> U
-    | U stem<s> A
-    | C stem<s> G
-    | G stem<s> C
-    | stem3<s>
-s0: any_str | any_str stem<s0> s0
-\end{verbatim}
-\end{frame}
-
-\addtocounter{framenumber}{-2}
-\againframe<3>{again}
-\addtocounter{framenumber}{1}
 
 \begin{frame}{Example}
 \centering
- \texttt{CCCC{\color{red}ATTGCCAAGG}ACCCCA{\color{red}CCTTGGCAAT}CCC}
+ \texttt{CCCC{\color{red}AUUGCCAAGG}ACCCCA{\color{red}CCUUGGCAAU}CCC}
 \vspace{1cm}
 
-\tikzmark{xx}{\includegraphics[width=.8\textwidth]{pictures/mtrx.pdf}}
+\tikzmark{xx}{\includegraphics[width=.8\textwidth]{pictures/mtr.pdf}}
 \onslide<2-3>{
 \tikz[overlay,remember picture]{
 \draw[draw=red,thick,fill opacity=0.2] ($(xx) + (1.1,4.97)$) rectangle ($(xx) + (9.05,3.235)$);
@@ -163,15 +270,8 @@ s0: any_str | any_str stem<s0> s0
 }
 \end{frame}
 
-\addtocounter{framenumber}{-3}
-\againframe<4>{again}
-\addtocounter{framenumber}{2}
 
-\begin{frame}{Improvements (1)}
-    \textbf{Problem:} vectorization breaks data locality which increases network learning time
-    
- \vspace{0.3cm}   
-    \textbf{Solution:}
+\begin{frame}{Data locality preservation}
     \begin{itemize}
         \item Represent parsing result as an image
         \item Use convolutional layers for these images processing
@@ -245,17 +345,14 @@ The false bits of the matrix are represented as white pixels and the true bits a
   \end{tikzpicture}
 \end{frame}
 
-\begin{frame}{Improvements (2)}
-    \textbf{Problem:} parsing is a time-consuming operation which complicates the use of trained models
- 
- \vspace{0.3cm}   
-    \textbf{Solution:}
+
+\begin{frame}{Parsing elimination}
     \begin{itemize}
         \item Create a network which handles initial sequences
         \item Use two-staged learning
         \begin{itemize}
-            \item Train network that takes images or vectors as an input and performs classification according to a given problem
-            \item Extend it by a number of input layers that take the initial nucleotide sequence as an input and convert it to the parsing result which is handled by the pretrained layers
+            \item Train network on images or vectors for a given problem
+            \item Extend it by several input layers that take the initial nucleotide sequence as an input and convert it to the parsing result 
         \end{itemize}
     \end{itemize}
 \end{frame}
@@ -264,121 +361,6 @@ The false bits of the matrix are represented as white pixels and the true bits a
 \includegraphics[width=11.5cm]{pictures/nn_arch.pdf}
 \end{frame}
 
-\begin{frame}{Final solution structure}
-\begin{tikzpicture}[->,>=stealth']
-
-  \node[state,
-        line width=0.5mm,
-        align=left,
-        text width = 1.9cm] (grm)
-   {
-    \textbf{Grammar}
-   };
-
-  \node[state,
-        line width=0.5mm,
-        below of=grm,
-        node distance=1.2cm,
-        align = left,
-        text width = 1.9cm] (sqs)
-   {
-   \textbf{Sequences}
-   };
-
-\node[state,
-      double,
-      draw =gray,
-      line width=0.5mm,
-      align = left,
-      right of = grm,
-      node distance = 3cm,
-      text width = 1.25cm](parser)
-{
-\textbf{Parser}\\
-};
-
-\node[state,
-      line width=0.5mm,
-      right of=parser,
-      node distance=3cm,
-      align = left,
-      text width = 1.6cm] (mtrx)
-{
-  \textbf{Matrices}\\
-};
-
-\node[state,
-      line width=0.5mm,
-      right of=mtrx,
-      node distance=3cm,
-      align = left,
-      text width = 1.5cm](vector)
-{
-\textbf{Vectors}\\
-};
-
-\node[state,
-      line width=0.5mm,
-      below of = vector,
-      node distance=1.2cm,
-      align = left,
-      text width = 1.5cm](image)
-{
-\textbf{Images}\\
-};
-
-\node[state,
-      double,
-      draw =gray,
-      line width=0.5mm,
-      below left = 1.4 and -2.2 of image,
-      align = left,
-      text width = 3.2cm](NN1)
-{
-\textbf{Neural Network 1}\\
-Handles parsing results
-};
-
-\node[state,
-      double,
-      draw =gray,
-      line width=0.5mm,
-      left of = NN1,
-      node distance = 6cm,
-      align = left,
-      text width = 3.2cm](NN2)
-{
-\textbf{Neural Network 2}\\
-Handles nucleotide sequences
-};
-
-\node[state,
-      line width=0.5mm,
-      below of = NN2,
-      node distance = 2cm,
-      align = left,
-      text width = 3.7cm](res)
-{
-\textbf{Classification Result}\\
-};
-
-
-
-
-\path (grm.east) edge (parser.west)
-    (parser.east) edge (mtrx.west)
-    (mtrx.east) edge (vector.west)
-    (NN1.west) edge node[el,above]  {$weights$} (NN2.east)
-    (NN2.south) edge (res.north);
-\draw (mtrx.south) -- (6.0,-1.2) -- (image.west);
-\draw (sqs.east) -- (3.0,-1.2) -- (parser.south);
-\draw (vector.east) -- (11.15,0.0) -- (11.15, -4.07) -- (NN1.-12);
-\draw (image.east) -- (10.8,-1.2)-- (10.8,-3.35) -- (NN1.12);
-\draw (sqs.south) -- (-0.0,-3.71) -- (NN2.west);
-
-\end{tikzpicture}
-
-\end{frame}
 
 \begin{frame}{Evaluation}
 \begin{itemize}
@@ -386,11 +368,6 @@ Handles nucleotide sequences
     \begin{itemize}
         \item Classification into two classes: eukaryotes and prokaryotes
         \item Classification into four classes: archaea, bacteria, plants and fungi
-    \end{itemize}
-    \item Tools
-    \begin{itemize}
-        \item Parsing: YaccConstructor platform
-        \item Neural networks: Keras, Tensorflow
     \end{itemize}
     \item Databases
     \begin{itemize}
@@ -401,19 +378,30 @@ Handles nucleotide sequences
 \end{frame}
 
 \begin{frame}{Results}
+EP --- eukaryotes/prokaryotes task
+
+ABFP --- archaea/bacteria/plants/fungi task
+
 \input{pictures/table_acc.tex}
+\end{frame}
+
+\begin{frame}{Results}
+EP --- eukaryotes/prokaryotes task
+
+ABFP --- archaea/bacteria/plants/fungi task
 
 \input{pictures/table_pr.tex}
 \end{frame}
 
 \begin{frame}{Conclusion}
 \begin{itemize}
-    \item We propose some modifications of our approach for biological sequences analysis
+    \item The modifications of our approach for biological sequences analysis were implemented
     \begin{itemize}
-        \item Parsing result in a form of image can be handled by convolutional layers and it decreases training time
-        \item It is possible to remove the parsing step from the trained model use which allows to run models on the original RNA sequences        
+        \item Parsing result in a form of image can be handled by convolutional layers
+        \item The parsing step can be removed from the trained model use which allows to run models on the original RNA sequences        
     \end{itemize}
-    \item These modification improve the performance of the solution and are applicable for real-world problems
+    \item These modification improve the quality of the solution
+    \item The improved version is applicable for real-world problems
 \end{itemize}
 \end{frame}
 
@@ -425,7 +413,7 @@ Handles nucleotide sequences
         \item Chimeric sequences filtration
     \end{itemize}
     \item Secondary structure prediction by using generative networks
-    \item Proteomic sequences processing
+    \item The use of deep convolutional networks for secondary structure analysis
 \end{itemize}
 
 \end{frame}
@@ -439,7 +427,7 @@ Handles nucleotide sequences
       \item \href{mailto:Semen.Grigorev@jetbrains.com}{Semen.Grigorev@jetbrains.com}
     \end{itemize}
   \item Polina Lunina: \href{mailto:lunina\_polina@mail.ru}{lunina\_polina@mail.ru}
-  \item Implementation: \href{https://github.com/LuninaPolina/SecondaryStructureAnalyzer}{https://github.com/LuninaPolina/SecondaryStructureAnalyzer}
+  \item Secondary structure analyzer project: \href{https://research.jetbrains.org/groups/plt\_lab/projects?project\_id=43}{https://research.jetbrains.org/groups/plt\_lab/projects?project\_id=43}
 \end{itemize}
 \vspace{0.3cm}
 \center{\huge{Thanks!}}
