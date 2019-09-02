@@ -1,0 +1,344 @@
+1: 
+Hi, I'm going to talk today about our joint work with Peter and Dmitry on solving search problems with relational interpreters. 
+
+2.1:
+There are two kinds of problems in computer science: recognition and search.
+I am gonna remind you what they are.  
+Let's consider an alpabet X and a language L of words over this alphabet. 
+If some word omega is in the language, then we denote with p_omega the witness of this fact. 
+
+2.2:
+Recognition problem is to check if a word omega belongs to the language.
+A recognizer V returns 1 if omega is indeed a word of the language L with the witness p_omega and 0 otherwise.
+
+2.3:
+Search problem is to find the witness if the word truly belongs to the language.
+
+3: 
+Let's look at a little example. 
+Consider language L to be the set of propositional formulas which evaluate to true given the state assigning values to free variables.
+In this case recognizer is just an evaluator for these formulas.
+It can be easily implemented as shown. 
+Here formulas can contain conjunctions, disjunctions, negations and variables, and state st is an associative list which specifies what values variables have.
+If we run this code for some formula, we'll get the expected boolean result. 
+
+4: 
+Now, the search problem for this language can be to find a variable substitution such that the formula evaluates to true. 
+We can implement the search as the function solve.
+It takes a state, a value to which the formula should evaluate and a formula itself, and then finds the list of states which satisfy the formula.
+
+Here, if we came accross a variable, we check if there is an assigned value to it. 
+If there is not, then we assign it. 
+If there is some value and it is the same as we expect, we do not change the state and just return it. 
+Otherwise this formula cannot be satisfied, thus we return an empty list of states. 
+
+If a conjunction is expected to be evaluated to true, we need to first solve one subconjunction, then for each satisfying state solve the other and concat the result. 
+
+If a conjunction is to be evaluated to false, then we solve subconjunctions and concatenate the resuls. 
+
+Solving a negated formula e is just solving e for negated result.
+
+Disjunction then can easily be expressed in terms of negations and conjunctions. 
+
+This code successfully find all the states which satisfy the formula, but we all can agree that ... 
+
+5: 
+Search is Hard, at least compared to recognition. 
+Besides coming up with a way to find a solution, we also need to ensure that we explore the search space in such a way as to not get stuck in a loop somewhere. 
+Recognizers from the other hand are always straight forward. 
+You know what would be lovely? 
+To generate search from a recognizer! 
+I wonder if there is a way to do it...
+
+6: 
+We kind of forgot that we are here at the workshop on miniKanren: a prime exemplar of the relational programming paradigm. 
+What does a recognizer written in a relational programming language look like? 
+One way to view it is as a ternary relation V^R where q is either true or false depending on wether it is true that omega is a word in the language witnessed by p_omega. 
+We call relational recognizers relational interpreters or relational verifiers -- these terms are equivalent and can be used interchangably throughout this talk. 
+
+7: 
+What is nice about a relational interpreter is that it can play the role of both the recognizer and the search procedure. 
+If we ask miniKanren to run the relational interpreter with the last argument unknown, then it works as a regular recognizer. 
+If we instead fix the last argument to be true and run the relation with the unspecified second argument, then we get the search.
+So, we only need to implement one program to saciate all our needs.
+
+8: 
+Turning back to our example about prepositional formulas, we can easily implement a relational interpreter in much the same way as the regular recognizer. 
+
+Having such a interpreter we easily can both solve recognition and search problems. 
+Meaning that we can find out if a given formula is satisfiable and also find the states in which it can be satisfy. 
+
+9: 
+The only tricky bit is that relational programming is hard. 
+At least compared to functional programming. 
+Getting ready for this workshop, we decided to implement some simple relational interpreters to illustrate our approach. 
+One of the tasks we wanted to solve was the puzzle of hanoi towers. 
+It is a classic puzzle but I'll remind it any way. 
+The task is as follows: there are 3 pins, and on a pin there can be several disks of different diameters put on top of each other. 
+You can only put a disk of a smaller diameter on top of the other disk.
+You start with all the disks placed on the first pin and your task is to move them to the other pin. 
+The trick is that you should follow the rule of the diameters at all time and move only one disk at a time. 
+
+The recognizer for this setting is just a verifier that all moves in a sequence follow the rule. 
+We spent about 10 minutes to write a fully functional functional verifier.
+But to implement the relational interpreter... 
+Here on a slide is the complete code of the relational hanoi tower interpreter. 
+There are only 8 lines of meaningful code here, but. 
+It took us about 6 hours to write it and 3 people were involved at one point or another. 
+
+And we all should keep in mind, that relational interpreters are very much alike their functional counterparts. 
+So the natural question at this point is: Are there other ways to create relational interpreters besides manual translation which is both boring and error-prone? 
+
+10: 
+Of course there are. 
+
+10.2: 
+There is a nice way which include interpretation of functional programs with a relational interpreter. 
+
+11: 
+The recipe here is to start by implementing a good relational interpreter of some Turing-complete language... 
+Let's say Scheme. 
+Then we implement a functional recognizer in the said language. 
+By running functional recognizer with our beautiful relational interpreter we get all the benefits of relational interpretation for free! 
+
+12: 
+But there is a caviat, of course. 
+Interpretation introduces overhead which may be pretty significant. 
+
+Is there a way to get rid of the overhead? 
+
+13: 
+Of course there is! 
+On of the ways is to employ specialization. 
+Let me explain what it is. 
+
+An interpreter is a function which given a program and an input produces an output. 
+
+13.2 
+Sometimes some part of input is statically known and is not changed. 
+Then whenever we run interpreter we recompute everything which depends on the static part of the input, which is far from being efficient. 
+
+13.3 
+A specializer is very handy in this situation: it'll transform a program using the static data in such a way that running the specialized version of the program on the dynamic data is the same as interpreting the initial program on the data as a hole. 
+
+14: 
+Unfortunately, real specializers can fail to remove all interpretation overhead. 
+There is a special property of specializers called Jones-optimality, which states that the specialized interpreter is as efficient as the program it was specialized for. 
+This property is very desirable but hard to achieve. 
+Good news is that there is a jones-optimal specializer for a pure functional programming language. 
+Bad news there is not one for miniKanren. 
+
+15:
+This is why we explored an alternative approach: what if we generated relational interpreter by its functional counterpart? 
+This is exactly what this talk is about (if anyone failed to notice). 
+
+16: 
+All right, now our plan is the following. 
+First, you implement a functional recognizer V.
+Then, we automatically translate it into a relation. 
+We call this step relational conversion. 
+Depending on the quality of the translator, you can get a relation with lots of redundancy. 
+But we already know, that specializers can help us with this and eliminate at least some of the redundancy. 
+Searching comes with a lot of static data: you know that the result -- the last argument -- should be true. 
+You also know omega.
+Specializer can take this known data into account.
+As a result you get a hopefully good search routine. 
+
+17: 
+Now let's consider how relational conversion is done. 
+We use the conversion introduced by Will: we call it unnesting for its most complicated step. 
+Unnesting is done in five steps. 
+
+18: 
+The first step is unnesting itself: for each subexpression we introduce a dedicated variable. 
+
+19:
+Then you add a new argument dedicated to be unified with the result.
+
+20: 
+Each if-expression and pattern-matching is translated into a conjunction with appropriate unifications for the scrutiny
+Function calls are translated into relation calls.
+
+21:
+While doing previous steps, we introduced a lot of free variables, so we introduce them into the scope with fresh. 
+
+22: 
+As a final step we pop all unifications to the top. 
+This last step is optional, if you are planning to use specialization. 
+
+23: 
+After relational conversion we get a relation which is efficient while being executed in the forward direction (for the recognition problem) since it just mimics the behavior of the interpreter. 
+For example, this natural translation of a conjunction of two calls computes f2 only if executing f1 failed. 
+In the search problem we know the result, so this behavior is not the most efficient. 
+
+24: 
+Of course, we can choose a different way to translate this conjunction, such as this one. 
+This conversion is really good when solving a search problem, but bad for recognition.
+This all demonstrates that there is no single strategy good for all cases. 
+
+25: 
+The natural question arises: is there a way to automatically generate relations which are efficient in the direction of interest? 
+We know the answer already: specialization. 
+
+26: 
+Specialization has more benefits in this context: when solving a search problem we know not only its direction, but also some data about its search space. 
+For example, we know which propositional formula we are trying to solve, so we can specialize the relation for this particular formula and get even better results. 
+
+27: 
+Is there a specializer for relational language? 
+There was not, but there is partial deduction which is a specialization technique developped for a pure logic language. 
+Partial deduction accepts a logic program and a gool and specializes the program for this particular goal: hopefuly a more efficient program. 
+To do so, it constructs a partial SLD-tree, and then generates a specialized program from that tree. 
+Here the intent is to conduct all excessive computations statically and get a program which does not do them any longer. 
+
+28: 
+Let's take a loot at the example of partial deduction. 
+Here is a logic program which finds the last element of a list. 
+I am gonna use this prolog-like syntax for brevity.
+The goal we want to specialize our program for is this: we want to find the last element of the list which starts with A and B. 
+
+28.2: 
+For such goal, we construct a partial SLD-tree. 
+To do so, we select the only atom last here, match its head with the only available clause, and put the body of that clause as the child node. 
+Then we do the same for l until we reach this atom, where the list becomes free variable. 
+This atom matches two heads, thus there is two children to this node: one for xs being an empty list and the other for non-empty lists. 
+Substitutions are omited from the tree, but it is just for brevity.
+Then we can either continue exploring the leaves or to stop. 
+I decided to stop at this point, because we got the same atom as there has been before, so there is no reason to actually continue. 
+
+28.3:
+From such tree we generate the program which looks like this. 
+It is not much more efficient, but still it incorporated some computations
+
+29: 
+Besides atoms in a logic programs there are disjunctions and conjunctions. 
+Disjunctions are nicely processed: we just explore each disjunct in isolation. 
+
+29.2: 
+Partial deduction treats conjunctions in the same manner: it just splits conjunctions exploring each of the conjuncts separately. 
+It is not always a good idea. 
+For example, here variable y is shared. 
+If we start specialize the two conjuncts separatly we loose the link between them and thus loose some data and get less accurate results. 
+
+30: 
+To alleviate this problem, conjunctive partial deduction was developped.
+This fully automatic transformation does treat conjunctions in a special way. 
+Besides specialization, CPD also does deforestation and tupling. 
+
+31. 
+Deforestation is a transformation which eliminates intermediate data structures. 
+For example if we implement an append of three lists using a conjunction of two usual appendo-s with the shared variable t, then the elements of the list x will be traversed twice, 
+whereas t is only constructed to be immediately deconstructed. 
+A more nice program works like this: 
+Here x is traversed only once and no unnecessary data structures is constructed. 
+
+32: 
+Tupling is another program transformation which eliminates multiple traversals of the same data structures. 
+For example, we want to find the maximum element of the list and also determine the length of the same list. 
+The most straight-forward implementation just calls to the maxo and lengtho relations, but it traverses the list twice. 
+
+33: 
+Better implementation would be to compute the two results simultaneously while traversion the list. 
+
+Both of this transformations can be achieved with CPD. 
+
+34: 
+CPD is a little more complicated then the original partial deduction.
+First there are two level of control: local and global. 
+Local control is all about building a tree for a single relation (or conjunction) of interest. 
+Here we need to decide, which of the atoms in the conjunction we wish to unfold and also how to decide to stop building the tree.
+
+Global control determines which conjunctions are to be specialized in the first place. 
+Global control also makes sure that specialization terminates. 
+This is all about not processing the same thing over and over again. 
+If we get a conjunction which we have already processed, there is no need to explore it at all, so we don't. 
+We also don't process something which is an instance of something else, which has been specialized already. 
+There is one more check: embedding. 
+Embedding intuitivly says that the current conjunction contain some subparts which has already arisen in the specialization process. 
+If this is the case, we need to extract that common subpart and proceed specializing what is left. 
+This step is called generalization. 
+The most important aspects here are how to define embedding and how to generalize. 
+
+35: 
+
+
+36: 
+We evaluated our approach on several tasks. 
+I am going to talk about two of them which I believe are interersing: path search and the unification. 
+We compare running time a relation constructed with just unnesting, unnesting specifically aimed at backward execution, unnesting with the specialization step and interpretation of an equivalent functional recognizer with a relational scheme interpreter. 
+
+37: 
+The first is search of paths in graph. 
+We deal with directed graphs with the set of nodes N, the set of edges E and two functions which return the start and the end node of an edge. 
+A path here is a sequence of nodes and edges such that each following edge starts where its predecessor ended. 
+The search problem here is to find the set of paths in a given graph.
+
+38: 
+We start by writing a functional recognizer. 
+This function checks if the sequence of nodes ns is indeed a path in the graph. 
+Graph here is represented as a collection of edges, while and edge is a tuple of vertices. 
+Here we check that first to vertices indeed form an edge in the graph and then continue checking for the tail of ns. 
+
+The result of relational conversion is the following. 
+This one is really inefficient for the search problem. 
+
+39: 
+By specialization we achieve a better performing relation. 
+
+40: 
+This is a table which summarize the results of time measurements. 
+We can see, that bare unnesting produces the search procedure which takes more than 5 minutes to find a path of length 11. 
+Running the program with Scheme interpreter is hardly better, 
+While manual and automatic specialization behave much nicer. 
+
+41: 
+Another nice program is unification. 
+Here we deal with terms which are either variable or some constructor applied to terms. 
+
+A substitution is a mapping from variables to terms, and a substitution can be applied to a term by simultaneous substituting the variables for their images. 
+
+The goal here is to find a unifier: which is a substitution which unifies two terms. 
+
+42: 
+Functional unifier here is a little longer that the one for paths but it is trivial to implement. 
+
+43: 
+The result of relational conversion is a little longer and a lot less readable, thus I won't show it here.
+
+44: 
+For this problem we got similar results as for the path search. Specialization significantly improves the performance of unification. 
+
+45: 
+
+TO SUM UP
+
+We proposed a way to develop search routines from much easier functional recognizer. 
+This is done with relational conversion with further specialization. 
+
+Specialization shows significant improvement in terms of speed, but the performance of the search routines generated is far from ideal. 
+
+We think that automatic translation of the relation back to a functional program can help with further reduction of the interpretation overhead. 
+We are also exploring other specialization techniques, which are less convoluted and ad-hoc than CPD. 
+
+Thank you for your attention. I am ready to answer your questions. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
