@@ -1,26 +1,36 @@
-The solution is an extensible infrastructure which is responsible for extracting graphs from the source code, aggregating them and their metadata into one database and finding paths in this database accepted by PDAs representing different analyses.
-Logically, it is divided into two separate entities which are shown on fig.~\ref{fig:SolutionStructure}.
+\section{Implementation details}
+
+Using the described idea, we developed the framework which makes it possible to implement interprocedural static code analysis based on CFL-reachability approach.
+Our solution is an extensible infrastructure which is responsible for extracting graphs from the source code, aggregating them and their metadata into one database and finding paths in this database accepted by PDAs representing different analyses.
+Logically, it is divided into two separate entities which are shown in fig.~\ref{fig:SolutionStructure}.
 
 \begin{figure}[h]
-	\includegraphics[width=\linewidth]{pictures/{SolutionStructure.dia}.png}
-	\caption{Solution structure}
-	\label{fig:SolutionStructure}
+    \includegraphics[width=\linewidth]{pictures/{SolutionStructure.dia}.png}
+    \caption{Solution structure}
+    \label{fig:SolutionStructure}
 \end{figure}
 
 The first entity, the core of the solution, is a backend implemented as a remote service running in a separate process and interacting with the frontend using a socket-based protocol.
 Architecturally, it is also divided into two subsystems.
-First of them is a database which provides the continuous incremental updating of the graph and its metadata, and supports dumping to a disk and further restoration in the beggining of next session.
-The second is responsible for execution of analyses.
-It contains an implementation of the resolver, the algorithm of PDAs running and the first extension point making the adding new analyses possible.
-The set of analyses contained in the backend can be extended by adding a new PDA as just a new implementation of appropriate generic abstract class.
-Furhter, it is possible to run this new anaysis using existing internal algorithm of PDA simulation and get any finite subset of paths in the graph which are accepted by the PDA.
+The first is a database which provides the continuous incremental updating of the graph and its metadata
+It also supports storing the data to a disk and reloading it at the beginning of the session.
+The second is responsible for the execution of analyses.
+It contains an implementation of the resolver improving the one which is provided by the IDE by adding dynamic invocations resolving such as lambdas propagation, and the algorithm of PDAs running.
+This subsystem is the first extension point which provides API for new analysis creation.
+We provide several pre-implemented analyses in the backend.
+One can implement a new analysis by implementing an appropriate PDA as an instance of generic abstract class.
+New analysis is run using the existing internal algorithm of PDA simulation.
+The result of analysis is a finite subset of paths in the graph which are accepted by the PDA.
 
-Second main entity is a frontend that is also divided into two subsystems.
+The second entity is a frontend that is also divided into two subsystems.
 First of them is a graph extractor which parses source code, extracts graphs and metadata from it and sends collected data to the backend.
-The second is a results interpreter that receives the set of paths in the graph leading to an error, maps it into the source code and does something with this information.
-For example, it can highlight pieces of code which participate in the error producing.
-Also, the frontend is the second extension point because the backend, in general, can interact with any implementation supporting the protocol.
+The second one is a results interpreter which receives the set of erroneous paths in the graph, maps them to the source code and translates them to human-readable format.
+Using this subsystem, one can, for example, highlight erroneous code or propose the ways to improve it.
 
-The protocol itself is based on request-response behaviour where the frontend acts as a master and the backend acts as a slave.
-I.e. the frontend informs the backend if there are some changes in the source code and asks it to update the database according to them. 
-And when there is a need to get the results of some analysis, for example, when the IDE performs the code highliglighting, the frontend asks the backend for found issues and waits until it responses.
+Since a frontend is completely separate from the backend and the only requirement for it is to follow the communication protocol, the frontend can be considered as the second extension point.
+It can be replaced with another implementation which also provides features of graph extraction and further results processing.
+The current implementation is also open to modifications which add support for new types of analysis or any other features which requires interaction with an IDE.
+
+The protocol itself is based on request-response pattern.
+The frontend informs the backend about changes in the source code and asks it to update the database accordingly.
+To highlight the source code in an IDE, the frontend asks the backend for the analysis results and map them back to the code.
