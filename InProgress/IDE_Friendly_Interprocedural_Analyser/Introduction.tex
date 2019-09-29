@@ -1,0 +1,85 @@
+\newcommand{\CS}{C\nolinebreak\hspace{-.05em}\raisebox{.4ex}{\scriptsize\bf \#}}
+
+Static code analysis is an important part of modern software development tools.
+It takes care of verifying the correctness of some program's behavior freeing a programmer from this duty.
+Static analysis can be classified as intraprocedural or interprocedural depending on which scope of a program it uses. Intraprocedural analysis considers only one procedure whereas interprocedural inspects a program as a whole.
+Interprocedural analysis, in theory, are more precise due to the amount of available information.
+
+\begin{figure}[h]
+	\includegraphics[width=\linewidth]{pictures/{SampleCode.dia}.png}
+	\caption{Sample code in C\# which represents a case for interprocedural taint analysis}
+	\label{fig:SampleCode}
+\end{figure}
+
+One classical problem which requires interprocedural analysis is taint tracking problem (e.g. described in \cite{TaintAnalysis}).
+Input data can have an inappropriate format or contain an exploit such as SQL injection.
+Such data is called \textit{tainted}.
+Tainted data can lead to incorrect behavior in case of incorrect format, or can cause a security issue.
+
+A simple example of C\# code which may require taint analysis is presented in fig.~\ref{fig:SampleCode}.
+We use this example to illustrate our solution.
+First of all, we introduce a number of entities which play important roles in analysis.
+The first is \textit{source}: a field that potentially contains the tainted data, for example, the field \textit{Source} of the class \textit{A}.
+The second is \textit{sink}: a method which is vulnerable to tainted data.
+In our example, the method \textit{Sink} of the class \textit{C} has this property.
+The third important type of entities is \textit{filter} (or \textit{sanitizer} in some other definitions).
+It is a method that checks the correctness of data passed into it.
+If data is incorrect, \textit{filter} throws an exception or modifies data to ensure the correctness of the result.
+The method \textit{Filter} of the class \textit{B} in the given snippet is a filter.
+
+We assume that each entity is annotated by a programmer with an appropriate attribute: \textit{[Tainted]} for sources, \textit{[Filter]} for filters and \textit{[Sink]} for sinks.
+The taint analysis problem is to find all traces such that tainted data can flow into a sink bypassing any filter.
+
+In our example the class \textit{D} extracts data using the class \textit{A} as a source, then validates it using class \textit{B}, after that performs some computations involving the class \textit{C}.
+Invocation of the method \textit{Consume} leads to using the data which have not been properly validated.
+To identify such issues we need to run the taint analysis.
+
+One of the well-known frameworks for interprocedural static code analysis is a CFL-reachability framework proposed by Thomas Reps~\cite{Reps}.
+This framework is generic: it provides the abstraction which allows one to implement many different types of interprocedural static code analysis, such as pointer analysis~\cite{Zheng, JavaCFL}, taint analysis~\cite{Huang:2015:SPT:2771783.2771803}, label flow analysis~\cite{10.1007/11823230_7,CFLr}, library summarization~\cite{10.1007/978-3-662-54434-1_33}.
+Moreover, CFL-reachability is a long-time studied framework and thus there is a number of specific solutions which demonstrate reasonable performance in practice~\cite{Wang:2017:GSD:3093315.3037744}.
+
+It is important for static code analysis to be flow-sensitive that means correct handling call-return pairs: when we have an interprocedural graph, we have no explicit synchronization of call and return edges.
+As a result, one can find a path which contains incorrect sequences of calls and returns.
+Also, it is important to provide context-sensitivity: correct handling of read-write, get-set and other pairs of edges (operations).
+Note, that CFL-reachability framework allows one to implement analysis which can be flow-sensitive or context-sensitive, but not both~\cite{Reps:2000:UCD:345099.345137}.
+In order to provide both flow- and context-sensitivity one can use more powerful framework~\cite{Zhang:2017:CDA:3093333.3009848}.
+In our examples, we implement flow-sensitive analysis, but one can modify it to be context-sensitive.
+
+The main idea of CFL-reachability is to find paths in a graph that satisfy constraints defined by a context-free grammar.
+In particular, a path is accepted if the concatenation of labels on its edges forms a word which can be derived in the given grammar.
+However, in practice, there are few drawbacks of such a grammar-based definition.
+Firstly, grammar-driven parsing is based on exact matching of terminals which forces to generate a very large grammar in the case when edges contain some unique attributes.
+For example, brackets matching described in~\cite{CFLr} or~\cite{Zheng, JavaCFL} requires to generate as many rules as there are call sites in the source code.
+In our example, to handle all call-return pairs in paths correctly, the grammar should contain the following productions.
+\begin{equation}
+	\begin{split}
+		& \ldots \\
+		& B \rightarrow (_\text{2:3}\ B\  )_\text{2:3}\ B \\
+		& B \rightarrow (_\text{2:4}\ B\  )_\text{2:4}\ B \\
+		& B \rightarrow (_\text{2:5}\ B\  )_\text{2:5}\ B \\
+		& B \rightarrow (_\text{2:6}\ B\  )_\text{2:6}\ B \\
+		& B \rightarrow (_\text{2:15}\ B\ )_\text{2:15}\ B \\
+		& \ldots \\
+		& B \rightarrow \varepsilon \\
+		& \ldots
+	\end{split}
+\end{equation}
+Where $(_{\text{file}:\text{line}}$ means a call from the specific position and $)_{\text{file}:\text{line}}$ means a return to the specific position in the code.
+
+Secondly, grammar provides an additional level of abstraction.
+This level is useful for algorithms formalization, but it is not as flexible enough for practical applications.
+
+CFL-reachibility requires a graph representing the whole program.
+It is not feasible to construct such a graph from scratch each time a programmer modifies a program.
+We need to ensure that the graph is modified with minial effort.
+To create a generic framework we also need to make sure the graph representation is generic.
+
+The main goal of our work is to implement a tool solving all mentioned problems and thus allowing to use CFL-reachability in practice.
+We make the following contributions in the paper.
+\begin{itemize}
+	\item We describe the scalable representation of a graph which allows containing as much information about the program as necessary.
+	\item We introduce the approach for the definition of constraints based on pushdown automata instead of grammars that eases formulation of analysis.
+	\item We present the implementation of the proposed approach which allows one to create new types of analysis using introduced abstractions.
+	Also we implement\footnote{Source code and executables can be downloaded here: \url{github.com/gsvgit/CoFRA}.} a plugin which uses the solution to provide analysis results to ReSharper, Rider, and InspectCode.
+	\item We evaluate the implementation on both synthetic tests and large open source projects.
+\end{itemize}

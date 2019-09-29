@@ -1,0 +1,1 @@
+for /r %%v in (*.dia.png) do del %%v

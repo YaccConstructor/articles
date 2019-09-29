@@ -1,0 +1,476 @@
+\section{Сжатое представление леса разбора}
+
+Матричный алгоритм даёт нам ответ на вопрос о достижимости, но не предоставляет самих путей.
+Что делать, если мы хотим построить все пути, удовлетворяющие ограичениям?
+
+Проблема в том, что искомое множество путей может быть бесконечным.
+Можем ли мы предложить конечную структуру, однозначно описывающую такое множество?
+Вспомним, что пересечение контекстно-свободного языка с регулярным --- это контекстно-свободный язык.
+Мы знаем, что конекстно-свободный язык можно описать коньекстно-своюодной граммтикой, которая конечна.
+Это и есть решение нашего вопроса. 
+Осталось толко научиться строить такую грамматику.
+
+Прежде, чем двинуться дальше, рекомендуется вспомнить всё, что касается деревьев вывода~\ref{sect:DerivTree}.
+
+\subsection{Лес разбора как представление контекстно-свободной грамматики}
+
+Для начала нам потребуется внести некоторые изменения в конструкцию дерева вывода.
+
+Во-первых, заметим, что в дереве вывода каждый узел соответсвует выводу какой-то подстроки с известными позициями начала и конца.
+Давайте будем сохранять эту информацию в узлах дерева. 
+Таким образом, метка любого узла это тройка вида $(i,q,j)$, где $i$ --- координата начала подстроки, соответствующей этому узлу, $j$ --- координата конца, $q \in \Sigma \cup N$ --- метка как в исходном определении.
+
+Во-вторых, заметим, что внутренний узел со своими сыновьями связаны с продукцией в граммтике: узел появляется благодаря применению конкретной продукции в процессе вывода.
+Давайте занумеруем все продукции в граммтике и добавим в дерево вывода ещё один тип узлов (дополнительные узлы), в которых будем хранить номер применённой продукции.
+Получим следующую конструкцию: непосредственный предок дополнительного узла --- это левая часть продукции, а непосредственные сыновья дополнительного узла --- это правая часть продукции.  
+
+\begin{example}
+  Построим модифицированное дерево вывода цепочки $_0a_1b_2a_3b_4a_5b_6$ в грамматике
+
+  \begin{align*}
+   G = \langle &&& \{a,b\}, \{S\},  S, \\
+  & \{ && \\
+       && (0) S & \to a \ S \ b \ S, \\
+       && (1) S & \to \varepsilon \\
+  & \} && \\ 
+  &&& \rangle 
+  \end{align*}
+
+
+\begin{center}
+\begin{tikzpicture}[shorten >=1pt,on grid,auto,node distance=1.8cm] 
+   \node[symbol_node] (s_0_6)   {$(0,S,6)$}; 
+   \node[prod_node] (p_0_1) [below=of s_0_6] {$0$}; 
+   \node[prod_node,draw=none] (dummy1) [below =of p_0_1] {}; 
+   \node[symbol_node] (s_1_1) [below left=of p_0_1] {$(1,S,1)$}; 
+   \node[symbol_node] (s_2_6) [below right=of p_0_1]  {$(2,S,6)$}; 
+
+   \node[prod_node] (p_0_2) [below right=of s_2_6] {$0$}; 
+
+   \node[symbol_node] (s_3_3) [below left=of p_0_2] {$(3,S,3)$}; 
+   \node[symbol_node] (s_4_6) [below right=of p_0_2] {$(4,S,6)$};
+
+   \node[prod_node] (p_0_3) [below right =of s_4_6] {0}; 
+
+   \node[symbol_node] (s_5_5) [below left =of p_0_3] {$(5,S,5)$}; 
+   \node[symbol_node] (s_6_6) [below right=of p_0_3] {$(6,S,6)$}; 
+
+%   \node[state,draw=none] (dummy1) [below =of s_0_6] {}; 
+%   \node[state,draw=none] (dummy2) [below =of dummy1] {}; 
+   
+%   \node[state,draw=none] (dummy3) [below left=of p_0_3] {}; 
+%   \node[state,draw=none] (dummy4) [below right=of p_0_4] {}; 
+
+
+%   \node[symbol_node] (s_0_2) [left=of dummy3] {$(0,S,2)$};    
+%   
+%   \node[symbol_node] (s_2_4) [between=s_0_2 and s_4_6] {$(2,S,4)$};  
+   
+
+   \node[prod_node] (p_1_1) [below =of s_1_1] {$1$}; 
+   \node[prod_node] (p_1_2) [below =of s_3_3] {$1$}; 
+   \node[prod_node] (p_1_3) [below left =of s_5_5] {$1$}; 
+   \node[prod_node] (p_1_4) [below right=of s_6_6] {$1$}; 
+   
+   
+
+%   \node[prod_node] (p_2_1) [below =of s_1_1] {$2$}; 
+%   \node[prod_node] (p_2_2) [below =of s_3_3] {$2$}; 
+%   \node[prod_node] (p_2_3) [below =of s_5_5] {$2$}; 
+
+   \node[symbol_node] (eps_6_6) [below right=of p_1_4] {$(6,\varepsilon,6)$}; 
+   \node[symbol_node] (b_5_6)   [left=of eps_6_6] {$(5,b,6)$}; 
+   \node[symbol_node] (eps_5_5) [left =of b_5_6] {$(5,\varepsilon,5)$}; 
+   \node[symbol_node] (a_4_5)   [left=of eps_5_5] {$(4,a,5)$}; 
+   \node[symbol_node] (b_3_4)   [left=of a_4_5] {$(3,b,4)$}; 
+   \node[symbol_node] (eps_3_3) [left =of b_3_4] {$(3,\varepsilon,3)$}; 
+   \node[symbol_node] (a_2_3)   [left=of eps_3_3] {$(2,a,3)$}; 
+   \node[symbol_node] (b_1_2)   [left=of a_2_3] {$(1,b,2)$}; 
+   \node[symbol_node] (eps_1_1) [left =of b_1_2] {$(1,\varepsilon,1)$}; 
+   \node[symbol_node] (a_0_1) [left=of eps_1_1] {$(0,a,1)$};    
+
+
+    \path[->] 
+    (s_0_6) edge (p_0_1)          
+
+    (p_0_1) edge [bend right] (a_0_1)
+    (p_0_1) edge (s_1_1)
+    (p_0_1) edge (b_1_2)
+    (p_0_1) edge (s_2_6)
+
+    (s_2_6) edge (p_0_2)          
+
+    (p_0_2) edge (a_2_3)
+    (p_0_2) edge (s_3_3)
+    (p_0_2) edge (b_3_4)
+    (p_0_2) edge (s_4_6)
+
+    (s_4_6) edge (p_0_3)          
+
+    (p_0_3) edge (a_4_5)
+    (p_0_3) edge (s_5_5)
+    (p_0_3) edge (b_5_6)
+    (p_0_3) edge (s_6_6)
+
+    (s_1_1) edge (p_1_1)
+    (p_1_1) edge (eps_1_1)
+
+    (s_3_3) edge (p_1_2)
+    (p_1_2) edge (eps_3_3)
+
+    (s_5_5) edge (p_1_3)
+    (p_1_3) edge (eps_5_5)
+
+    (s_6_6) edge (p_1_4)
+    (p_1_4) edge (eps_6_6)
+
+
+    ;
+\end{tikzpicture}
+\end{center}
+
+
+\end{example}
+
+
+
+Сохраняемая нами дополнительная информация позволит переиспользовать узлы в том случае, если деревьев вывода оказалось несколько (в случае неоднозначной грамматики).
+При этом мы можем не бояться, что переиспользование узлов может привести к появлению ранее несуществовавших деревьев вывода, так как дополнительная информация позволяет делать только ``безопасные'' склейки и затем восстанавливать только корректные деревья.
+
+
+\begin{example}
+  Сжатие леса вывода.
+  Построим несколько деревьев вывода цепочки $_0a_1b_2a_3b_4a_5b_6$ в грамматике
+
+  \begin{align*}
+   G_1 = \langle &&& \{a,b\}, \{S\},  S, \\
+  & \{ && \\
+       && (0) S & \to S S, \\
+       && (1) S & \to a \ S \ b, \\
+       && (2) S & \to \varepsilon \\
+  & \} && \\ 
+  &&& \rangle 
+  \end{align*}
+
+Пердположим, что мы строим левосторонний вывод.
+Тогда после первого применеия продукции 0 у нас есть два варианта переписывания первого нетерминала: либо с применением продукции 0, либо с применением продукции 1.
+В первом случае мы примени переписываение по подукции 0.
+Дальнейшие шаги деретерминированы и в результате мы получим следующее дерево разбора:
+
+\begin{center}
+\begin{tikzpicture}[shorten >=1pt,on grid,auto,node distance=1.8cm] 
+   \node[symbol_node] (s_0_6)   {$(0,S,6)$}; 
+   \node[prod_node] (p_0_1) [below left=of s_0_6] {$0$}; 
+   \node[prod_node,draw=none] (p_0_2) [below right=of s_0_6] {}; 
+   \node[symbol_node] (s_0_4) [below left=of p_0_1]  {$(0,S,4)$}; 
+   \node[symbol_node,draw=none] (s_2_6) [below right=of p_0_2]  {}; 
+   \node[prod_node] (p_0_3) [below =of s_0_4] {$0$}; 
+   \node[prod_node,draw=none] (p_0_4) [below =of s_2_6] {}; 
+
+   \node[state,draw=none] (dummy1) [below =of s_0_6] {}; 
+   \node[state,draw=none] (dummy2) [below =of dummy1] {}; 
+   
+   \node[state,draw=none] (dummy3) [below left=of p_0_3] {}; 
+   \node[state,draw=none] (dummy4) [below right=of p_0_4] {}; 
+
+
+   \node[symbol_node] (s_0_2) [left=of dummy3] {$(0,S,2)$};    
+   \node[symbol_node] (s_4_6) [right=of dummy4] {$(4,S,6)$};
+   \node[symbol_node] (s_2_4) [between=s_0_2 and s_4_6] {$(2,S,4)$};  
+   
+   \node[prod_node] (p_1_1) [below =of s_0_2] {$1$}; 
+   \node[prod_node] (p_1_2) [below =of s_2_4] {$1$}; 
+   \node[prod_node] (p_1_3) [below =of s_4_6] {$1$}; 
+
+   \node[symbol_node] (s_1_1) [below =of p_1_1] {$(1,S,1)$}; 
+   \node[symbol_node] (s_3_3) [below =of p_1_2] {$(3,S,3)$}; 
+   \node[symbol_node] (s_5_5) [below =of p_1_3] {$(5,S,5)$}; 
+
+   \node[prod_node] (p_2_1) [below =of s_1_1] {$2$}; 
+   \node[prod_node] (p_2_2) [below =of s_3_3] {$2$}; 
+   \node[prod_node] (p_2_3) [below =of s_5_5] {$2$}; 
+
+   \node[symbol_node] (eps_1_1) [below =of p_2_1] {$(1,\varepsilon,1)$}; 
+   \node[symbol_node] (eps_3_3) [below =of p_2_2] {$(3,\varepsilon,3)$}; 
+   \node[symbol_node] (eps_5_5) [below =of p_2_3] {$(5,\varepsilon,5)$}; 
+
+   \node[symbol_node] (a_0_1) [left=of eps_1_1] {$(0,a,1)$}; 
+   \node[symbol_node] (a_2_3) [left=of eps_3_3] {$(2,a,3)$}; 
+   \node[symbol_node] (a_4_5) [left=of eps_5_5] {$(4,a,5)$}; 
+
+   \node[symbol_node] (b_1_2) [right=of eps_1_1] {$(1,b,2)$}; 
+   \node[symbol_node] (b_3_4) [right=of eps_3_3] {$(3,b,4)$}; 
+   \node[symbol_node] (b_5_6) [right=of eps_5_5] {$(5,b,6)$}; 
+
+
+    \path[->] 
+    (s_0_6) edge (p_0_1)          
+%    (s_0_6) edge (p_0_2)
+    (p_0_1) edge (s_0_4)
+    (p_0_1) edge (s_4_6)
+%    (p_0_2) edge (s_0_2)
+%    (p_0_2) edge (s_2_6)
+    (s_0_4) edge (p_0_3)          
+%    (s_2_6) edge (p_0_4)
+    (p_0_3) edge (s_0_2)
+    (p_0_3) edge (s_2_4)
+%    (p_0_4) edge (s_2_4)
+%    (p_0_4) edge (s_4_6)
+
+    (s_0_2) edge (p_1_1)
+    (s_2_4) edge (p_1_2)
+    (s_4_6) edge (p_1_3)
+
+    (p_1_1) edge [bend right] (a_0_1)
+    (p_1_1) edge (s_1_1)
+    (p_1_1) edge [bend left] (b_1_2)
+
+    (p_1_2) edge [bend right] (a_2_3)
+    (p_1_2) edge (s_3_3)
+    (p_1_2) edge [bend left] (b_3_4)
+
+    (p_1_3) edge [bend right] (a_4_5)
+    (p_1_3) edge (s_5_5)
+    (p_1_3) edge [bend left] (b_5_6)
+
+    (s_1_1) edge (p_2_1)
+    (p_2_1) edge (eps_1_1)
+
+    (s_3_3) edge (p_2_2)
+    (p_2_2) edge (eps_3_3)
+
+    (s_5_5) edge (p_2_3)
+    (p_2_3) edge (eps_5_5)
+
+    ;
+\end{tikzpicture}
+\end{center}
+
+Второй вариант --- применить продукцию 1.
+Остальные шаги также детерминированы.
+Тогда мы получим следующее дерево вывода:
+
+\begin{center}
+\begin{tikzpicture}[shorten >=1pt,on grid,auto,node distance=1.8cm] 
+   \node[symbol_node] (s_0_6)   {$(0,S,6)$}; 
+   \node[prod_node,draw=none] (p_0_1) [below left=of s_0_6] {}; 
+   \node[prod_node] (p_0_2) [below right=of s_0_6] {$0$}; 
+   \node[symbol_node,draw=none] (s_0_4) [below left=of p_0_1]  {}; 
+   \node[symbol_node] (s_2_6) [below right=of p_0_2]  {$(2,S,6)$}; 
+   \node[prod_node,draw=none] (p_0_3) [below =of s_0_4] {}; 
+   \node[prod_node] (p_0_4) [below =of s_2_6] {$0$}; 
+
+   \node[state,draw=none] (dummy1) [below =of s_0_6] {}; 
+   \node[state,draw=none] (dummy2) [below =of dummy1] {}; 
+   
+   \node[state,draw=none] (dummy3) [below left=of p_0_3] {}; 
+   \node[state,draw=none] (dummy4) [below right=of p_0_4] {}; 
+
+
+   \node[symbol_node] (s_0_2) [left=of dummy3] {$(0,S,2)$};    
+   \node[symbol_node] (s_4_6) [right=of dummy4] {$(4,S,6)$};
+   \node[symbol_node] (s_2_4) [between=s_0_2 and s_4_6] {$(2,S,4)$};  
+   
+   \node[prod_node] (p_1_1) [below =of s_0_2] {$1$}; 
+   \node[prod_node] (p_1_2) [below =of s_2_4] {$1$}; 
+   \node[prod_node] (p_1_3) [below =of s_4_6] {$1$}; 
+
+   \node[symbol_node] (s_1_1) [below =of p_1_1] {$(1,S,1)$}; 
+   \node[symbol_node] (s_3_3) [below =of p_1_2] {$(3,S,3)$}; 
+   \node[symbol_node] (s_5_5) [below =of p_1_3] {$(5,S,5)$}; 
+
+   \node[prod_node] (p_2_1) [below =of s_1_1] {$2$}; 
+   \node[prod_node] (p_2_2) [below =of s_3_3] {$2$}; 
+   \node[prod_node] (p_2_3) [below =of s_5_5] {$2$}; 
+
+   \node[symbol_node] (eps_1_1) [below =of p_2_1] {$(1,\varepsilon,1)$}; 
+   \node[symbol_node] (eps_3_3) [below =of p_2_2] {$(3,\varepsilon,3)$}; 
+   \node[symbol_node] (eps_5_5) [below =of p_2_3] {$(5,\varepsilon,5)$}; 
+
+   \node[symbol_node] (a_0_1) [left=of eps_1_1] {$(0,a,1)$}; 
+   \node[symbol_node] (a_2_3) [left=of eps_3_3] {$(2,a,3)$}; 
+   \node[symbol_node] (a_4_5) [left=of eps_5_5] {$(4,a,5)$}; 
+
+   \node[symbol_node] (b_1_2) [right=of eps_1_1] {$(1,b,2)$}; 
+   \node[symbol_node] (b_3_4) [right=of eps_3_3] {$(3,b,4)$}; 
+   \node[symbol_node] (b_5_6) [right=of eps_5_5] {$(5,b,6)$}; 
+
+
+    \path[->] 
+    %(s_0_6) edge (p_0_1)          
+    (s_0_6) edge (p_0_2)
+    %(p_0_1) edge (s_0_4)
+    %(p_0_1) edge (s_4_6)
+    (p_0_2) edge (s_0_2)
+    (p_0_2) edge (s_2_6)
+    %(s_0_4) edge (p_0_3)          
+    (s_2_6) edge (p_0_4)
+    %(p_0_3) edge (s_0_2)
+    %(p_0_3) edge (s_2_4)
+    (p_0_4) edge (s_2_4)
+    (p_0_4) edge (s_4_6)
+
+    (s_0_2) edge (p_1_1)
+    (s_2_4) edge (p_1_2)
+    (s_4_6) edge (p_1_3)
+
+    (p_1_1) edge [bend right] (a_0_1)
+    (p_1_1) edge (s_1_1)
+    (p_1_1) edge [bend left] (b_1_2)
+
+    (p_1_2) edge [bend right] (a_2_3)
+    (p_1_2) edge (s_3_3)
+    (p_1_2) edge [bend left] (b_3_4)
+
+    (p_1_3) edge [bend right] (a_4_5)
+    (p_1_3) edge (s_5_5)
+    (p_1_3) edge [bend left] (b_5_6)
+
+    (s_1_1) edge (p_2_1)
+    (p_2_1) edge (eps_1_1)
+
+    (s_3_3) edge (p_2_2)
+    (p_2_2) edge (eps_3_3)
+
+    (s_5_5) edge (p_2_3)
+    (p_2_3) edge (eps_5_5)
+
+    ;
+\end{tikzpicture}
+\end{center}
+
+В двух построенных деревьях большое количество одинаковых узлов.
+Построим структуру, которая содержит оба дерева и при этом никакие нетерминальные и терминальные узлы не встречаются дважды.
+В результате мы молучим следующий граф:
+
+\begin{center}
+\begin{tikzpicture}[shorten >=1pt,on grid,auto,node distance=1.8cm] 
+   \node[symbol_node] (s_0_6)   {$(0,S,6)$}; 
+   \node[prod_node] (p_0_1) [below left=of s_0_6] {$0$}; 
+   \node[prod_node] (p_0_2) [below right=of s_0_6] {$0$}; 
+   \node[symbol_node] (s_0_4) [below left=of p_0_1]  {$(0,S,4)$}; 
+   \node[symbol_node] (s_2_6) [below right=of p_0_2]  {$(2,S,6)$}; 
+   \node[prod_node] (p_0_3) [below =of s_0_4] {$0$}; 
+   \node[prod_node] (p_0_4) [below =of s_2_6] {$0$}; 
+
+   \node[state,draw=none] (dummy1) [below =of s_0_6] {}; 
+   \node[state,draw=none] (dummy2) [below =of dummy1] {}; 
+   
+   \node[state,draw=none] (dummy3) [below left=of p_0_3] {}; 
+   \node[state,draw=none] (dummy4) [below right=of p_0_4] {}; 
+
+
+   \node[symbol_node] (s_0_2) [left=of dummy3] {$(0,S,2)$};    
+   \node[symbol_node] (s_4_6) [right=of dummy4] {$(4,S,6)$};
+   \node[symbol_node] (s_2_4) [between=s_0_2 and s_4_6] {$(2,S,4)$};  
+   
+   \node[prod_node] (p_1_1) [below =of s_0_2] {$1$}; 
+   \node[prod_node] (p_1_2) [below =of s_2_4] {$1$}; 
+   \node[prod_node] (p_1_3) [below =of s_4_6] {$1$}; 
+
+   \node[symbol_node] (s_1_1) [below =of p_1_1] {$(1,S,1)$}; 
+   \node[symbol_node] (s_3_3) [below =of p_1_2] {$(3,S,3)$}; 
+   \node[symbol_node] (s_5_5) [below =of p_1_3] {$(5,S,5)$}; 
+
+   \node[prod_node] (p_2_1) [below =of s_1_1] {$2$}; 
+   \node[prod_node] (p_2_2) [below =of s_3_3] {$2$}; 
+   \node[prod_node] (p_2_3) [below =of s_5_5] {$2$}; 
+
+   \node[symbol_node] (eps_1_1) [below =of p_2_1] {$(1,\varepsilon,1)$}; 
+   \node[symbol_node] (eps_3_3) [below =of p_2_2] {$(3,\varepsilon,3)$}; 
+   \node[symbol_node] (eps_5_5) [below =of p_2_3] {$(5,\varepsilon,5)$}; 
+
+   \node[symbol_node] (a_0_1) [left=of eps_1_1] {$(0,a,1)$}; 
+   \node[symbol_node] (a_2_3) [left=of eps_3_3] {$(2,a,3)$}; 
+   \node[symbol_node] (a_4_5) [left=of eps_5_5] {$(4,a,5)$}; 
+
+   \node[symbol_node] (b_1_2) [right=of eps_1_1] {$(1,b,2)$}; 
+   \node[symbol_node] (b_3_4) [right=of eps_3_3] {$(3,b,4)$}; 
+   \node[symbol_node] (b_5_6) [right=of eps_5_5] {$(5,b,6)$}; 
+
+
+    \path[->] 
+    (s_0_6) edge (p_0_1)          
+    (s_0_6) edge (p_0_2)
+    (p_0_1) edge (s_0_4)
+    (p_0_1) edge (s_4_6)
+    (p_0_2) edge (s_0_2)
+    (p_0_2) edge (s_2_6)
+    (s_0_4) edge (p_0_3)          
+    (s_2_6) edge (p_0_4)
+    (p_0_3) edge (s_0_2)
+    (p_0_3) edge (s_2_4)
+    (p_0_4) edge (s_2_4)
+    (p_0_4) edge (s_4_6)
+
+    (s_0_2) edge (p_1_1)
+    (s_2_4) edge (p_1_2)
+    (s_4_6) edge (p_1_3)
+
+    (p_1_1) edge [bend right] (a_0_1)
+    (p_1_1) edge (s_1_1)
+    (p_1_1) edge [bend left] (b_1_2)
+
+    (p_1_2) edge [bend right] (a_2_3)
+    (p_1_2) edge (s_3_3)
+    (p_1_2) edge [bend left] (b_3_4)
+
+    (p_1_3) edge [bend right] (a_4_5)
+    (p_1_3) edge (s_5_5)
+    (p_1_3) edge [bend left] (b_5_6)
+
+    (s_1_1) edge (p_2_1)
+    (p_2_1) edge (eps_1_1)
+
+    (s_3_3) edge (p_2_2)
+    (p_2_2) edge (eps_3_3)
+
+    (s_5_5) edge (p_2_3)
+    (p_2_3) edge (eps_5_5)
+
+    ;
+\end{tikzpicture}
+\end{center}
+
+
+\end{example}
+
+
+Мы получили очень простой вариянт сжатого представления леса разбора (Shared Packed Parse Forest, SPPF). 
+Впервые подобная идея была предложена Джоаном Рекерсом в его кандидатской диссертации~\cite{SPPF}.
+В дальнейшем она нашла широкое применеие в обобщённом (generalized) синтаксическом анализе и получила серьёзное развитие.
+В частности, наш вариант, хоть и позволяет избежать экспоненциального разростания леса разбора, всё же не является оптимальным.
+Оптимальное асимптотическое поведение достигается при использовании бинаризованного SPPF~\cite{Billot:1989:SSF:981623.981641} --- в этом случае объём леса составляет $O(n^3)$, где $n$ --- это длина входной строки.
+
+SPPF применяется в таких алгоритмах синтаксического анализа, как RNGLR~\cite{Scott:2006:RNG:1146809.1146810}, бинаризованная верся SPPF в BRNGLR~\cite{Scott:2007:BCT:1289813.1289815} и GLL~\cite{Scott:2010:GP:1860132.1860320,10.1007/978-3-662-46663-6_5}\footnote{Ещё немного полезной информации про SPPF: \url{http://www.bramvandersanden.com/post/2014/06/shared-packed-parse-forest/}.}.
+
+Вообще говоря, никто не мешает иметь в этом лесу циклы. 
+При линейном случае тоже могут быть --- эпсилон-циклы.
+
+
+А у нас будут произвольные.
+
+Давайте пока методом пристольного взгляда.
+
+
+Заметим, что это грамматика..
+
+
+Ну а дальше будем смотреть на алгоритмы, которые что-то таое умеют строить.
+
+
+
+\subsection{Вопросы и задачи}
+\begin{enumerate}
+  \item Постройте дерево вывода цепочки $w=aababb$ в грамматике $G=\langle\{a,b\},\{S\},\{S\rightarrow \varepsilon \ | \ a \ S \ b \ S \}, S \rangle$.
+  \item Постройте все левосторонние выводы цепочки $w=ababab$ в грамматике $G=\langle\{a,b\},\{S\},\{S\rightarrow \varepsilon \ | \ a \ S \ b \ | S \ S\}, S \rangle$.
+  \item Постройте все правосторонние выводы цепочки $w=ababab$ в грамматике $G=\langle\{a,b\},\{S\},\{S\rightarrow \varepsilon \ | \ a \ S \ b \ | S \ S\}, S \rangle$.
+  \item \label{t1}Постройте все деревья вывода цепочки $w=ababab$ в грамматике $G=\langle\{a,b\},\{S\},\{S\rightarrow \varepsilon \ | \ a \ S \ b \ | S \ S\}, S \rangle$, соответствующие левосторонним выводам.
+  \item \label{t2}Постройте все деревья вывода цепочки $w=ababab$ в грамматике $G=\langle\{a,b\},\{S\},\{S\rightarrow \varepsilon \ | \ a \ S \ b \ | S \ S\}, S \rangle$, соответствующие правосторонним выводам.
+  \item Как связаны между собой леса, полученные в предыдущих двух задачах (\ref{t1} и \ref{t2})? Какие выводы можно сделать из такой связи?
+  \item Постройте сжатое представление леса разбора, полученного в задаче~\ref{t1}.
+  \item Постройте сжатое представление леса разбора, полученного в задаче~\ref{t2}.
+  \item \label{t3}Предъявите контекстно-свободную граммтику существенно неоднозначного языка. 
+        Возьмите цепочку длины болше пяти, при надлежащую этому языку, и постройте все деревья вывода этой цепочки в предъявленной граммтике. 
+  \item Постройте сжатое представление леса, полученного в задаче~\ref{t3}.
+\end{enumerate}

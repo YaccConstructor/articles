@@ -1,0 +1,207 @@
+1
+
+Hello. My name is Semyon.
+I want to present our results in mechanization of the formal language theory.
+
+2
+
+There is a number of systems which automate theorem proving.
+They are generally used in two scenarios.
+The first one is to ensure the correctness of nontrivial proofs.
+Theorem proving automation is really valuable now, when most proofs are too big and complex.
+Without automation, it is really hard to guarantee, that a proof is correct, and nobody, who was involved in the development of it, had made any mistakes.
+
+One other thing is a  development of correct-by-construction algorithms.
+This way, one can prove that their algorithm works as intended, extract it into their favorite executable programming language and be sure that there won't be any surprises when the program actually runs.
+
+
+In our work we are interested in the second one.
+
+One of the classical systems which provide such ability is a Coq proof assistant.
+This proof assistant is based on the calculus of inductive constructions and provides the ability to extract executable code from the proof.
+
+3
+
+The area of our research is a formal language theory. The goal of proof assistants utilization here is, first of all, to check nontrivial proofs.
+
+At the same time, results from this area are widely used in applications.
+For example, in programming languages analysis, database querying, search engines and so on.
+And for some of these applications, it is important to guarantee the correctness of used algorithms. For example, for security reasons.
+
+So, there is a big amount of work which is aimed to provide certified algorithms for parsing, regular expressions manipulation and so on.
+
+4
+
+Our work is about Bar-Hillel theorem mechanization.
+This theorem says that context-free languages are closed under intersection with regular languages.
+And we prove this fact in Coq.
+
+What is the reason to do it?
+Of course, it is mechanization of yet another part of the formal language theory and it may be important by itself.
+But why this theorem? Why not something else?
+
+5
+
+The answer is simple: "Because this theorem is very important for applications".
+
+One of the applications of this theorem is context-free path querying.
+Context-Free path querying is a way to find paths in edge-labeled graphs.
+
+Suppose we have a graph.
+
+And for some reasons, we want to find such paths in this graph that each of them forms a well-balanced sequence over A and B.
+
+In other words, we want to find paths which form words in Dyck language.
+
+To do it, we can specify a grammar for Dyck language over A and B and use it as a filter for edges.
+And the answer in our case is an infinite set of paths which meet the condition.
+
+And it is one of possible formulation of CFPQ.
+
+6
+
+Formally, we have a context-free grammar, we use it as a filter or query.
+And we have a directed edge-labeled graph, where labels are a subset of the terminals of the grammar.
+Each path in such graph forms a word, and we introduce a helper function omega which converts the path to a word.
+Now, having all the necessary definitions, we can provide some possible formal definitions of context-free path querying.
+
+The first one is to find all pairs of vertices, such that there exists a path between them which forms a word in the given language.
+It is a reachability problem.
+
+Another possible formulation is to find all possible paths which form words in the given language.
+
+There are many other variants of this task. For example, it may be necessary to check the existence of the paths in the graph, or it may be necessary to find paths between two specified vertices.
+
+7
+
+So, we have a context-free language.
+Also, we have a regular language: we only need to select the start and final states.
+Note that in the most general case, all vertices are both start states and final states.
+
+So, our goal is to find the intersection of the context-free language and the regular one and to analyze it.
+
+And Bar-Hillel theorem says that context-free path querying is decidable.
+As far as the result of intersection is a context-free language and emptiness of a context-free language is decidable, path existence problem is decidable.
+
+Moreover, the constructive proof of this theorem shows how to construct a representation of paths, how to get pairs of vertices, and so on.
+
+8
+
+Context-free path querying is used for graph analysis in different areas.
+
+One natural application is graph database querying.
+It was introduced by Yannakakis, and is actively developed now.
+
+Tomas Reps showed how to apply it for static code analysis.
+
+Mechanization of the Bar-Hillel theorem is a first step in developing certified algorithms for static code analysis and database querying.
+
+9
+
+In our work we use slightly nonconventional way to prove this theorem.
+We use grammar-based proof instead of classical PDA-based one.
+This way is not new but seems to be slightly less known.
+
+So, our way contains the following steps.
+
+First of all, we assume, that every context-free language can be described by a grammar in the Chomsky Normal Form.
+
+The next, it is much easier to deal with deterministic finite automata which only have one final state.
+Luckily, there is a lemma which states that any nonempty regular language can be represented as the union of the regular languages represented with a finite automaton with the single final state.
+
+After that, we can construct a grammar of intersection of each regular language from the set and the grammar of the given language in CNF.
+
+Finally, we should construct an intersection of grammars created at the previous step.
+
+10
+
+Of course, we planned to reuse existing results in formal languages mechanization in Coq.
+As we can see, we need both context-free languages and automata mechanization.
+
+Initially, it was the reason to use Hofmann and Smolka results: they provide mechanization of parts of context-free and regular languages.
+
+So, Jana Hofmann provides a set of basic definitions, such as language, grammar and so on, and, what is important for our work, conversion of context-free grammar to CNF.
+
+But, to be reused in our work, Hofmann's results should be improved.
+Changes are required in basic definitions: in the definition of terminal symbol and in the definition of the nonterminal symbol.
+
+Initially, both of them were natural numbers. And this fact actively uses in other proves.
+
+But in our case, we need to be able to use arbitrary type as a terminal and nonterminal.
+It is necessary to construct triples of two states of the automaton and nonterminal of the original grammar.
+
+So, we generalize terminal and nonterminal types.
+
+And after that, we had carefully refactored everything.
+
+Finally, we get proof for the first part: any context-free language can be described by grammar in the Chomsky normal form.
+
+11
+
+Next, we show that a DFA can be represented as a union of DFAs with single final state.
+
+This lemma states that the procedure split_dfa which we have encoded, indeed creates a correct splitting.
+
+Note, that the fact that all DFAs in the splitting result contain precisely one final state is encoded at the type level.
+DFAs in the set have a special type which guarantees that there is only one final state.
+
+12
+
+Next steps require to introduce Chomsky induction. We want to have structural induction which is based on the word derivation steps.
+
+Namely, if the given word w of length at least two is derivable from some nonterminal N, then, there exists a rule in the grammar for N, with two nonterminals in the right-hand side: N1 and N2.
+There also exist two subwords w1 and w2, such that w is a concatenation of them, and each of them is derivable from the corresponding nonterminal.
+
+13
+
+We formalize this inductive construction as the next definition.
+Note that in the original definition the grammar is a list of productions, without specification of start nonterminal, so we should specify start nonterminal explicitly.
+
+This construction allows us to explicitly construct grammars for the intersection of the grammar in CNF and automaton with single final state.
+
+14
+
+And the final step is to build a union of these grammars and to prove that our procedure grammar_union which do it is correct. Namely, we prove that grammar_union preserves the language.
+It means that the result of union contains the word if and only if there exists the grammar in the initial set, such that the corresponding language contains the same word.
+
+15
+
+Now we are ready to state the final theorem.
+
+It states that for every decidable type for nonterminals and terminals, if there exists a bijection between natural numbers and the type for nonterminals, and syntactic analysis in terms of our definition is possible, then for any DFA and a context free grammar, there exists a grammar which specifies the languages for the intersection.
+
+16
+
+Here you can see this theorem in Coq.
+
+First of all, we request a type for new nonterminals, which should be triples.
+Then there exists a new grammar over original terminals and new nonterminals and new start nonterminal,
+such that the language which is specified by this grammar with given start nonterminal is exactly the same as the intersection of languages which specified by the given DFA and the given grammar.
+
+17
+
+To sum up, we present mechanization in Coq proof of the fact that context-free languages are closed under intersection with regular languages.
+
+Also, we generalize results of Jana Hofmann. So, we hope that now it should be easier to use them for other researches.
+
+Everything is published on GitHub.
+Coq code is equipped with automatically generated documentation to simplify navigation through the code.
+
+18
+
+The first question for future research is the integration with other results on formal language theory mechanization.
+In the current work we use results of Jana Hofmann. But there is, for example, a great work by Markus Romas which seem more mature.
+
+It is not obvious whether it would be better to use this results for our work.
+Because it is not evident that we can create one general solution for every problem.
+For example, one can have a case when PDA-based proof is more appropriate than our grammar-based one.
+But, maybe, we should create one extensible platform for formal language theory mechanization.
+I believe that it is a question for further discussion.
+
+In any case, our result is the first step towards certification of algorithms which are based on the Bar-Hillel theorem.
+Which may be helpful to ensure security in database engines.
+And it is a direction for future work.
+
+19
+
+Thank you for attention. I'm ready to answer your questions.

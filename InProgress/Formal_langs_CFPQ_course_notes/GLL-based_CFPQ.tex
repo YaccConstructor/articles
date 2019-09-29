@@ -1,0 +1,130 @@
+\section{Алгоритм на основе нисходящего анализа}
+
+GLL~\cite{Grigorev:2017:CPQ:3166094.3166104}
+
+Другие реализации~\cite{MEDEIROS201975}
+
+\subsection{Нисходящий синтаксический анализ}
+
+Рекурсивный спуск, LL, таблицы, неоднозначности, левая рекурсия.
+
+\subsubsection{Рекурсивный спуск}
+
+\subsubsection{LL(k)-алгоритм синтаксического анализа}
+
+LL(k)-алгоритм синтаксического анализа~--- нисходящий анализ без отката, но с предпросмотром. 
+Решение о том, какую продукцию применять, принимается на основании k следующих за текущим символом. 
+Временная сложность алгоритма $O(n)$, где $n$~--- длина слова. 
+
+Алгоритм использует входной буфер, стек для хранения промежуточных данных и таблицу анализатора, которая управляет процессом разбора. 
+В ячейке таблицы указано правило, которое нужно применять, если рассматривается нетерминал $A$, а следующий символ строки~--- $t$. 
+Также в таблице выделена отдельная колонка для $\$$~--- маркера конца строки. 
+
+\begin{center}
+  \begin{tabular}{ c || c | c | c | c }
+             & $\dots$ & t & $\dots$ & $\$$ \\ \hline  
+    $\dots$  & $\dots$ & $\dots$ & $\dots$ & $\dots$ \\ \hline  
+    $A$  & $\dots$ & $A \to \alpha$ & $\dots$ & $\dots$ \\ \hline  
+    $\dots$  & $\dots$ & $\dots$ & $\dots$ & $\dots$ 
+  \end{tabular}  
+\end{center}
+
+Для построения таблицы вычисляются множества $\first[k]$ и $\follow[k]$.
+
+\begin{definition}
+  Пусть $G = \langle N, \Sigma, P, S \rangle$~--- КС-грамматика. Множество $\first[k]$ определено для сентециальной формы $\alpha$ следующим образом:   
+  \[ \first[k](\alpha) = \{ \omega \in \Sigma^* \mid \alpha \derives{} \omega \text{ и } |\omega| < k \text{ либо } \exists \beta: \alpha \derives{} \omega \beta \text{ и } |\omega| = k \} \text{, где } \alpha, \beta \in (N \cup \Sigma)^* \]
+\end{definition}
+
+\begin{definition}
+  Пусть $G = \langle N, \Sigma, P, S \rangle$~--- КС-грамматика. Множество $\follow[k]$ определено для сентециальной формы $\beta$ следующим образом:
+  \[\follow[k](\beta) = \{ \omega \in \Sigma^* \mid \exists \gamma, \alpha: S \derives{} \gamma \beta \alpha \text{ и } \omega \in \first[k](\alpha) \} \]
+\end{definition}
+
+В частном случае для $k = 1$: 
+
+\[ \first(\alpha) = \{ a \in \Sigma \mid \exists \gamma \in (N \cup \Sigma)^*: \alpha \derives{} a \gamma \} \text{, где } \alpha \in (N \cup \Sigma)^* \]
+
+\[ \follow(\beta) = \{ a \in \Sigma \mid \exists \gamma, \alpha \in (N \cup \Sigma)^* : S \derives{} \gamma \beta a \alpha \} \text{, где } \beta \in (N \cup \Sigma)^*  \]
+
+Множество $\first$ можно вычислить, пользуясь следующими соотношениями:  
+
+\begin{itemize}
+  \item $\first(a \alpha) = \{a\}, a \in \Sigma, \alpha \in (N \cup \Sigma)^* $
+  \item $\first(\varepsilon) = \{\varepsilon\}$
+  \item $\first(\alpha \beta) = \first(\alpha) \cup (\first(\beta) \text{, если } \varepsilon \in \first(\alpha))$
+  \item $\first(A) = \first(\alpha) \cup \first(\beta) \text{, если в грамматике есть правило } A \to \alpha \mid\beta$
+\end{itemize}
+
+Алгоритм для вычисления множества $\follow$: 
+
+\begin{itemize}
+  \item Положим $\follow(X) = \varnothing, \forall X \in N$
+  \item $\follow(S) = \follow(S) \cup \{\$\} \text{, где } S \text{--- стартовый нетерминал}$
+  \item Для всех правил вида $A \to \alpha X \beta: \follow(X) = \follow(X) \cup (\first(\beta) \setminus \{\varepsilon\} )$
+  \item Для всех правил вида $A \to \alpha X \text{ и } A \to \alpha X \beta \text{, где } \varepsilon \in \first(\beta): \follow(X) = \follow(X) \cup \follow(A)$
+  \item Последние два пункта применяются пока есть что добавлять в строящиеся множества. 
+\end{itemize}
+
+Пример множеств $\first$ для нетерминалов следующей грамматики: 
+
+\begin{multicols}{2}
+\begin{align*}
+  S  &\to a S' \\ 
+  S' &\to A b B S' \mid \varepsilon \\ 
+  A  &\to a A' \mid \varepsilon \\ 
+  A' &\to b \mid a \\ 
+  B  &\to c \mid \varepsilon
+\end{align*}
+
+\columnbreak
+    
+\begin{align*}
+  \first(S)  &= \{ a \} \\
+  \first(A)  &= \{ a, \varepsilon \} \\ 
+  \first(A') &= \{ a, b \} \\
+  \first(B)  &= \{ c, \varepsilon \} \\
+  \first(S') &= \{ a, b, \varepsilon \}  
+\end{align*}
+\end{multicols}
+
+Пример множеств $\follow$ для нетерминалов следующей грамматики:
+
+\begin{multicols}{2}
+\begin{align*}
+  S  &\to a S' \\ 
+  S' &\to A b B S' \mid \varepsilon \\ 
+  A  &\to a A' \mid \varepsilon \\ 
+  A' &\to b \mid a \\ 
+  B  &\to c \mid \varepsilon
+\end{align*}
+
+\columnbreak
+    
+\begin{align*}
+  \follow(S)  &= \{ \$ \} & \\
+  \follow(S') &= \{ \$ \} &(S \to a S')\\
+  \follow(A)  &= \{ b \}  &(S' \to A b B S') \\ 
+  \follow(A') &= \{ b \}  &(A \to a A')\\
+  \follow(B)  &= \{ a, b, \$ \} &(S' \to A b B S', \varepsilon \in \first(S'))
+\end{align*}  
+\end{multicols}
+
+Таблица заполняется следующим образом: продукции $A \to \alpha, \alpha \neq \varepsilon$ помещаются в ячейки $(A, a)$, где $a \in \first(A)$, продукции $A \to \varepsilon$~--- в ячейки $(A, a)$, где $a \in \follow(A)$
+
+Пример таблицы для грамматики $S \to ( S ) \mid \varepsilon$
+
+\begin{center}
+\begin{tabular}{ r || c | c || c | c | c }
+N & $\first$ & $\follow$ & ( & ) & $\$ $ \\ \hline  
+$S$ & $\{ (, \varepsilon \}$ & $\{ ), \$ \}$ & $S \rightarrow (S)$ & $S \rightarrow \varepsilon$ & $S \rightarrow \varepsilon$ 
+\end{tabular}  
+\end{center}
+
+\subsection{GLL для КС запросов}
+
+\subsection{Вопросы и задачи}
+\begin{enumerate}
+  \item Задача 1
+  \item Задача 2
+\end{enumerate}

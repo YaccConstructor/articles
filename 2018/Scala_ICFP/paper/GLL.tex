@@ -1,0 +1,49 @@
+\section{Generalized Parser Combinators}
+\label{sec:GLL}
+
+Combinators techniques are shown to be applicable for graph traversing~\cite{ScalaGraphParsing}, but it still suffers from the common issue with left-recursive definitions.
+A general parser combinators library Meerkat~\cite{Meerkat}, implemented in the Scala programming language, removes this restriction by using memoization, continuation-passing style, and the ideas of Johnson~\cite{Johnson}.
+Meerkat converts parsers into a memoized versions of themselves.
+The memoization routine stores parsing results the first time they are computed and reuses them every time they are needed again.
+Every time a new parsing result for some combinator is calculated, all the combinators, which are dependent on it, are recomputed.
+This way Meerkat employs left-recursive parser combinators, and it is also crucial for the handling of the cycles in the input graphs.
+
+Meerkat supports the arbitrary (left-recursive and ambiguous) context-free specifications; it also supports the specification of action codes and provides a \lstinline{syn} macro for custom handling of the recursive nonterminal descriptions.
+Meerkat constructs the compact representation of the parse forest in the form of SPPF, which can be used for CFPQs results representation~\cite{GrigorevR16}.
+The worst case time and space complexity of the solution are cubic.
+
+A Meerkat specification of the language $\{a^n b^n \mid n \geq 1\}$ is \lstinline{val S = syn("a" ~ S.? ~ "b")}. Here \lstinline{syn} is a macro which creates a parser: for example, it transforms string literals into parsers for those strings. The tilde \lstinline{~} stands for a sequential parser combinator, and the question mark \lstinline{?} describes optional parsing. Other combinators available in the Meerkat library are shown in Table~\ref{table:combinators}.
+
+It is shown in~\cite{GrigorevR16} that the Generalized LL parsing algorithm~\cite{scott2010gll} can be generalized to process CFPQs effectively and the query result can be finitely represented.
+As the Meerkat library is closely related to the Generalized LL algorithm, it is also possible to adapt the Meerkat library for graph querying.
+It can be done by providing a function for retrieving the symbols which follow the specified position and utilizing it in the basic set of combinators.
+Details are described in the next section.
+
+\subsection{SPPF}
+
+Parsing of a string with respect to an ambiguous grammar can result in several derivation trees for a single string.
+The set of derivation trees is named a \emph{derivation forest}.
+To store a derivation forest efficiently, the generalized parsing algorithms utilize a \emph{Shared Packed Parse Forest} proposed by Joan Rekers~\cite{SPPF}.
+The most efficient compact representation of derivation forests is a Binarized Shared Packed Parse Forest (we will abbreviate it to SPPF)~\cite{brnglr}.
+The GLL algorithm, which employs this structure, achieves the worst-case cubic space complexity~\cite{gllParsingTree}.
+
+Binarized SPPF is a directed graph, each node of which has one of the four types described below.
+Almost every node of the SPPF is decorated with the \emph{extension}: a pair $(i, j)$ where $i$ is a start position of a substring derivable from the node and $j$---its end position.
+
+\begin{itemize}
+    \item A \textbf{terminal node} is labelled $(T, i, j)$.
+    \item A \textbf{nonterminal node} is labelled $(N, i, j)$.
+    This node denotes that there is at least one derivation $N \Rightarrow^*_G \omega[i \dots j-1]$---a substring of the input from the $i$-th to the $j$-th position.
+    Every derivation tree for the given substring and nonterminal can be extracted by left-to-right top-down traversal of SPPF started from the respective node.
+    \item An \textbf{intermediate node}: a special kind of node used for the binarization of the SPPF. These nodes are labelled with $(t,i,j)$, where $t$ is a grammar slot.
+    \item A \textbf{packed node} is labelled $(N \rightarrow \alpha, k)$, where $k$ is a position in the input of the right end of the leftmost subtree of this node.
+    A subgraph with the root in such node is, in turn, a parse forest for which the first production is $N \rightarrow \alpha$.
+\end{itemize}
+
+
+An example of SPPF is presented in Fig.~\ref{fig:sppf}.
+We removed redundant intermediate and packed nodes for simplicity and to decrease the size of the figure.
+
+SPPF finitely represents a possibly infinite set of paths in the context of the language-constrained graph querying~\cite{GrigorevR16}.
+Since the SPPF stores derivation trees for all paths, it is useful for postprocessing and further understanding of the query results.
+In static code analysis, for example, it is possible to map paths back onto the source code thus providing a human-readable result.
