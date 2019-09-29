@@ -1,202 +1,369 @@
 \section{CYK для вычисления КС запросов}
 
-Что-то вводное про достижимость и транзитивное замыкание и т.д.
+В данной главе мы рассмотрим алгоритм CYK, позволяющий установить принадлежность слова грамматике и предоставить его вывод, если таковой имеется.
+
+Наш главный интерес заключается в возможности применения данного алгоритма для решения описанной в предыдущей главе задачи --- поиска путей с ограничениями в терминах формальных языков. Как уже было указано выше, будем рассматривать случай контекстно-свободных языков.
 
 \subsection{Алгоритм CYK}
 
-Алгоритм Cocke-Younger-Kasami --- один классических алгоритмов синтаксического анализа. 
-Он требует, чтобы грамматика находилась в Нормальной Форме Хомского. 
-Сложность алгоритма --- $O(n^3)$, где $n$ --- размер входной строки. 
+Алгоритм CYK (Cocke-Younger-Kasami) –-- один из классических алгоритмов синтаксического анализа. Его асимптотическая сложность в худшем случае --- $O(n^3 * |G|)$ ($n$ --- размер входной строки, $G$ --- входная грамматика), что выгодно выделяет его среди других алгоритмов парсинга.
 
-В основе алгоритма лежит динамическое программирование. 
-Используются следующие соображения. 
+Для его применения необходимо, чтобы подаваемая на вход грамматика находилась в Нормальной Форме Хомского (НФХ) \ref{section:CNF}.  
 
-Правило $A \to a$ означает, что 
+В основе алгоритма лежит принцип динамического программирования. Используются два соображения (здесь $\omega$ --- слово, $A$, $B$, $C$ --- нетерминалы грамматики, $a$ --- терминал грамматики):  
+
+\begin{enumerate}
+\item Для правила вида $A \to a$ очевидно, что из $A$ выводится $\omega$ (с применением этого правила) тогда и только тогда, когда $a = \omega$:
 
 \[
   A \derives[] a \derives \omega \iff \omega = a\]
   
-Правило $A \to B C$ означает, что 
+\item Для правила вида $A \to B C$ понятно, что из $A$ выводится $\omega$ (с применением этого правила) тогда и только тогда, когда существуют две цепочки $\omega_1$ и $\omega_2$ такие, что $\omega_1$ выводима из $B$, $\omega_2$ выводима из $C$ и при этом $\omega = \omega_1 \omega_2$: 
 
 \[A \derives[] B C \derives \omega \iff \exists \omega_1, \omega_2 : \omega = \omega_1 \omega_2, B \derives \omega_1, C \derives \omega_2\]
 
 Или в терминах позиций в строке: 
 
 \[A \derives[] B C \derives \omega \iff \exists k \in [1 \dots |\omega|] : B \derives \omega[1 \dots k], C \derives \omega[k+1 \dots |\omega|]\]
+\end{enumerate}
 
 В процессе работы алгоритма заполняется булева трехмерная матрица размера $N \times n \times n$, где $n$~---  размер входной цепочки, $N$~--- количество нетерминалов в нормализованной грамматике. 
-$m[A][i][j] = true \iff A \derives \omega[i \dots j]$
+$M[A][i][j] = true \iff A \derives \omega[i \dots j]$
 
-Первым шагом инициализируем матрицу, заполнив значения $m[A][i][j] \text{, где }i = j$: 
+Первым шагом инициализируем матрицу, заполнив значения $M[A][i][j] \text{, где }i = j$: 
 
 \begin{itemize}
-  \item $m[A][i][i] = true \text{, если в грамматике есть правило } A \to \omega[i]$.
-  \item $m[A][i][i] = false$, иначе.
+  \item $M[A][i][i] = true \text{, если в грамматике есть правило } A \to \omega[i]$.
+  \item $M[A][i][i] = false$, иначе.
 \end{itemize}
 
-Далее используем динамику: предполагаем, что ячейки матрицы $m[A][i'][j']$ заполнены для всех нетерминалов $A$ и пар $i', j': j' - i' < m$.
-Тогда можно заполнить ячейки матрицы $m[A][i][j] \text{, где } j - i = m$
+Далее используем динамику: на шаге $m > 1$ предполагаем, что ячейки матрицы $M[A][i'][j']$ заполнены для всех нетерминалов $A$ и пар $i', j': j' - i' < m$.
+Тогда можно заполнить ячейки матрицы $M[A][i][j] \text{, где } jаi = m$
 
-\[ m[A][i][j] = \bigvee_{A \to B C}^{}{\bigvee_{k=i}^{j-1}{m[B][i][k] \wedge m[C][k][j]}} \]
+\[ M[A][i][j] = \bigvee_{A \to B C}^{}{\bigvee_{k=i}^{j-1}{M[B][i][k] \wedge M[C][k][j]}} \]
 
-По итогу работы алгоритма значение в ячейке $m[S][0][|\omega|]$, где $S$ --- стартовый нетерминал грамматики, отвечает на вопрос о выводимости цепочки $\omega$ в грамматике. 
+По итогу работы алгоритма значение в ячейке $M[S][0][|\omega|]$, где $S$ --- стартовый нетерминал грамматики, отвечает на вопрос о выводимости цепочки $\omega$ в грамматике. 
 
 \begin{example}
   Рассмотрим пример работы алгоритма CYK на грамматике правильных скобочных последовательностей в Нормальной Форме Хомского. 
 
-  \begin{align*}
-    S_0 &\to L S' \mid \varepsilon \\ 
-    S   &\to L S' \\ 
-    S'  &\to b \mid R S \mid S S'' \\ 
-    S'' &\to b \mid R S \\
-    L   &\to a \\ 
-    R   &\to b
-  \end{align*}
-  
+\begin{align*}
+S_0 &\to L S' \mid \varepsilon \\ 
+S   &\to L S' \\ 
+S'  &\to b \mid R S \mid S S'' \\ 
+S'' &\to b \mid R S \\
+L   &\to a \\ 
+R   &\to b
+\end{align*}
+ 
 Проверим выводимость цепочки $\omega = a a b b a b$.
 
 Так как трехмерные матрицы рисовать на двумерной бумаге не очень удобно, мы будем иллюстрировать работу алгоритма двумерными матрицами размера $n \times n$, где в ячейках указано множество нетерминалов, выводящих соответствующую подстроку. 
 
-Инициализируем матрицу: 
+Шаг 1. Инициализируем матрицу элементами на главной диагонали: 
 
-\begin{center}
-  \begin{tabular}{c||cc|cc|cc}
-    & $a$ & $a$ & $b$ & $b$ & $a$ & $b$ \\ \hline
-    & $1$ & $2$ & $3$ & $4$ & $5$ & $6$ \\ \hline \hline
-  $1$ & $\{L\}$ & \o & \o & \o & \o & \o \\ 
-  $2$ &   & $\{L\}$ & \o & \o & \o & \o \\ \hline
-  $3$ &   &   & $\{R, S', S''\}$ & \o & \o & \o \\ 
-  $4$ &   &   &   & $\{R, S', S''\}$ & \o & \o \\ \hline
-  5 &   &   &   &   & $\{L\}$ & \o \\ 
-  $6$ &   &   &   &   &   & $\{R, S', S''\}$
-  \end{tabular}
-\end{center}
+\[
+\begin{pmatrix}
+\{L\}  		& \varnothing & \varnothing    & \varnothing 	  & \varnothing & \varnothing 	 \\
+\varnothing & \{L\} 	  & \varnothing    & \varnothing 	  & \varnothing & \varnothing 	 \\
+\varnothing & \varnothing & \{R, S', S''\} & \varnothing 	  & \varnothing & \varnothing 	 \\
+\varnothing & \varnothing & \varnothing    & \{R, S', S''\}   & \varnothing & \varnothing 	 \\
+\varnothing & \varnothing & \varnothing    & \varnothing 	  & \{L\} 	    & \varnothing 	 \\
+\varnothing & \varnothing & \varnothing    & \varnothing 	  & \varnothing & \{R, S', S''\} \\
+\end{pmatrix}
+\]
 
-Заполняем следующую диагональ:
+Шаг 2. Заполняем диагональ, находящуюся над главной:
 
-\begin{center}
-  \begin{tabular}{c||cc|cc|cc}
-    & $a$ & $a$ & $b$ & $b$ & $a$ & $b$ \\ \hline
-    & $1$ & $2$ & $3$ & $4$ & 5 & $6$ \\ \hline \hline
-  $1$ & $\{L\}$ & \o & \o & \o & \o & \o \\ 
-  $2$ &   & $\{L\}$ & $\{S\}$ & \o & \o & \o \\ \hline
-  $3$ &   &   & $\{R, S', S''\}$ & \o & \o & \o \\ 
-  $4$ &   &   &   & $\{R, S', S''\}$ & \o & \o \\ \hline
-  5 &   &   &   &   & $\{L\}$ & $\{S\}$ \\ 
-  $6$ &   &   &   &   &   & $\{R, S', S''\}$
-  \end{tabular}
-\end{center}
+\[
+\begin{pmatrix}
+\{L\}  		& \varnothing & \varnothing    & \varnothing 	  & \varnothing & \varnothing 	 \\
+\varnothing & \{L\} 	  & \{S\}  		   & \varnothing 	  & \varnothing & \varnothing 	 \\
+\varnothing & \varnothing & \{R, S', S''\} & \varnothing 	  & \varnothing & \varnothing 	 \\
+\varnothing & \varnothing & \varnothing    & \{R, S', S''\}   & \varnothing & \varnothing 	 \\
+\varnothing & \varnothing & \varnothing    & \varnothing 	  & \{L\} 	    & \{S\}	 		 \\
+\varnothing & \varnothing & \varnothing    & \varnothing 	  & \varnothing & \{R, S', S''\} \\
+\end{pmatrix}
+\]
 
-Заполняем следующую диагональ:
+Шаг 3. Заполняем следующую диагональ:
 
-\begin{center}
-  \begin{tabular}{c||cc|cc|cc}
-    & $a$ & $a$ & $b$ & $b$ & $a$ & $b$ \\ \hline
-    & $1$ & $2$ & $3$ & $4$ & 5 & $6$ \\ \hline \hline
-  $1$ & $\{L\}$ & \o & \o & \o & \o & \o \\ 
-  $2$ &   & $\{L\}$ & $\{S\}$ & $\{S'\}$ & \o & \o \\ \hline
-  $3$ &   &   & $\{R, S', S''\}$ & \o & \o & \o \\ 
-  $4$ &   &   &   & $\{R, S', S''\}$ & \o & $\{S', S''\}$ \\ \hline
-  5 &   &   &   &   & $\{L\}$ & $\{S\}$ \\ 
-  $6$ &   &   &   &   &   & $\{R, S', S''\}$
-  \end{tabular}
-\end{center}
+\[
+\begin{pmatrix}
+\{L\}  		& \varnothing & \varnothing    & \varnothing 	  & \varnothing & \varnothing 	 \\
+\varnothing & \{L\} 	  & \{S\}  		   & \{S'\}  		  & \varnothing & \varnothing 	 \\
+\varnothing & \varnothing & \{R, S', S''\} & \varnothing 	  & \varnothing & \varnothing 	 \\
+\varnothing & \varnothing & \varnothing    & \{R, S', S''\}   & \varnothing & \{S', S''\}	 \\
+\varnothing & \varnothing & \varnothing    & \varnothing 	  & \{L\} 	    & \{S\}	 		 \\
+\varnothing & \varnothing & \varnothing    & \varnothing 	  & \varnothing & \{R, S', S''\} \\
+\end{pmatrix}
+\]
 
-Заполняем следующую диагональ:
+Шаг 4. И следующую за ней:
 
-\begin{center}
-  \begin{tabular}{c||cc|cc|cc}
-    & $a$ & $a$ & $b$ & $b$ & $a$ & $b$ \\ \hline
-    & $1$ & $2$ & $3$ & $4$ & 5 & $6$ \\ \hline \hline
-  $1$ & $\{L\}$ & \o & \o & $\{S, S_0\}$ & \o & \o \\ 
-  $2$ &   & $\{L\}$ & $\{S\}$ & $\{S'\}$ & \o & \o \\ \hline
-  $3$ &   &   & $\{R, S', S''\}$ & \o & \o & \o \\ 
-  $4$ &   &   &   & $\{R, S', S''\}$ & \o & $\{S', S''\}$ \\ \hline
-  5 &   &   &   &   & $\{L\}$ & $\{S\}$ \\ 
-  $6$ &   &   &   &   &   & $\{R, S', S''\}$
-  \end{tabular}
-\end{center}
+\[
+\begin{pmatrix}
+\{L\}  		& \varnothing & \varnothing    & \{S, S_0\}	 	  & \varnothing & \varnothing 	 \\
+\varnothing & \{L\} 	  & \{S\}  		   & \{S'\}  		  & \varnothing & \varnothing 	 \\
+\varnothing & \varnothing & \{R, S', S''\} & \varnothing 	  & \varnothing & \varnothing 	 \\
+\varnothing & \varnothing & \varnothing    & \{R, S', S''\}   & \varnothing & \{S', S''\}	 \\
+\varnothing & \varnothing & \varnothing    & \varnothing 	  & \{L\} 	    & \{S\}	 		 \\
+\varnothing & \varnothing & \varnothing    & \varnothing 	  & \varnothing & \{R, S', S''\} \\
+\end{pmatrix}
+\]
 
-Заполняем следующую диагональ:
+Шаг 5 Заполняем предпоследнюю диагональ:
 
-\begin{center}
-  \begin{tabular}{c||cc|cc|cc}
-    & $a$ & $a$ & $b$ & $b$ & $a$ & $b$ \\ \hline
-    & $1$ & $2$ & $3$ & $4$ & 5 & $6$ \\ \hline \hline
-  $1$ & $\{L\}$ & \o & \o & $\{S, S_0\}$ & \o & \o \\ 
-  $2$ &   & $\{L\}$ & $\{S\}$ & $\{S'\}$ & \o & $\{S'\}$ \\ \hline
-  $3$ &   &   & $\{R, S', S''\}$ & \o & \o & \o \\ 
-  $4$ &   &   &   & $\{R, S', S''\}$ & \o & $\{S', S''\}$ \\ \hline
-  5 &   &   &   &   & $\{L\}$ & $\{S\}$ \\ 
-  $6$ &   &   &   &   &   & $\{R, S', S''\}$
-  \end{tabular}
-\end{center}
+\[
+\begin{pmatrix}
+\{L\}  		& \varnothing & \varnothing    & \{S, S_0\}	 	  & \varnothing & \varnothing 	 \\
+\varnothing & \{L\} 	  & \{S\}  		   & \{S'\}  		  & \varnothing & \{S'\}	 	 \\
+\varnothing & \varnothing & \{R, S', S''\} & \varnothing 	  & \varnothing & \varnothing 	 \\
+\varnothing & \varnothing & \varnothing    & \{R, S', S''\}   & \varnothing & \{S', S''\}	 \\
+\varnothing & \varnothing & \varnothing    & \varnothing 	  & \{L\} 	    & \{S\}	 		 \\
+\varnothing & \varnothing & \varnothing    & \varnothing 	  & \varnothing & \{R, S', S''\} \\
+\end{pmatrix}
+\]
 
-Заполняем последнюю оставшуюся ячейку:
+\bigbreak 
+Шаг 6. Завершаем выполнение алгоритма:
 
-\begin{center}
-  \begin{tabular}{c||cc|cc|cc}
-    & $a$ & $a$ & $b$ & $b$ & $a$ & $b$ \\ \hline
-    & $1$ & $2$ & $3$ & $4$ & 5 & $6$ \\ \hline \hline
-  $1$ & $\{L\}$ & \o & \o & $\{S, S_0\}$ & \o & $\{S, S_0\}$ \\ 
-  $2$ &   & $\{L\}$ & $\{S\}$ & $\{S'\}$ & \o & $\{S'\}$ \\ \hline
-  $3$ &   &   & $\{R, S', S''\}$ & \o & \o & \o \\ 
-  $4$ &   &   &   & $\{R, S', S''\}$ & \o & $\{S', S''\}$ \\ \hline
-  5 &   &   &   &   & $\{L\}$ & $\{S\}$ \\ 
-  $6$ &   &   &   &   &   & $\{R, S', S''\}$
-  \end{tabular}
-\end{center}
+\[
+\begin{pmatrix}
+\{L\}  		& \varnothing & \varnothing    & \{S, S_0\}	 	  & \varnothing & \{S, S_0\} 	 \\
+\varnothing & \{L\} 	  & \{S\}  		   & \{S'\}  		  & \varnothing & \{S'\}	 	 \\
+\varnothing & \varnothing & \{R, S', S''\} & \varnothing 	  & \varnothing & \varnothing 	 \\
+\varnothing & \varnothing & \varnothing    & \{R, S', S''\}   & \varnothing & \{S', S''\}	 \\
+\varnothing & \varnothing & \varnothing    & \varnothing 	  & \{L\} 	    & \{S\}	 		 \\
+\varnothing & \varnothing & \varnothing    & \varnothing 	  & \varnothing & \{R, S', S''\} \\
+\end{pmatrix}
+\]
+
 
 Стартовый нетерминал находится в верхней правой ячейке, а значит цепочка $a a b b a b$ выводима в нашей грамматике.
-
 \end{example}
 
 \begin{example}
-  Теперь выполним алгоритм на невыводимой цепочке $abaa$. 
+Теперь выполним алгоритм на невыводимой цепочке $abaa$. 
 
-  Инициализируем таблицу:
+Шаг 1. Инициализируем таблицу:
 
-  \begin{center}
-    \begin{tabular}{c||cc|cc}
-      & $a$ & $b$ & $a$ & $a$ \\ \hline
-      & $1$ & $2$ & $3$ & 4 \\ \hline \hline 
-    $1$ & $\{L\}$ & \o & \o & \o \\ 
-    $2$ &   & $\{R, S', S''\}$ & \o & \o \\ 
-    $3$ &   &   & $\{L\}$ & \o \\ \hline
-    $4$ &   &   &   & $\{L\}$ \\ 
-    \end{tabular}
-  \end{center}
+\[
+\begin{pmatrix}
+\{L\}  		& \varnothing 	 & \varnothing & \varnothing 	\\  
+\varnothing & \{R, S', S''\} & \varnothing & \varnothing   	\\
+\varnothing & \varnothing 	 & \{L\} 	   & \varnothing    \\
+\varnothing & \varnothing 	 & \varnothing & \{L\} 			\\
+\end{pmatrix}
+\]
 
-  Заполняем следующую диагональ: 
+Шаг 2. Заполняем следующую диагональ: 
 
-  \begin{center}
-    \begin{tabular}{c||cc|cc}
-      & $a$ & $b$ & $a$ & $a$ \\ \hline
-      & $1$ & $2$ & $3$ & 4 \\ \hline \hline 
-    $1$ & $\{L\}$ & $\{S, S_0\}$ & \o & \o \\ 
-    $2$ &   & $\{R, S', S''\}$ & \o & \o \\ 
-    $3$ &   &   & $\{L\}$ & \o \\ \hline
-    $4$ &   &   &   & $\{L\}$ \\ 
-    \end{tabular}
-  \end{center}
+\[
+\begin{pmatrix}
+\{L\}  		& \{S, S_0\} 	 & \varnothing & \varnothing 	\\  
+\varnothing & \{R, S', S''\} & \varnothing & \varnothing   	\\
+\varnothing & \varnothing 	 & \{L\} 	   & \varnothing    \\
+\varnothing & \varnothing 	 & \varnothing & \{L\} 			\\
+\end{pmatrix}
+\]
 
-
-  Больше ни одну ячейку в таблице заполнить нельзя, а значит эта строка не выводится в грамматике правильных скобочных последовательностей. 
+Больше ни одну ячейку в таблице заполнить нельзя, а значит эта строка не выводится в грамматике правильных скобочных последовательностей. 
 
 \end{example}
 
 \subsection{Алгоритм для графов на основе CYK}
 
-Данный алгоритм накладывает ограничение на форму грамматики: грамматика должна быть в ``ослабленной'' нормальной форме Хомского~\ref{section:CNF}.
-Не будем требовать отсутсвия пустого и стартового в правой части.
+Теперь изменим вид входного слова и немного модифицируем алгоритм. Прежде мы сопоставляли каждому символу слова номер его позиции в цепочке, поэтому при инициализации заполняли главную диагональ матрицы. Вместо этого обозначим числами позиции между буквами таким образом (в качестве примера рассмотрим слово $a a b b a b$ из предыдущего пункта):
 
-Обобщение.
-Смотрим на транзитивное замыкание.
-Смотрим на CYK.
-Замечаем, что строка --- это линейный граф.
+\begin{center}
+	\begin{tikzpicture}[shorten >=1pt,on grid,auto]
+	\node (q_0) at (0,0)  {$0$};
+	\node (q_1) at (2,0)  {$1$};
+	\node (q_2) at (4,0)  {$2$};
+	\node (q_3) at (6,0)  {$3$};
+	\node (q_4) at (8,0)  {$4$};
+	\node (q_5) at (10,0) {$5$};
+	\node (q_6) at (12,0) {$6$};
+	\path[->]
+	(q_0) edge  node {a} (q_1)
+	(q_1) edge  node {a} (q_2)
+	(q_2) edge  node {b} (q_3)
+	(q_3) edge  node {b} (q_4)
+	(q_4) edge  node {a} (q_5)
+	(q_5) edge  node {b} (q_6);
+	\end{tikzpicture}
+\end{center}
+
+Что нужно изменить в описании алгоритма, чтобы он продолжал работать при подобной нумерации? Каждая буква теперь идентифицируется не одним числом, а парой – номера слева и справа от нее. При этом чисел стало на одно больше, чем при прежнем способе нумерации. 
+
+Возьмем матрицу  $N \times (n + 1) \times (n + 1)$ и при инициализации будем заполнять не главную диагональ, а диагональ прямо над ней. Таким образом, мы начинаем наш алгоритм с определения значений $M[A][i][j] \text{, где } j = i + 1$. При этом наши дальнейшие действия в рамках алгоритма не изменятся. 
+
+На шаге инициализации матрица выглядит следующим образом:
+
+\[
+\begin{pmatrix}
+\varnothing & \{L\}  	  & \varnothing & \varnothing    & \varnothing 	  & \varnothing & \varnothing 	 \\
+\varnothing & \varnothing & \{L\} 	  & \varnothing    & \varnothing 	  & \varnothing & \varnothing 	 \\
+\varnothing & \varnothing & \varnothing & \{R, S', S''\} & \varnothing 	  & \varnothing & \varnothing 	 \\
+\varnothing & \varnothing & \varnothing & \varnothing    & \{R, S', S''\} & \varnothing & \varnothing 	 \\
+\varnothing & \varnothing & \varnothing & \varnothing    & \varnothing 	  & \{L\} 	    & \varnothing 	 \\
+\varnothing & \varnothing & \varnothing & \varnothing    & \varnothing 	  & \varnothing & \{R, S', S''\} \\
+\varnothing & \varnothing & \varnothing & \varnothing    & \varnothing 	  & \varnothing & \varnothing	 \\
+
+\end{pmatrix}
+\]
+
+А в результате работы алгоритма имеем:
+
+\[
+\begin{pmatrix}
+\varnothing & \{L\}  	  & \varnothing & \varnothing    & \{S, S_0\}	  & \varnothing & \{S, S_0\} 	 \\
+\varnothing & \varnothing & \{L\} 	    & \{S\}  		 & \{S'\}  		  & \varnothing & \{S'\}	 	 \\
+\varnothing & \varnothing & \varnothing & \{R, S', S''\} & \varnothing 	  & \varnothing & \varnothing 	 \\
+\varnothing & \varnothing & \varnothing & \varnothing    & \{R, S', S''\} & \varnothing & \{S', S''\}	 \\
+\varnothing & \varnothing & \varnothing & \varnothing    & \varnothing 	  & \{L\} 	    & \{S\}	 		 \\
+\varnothing & \varnothing & \varnothing & \varnothing    & \varnothing 	  & \varnothing & \{R, S', S''\} \\
+\varnothing & \varnothing & \varnothing & \varnothing    & \varnothing 	  & \varnothing & \varnothing	 \\
+\end{pmatrix}
+\]
+
+Мы представили входную строку в виде линейного графа, а на шаге инициализации получили его матрицу смежности. Шаги алгоритма очень напоминают построение транзитивного замыкания графа. Различие заключается в том, что мы «добавляем ребра» только для тех пар нетерминалов, для которых существует правило в грамматике, их выводящее. 
+
+Алгоритм можно обобщить и на произвольные графы с метками, рассматриваемые в этом курсе. При этом накладывается ограничение на форму входной грамматики: она должна находиться в ослабленной Нормальной Форме Хомского \ref{section:CNF}. То есть не будем требовать условие $S \to \varepsilon$.
+
+Шаг инициализации в алгоритме заключается в том, что мы берем матрицу смежности входного графа (обозначим ее $M$) и с помощью продукций вида 
+
+\[A \to a \text{, где } A \in N, a \in \Sigma\]
+
+переходим от терминалов к нетерминалам, из которых они выводятся. Дальнейший ход алгоритма можно описать псевдокодом:
+
+\begin{algorithm}[H]
+	\begin{algorithmic}[1]
+		\caption{Context-free recognizer for graphs}
+		\label{alg:graphParse}
+		\Function{contextFreePathQuerying}{G, $\mathcal{G}$}
+		
+		\State{$n \gets$ the number of nodes in $\mathcal{G}$}
+		\State{$M \gets$ the modified adjacency matrix of $\mathcal{G}$}
+		\State{$P \gets$ the set of production rules in $G$}
+		\For {$k \in 0..n$}
+			\For {$i \in 0..n$}
+				\For {$j \in 0..n$}
+					\ForAll {$N_1 \in M[i, k]$, $N_2 \in M[k, j]$}
+						\If {$N_3 \to N_1 N_2 \in P$ }		
+							\State{$M[i, j] \mathrel{+}= \{N_3\}$} 
+						\EndIf
+					\EndFor 
+				\EndFor
+			\EndFor 
+		\EndFor 
+		\State \Return $M$
+		\EndFunction
+	\end{algorithmic}
+\end{algorithm}
+
+Если в некоторой ячейке результируюшей матрицы с номером $(i, j)$ находятся стартовый нетерминал, то это означает, что существует путь из вершины $i$ в вершину $j$, удовлетворяющий данной грамматике.
 
 \begin{example}
-Пример.
+Рассмотрим работу алгоритма на графе 
+
+\begin{center}
+	\begin{tikzpicture}[shorten >=1pt,on grid,auto]
+	\node[state] (q_0)   {$0$};
+	\node[state] (q_1) [above right=of q_0] {$1$};
+	\node[state] (q_2) [right=of q_0] {$2$};
+	\node[state] (q_3) [right=of q_2] {$3$};
+	\path[->]
+	(q_0) edge  node {$a$} (q_1)
+	(q_1) edge  node {$a$} (q_2)
+	(q_2) edge  node {$a$} (q_0)
+	(q_2) edge[bend left, above]  node {$b$} (q_3)
+	(q_3) edge[bend left, below]  node {$b$} (q_2);
+	\end{tikzpicture}
+\end{center}
+
+и грамматике:
+
+\begin{align*}
+S & \to A B \\ 
+S & \to S S \\ 
+A & \to a   \\
+B & \to b	\\
+\end{align*}
+
+На шаге инициализации матрица выглядит следующим образом:
+
+\[
+\begin{pmatrix}
+\varnothing & \{A\}  	  & \varnothing & \varnothing \\
+\varnothing & \varnothing & \{A\} 	    & \varnothing \\
+\{A\} 		& \{A\} 	  & \varnothing & \{B\} 	  \\
+\varnothing & \varnothing & \{B\}	    & \varnothing \\
+\end{pmatrix}
+\]
+
+На шаге $i = 1, j = 3, k = 2$ в первый и единственный раз проверка, находящаяся внутри циклов, будет пройдена. Так как в грамматике присутствует правило $S \to A B$, в ячейку $M[1, 3]$ будет добавлен стартовый нетерминал $S$.
+
+В результате работы алгоритма матрица выглядит так:
+
+\[
+\begin{pmatrix}
+\varnothing & \{A\}  	  & \varnothing & \varnothing \\
+\varnothing & \varnothing & \{A\} 	    & \{S\} 	  \\
+\{A\} 		& \{A\} 	  & \varnothing & \{B\} 	  \\
+\varnothing & \varnothing & \{B\}	    & \varnothing \\
+\end{pmatrix}
+\]
+
+В ячейке $M[1, 3]$ находится стартовый нетерминал, а значит, существует путь из вершины 1 в вершину 3, удовлетворяющий ограничениям, заданным входной грамматикой.
 \end{example}
 
-Псевдокод.
+\subsection{Вопросы и задачи}
+\begin{enumerate} 
+	\item Проверить работу алгоритма CYK для цепочек на грамматике
+	\begin{flushleft}
+	$E \to E + E$ \\ 
+	$E \to E * E$ \\ 
+	$E \to (E)$   \\
+	$E \to n$	  \\
+	\end{flushleft}	
+	и словах (алфавит $\Sigma = \{n, +, *, (, )\}$)
+	\begin{flushleft}
+	$ (n + n) * n$    \\
+	$ n + n * n$      \\
+	$n + n + n + n$   \\
+	$n + (n * n) + n$ \\
+	\end{flushleft}
+	
+	\item Посчитать вычислительную сложность алгоритма CYK для матриц в зависимости от размера входного графа (размер грамматики считать фиксированным)
+	
+	\item Проверить работу алгоритма CYK для графов на графе 
+	
+	\begin{center}
+		\begin{tikzpicture}[shorten >=1pt,on grid,auto]
+		\node[state] (q_0)  {$0$};
+		\node[state] (q_1) [right=of q_0]  {$1$};
+		\node[state] (q_2) [right=of q_1]  {$2$};
+		\node[state] (q_3) [right=of q_2]  {$3$};
+		\node[state] (q_4) [right=of q_3]  {$4$};
+		\path[->]
+		(q_0) edge  node {$a$} (q_1)
+		(q_1) edge  node {$b$} (q_2)
+		(q_2) edge  node {$a$} (q_3)
+		(q_3) edge  node {$b$} (q_4)
+		(q_1) edge[bend left, above]  node {$b$} (q_3)
+		(q_4) edge[bend left, below]  node {$a$} (q_1);
+		\end{tikzpicture}
+	\end{center}
+	
+	И грамматике
+	
+	\begin{flushleft}
+		$S \to S S$ \\ 
+		$S \to A B$ \\ 
+		$A \to a$   \\
+		$B \to b$	  \\
+	\end{flushleft}	
+
+\end{enumerate}
