@@ -252,6 +252,7 @@ B   &\to b
 		\State{$n \gets$ the number of nodes in $\mathcal{G}$}
 		\State{$M \gets$ the modified adjacency matrix of $\mathcal{G}$}
 		\State{$P \gets$ the set of production rules in $G$}
+		\While{$M$ is changing}
 		\For {$k \in 0..n$}
 			\For {$i \in 0..n$}
 				\For {$j \in 0..n$}
@@ -263,6 +264,7 @@ B   &\to b
 				\EndFor
 			\EndFor 
 		\EndFor 
+		\EndWhile
 		\State \Return $M$
 		\EndFunction
 	\end{algorithmic}
@@ -291,12 +293,14 @@ B   &\to b
 и грамматике:
 
 \begin{align*}
-S & \to A B \\ 
-S & \to S S \\ 
-A & \to a   \\
-B & \to b	\\
+S 	& \to A B   \\ 
+S 	& \to A S_1 \\
+S_1 & \to S B   \\ 
+A 	& \to a     \\
+B 	& \to b	    \\
 \end{align*}
 
+Данный пример является классическим и еще не раз будет использоваться в рамках данного курса. \\
 
 \textbf{Инициализация.} 
 Заменяем терминалы на ребрах графа на нетерминалы, из которых они выводятся, и строим матрицу смежности получившегося графа:
@@ -320,96 +324,132 @@ B & \to b	\\
 \begin{pmatrix}
 \varnothing & \{A\}  	  & \varnothing & \varnothing \\
 \varnothing & \varnothing & \{A\} 	    & \varnothing \\
-\{A\} 		& \{A\} 	  & \varnothing & \{B\} 	  \\
+\{A\} 		& \varnothing & \varnothing & \{B\} 	  \\
 \varnothing & \varnothing & \{B\}	    & \varnothing \\
 \end{pmatrix}
 \]
 
-\textbf{Итерация 1 ($k = 0$).}
-Итерируясь по $i$ и $j$, мы рассматриваем первую строку и первый столбец нашей матрицы. Опуская случаи, когда $M[i, k] = \varnothing$ или $M[k, j] = \varnothing$, в силу их тривиальности, получаем следующую ситуацию:
+\textbf{Итерация 1.}
+Итерируемся по $k$, $i$ и $j$, пытаясь найти пары нетерминалов, для которых существуют правила вывода, их выводящие. Нам интересны следующие случаи: 
 
 \begin{itemize}
-	\item $i = 2, j = 1:  M[2, 0] = \{A\}, M[0, 1] = \{A\}$, но при этом в грамматике отсутствует правило вида $C \to A A, C \in N$. 
+	\item $k = 2, i = 1, j = 3: A \in M[1, 2], B \in M[2, 3]$, так как в грамматике присутствует правило $S \to A B$, добавляем нетерминал $S$ в ячейку $M[1, 3]$.
+	\item $k = 3, i = 1, j = 2: S \in M[1, 3], B \in M[3, 2]$, поскольку в грамматике есть правило $S_1 \to S B$, добавляем нетерминал $S_1$ в ячейку $M[1, 2]$.
 \end{itemize}
 
-Таким образом, на данном шаге граф и его матрица остаются без изменений. \\
+В остальных случаях либо какая-то из клеток пуста, либо не существует продукции в грамматике, выводящей данные два нетерминала.
 
-\textbf{Итерация 2 ($k = 1$).}
-Продолжаем рассматривать все $i$ и $j$:
+Матрица после данной итерации:
+
+\[
+\begin{pmatrix}
+\varnothing & \{A\}  	  & \varnothing & \varnothing \\
+\varnothing & \varnothing & \{A, S_1\} 	& \{S\} 	  \\
+\{A\} 		& \varnothing & \varnothing & \{B\} 	  \\
+\varnothing & \varnothing & \{B\}	    & \varnothing \\
+\end{pmatrix}
+\]
+
+\textbf{Итерация 2.}
+Снова итерируемся по $k$, $i$, $j$. Рассмотрим случаи:
 
 \begin{itemize}
 	\setlength\itemsep{1em}
-	\item $i = 0, j = 2:  M[0, 1] = \{A\}, M[1, 2] = \{A\}$, но при этом нет соответствующего правила в грамматике.
-	\item $i = 2, j = 2:  M[2, 1] = \{A\}, M[1, 2] = \{A\}$, аналогично предыдущему случаю. 
+	\item $k = 1, i = 0, j = 2: A \in M[0, 1], S_1 \in M[1, 2]$, так как в грамматике присутствует правило $S \to A S_1$, добавляем нетерминал $S$ в ячейку $M[0, 2]$.
+	\item $k = 2, i = 0, j = 3: S \in M[0, 2], B \in M[2, 3]$, поскольку в грамматике есть правило $S_1 \to S B$, добавляем нетерминал $S_1$ в ячейку $M[0, 3]$.
 \end{itemize}
 
-И снова граф и матрица не претерпевают изменений. \\
+Матрица на данном шаге:
 
-\textbf{Итерация 3 ($k = 2$).}
+\[
+\begin{pmatrix}
+\varnothing & \{A\}  	  & \{S\} 	    & \{S_1\}	  \\
+\varnothing & \varnothing & \{A, S_1\} 	& \{S\} 	  \\
+\{A\} 		& \varnothing & \varnothing & \{B\} 	  \\
+\varnothing & \varnothing & \{B\}	    & \varnothing \\
+\end{pmatrix}
+\]
+
+\textbf{Итерация 3.}
 Рассматриваемые на данном шаге случаи:
 
 \begin{itemize}
 	\setlength\itemsep{1em}
-	\item $i = 1, j = 0:  M[1, 2] = \{A\}, M[2, 0] = \{A\}$, нет соответствующей продукции.
-	\item $i = 1, j = 1:  M[1, 2] = \{A\}, M[2, 1] = \{A\}$, аналогично.
-	\item $i = 1, j = 3:  M[1, 2] = \{A\}, M[2, 3] = \{B\}$, в грамматике есть правило $S \to A B$, значит, добавляем в ячейку $M[1, 3]$ стартовый нетерминал S, а на графе появится соответствуюшее ребро.
-	
-	\item $i = 3, j = 0:  M[3, 2] = \{B\}, M[2, 0] = \{A\}$, правило вида $C \to B A, C \in N$ отсутствует в грамматике.
-	\item $i = 3, j = 1:  M[3, 2] = \{B\}, M[2, 1] = \{A\}$, аналогично.
-	\item $i = 3, j = 3:  M[3, 2] = \{B\}, M[2, 3] = \{B\}$, отсутствует продукция вида $C \to B B, C \in N$.
+	\item $k = 0, i = 2, j = 3: A \in M[2, 0], S_1 \in M[0, 3]$, так как в грамматике присутствует правило $S \to A S_1$, добавляем нетерминал $S$ в ячейку $M[2, 3]$.
+	\item $k = 3, i = 2, j = 2: S \in M[2, 3], B \in M[3, 2]$, поскольку в грамматике есть правило $S_1 \to S B$, добавляем нетерминал $S_1$ в ячейку $M[2, 2]$.
 \end{itemize}
 
-Граф и матрица после этой итерации:
-
-\begin{center}
-	\begin{tikzpicture}[shorten >=1pt,on grid,auto]
-	\node[state] (q_0)   {$0$};
-	\node[state] (q_1) [above right=of q_0] {$1$};
-	\node[state] (q_2) [right=of q_0] {$2$};
-	\node[state] (q_3) [right=of q_2] {$3$};
-	\path[->]
-	(q_0) edge  node {$A$} (q_1)
-	(q_1) edge  node {$A$} (q_2)
-	(q_2) edge  node {$A$} (q_0)
-	(q_2) edge[bend left, above]  node {$B$} (q_3)
-	(q_3) edge[bend left, below]  node {$B$} (q_2)
-	(q_1) edge[bend left, above]  node {$S$} (q_3);
-	\end{tikzpicture}
-\end{center}
+Матрица после этой итерации:
 
 \[
 \begin{pmatrix}
-\varnothing & \{A\}  	  & \varnothing & \varnothing \\
-\varnothing & \varnothing & \{A\} 	    & \{S\} 	  \\
-\{A\} 		& \{A\} 	  & \varnothing & \{B\} 	  \\
-\varnothing & \varnothing & \{B\}	    & \varnothing \\
+\varnothing & \{A\}  	  & \{S\} 	   & \{S_1\} 	 \\
+\varnothing & \varnothing & \{A, S_1\} & \{S\}  	 \\
+\{A\} 		& \varnothing & \{S_1\}	   & \{B, S\} 	 \\
+\varnothing & \varnothing & \{B\}	   & \varnothing \\
 \end{pmatrix}
-\] 
+\]
 
-\textbf{Итерация 4 ($k = 3$).}
+\textbf{Итерация 4.}
 Рассмариваемые случаи:
 
 \begin{itemize}
 	\setlength\itemsep{1em}
-	\item $i = 1, j = 2:  M[1, 3] = \{S\}, M[3, 2] = \{B\}$, нет правила вида $C \to S B, C \in N$.
-	\item $i = 2, j = 2:  M[2, 3] = \{B\}, M[3, 2] = \{B\}$, отсутствует продукция вида $C \to B B, C \in N$. 
+	\item $k = 2, i = 1, j = 2: A \in M[1, 2], S_1 \in M[2, 2]$, так как в грамматике присутствует правило $S \to A S_1$, добавляем нетерминал $S$ в ячейку $M[1, 2]$.
+	\item $k = 2, i = 1, j = 3: S \in M[1, 2], B \in M[2, 3]$, поскольку в грамматике есть правило $S_1 \to S B$, добавляем нетерминал $S_1$ в ячейку $M[1, 3]$.
 \end{itemize}
 
-На данном шаге матрица и граф не изменились. \\
-
-\textbf{Итог.}
-В результате матрица алгоритма выглядит следующим образом:
+Матрица:
 
 \[
 \begin{pmatrix}
-\varnothing & \{A\}  	  & \varnothing & \varnothing \\
-\varnothing & \varnothing & \{A\} 	    & \{S\} 	  \\
-\{A\} 		& \{A\} 	  & \varnothing & \{B\} 	  \\
-\varnothing & \varnothing & \{B\}	    & \varnothing \\
+\varnothing & \{A\}  	  & \{S\} 	      & \{S_1\}     \\
+\varnothing & \varnothing & \{A, S, S_1\} & \{S, S_1\}  \\
+\{A\} 		& \varnothing & \{S_1\}	  	  & \{B, S\}    \\
+\varnothing & \varnothing & \{B\}	      & \varnothing \\
 \end{pmatrix}
 \]
 
-В ячейке $M[1, 3]$ находится стартовый нетерминал, а значит, существует путь из вершины 1 в вершину 3, удовлетворяющий ограничениям, заданным входной грамматикой.
+\textbf{Итерация 5.}
+Рассмотрим на это шаге:
+
+\begin{itemize}
+	\setlength\itemsep{1em}
+	\item $k = 1, i = 0, j = 3: A \in M[0, 1], S_1 \in M[1, 3]$, поскольку в грамматике есть правило $S \to A S_1$, добавляем нетерминал $S$ в ячейку $M[0, 3]$.
+	\item $k = 3, i = 0, j = 2: S \in M[0, 3], B \in M[3, 2]$, поскольку в грамматике есть правило $S_1 \to S B$, добавляем нетерминал $S_1$ в ячейку $M[0, 2]$.
+\end{itemize}
+
+Матрица на этой итерации:
+\[
+\begin{pmatrix}
+\varnothing & \{A\}  	  & \{S, S_1\} 	  & \{S, S_1\}  \\
+\varnothing & \varnothing & \{A, S, S_1\} & \{S, S_1\}  \\
+\{A\} 		& \varnothing & \{S_1\}	   	  & \{B, S\}    \\
+\varnothing & \varnothing & \{B\}	   	  & \varnothing \\
+\end{pmatrix}
+\]
+
+\textbf{Итерация 6.}
+Интересующие нас на этом шаге случаи:
+
+\begin{itemize}
+	\setlength\itemsep{1em}
+	\item $k = 0, i = 2, j = 2: A \in M[2, 0], S_1 \in M[0, 2]$, поскольку в грамматике есть правило $S \to A S_1$, добавляем нетерминал $S$ в ячейку $M[2, 2]$.
+	\item $k = 2, i = 2, j = 3: S \in M[2, 2], B \in M[2, 3]$, поскольку в грамматике есть правило $S_1 \to S B$, добавляем нетерминал $S_1$ в ячейку $M[2, 3]$.
+\end{itemize}
+
+Матрица после данного шага:
+
+\[
+\begin{pmatrix}
+\varnothing & \{A\}  	  & \{S, S_1\} 	  & \{S, S_1\}    \\
+\varnothing & \varnothing & \{A, S, S_1\} & \{S, S_1\}    \\
+\{A\} 		& \varnothing & \{S, S_1\}	  & \{B, S, S_1\} \\
+\varnothing & \varnothing & \{B\}	   	  & \varnothing   \\
+\end{pmatrix}
+\]
+
+На следующей итерации матрица не изменяется, поэтому заканчиваем работу алгоритма. В результате, если ячейка $M[i, j]$ содержит стартовый нетерминал $S$, то существует путь из $i$ в $j$, удовлетворяющий ограничениям, заданным грамматикой. 
 \end{example}
 
 \subsection{Вопросы и задачи}
