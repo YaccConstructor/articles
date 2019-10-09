@@ -1,53 +1,40 @@
-\section{Алгоритм на матричных опреациях}
+\section{Алгоритм на матричных операциях}
+\subsection{Описание}
+\label{Matrix-CFPQ}
+В главе~\ref{graph:CYK}~был изложен алгоритм для графов на основе CYK. Заметим, что обход матрицы напоминает матричное умножение:
 
-Введение, история вопроса.
+\begin{gather*}
+M_1 \times M_2 = M_3 \\
+M_3[i,j] = \sum_{k=1}^{n} M[i,k] * M[k,j]
+\end{gather*}
+, где
+\begin{gather*}
+\sum_{k=1}^{n} = \bigcup_{k=1}^{n} \\
+S_1 * S_2 = \{N_1^0 ... N_1^m\} * \{N_2^0 ... N_2^l\} = \{N_3~|~(N_3 \rightarrow N_1^i N_2^j) \in P\}
+\end{gather*}
 
-Китайцы~\cite{10.1007/978-3-319-46523-4_38}, Брэдфорд~\cite{bradford2007quickest,ward2008distributed,bradford2016fast,Bradford:2008:LCG:1373936.1373946}, Хеллингс~\cite{hellingsRelational,hellings2015querying,Hellings2015PathRF}, OpenCypher~\cite{Kuijpers:2019:ESC:3335783.3335791}.
+Для линейного входа существует алгоритм Валианта~\cite{Valiant:1975:GCR:1739932.1740048}, но он не обобщается на графы с сохранением асимптотики~\cite{Yannakakis}, поэтому рассмотрим идею, изложенную в статье Рустама Азимова~\cite{Azimov:2018:CPQ:3210259.3210264}.
 
-Рассуждения про ассимптотику.
-
-Субкубический для частного случая (Брэдфорд)~\cite{8249039}.
-
-\subsection{Матрицы для КС разбора}
-
-Вэлиант~\cite{Valiant:1975:GCR:1739932.1740048}.
-
-Ли~\cite{Lee:2002:FCG:505241.505242},
-
-
-\subsection{Матрицы для КС запросов}
-Вводное.
-Про замыкание через произведение матриц.
-
-Вспомниаем про то, что транзитивное замыкание можно искать через произведение матриц.
-
-
-К сожалению, Вэлиант очевидным образом не обобщается на графы (с сохранением асимптотики).
-
-
-Потому будем действовать наивно.
-Оригинальные матрицы (Рустам)~\cite{Azimov:2018:CPQ:3210259.3210264}.
-
-Let $D = (V, E)$ be the input graph and $G = (N,\Sigma,P)$ be the input grammar.
+Пусть $\mathcal{G} = (V, E)$ --- входной граф и $G = (N,\Sigma,P)$ --- входная грамматика.
 
 \begin{algorithm}[H]
 \begin{algorithmic}[1]
-\caption{Context-free recognizer for graphs}
+\caption{Context---free recognizer for graphs}
 \label{alg:graphParse}
-\Function{contextFreePathQuerying}{D, G}
+\Function{contextFreePathQuerying}{$\mathcal{G}$, G}
     
-    \State{$n \gets$ the number of nodes in $D$}
-    \State{$E \gets$ the directed edge-relation from $D$}
-    \State{$P \gets$ the set of production rules in $G$}
-    \State{$T \gets$ the matrix $n \times n$ in which each element is $\varnothing$}
+    \State{$n \gets$ количество узлов в $\mathcal{G}$}
+    \State{$E \gets$ направленные ребра в $\mathcal{G}$}
+    \State{$P \gets$ набор продукций из $G$}
+    \State{$T \gets$ матрица $n \times n$, в которой каждый элемент $\varnothing$}
     \ForAll{$(i,x,j) \in E$}
-    \Comment{Matrix initialization}
+    \Comment{Инициализация матрицы}
         \State{$T_{i,j} \gets T_{i,j} \cup \{A~|~(A \rightarrow x) \in P \}$}
     \EndFor    
-    \While{matrix $T$ is changing}
+    \While{матрица $T$ меняется}
        
         \State{$T \gets T \cup (T \times T)$}
-        \Comment{Transitive closure $T^{cf}$ calculation} 
+        \Comment{Вычисление транзитивного замыкания} 
     \EndWhile
 \State \Return $T$
 \EndFunction
@@ -57,7 +44,33 @@ Let $D = (V, E)$ be the input graph and $G = (N,\Sigma,P)$ be the input grammar.
 
 \begin{example}[Пример работы]
 
-Описание. Добавить графы, как в тензорном произведении.
+Пусть есть граф $\mathcal{G}$:
+\begin{center}
+	\begin{tikzpicture}[shorten >=1pt,on grid,auto]
+	\node[state] (q_0)   {$1$};
+	\node[state] (q_1) [above right=of q_0] {$2$};
+	\node[state] (q_2) [right=of q_0] {$0$};
+	\node[state] (q_3) [right=of q_2] {$3$};
+	\path[->]
+	(q_0) edge  node {a} (q_1)
+	(q_1) edge  node {a} (q_2)
+	(q_2) edge  node {a} (q_0)
+	(q_2) edge[bend left, above]  node {b} (q_3)
+	(q_3) edge[bend left, below]  node {b} (q_2);
+	\end{tikzpicture}
+	
+\end{center}
+
+и грамматика $G$:
+\begin{align*}
+S   &\to A B \\ 
+S  &\to A S_1 \\ 
+S_1 &\to S B \\
+A  &\to a \\ 
+B   &\to b
+\end{align*}
+
+Тогда $T_0$, полученная напрямую из графа, выглядит так:
 
 
 \[
@@ -69,7 +82,7 @@ T_0 = \begin{pmatrix}
 \end{pmatrix}
 \]
 
-Let $T_i$ be the matrix $T$, obtained after executing the loop in the lines \textbf{8-9} of the Algorithm~\ref{alg:graphParse} $i$ times. The calculation of the matrix $T_1$ is shown on Figure~\ref{ExampleQueryFirstIteration}.
+Пусть $T_i$ --- матрица, полученная из $T$ после применения цикла на строках \textbf{8-9} алгоритма~\ref{alg:graphParse} $i$ раз. Далее показано получение матрицы $T_1$.
 
 
 \[
@@ -90,9 +103,9 @@ T_1 = T_0 \cup (T_0 \times T_0) = \begin{pmatrix}
 \end{pmatrix}
 \]
 
-When the algorithm at some iteration finds new paths in the graph $D$, then it adds corresponding nonterminals to the matrix $T$. For example, after the first loop iteration, non-terminal $S$ is added to the matrix $T$. This non-terminal is added to the element with a row index $i = 2$ and a column index $j = 3$. This means, that there is $i\pi j$ (a path $\pi$ from the node 2 to the node 3), such that $S \xrightarrow{*} l(\pi)$. For example, such a path consists of two edges with labels $a$ and $b$, and thus $S \xrightarrow{*} a \ b$.
+Когда алгоритм находит новые пути в графе $\mathcal{G}$, он добавляет соответствующие нетерминалы в матрицу $T$. Например, после первого цикла нетерминал $S$ добавляется к матрице $T$. Этот нетерминал добавляется в ячейку $[2,3]$. Это означает, что существует такой путь $\pi$ из вершины 2 в вершину 3, что $S \xrightarrow{*} \omega(\pi)$. В данном примере путь состоит из двух ребер с именами $a$ и $b$, так что $S \xrightarrow{*} ab$.
 
-The calculation of the transitive closure is completed after $k$ iterations, when a fixpoint is reached: $T_{k-1} = T_k$. For the example query, $k = 13$ since $T_{13} = T_{12}$. The remaining iterations of computing the transitive closure are presented on Figure~\ref{ExampleQueryFinalIterations} (new matrix elements on each iteration are shown in bold).
+Вычисление транзитивного замыкания заканчивается через $k$ итераций, когда достигается фиксированная точка: $T_{k-1} = T_k$. Для данного примера $k = 13$, так как $T_{13} = T_{12}$. Процесс вычисления транзитивного замыкания показан ниже (на каждой итерации новые элементы выделены жирным).
 
 
 \begin{alignat*}{7}
@@ -106,18 +119,17 @@ The calculation of the transitive closure is completed after $k$ iterations, whe
 \{\pmb{S}\}       & \varnothing & \{A\}       & \varnothing \\
 \{A, S_1\}  & \varnothing & \varnothing & \{S\}       \\
 \{B\}       & \varnothing & \varnothing & \varnothing \\
-\end{pmatrix} \ \ \ \ &&T_4 &&= \begin{pmatrix}
+\end{pmatrix} \\ & &&T_4 &&= \begin{pmatrix}
 \varnothing & \{A\}       & \varnothing & \{B\}       \\
 \{S\}       & \varnothing & \{A\}       & \{\pmb{S_1}\}     \\
 \{A, S_1\}  & \varnothing & \varnothing & \{S\}       \\
 \{B\}       & \varnothing & \varnothing & \varnothing \\
-\end{pmatrix}  \\
-& &&T_5 &&= \begin{pmatrix}
+\end{pmatrix}  \ \ \ \ &&T_5 &&= \begin{pmatrix}
 \varnothing & \{A\}       & \varnothing & \{B, \pmb{S}\}    \\
 \{S\}       & \varnothing & \{A\}       & \{S_1\}     \\
 \{A, S_1\}  & \varnothing & \varnothing & \{S\}       \\
 \{B\}       & \varnothing & \varnothing & \varnothing \\
-\end{pmatrix} \ \ \ \ &&T_6 &&= \begin{pmatrix}
+\end{pmatrix} \\ & &&T_6 &&= \begin{pmatrix}
 \{\pmb{S_1}\}     & \{A\}       & \varnothing & \{B, S\}    \\
 \{S\}       & \varnothing & \{A\}       & \{S_1\}     \\
 \{A, S_1\}  & \varnothing & \varnothing & \{S\}       \\
@@ -138,18 +150,17 @@ The calculation of the transitive closure is completed after $k$ iterations, whe
 \{S\}       & \varnothing & \{A\}       & \{S_1, \pmb{S}\}     \\
 \{A, S_1, S\}  & \varnothing & \varnothing & \{S, S_1\} \\
 \{B\}       & \varnothing & \varnothing & \varnothing \\
-\end{pmatrix} \ \ \ \ &&T_{10} &&= \begin{pmatrix}
+\end{pmatrix} \\ & &&T_{10} &&= \begin{pmatrix}
 \{S_1\}     & \{A\}       & \varnothing & \{B, S\}    \\
 \{S, \pmb{S_1}\}       & \varnothing & \{A\}       & \{S_1, S\}     \\
 \{A, S_1, S\}  & \varnothing & \varnothing & \{S, S_1\} \\
 \{B\}       & \varnothing & \varnothing & \varnothing \\
-\end{pmatrix}  \\
-& &&T_{11} &&= \begin{pmatrix}
+\end{pmatrix}  \ \ \ \  &&T_{11} &&= \begin{pmatrix}
 \{S_1, \pmb{S}\}     & \{A\}       & \varnothing & \{B, S\}    \\
 \{S, S_1\}       & \varnothing & \{A\}       & \{S_1, S\}     \\
 \{A, S_1, S\}  & \varnothing & \varnothing & \{S, S_1\} \\
 \{B\}       & \varnothing & \varnothing & \varnothing \\
-\end{pmatrix} \ \ \ \ &&T_{12} &&= \begin{pmatrix}
+\end{pmatrix} \\ & &&T_{12} &&= \begin{pmatrix}
 \{S_1, S\}     & \{A\}       & \varnothing & \{B, S, \pmb{S_1}\}    \\
 \{S, S_1\}       & \varnothing & \{A\}       & \{S_1, S\}     \\
 \{A, S_1, S\}  & \varnothing & \varnothing & \{S, S_1\} \\
@@ -162,19 +173,29 @@ The calculation of the transitive closure is completed after $k$ iterations, whe
 \end{pmatrix}
 \end{alignat*}
 
-Thus, the result of the Algorithm~\ref{alg:graphParse} for the example query is the matrix $T_{13} = T_{12}$. 
+Таким образом, результат алгоритма~\ref{alg:graphParse} для нашего примера --- это матрица $T_{13} = T_{12}$. 
 
-\end{example}.
-
-Интересные вопросы: кратчайшие пути и одно дерево (построить один путь).
+\end{example}
 
 \subsection{Конъюнктивные и булевы граммтики}
 
 \subsubsection{Определения}
 
 Охотин~\cite{Okhotin:2003:BG:1758089.1758123,f60a33d409364914be560cac0e54b12c,Okhotin:2014:PMM:2565359.2565379}.
-
+\begin{example}[Пример конъюктивной грамматики]
+	Следующая конъюктивная грамматика порождает язык $ \{a^nb^nc^n~|~n \geq 0\}$:
+	\begin{align*}
+	S   &\to A B \& D C \\ 
+	A  &\to a A \mid \epsilon \\ 
+	B &\to b B c \mid \epsilon \\
+	C   &\to c C \mid \epsilon \\ 
+	D   &\to aDb \mid \epsilon
+	\end{align*}
+	
+	Грамматика основывается на представлении языка, как пересечения двух КС-языков: $\{a^nb^nc^n~|~n \geq 0\}=\{a^ib^jc^k~|~j = k\} \cap \{a^ib^jc^k~|~i = j\}$. В этой грамматике строка $abc$ может быть получена следующим образом:
+\end{example}
 \subsubsection{Для графов}
+
 
 Классическая семантика --- работает для конъюнктивных для любых графов.
 Для Булевых и конъюнктивных только для графов без циклов.
@@ -182,29 +203,79 @@ Thus, the result of the Algorithm~\ref{alg:graphParse} for the example query is 
 Альтернативная семантика (DataLog).
 Трактуем конъюнкцию как в даталоге. Тогда всё хорошо.
 Это похоже на даталог через линейную алгебру~\cite{!!!}
-
 \subsection{Особенности реализации матричного алгоритма}
 
-Кое-что про наши реализации~\cite{Mishin:2019:ECP:3327964.3328503}
+Матричные алгоритмы удобны тем, что их удобно вычислять на GPU и для них можно создать модификацию, которая будет работать параллельно на нескольких вычислителях~\cite{Mishin:2019:ECP:3327964.3328503}.
 
-Так как множество нетерминалов и правил конечно, то мы можем свести алгоритм к булевым матрицам: для каждого нетерминала заводим матрицу, такую что в ячейке стоит true тогда и только тогда, когда в исходной матрице в соответствующе ячейке был этот нетерминал.
-Тогда перемноженеи пары таких матриц --- это применеие правила.
+Так как множество нетерминалов и правил конечно, то мы можем свести алгоритм к булевым матрицам: для каждого нетерминала заводим матрицу, такую что в ячейке стоит 1 тогда и только тогда, когда в исходной матрице в соответствующей ячейке был этот нетерминал.
+Тогда перемножение пары таких матриц --- это применение правила.
 
-Описание модификации!
 
 \begin{example}
-Пример работы!
+Представим в таком виде следующую матрицу:
+\[
+T_0 = \begin{pmatrix}
+\varnothing & \{A\}       & \varnothing & \{B\}       \\
+\varnothing & \varnothing & \{A\}       & \varnothing \\
+\{A\}       & \varnothing & \varnothing & \varnothing \\
+\{B\}       & \varnothing & \varnothing & \varnothing \\
+\end{pmatrix}
+\]
+
+Тогда:
+\begin{alignat*}{7}
+& &&T_{0\_A} &&= \begin{pmatrix}
+0 & 1       & 0 & 0       \\
+0 & 0 & 1       & 0 \\
+1  & 0 & 0 & 0       \\
+0       & 0 & 0 & 0 \\
+\end{pmatrix} \ \ \ \ &&T_{0\_B} &&= \begin{pmatrix}
+0 & 0       & 0 & 1       \\
+0       & 0 & 0       & 0 \\
+0  & 0 & 0 & 0       \\
+1       & 0 & 0 & 0 \\
+\end{pmatrix}
+\end{alignat*}
+Тогда при наличии правила $S \to A B$ получим $T_{1\_S} =T_{0\_A} \times T_{0\_B}$~:
+\[
+T_{1\_S} = \begin{pmatrix}
+0 & 0       & 0 & 0       \\
+0       & 0 & 0       & 0 \\
+0  & 0 & 0 & 1       \\
+0       & 0 & 0 & 0 \\
+\end{pmatrix}
+\]
 \end{example}
 
+\medskip
+
 С другой стороны, для небольших запросов практически может быть выгодно представлять множества нетерминалов в виде битового вектора.
-Нумеруем все нетерминалы с нуля, в векторе стит 1 на i позиции если в множетве есть нетерминал с номером i.
+Нумеруем все нетерминалы с нуля, в векторе стоит 1 на i позиции, если в множестве есть нетерминал с номером i.
 Таким образом, в каждой ячейке хранится битовый вектор длины $|N|$.
 Тогда операцию умножения надо определить следующим образом:
-$$v_1 \times v_2 = v \mid \exists (v,v_3) \in P, \textit{append}(v_1, v_2) \& v_3 = v_3,$$ где $\&$ --- побитовое \texttt{``и''}.
-Для этого правила надо кодировать соответственно: продукция это пара, где первый элемент --- битовый вектор длины $N$ с единственной единицей в позиции, соответствующей нетерминалу в правой части, а второй элемент --- векто длины $2|N|$, с двумя единицами кодирующими первый и второй нетерминалы, соответственно.
+$$v_1 \times v_2 = \{v \mid \exists (v,v_3) \in P, \textit{append}(v_1, v_2) \& v_3 = v_3\},$$ где $\&$ --- побитовое \texttt{``и''}.
+Чтобы это было возможно, правила надо кодировать соответственно: продукция это пара, где первый элемент --- битовый вектор длины $N$ с единственной единицей в позиции, соответствующей нетерминалу в правой части, а второй элемент --- вектор длины $2|N|$, с двумя единицами кодирующими первый и второй нетерминалы, соответственно.
 
 \begin{example}
-Пример работы!
+Пусть $N = \{S, A, B\}$ и есть продукция $S \to A B$. Тогда занумеруем нетерминалы $ S \to 0, A \to 1, B \to 2$ и продукция примет вид $[1, 0, 0] \to [0, 1, 0, 0, 0, 1]$. Матрица $T_0$ примет вид(в нашей нотации $.$ означает, что в ячейке стоит $[0,0,0]$):
+\[
+T_0 = \begin{pmatrix}
+. & [0,1,0]       & . & [0,0,1]       \\
+. & . & [0,1,0]       & . \\
+[0,1,0]       & . & . & . \\
+[0,0,1]      & . & . & . \\
+\end{pmatrix}
+\]
+
+После выполнения умножения получим $T_1 = T_0 \times T_0$:
+\[
+T_1 = \begin{pmatrix}
+. & [0,1,0]       & . & [0,0,1]       \\
+. & . & [0,1,0]       & . \\
+[0,1,0]       & . & . & [1,0,0] \\
+[0,0,1]      & . & . & . \\
+\end{pmatrix}
+\]
 \end{example}
 
 
@@ -214,23 +285,30 @@ $$v_1 \times v_2 = v \mid \exists (v,v_3) \in P, \textit{append}(v_1, v_2) \& v_
 
 
 
-Это может оказаться быстрее. Надо реализовыть и смотреть.
+Это может оказаться быстрее --- в данном случае скорость зависит от деталей реализации.
 
-Так как данные чать разрежены, то много вопросов к представлению матриц.
-Разреженные матрицы, плотные матрицы, GraphBLAS\footnote{!!!}, GPGPU, CUTLASS\footnote{Репозиторий библиотеки CUTLASS: \url{https://github.com/NVIDIA/cutlass}}.
-Quad Tree~\cite{!!!}.
+При таких представлениях данные часто оказываются разреженны --- возникает вопрос, как представлять матрицу. Среди способов --- разреженные матрицы, GraphBLAS\footnote{GraphBLAS --- открытый стандарт для графовых алгоритмов --- \url{https://github.com/gunrock/graphblast} }, GPGPU, CUTLASS\footnote{Репозиторий библиотеки CUTLASS: \url{https://github.com/NVIDIA/cutlass}}.
+Quad Tree~\cite{quadtree}.
 
-Расположенеи в памяти: хорошо, когда всё (всематрицы, нужные для вычислений) влезло на одну карту.
-Хуже, когда только одна пара матриц.
-Ещё хуже, когда даже одна матрица не помещается.
+Для вычислений лучше всего, когда все нужные для вычисления матрицы помещаются на одну карту. Хуже --- если только одна пара матриц. Хуже всего, когда не помещается даже пара матриц. Поэтому хороши распределенные решения, например через GraphBLAS.
 
-Потому нужно пробовать распределённые решения.
-Например, через GraphBLAS.
+\subsection{Обзор}
+\begin{itemize}
+	\item Lee. О конвертации парсеров КС-грамматик в перемножение булевых матриц~\cite{Lee:2002:FCG:505241.505242}
+	\item OpenCypher~\cite{Kuijpers:2019:ESC:3335783.3335791}
+	\item J.Hellings. CFPQ~\cite{hellingsRelational,hellings2015querying,Hellings2015PathRF}
+	\item Zhang. CFPQ on rdf graphs~\cite{10.1007/978-3-319-46523-4_38}
+	\item Bradford~\cite{bradford2007quickest,ward2008distributed,bradford2016fast,Bradford:2008:LCG:1373936.1373946}
+\end{itemize}
 
+Асимптотически приведенные алгоритмы имеют большую сложность, например \\ $O(n^2 |N|^2|P|~ (MM(n))$, где $MM(n)$ --- сложность перемножения матриц $n \times n$, $|P|$ --- мощность множества продукций, $|N|$ --- мощность множества нетерминалов. Однако такая большая сложность компенсируется возможностью их распараллеливания, в результате чего они работают быстрее однопоточных алгоритов с лучшей сложностью.
+
+Брэдфорт получил субкубическую сложность для частного случая --- языка Дика с одним типом скобок~\cite{8249039}.
 
 \subsection{Вопросы и задачи}
 \begin{enumerate}
-  \item !!!
-  \item !!!
-  \item !!!
+	\item Находить кратчайшие пути в графах, используя идеи из секции~\ref{Matrix-CFPQ}.
+	\item Превратить граф, использующийся для CFPQ, в дерево.
+  	\item Реализовать предложенные идеи на различных архитектурах.
+  	\item Замерить производительность и расходы памяти по сравнению с существующими реализациями.
 \end{enumerate}
