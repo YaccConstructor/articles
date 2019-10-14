@@ -1,0 +1,176 @@
+\section{Boolean circuit for CFL-reachability}
+\label{sec:circuit}
+In this section we build generalization of classical Boolean circuit for context-free recognition from the Brent-Goldschlager-Rytter algorithm \cite*{Brent, Rytter} in order to evaluate CFL-reachability problem.
+\subsection{Circuit description}
+\label{Bdesc}
+The idea of the Brent-Goldschlager-Rytter parallel algorithm is based on replacement of ordinary parse trees with a equivalent system of logical dependencies. We can adapt this system for graph input as follows (context-free grammar is in the Chomsky normal form):
+\begin{enumerate}
+\item $\frac{i \xrightarrow{a} j}{A(i , j)}$  --- if edge from the node $i$ to the node $j$ has label ``$a$'' and $A \rightarrow a \in P$, then there is a parse tree with nonterminal $A$ at the root deriving a path from $i$ to $j$.
+\\
+\item $\frac{B(i , j)}{\frac{A}{C}(i , j :: z)}$ --- creating a gap on the right: if a parse tree with the nonterminal $B$ at the root deriving a path from $i$ to $j$ exists and $A \rightarrow BC \in P$, then a parse tree with nonterminal $A$ at the root containing a smaller subtree with the nonterminal $C$ deriving path from $j$ to $z$ (``gap''), where $1 \le z \le n$, may exist.
+\\
+\item $\frac{C(j  , z)}{\frac{A}{B}(i :: j  , z)}$ --- creating a gap on the left: if a parse tree with the nonterminal $C$ at the root deriving a path from $j$ to $z$ exists and $A \rightarrow BC \in P$,  then a parse tree with nonterminal $A$ at the root containing a smaller subtree with the nonterminal $B$ deriving a path from $i$ to $j$ (``gap''), where $1 \le i \le n$, may exist.
+\\
+\item  $\frac{B(i, j), \frac{A}{B}(i :: j  , z)}{A(i, z)}$ --- filling the gap: if a parse tree with the nonterminal $A$ at the root deriving a path from $i$ to $z$, which cointains the gap represented by a node labelled $B$ deriving a path from $i$ to $j$ and a parse tree with the nonterminal $B$ at the root deriving a path from $i$ to $j$ exist, then the whole parse tree with the nonterminal $A$ at the root deriving a path from $i$ to $z$ exists.
+\\
+\item $\frac{\frac{A}{E}(i , j :: w, z), \frac{E}{D}( j , u :: v , w)}{\frac{A}{D}(i, u :: v , z)}$ --- combination of conditional propositions: if there is a parse tree with the nonterminal $A$ at the root deriving a path from $i$ to $z$ with the gap represented by a node labelled $E$ deriving a path from $j$ to $w$ and there is a parse tree with the nonterminal $E$ at the root deriving a path from $j$ to $w$, which contains gap represented by some node $D$, then there is a parse tree with the nonterminal $A$ at the root deriving a path from $i$ to $z$, which contains the gap represented by the above mentioned node $D$.
+\end{enumerate}
+
+
+Using logical dependencies above, elements of the circuit can be described with two types of elements: $x_{A, i,  j}$, which is true when a parse tree with the nonterminal $A$ at the root deriving a path from $i$ to $j$ exists, and $y_{A, i,  j, B, k, l}$ for conditional propositions, which is true when there is a parse tree with the nonterminal $A$ at the root deriving a path from $i$ to $j$ containg a hole instead of a subtree with the nonterminal $B$ at the root deriving a path from $k$ to $l$.
+
+
+Therefore the circuit contains the following gates:
+\begin{itemize}
+\item \textit{Input}: input gates, one gate for every edge of the input graph and alphabet symbol; evaluates to true if the corresponding edge has an appropriate label
+\item internal AND-gates for evaluating the combinations of conditional propositions and filling the gaps
+\item internal OR-gates for creating gaps: conditional proposition $y_{A, i,  j, E, k, l}$ can be obtained by taking the gap from the right subtree (if $x_{B, i,  z}$ is true and $y_{C, z,  j, E, k, l}$ is true) or by taking the gap from the left subtree ($y_{B, i,  z, E, k, l}$ is true and $x_{C, z,  j}$ is true) for rule $A \rightarrow BC \in P$ . Notice that if start and end nodes of the tree with the gap coincide with start and end nodes of the gap ($i = k, z = l$ for the left case, $z = k, j = l$ for the right case), then the gap just added to the left or right side of another tree.
+\item  \textit{Output}: output gates, one gate for every pair of graph nodes and nonterminal; evaluates to true if appropriate parse tree exists.
+\end{itemize}
+
+\subsection{Bounds on the circuit size and depth}
+\paragraph{Circuit size}
+\begin{lemma}
+Let $G = (\Sigma, N, P)$ be a context-free grammar in Chomky normal form and let $n$ be a number of nodes in the input graph. Then the circuit described in \ref{Bdesc} has $O(n^6)$ elements.
+\end{lemma}
+\begin{proof} Let's count circuit gates by type. The number of input gates is $|\Sigma|n^2$ and the number of output gates is $|N|n^2$. Also there are $|N|^2n^5$ OR-gates for creating the gaps and $|N|^2n^4$ AND-gates for filling gaps. It is easy to see that the maximal number of elements is needed for combinations of conditional propositions: there are $|N|^3n^6$ such elements ( $|N|^2n^4 \times |N|n^2$ ). Therefore the circuit contains at most $O(n^6)$ elements.
+\end{proof}
+\paragraph{Circuit depth}
+Before we analyze the depth of the circuit we shall prove the following statement.
+\begin{lemma}
+\label{bigsubtree}
+Let $G = (\Sigma, N, P)$ be a context-free grammar in Chomky normal form. Then every parse tree with $k$ leaves contains a middle node (``critical'' node) that spans over more than $\frac{1}{3}k$ and at most $\frac{2}{3}k$ leaves.
+\end{lemma}
+\begin{proof} Because the grammar is in the Chomsky normal form, every node of a parse tree has two children. Going from the root to leaves, we can choose the largest of two subtrees at each node while the current subtree has more than $\frac{2}{3}k$ leaves. Obviously, the first node that has at most $\frac{2}{3}k$ leaves is bound to have more than $\frac{1}{3}k$ leaves due to binary branching. 
+\end{proof}
+\begin{lemma}
+\label{depthproof}
+Let $l$ be a length of the shortest path from node $i$  to node $j$ labelled by string from $L(G_A)$. Then proposition $A(i, j)$ or $\frac{A}{D}(i , u :: v, j)$ has a proof of height $O(\log l)$.
+\end{lemma}
+\begin{proof} Proof by induction on $l$.
+\\ \textit{Induction hypotesis}: every proposition with no more than $\frac{2}{3}l$ leaves has a proof of logarithmic height ($O(\log l)$).
+
+
+At first, consider the proposition $A(i, j)$. By Lemma \ref{bigsubtree}, a corresponding tree has a critical node $E$ with two children $B$ and $C$ (for $E \rightarrow BC \in P$). Then we can write the proof tree as follows.
+\begin{prooftree}
+\AxiomC{$B(u, l)$}
+\AxiomC{$C(l, v)$}
+\BinaryInfC{$E(u, v)$}
+\AxiomC{$\frac{A}{E}(i , u :: v , j)$}
+\BinaryInfC{$A (i, j)$}
+\end{prooftree}
+Because $E$ is the critical node, each of the propositions $B(u, l), C(l, v)$, $\frac{A}{E}(i , u :: v , j)$ has no more than $\frac{2}{3}l$ leaves and therefore has a proof of logarithmic height by inductive hypothesis.
+
+
+There are two cases for the second proposition $\frac{A}{D}(i , u :: v, j)$.
+
+\begin{figure}
+\begin{tikzpicture}
+\draw (0,0) -- (1.5,0) ;
+\draw (0,0) -- (2,4) ;
+\draw (2,4) -- (4,0) ;
+\draw (1.5,0) -- (2,1) ;
+\draw (2,1) -- (2.5,0) ;
+\draw (2.5,0) -- (4,0) ;
+\draw (0.75,0) -- (2,2.5) ;
+\draw (2,2.5) -- (3.25,0) ;
+\draw [thick,densely dotted, rounded corners=1mm](2,4) --  (1.9, 3.5) -- (2.2, 3) -- (2,2.5);
+\draw [thick,densely dotted, rounded corners=1mm] (2,2.5) -- (1.9, 1.8) -- (2.2, 1.4) -- (2,1);
+\node (start) {}; 
+\node [below=0.05cm of start] (i1) {$i$};
+\node [right=3.7cm of i1] (j1) {$j$}; 
+\node [right=0.3cm of i1] (k1) {$k$}; 
+\node [right=1cm of i1] (u1) {$u$}; 
+\node [right=2.2cm of i1] (v1) {$v$}; 
+\node [right=2.9cm of i1] (m1) {$m$}; 
+\node [right=2.0cm of start] (middle1) {}; 
+\node (A1) at (2, 4.3) {$A$}; 
+\node (D1) at (1.9, 1.2) {$D$};
+\node [circle, fill=red, inner sep = 1.5pt, minimum size=1pt](cr) at (2, 2.5) {};
+\draw[red, semitransparent] (2, 2.5) circle[radius=3.5pt];
+\node (E1) at (1.97, 2.7) {$E$};
+\node [circle, fill=black, inner sep = 1.5pt, minimum size=1pt](pD1) at (2,1) {};
+\node [circle, fill=black, inner sep = 1.5pt, minimum size=1pt](pA1) at (2,4) {};
+
+%second picture
+\draw (6,0) -- (8.5,0) ;
+\draw (9.5,0) -- (11.5,0) ;
+\draw (6,0) -- (8.75,4) ;
+\draw (8.75,4) -- (11.5,0) ;
+%\draw (7,0) -- (8.8,3) ;
+%\draw (8.8,3) -- (10.5,0) ;
+\draw (8.5,0) -- (9,1) ;
+\draw (9,1) -- (9.5,0) ;
+\draw (6.5, 0) -- (7.8,2) ;
+\draw (7.8,2) -- (8,0) ;
+\draw (8,0) -- (9,2.5) ;
+\draw (9,2.5) -- (10.5,0) ;
+\draw (8.6,3) -- (9,2.5) ;
+\draw (8.6,3) -- (7.8,2) ;
+\node (start2) at (6, 0) {}; 
+\node [below=0.05cm of start2] (i2) {$i$};
+\node [right=0.2cm of i2] (k2) {$k$}; 
+\node [right=1.5cm of i2] (m2) {$m$}; 
+\node [right=2.1cm of i2] (u2) {$u$}; 
+\node [right=3.2cm of i2] (v2) {$v$}; 
+\node [right=4.2cm of i2] (w) {$w$}; 
+\node [right=5.2cm of i2] (j2) {$j$}; 
+\node (A2) at (8.75, 4.3) {$A$}; 
+\node (E2) at (8.79, 3.1) {$E$}; 
+\node (B) at (7.98, 2) {$B$}; 
+\node (C) at (9.2,2.5) {$C$}; 
+\node (D2) at (9.2,1) {$D$}; 
+\node [circle, fill=black, inner sep = 1.5pt, minimum size=1pt](pB) at (7.8,2) {};
+\node [circle, fill=red, inner sep = 1.5pt, minimum size=1pt](crU) at (7.6,1) {};
+\draw[red, semitransparent] (7.6, 1) circle[radius=3.5pt];
+\node [circle, fill=black, inner sep = 1.5pt, minimum size=1pt](pA2) at (8.75,4) {};
+\node [circle, fill=black, inner sep = 1.5pt, minimum size=1pt](pC) at (9,2.5) {};
+\node [circle, fill=black, inner sep = 1.5pt, minimum size=1pt](pE2) at (8.6,3) {};
+\node [circle, fill=black, inner sep = 1.5pt, minimum size=1pt](pD2) at (9,1) {};
+\draw [thick,densely dotted, rounded corners=1mm](9,2.5) -- (9.1, 2) -- (8.9, 1.3) -- (9,1) ;
+\draw [thick,densely dotted, rounded corners=1mm](8.75,4) -- (8.8, 3.5) -- (8.6,3);
+\draw [thick,densely dotted, rounded corners=1mm]  (7.8,2) -- (7.6, 1.5) -- (7.6,1.05);
+\end{tikzpicture}
+% Use the relevant command to insert your figure file.
+% For example, with the graphicx package use
+% figure caption is below the figure
+\caption{ Cases for conditional proposition $\frac{A}{D}(i , u :: v, j)$: (left) a subtree with the critical node at the root contains the hole; (right) a subtree with the critical node at the root contains only leaves corresponding to the path $i \rightarrow u$.}
+\label{proofcases}       % Give a unique label
+\end{figure}
+
+
+
+\begin{enumerate}
+\item \textit{A subtree with the critical node at the root contains the hole $u :: v$.} 
+\\ Let $E$ be a label of the critical node. Then a corresponding subtree splits the path from the vertex $i$ to the vertex $u$ onto two paths: $i \rightarrow k$ and $k \rightarrow u$ and the path from the vertex $v$ to the vertex $j$ onto $v \rightarrow m$ and $m \rightarrow j$ respectively (as illustrated in Figure \ref{proofcases} (left)). The next proof tree represents the proof of the proposition $\frac{A}{D}(i , u ::v, j)$ in this case. 
+\begin{prooftree}
+\AxiomC{$\frac{A}{E}(i , k :: m , j)$}
+\AxiomC{$\frac{E}{D}(k , u :: v , m)$}
+\BinaryInfC{ $\frac{A}{E}(i , u :: v , j)$}
+\end{prooftree}
+Conditional proposition $\frac{A}{E}(i , k :: m , j)$ and $\frac{E}{D}(k , u :: v , m)$ have no more than $\frac{2}{3}l$ leaves, so $\frac{A}{E}(i , u :: v , j)$ has a proof of logarithmic height.
+
+\item \textit{A subtree with the critical node at the root contains only leaves corresponding to the path from the vertex $i$ to the vertex $u$ in the input graph.}
+
+
+This case is illustrated in Figure \ref{proofcases} (right). Consider the biggest subtree which contains a subtree with the critical node at the root and has leaves corresponding only to the path from the vertex $i$ to the vertex $u$ of the input graph. Let $B$ be a label at the root of this tree and $k \rightarrow m$  be a corresponding path in the input graph. Let $E$ be a parent node of node $B$ and let $C$ be a second child of $E$ (for $E \rightarrow BC \in P$). A parse tree with the root labelled by $C$ has some leaves corresponding to the path $v \rightarrow j$, so let $w$ be a vertex which splits this path on two. Now we are able to write the proof of $\frac{A}{E}(i , u :: v , j)$.
+\begin{prooftree}
+\AxiomC{$\frac{A}{E}(i , k :: w , j)$}
+\AxiomC{$B(k, m)$}
+\UnaryInfC{$\frac{E}{C}(k , m :: w)$}
+\AxiomC{$\frac{C}{D}(m , u :: v , w)$}
+\BinaryInfC{$\frac{E}{D}(k , u ::v , w)$}
+\BinaryInfC{ $\frac{A}{D}(i , u :: v , j)$}
+\end{prooftree}
+The subtree with the root labelled $B$ obviously contains at least $\frac{2}{3}l$ leaves, so each of the other propositions $\frac{C}{D}(m , u :: v , w)$ and $\frac{A}{E}(i , k :: w , j)$ has no more then  $\frac{2}{3}l$ leaves. By induction hypothesis they have a proof of logarithmic height. Thus, proposition  $\frac{A}{D}(i , u :: v , j)$ can be proved via 4 steps using propositions with the proofs of logarithmic depth.
+\\The case when the subtree with the critical node at the root contains only leaves corresponding to the path from the vertex $v$ to the vertex $j$ in the input graph is held symmetrically.
+\end{enumerate}
+\end{proof}
+Using lemmas above, we can conclude the following.
+\begin{corollary}
+\label{coldepth}
+Let $G = (\Sigma, N, P)$ be a context-free grammar in Chomky normal form and let $\mathzapf{L}$ be the length of the maximum in all nonterminals and all pairs of graph nodes shortest path labelled by a string from $L(G)$. Then there is a uniform family of circuits for solving CFL-reachability problem on the graphs with $n$ nodes, which are of depth $O(\log n \log \mathzapf{L})$ and contain $O(n^6)$ elements.
+\end{corollary}
+
+
+The depth and therefore the efficiency of the circuit depends on the value of parameter $\mathzapf{L}$. We investigate bounds for $\mathzapf{L}$ in the next two sections.
