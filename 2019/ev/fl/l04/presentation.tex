@@ -1,0 +1,843 @@
+\documentclass{beamer}
+\usepackage{beamerthemesplit}
+\usepackage{wrapfig}
+\usetheme{SPbGU}
+\usepackage{pdfpages}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{cmap} 
+\usepackage[T2A]{fontenc} 
+\usepackage[utf8]{inputenc}
+\usepackage[english,russian]{babel}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{multirow}
+\usepackage[noend]{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{ stmaryrd }
+\usepackage{qtree}
+\usetikzlibrary{shapes,arrows}
+\usepackage{fancyvrb}
+
+\usetikzlibrary{positioning}
+\usetikzlibrary{decorations.pathmorphing}
+
+\usetikzlibrary{shapes,arrows}
+\usetikzlibrary{positioning,automata}
+\tikzset{
+  snake it/.style={decorate, decoration=snake},
+  every state/.style={minimum size=0.2cm},
+  initial text={}
+}
+
+\newtheorem{rutheorem}{Теорема}
+\newtheorem{ruproof}{Доказательство}
+\newtheorem{rudefinition}{Определение}
+\newtheorem{rulemma}{Лемма}
+\beamertemplatenavigationsymbolsempty
+
+\setbeamertemplate{itemize item}[circle]
+\setbeamertemplate{enumerate item}[circle]
+
+\newcommand{\derives}[1][*]{\xRightarrow[]{#1}}
+\newcommand{\deriveg}[1]{\xRightarrow[#1]{*}}
+\newcommand{\derivegone}[1]{\xRightarrow[#1]{}}
+
+\title[]{Теория автоматов и формальных языков}
+\subtitle[]{Контекстно-свободные языки}
+\institute[]{
+Санкт-Петербургский государственный электротехнический университет <<ЛЭТИ>>\\
+}
+
+\author[]{Екатерина Вербицкая}
+
+\date{23 октября 2019}
+
+\definecolor{orange}{RGB}{179,36,31}
+
+\begin{document}
+{
+  \begin{frame}
+    \titlepage
+  \end{frame}
+}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{В предыдущей серии}
+  \begin{itemize}
+    \item Регулярные выражения, регулярные грамматики и конечные автоматы задают класс регулярных языков
+    \item Класс регулярных языков замкнут относительно теоретико-множественных операций, конкатенации, итерации, гомоморфизма цепочек
+    \item Определение принадлежности слова языку осуществляется за $O(n)$ операций
+    \item Однако класс регулярных языков достаточно узок, ни один используемый в промышленности язык программирования не является регулярным
+    \begin{itemize}
+      \item Лемма о накачке для доказательства нерегулярности языка
+      \item Язык правильных скобочных последовательностей, язык палиндромов не являются регулярными
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Контекстно-свободная грамматика}
+  
+  \begin{center}
+    Четверка $\langle V_T, V_N, P, S \rangle$
+  \end{center}
+
+   \begin{itemize}
+     \item $V_T$~--- алфавит терминальных символов (терминалов) 
+     \item $V_N$~--- алфавит нетерминальных символов (нетерминалов)
+     \begin{itemize} 
+        \item $V_T \cap V_N = \varnothing$ 
+        \item $V ::= V_T \cup V_N$
+     \end{itemize}
+     \item P~--- конечное множество правил вида $A \to \alpha$
+     \begin{itemize}
+       \item $A \in V_N $
+       \item $\alpha \in V^*$
+     \end{itemize}  
+     \item S~--- начальный нетерминал грамматики, $S  \in V_N$
+  \end{itemize}
+
+\vfill
+
+\begin{center}
+  Пример: арифметические выражения
+\end{center}
+\begin{align*}
+  E &\to E + E \mid E * E \mid N \\ 
+  N &\to 0 \mid 1 \mid \dots \mid 9 
+\end{align*}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Вывод в грамматике}
+  \begin{itemize}
+    \item \textbf{Отношение выводимости}: $\forall \alpha, \gamma, \delta \in V^*, A \in V_N: A \to \alpha \in P: \gamma A \delta \derives[] \gamma \alpha \delta$
+    \item \textbf{Вывод}~--- транизитивное, рефлексивное замыкание отношения выводимости ($\derives, \derives[+], \derives[k]$)
+    \item \textbf{Левосторонний (правосторонний) вывод}~--- на каждом шаге заменяем самый левый (правый) нетерминал
+    \begin{itemize}
+      \item Если не специфицируется, подразумевается левосторонний вывод
+    \end{itemize}
+    \item По сути, правила грамматики рассматриваются как правила переписывания
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Пример вывода}
+  Построим левосторонний вывод цепочки $2+3*4$ в грамматике \[\langle \{ 0, 1, \dots, 9, +, *\}, \{E, N\}, P, E \rangle\]
+  
+\begin{align*}
+  E &\to E + N \mid E * N \mid N \\ 
+  N &\to 0 \mid 1  \mid \dots \mid 9
+\end{align*}
+
+\[ \underline{E} \derives[]  \underline{E} * N \derives[] \underline{E} + N * N \derives[] \underline{N} + N * N \derives[] 2 + N * N \derives[2] 2 + 3 * 4\]
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Существование левостороннего вывода}
+  \begin{rutheorem}
+    Если для цепочки $\omega$ существует некоторый вывод $S \derives \omega$, 
+    
+    то существует и левосторонний вывод для этой цепочки $S \xRightarrow[l]{*} \omega$
+  \end{rutheorem}
+  \begin{proof}
+  Докажем более общее утверждение: 
+  
+  если существует $A \derives \omega$, то существует $A \xRightarrow[l]{*} \omega$, где $A \in V_N$. 
+  
+  Доказываем по индукции по длине вывода $k$
+  
+    $k = 1: A \derives[] \omega$~--- тривиально. 
+    
+  $k \mapsto k + 1: \sphericalangle A \derives[] \alpha \derives \omega$. 
+  
+  Обозначим $ \alpha = B_1 B_2 \dots B_m \derives \omega_1 \omega_2 \dots \omega_m = \omega; \forall i: B_i \xRightarrow[]{l_i} \omega_i, l_i \leq n$
+  
+  По индукционному предположению $\forall i: B_i \xRightarrow[l]{*} \omega_i$
+  
+  $\Mapsto: A \to B_1 B_2 \dots B_m \xRightarrow[l]{*} \omega_1  B_2 \dots B_m \xRightarrow[l]{*} \omega$~--- левосторонний вывод
+  \end{proof}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Единственность вывода}
+  
+  \begin{center}
+    Не всегда (левосторонний) вывод единственен: 
+    
+    2 вывода строки $2+3*4$
+  \end{center}
+  
+\vspace{-0.8cm}
+
+\begin{align*}
+  E &\to E + E \mid E * E \mid N \\
+  N &\to 0 \mid 1  \mid \dots \mid 9
+\end{align*}
+
+\begin{tabular}{p{5.5cm} p{6cm}}
+  
+\Tree [.E [.E [.N 2 ] ] + [.E [.E [.N 3 ] ] * [.E [.N 4 ] ] ] ] 
+& 
+\Tree [.E [.E [.E [.N 2  ] ]  + [.E [.N 3 ] ] ] * [.E [.N 4 ] ] ]  
+\end{tabular}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Однозначность грамматики}
+  \begin{itemize}
+    \item Грамматика называется \textbf{однозначной}, если для \emph{любого} слова языка существует \emph{единственный} (левосторонний) вывод
+    \item Грамматика называется \textbf{неоднозначной}, если \emph{существует} слово языка, такое что для него \emph{существует} \emph{несколько} (левосторонних) выводов
+  \end{itemize}
+
+\pause
+
+  \begin{itemize}
+    \item По однозначной грамматике можно тривиальным образом построить неоднозначную: продублировать правило
+    \begin{columns}
+      \begin{column}{0.5\textwidth}
+        \begin{align*}
+          S &\to A \\
+          A &\to a
+        \end{align*}
+      \end{column}
+      \begin{column}{0.5\textwidth}
+        \begin{align*}
+          S &\to A \mid B \\
+          A &\to a \\
+          B &\to a 
+        \end{align*}
+      \end{column}
+    \end{columns}
+
+     \item Не существует общего алгоритма преобразования неоднозначной грамматики в однозначную
+   \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Примеры однозначной и неоднозначной грамматики}
+  
+\begin{center}
+  Неоднозначная грамматика
+\end{center}
+
+\vspace{-0.8cm}
+
+  \begin{align*}
+    E &\to E + E \mid E * E \mid N \\
+    N &\to 0 \mid 1  \mid \dots \mid 9
+  \end{align*}
+
+\vfill
+
+\begin{center}
+  Однозначная грамматика
+\end{center}
+
+\vspace{-0.8cm}
+
+  \begin{align*}
+    E &\to E + N \mid E * N \mid N \\
+    N &\to 0 \mid 1  \mid \dots \mid 9
+  \end{align*}  
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Проверка однозначности грамматики неразрешима}
+
+\begin{rutheorem}
+  Не существует алгоритма, определяющего по произвольной грамматике, что она является неоднозначной
+\end{rutheorem}
+
+\begin{proof}
+  Сведение решения проблемы соответствий Поста к нашей задаче
+\end{proof}
+
+
+\vfill
+
+\begin{center}
+  Проблема соответствий Поста
+\end{center}
+
+ Даны списки $A = (a_1, \dots, a_n)$ и $B = (b_1 ,\dots ,b_n)$, где $\forall i: a_i, b_i \in \Sigma ^*$. 
+ 
+ Cуществует ли непустая последовательность $(i_1 , \dots, i_k)$, удовлетворяющая условию $a_{i_1} \dots a_{i_k} = b_{i_1} \dots b_{i_k}$, где $\forall j: 1 \leq i_j \leq n$?
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Проверка однозначности грамматики неразрешима}
+
+\begin{rutheorem}
+  Не существует алгоритма, определяющего по произвольной грамматике, что она является неоднозначной
+\end{rutheorem}
+
+\begin{proof}
+  $\sphericalangle \text{ алфавит } \Sigma = \{a_1, \dots, a_n, b_1, \dots, b_n\} \sqcup \{z_1, \dots, z_n\}, \text{ где } a_i, b_i \text{ из ПСП }$
+
+  $\sphericalangle$ грамматику: 
+
+\vspace{-1.2cm}
+
+  \begin{align*}
+    S &\to A \mid B \\ 
+    A &\to a_i A z_i \mid \varepsilon \\
+    B &\to b_i B z_i \mid \varepsilon
+  \end{align*}
+
+  \vspace{-0.35cm}
+
+  Если грамматика неоднозначна, то существует выводимое слово вида: 
+
+  \vspace{-0.5cm}
+  \[a_{i_1} a_{i_2} \dots a_{i_k} z_{i_k} z_{i_{k-1}} \dots z_{i_1} = \omega = b_{i_1} b_{i_2} \dots b_{i_k} z_{i_k} z_{i_{k-1}} \dots z_{i_1}\]
+
+  Если бы умели решать ПСП, то мы могли бы проверить грамматику на однозначность, но ПСП неразрешима, а значит и проверка на однозначность неразрешима 
+\end{proof}
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Контекстно-свободный язык}
+  \begin{itemize}
+    \item Язык называется \textbf{контекстно-свободным}, если для него \emph{существует} контекстно-свободная грамматика
+    \item Язык, задаваемый КС грамматикой $\langle V_T, V_N, P, S\rangle$: $\{ \omega \in V_T^* \mid S \derives \omega \}$
+    \item КС язык называется \textbf{существенно неоднозначным}, если для него не существует однозначной грамматики
+    \begin{itemize}
+      \item $\{0^a 1^b 2^c \mid a = b \text{ либо } b = c \}$ \hfill доказательство в книге Ахо Ульмана
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Пустота КС языка}
+   \begin{rutheorem}
+   Существует алгоритм, определяющий, является ли язык, порождаемый КС грамматикой, пустым
+   \end{rutheorem}
+   \begin{proof}
+     Для доказательства потребуется следующая лемма
+   \end{proof}
+\end{frame}
+  
+
+
+  
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Лемма}
+   \begin{rutheorem}
+   Если в данной грамматике выводится некоторая цепочка, то существует цепочка, дерево вывода которой не содержит ветвей длиннее $m$, где $m$~--- количество нетерминалов грамматики
+   \end{rutheorem}
+
+   \begin{proof}
+   Рассмотрим дерево вывода цепочки $\omega$. Если в нем есть 2 узла, соответствующих одному нетерминалу $A$, обозначим их $n_1$ и $n_2$. Предположим, $n_1$ расположен ближе к корню дерева, чем $n_2$; $S \derives \alpha A_{n_1} \beta \derives \alpha \omega_1 \beta; S \derives \gamma A_{n_2} \delta \derives \gamma \omega_2 \delta$; $\omega_2$ является подцепочкой $\omega_1$. 
+   
+   Заменим в изначальном дереве узел $n_1$ на $n_2$. Полученное дерево является деревом вывода $\alpha \omega_2 \delta$. Повторяем процесс замены одинаковых нетерминалов до тех пор, пока в дереве не останутся только уникальные нетерминалы. 
+   
+   В полученном дереве не может быть ветвей длины большей, чем $m$. По постороению оно является деревом вывода. 
+   \end{proof}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Лемма}
+   \begin{rutheorem}
+   Если в данной грамматике выводится некоторая цепочка, то существует цепочка, дерево вывода которой не содержит ветвей длиннее $m$, где $m$~--- количество нетерминалов грамматики
+   \end{rutheorem}
+\begin{columns}[T]
+  \begin{column}{0.45\textwidth}
+    \begin{center}
+      \begin{tikzpicture}
+      \node[draw=none, fill=none] at (0, 3.5) {S};
+      \node[draw=none, fill=none] at (-0.1, 2.3) {A};
+      \node[draw=none, fill=none] at (0.1, 1) {A};
+  
+      \draw (-2,0) -- (0,3.3);
+      \draw (0,3.3) -- (2,0);
+      \draw (-1.5,0) -- (-0.1,2.1);
+      \draw (-0.1,2.1) -- (1.5,0);
+      \draw (-1,0) -- (0.1,0.8);
+      \draw (0.1,0.8) -- (1,0);
+  
+      \draw[draw=black] (-2,-0.5) rectangle ++(4,0.5);
+      \fill[lightgray] (-1.5,-0.5) rectangle ++(3,0.5);
+      \draw[draw=black] (-1.5,-0.5) rectangle ++(3,0.5);
+      \draw[draw=black] (-2,-1) rectangle ++(4,0.5);
+      \draw[draw=black] (-1,-1) rectangle ++(2,0.5);
+      \draw[dashed] (-1,-0.5) rectangle ++(2,0.5);
+  
+      \draw [thick,densely dotted, rounded corners=1mm](0,3.3) --  (0.1, 2.9) -- (-0.15, 2.7) -- (-0.1, 2.4);
+  
+      \draw [thick,densely dotted, rounded corners=1mm](-0.1, 2.1) --  (-0.1, 1.7) -- (0.15, 1.4) -- (0.1, 1.1);
+  
+  
+      \node[draw=none, fill=none] at (-1.75,-0.25) {$\alpha$};
+      \node[draw=none, fill=none] at (0,-0.25) {$\omega_1$};
+      \node[draw=none, fill=none] at (0,-0.75) {$\omega_2$};
+      \node[draw=none, fill=none] at (1.75,-0.25) {$\beta$};
+      \node[draw=none, fill=none] at (-1.5,-0.75) {$\gamma$};
+      \node[draw=none, fill=none] at (1.5,-0.75) {$\delta$};
+      \end{tikzpicture}
+    \end{center}
+  \end{column}
+  \begin{column}{0.1\textwidth}
+    \vspace{2cm}
+    \[\color{teal} \Mapsto\]
+  \end{column}
+  \begin{column}{0.45\textwidth}
+    \begin{center}
+      \begin{tikzpicture}
+      \node[draw=none, fill=none] at (0, 3.5) {S};
+      \node[draw=none, fill=none] at (0.1, 1) {A};
+  
+      \draw (-1.5,0) -- (0,3.3);
+      \draw (0,3.3) -- (1.5,0);
+
+      \draw (-1,0) -- (0.1,0.8);
+      \draw (0.1,0.8) -- (1,0);
+  
+      \draw[draw=black] (-1.5,-0.5) rectangle ++(3,0.5);
+      \draw[draw=black] (-1,-0.5) rectangle ++(2,0.5);
+  
+      \draw [thick,densely dotted, rounded corners=1mm] (0,3.3) --  (-0.1, 1.7) -- (0.15, 1.4) -- (0.1, 1.1);
+  
+  
+      \node[draw=none, fill=none] at (-1.25,-0.25) {$\alpha$};
+      \node[draw=none, fill=none] at (0,-0.25) {$\omega_2$};
+      \node[draw=none, fill=none] at (1.25,-0.25) {$\beta$};
+      \end{tikzpicture}
+    \end{center}
+  \end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Алгоритм проверки пустоты КС языка}
+   \begin{proof}
+   Строим коллекцию деревьев, представляющих вывод в грамматике.
+   
+  \begin{enumerate}
+    \item Инициализируем коллекцию деревом из одного узла S
+    \item Добавляем в коллекцию дерево, полученное применением единственного правила грамматики из какого-нибудь дерева из коллекции, если его в нем еще нет, и самая длинная ветвь не длиннее $m$
+    \item Если после окончания построения коллекции в ней существует дерево, являющееся деревом вывода некоторой цепочки терминалов, значит, язык не пуст
+  \end{enumerate}
+   \end{proof}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Упрощение КС грамматики: удаление непродуктивных нетерминалов}
+  \textbf{Продуктивный нетерминал}:  нетерминал, для которого существует цепочка терминалов, выводимая из него ($\exists \omega \in V_T^*: A \derives \omega$)
+
+\vfill
+
+  \textbf{Непродуктивный нетерминал}:  нетерминал, не являющийся продуктивным
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Упрощение КС грамматики: удаление непродуктивных нетерминалов}
+
+  \begin{rutheorem}
+    Для любой КС грамматики $G = \langle V_T, V_N, P, S\rangle: L(G) \neq \varnothing$
+    
+    можно построить эквивалентную грамматику, каждый нетерминал которой продуктивен
+  \end{rutheorem}
+
+   \begin{proof}
+   Удаляем из грамматики все нетерминалы $A: L(A) = \varnothing$, а также правила, использующие их. 
+   
+   Полученную грамматику обозначаем $G_1$.
+
+   Докажем, что $L(G) = L(G_1)$. 
+   
+   Очевидно, $L(G_1) \subseteq L(G)$.
+
+   Докажем от противного, что $L(G) \subseteq L(G_1)$. 
+   
+   Предположим, что $\exists \omega \in L(G)$, но $\omega \notin L(G_1)$. 
+   Тогда $S \derives \alpha_1 A \alpha_2 \derives \omega$, где $A \in V_N \setminus V_{N_1}$, но тогда $\exists \gamma \in V_T^*: A \derives \gamma $. Противоречие
+   \end{proof}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Упрощение КС грамматики: приведение}
+
+  \begin{rutheorem}
+    Для любой КС грамматики, порождающей непустой язык, 
+    
+    можно постороить эквивалентную, для каждого нетерминала $A$ которой существует вывод вида $S \derives \omega_1 A \omega_3 \derives \omega_1 \omega_2 \omega_3, \omega_i \in V_T^*$
+  \end{rutheorem}
+
+   \begin{proof}
+   Будем рассматривать грамматику без непродуктивных нетерминалов $G_1 = \langle V_{N_1}, V_T, P_1, S\rangle$.
+   
+   Верно: если существует $S \derives \alpha_1 A \alpha_3, \alpha_i \in V^*$, то $S \derives \alpha_1 A \alpha_3 \derives \omega_1 A \omega_3 \derives \omega_1 \omega_2 \omega_3, \omega_i \in V_T^*$
+   
+   Строим множество нетерминалов, встречающихся в выводах: добавляем сначала $S$, потом добавляем нетерминалы, встречающиеся в правой части правил для нетерминалов из множества. Завершаем процесс, когда больше ничего не добавить. Обозначаем полученное множество $V_{N_2}$, удаляем все правила грамматики, содержащие нетерминалы из $ V_{N_1} \setminus V_{N_2}$
+   
+   
+   \end{proof}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Упрощение КС грамматики: приведение}
+   \begin{proof}
+   Получили грамматику $G_2 = \langle V_{N_2}, V_T, P_2, S\rangle$. 
+
+   Докажем: $L(G_2) = L(G_1)$
+   
+   $L(G_2) \subseteq L(G_1)$, так как $P_2 \subseteq P_1$
+   
+   Докажем: $L(G_1) \subseteq L(G_2)$. Пусть $S \deriveg{G_1} \omega$. Все нетерминалы, встречающиеся в этом выводе содержатся в $V_{N_2}$, соответственно используются только правила из $ P_2 \derives[] S \deriveg{G_2} \omega $
+   
+   Так как все нетерминалы $V_{N_2}$ продуктивны, то  $S \derives \omega_1 A \omega_3 \derives \omega_1 \omega_2 \omega_3, \omega_i \in V_T^*$
+   
+   
+   \end{proof}
+   
+   Грамматика $G_2$ называется \textbf{приведенной}, ее нетерминалы~--- \textbf{достижимыми}
+   
+   Недостижимые и непродуктивные нетерминалы называются \textbf{бесполезными}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Упрощение КС грамматики: удаление цепных правил}
+  Правило называется \textbf{цепным}, если оно имеет вид $A \to B; A, B \in V_N$.
+  
+  \begin{rutheorem}
+    Для любой КС грамматики $G=\langle V_N, V_T, P, S \rangle$ можно построить эквивалентную, не содержащую цепных правил
+  \end{rutheorem}
+  
+   \begin{proof}
+   Строим новое множество правил $P_1$. 
+   
+   Включаем в него все нецепные правила  $P$. 
+   
+   Затем добавляем в $P_1$ правила вида $A \derives \alpha$, если $A \derives B$, где $A, B \in V_N$ и $B \to \alpha$~--- нецепное правило из $P$.
+   
+   Замечание: достаточно проверять только цепные выводы длины меньшей, чем $V_N$
+   
+   Обозначим полученную грамматику за $G_1=\langle V_N, V_T, P_1, S \rangle$, докажем $L(G_1)=L(G)$
+      \end{proof}
+\end{frame} 
+   
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Упрощение КС грамматики: удаление цепных правил}    
+  \begin{proof}   
+   Очевидно $L(G_1) \subseteq L(G)$
+   
+   Покажем $L(G) \subseteq L(G_1)$. Пусть $\omega \in L(G)$. Рассмотрим левосторонний вывод $S \derivegone{G} \alpha_0 \derivegone{G} \alpha_1 \derivegone{G} \dots \derivegone{G} \alpha_n = \omega$.
+   
+   Предположим $\alpha_i \derivegone{G} \alpha_{i+1}$~--- первый шаг, выполняемый посредством цепного правила в выводе; $\forall k \in [i..j]: \alpha_k \derivegone{G} \alpha_{k+1}$~--- посредством цепного правила;  $\alpha_j \derivegone{G} \alpha_{j+1}$ ~--- посредством нецепного правила
+   
+   Тогда $|\alpha_i| = |\alpha_{i+1}| = \dots = |\alpha_j|$, и на каждом шаге заменяется один и тот же нетерминал. Тогда $\alpha_i \derivegone{G_1} \alpha_{j+1} $ посредством правила из $P_1 \setminus P \text{, следовательно } \omega \in L(G_1)$
+   \end{proof}
+   
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Нормальная форма Хомского}    
+  КС грамматика находится в \textbf{нормальной форме Хомского}, если все ее правила имеют вид: 
+  
+\begin{align*}
+  A &\to B C         & A, B, C \in V_N \\ 
+  A &\to a           & A \in V_N, a \in V_T\\
+  S &\to \varepsilon & S \text{ --- стартовый нетерминал}
+\end{align*}
+ 
+\end{frame}
+
+ 
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Нормальная форма Хомского}    
+  
+  \begin{rutheorem}   
+    Для любой КС грамматики можно построить эквивалентную в нормальной форме Хомского
+  \end{rutheorem}
+
+     \begin{enumerate}
+      \setcounter{enumi}{-1}
+    \item Удаляем непродуктивные нетерминалы
+    \item Удаляем цепные правила. Теперь $\forall A \to B: B \in V_T$
+    \item Заменяем каждое правило $A \to B_1 B_2 \dots B_n$ на $A \to C_1 C_2 \dots C_n$
+    \begin{itemize}
+      \item Если $B_i \in V_N$, $C_i = B_i,$ 
+      \item Если $B_i \in V_T$, добавляем также правило $C_i \to B_i$, 
+    \end{itemize}  
+    \item Заменяем правило $A \to C_1 C_2 \dots C_n$ на множество правил: 
+    {\small 
+    \begin{align*}
+      A   &\to C_1 D_1 \\
+      D_1 &\to C_2 D_2 \\
+          &\dots \\ 
+      D_{n-3} &\to C_{n-2} D_{n-2} \\
+      D_{n-2} &\to C_{n-1} C_n 
+    \end{align*}
+    }%
+  \end{enumerate}
+  
+        Полученная грамматика находится в НФХ и эквивалентна данной 
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Пример приведения в НФХ}    
+  \[G = \langle \{S, A, B\}, \{a, b\}, P, S\rangle \text{, где } P:\]
+  
+\begin{align*}
+  S &\to bA \mid aB \\
+  A &\to a  \mid aS \mid bAA  \\
+  B &\to b  \mid bS \mid aBB 
+\end{align*}
+
+  \begin{itemize}
+    \item $S \to b A \Mapsto S \to C_1 A; C_1 \to b$
+    \item $S \to a B \Mapsto S \to C_2 B; C_2 \to a$
+    \item $A \to aS \Mapsto A \to C_3 S; C_3 \to a$
+    \item $A \to b A A \Mapsto A \to C_4 D_1; C_4 \to b; D_1 \to A A$
+    \item $B \to b S \Mapsto B \to C_5 S; C_5 \to b$
+    \item $B \to a B B \Mapsto B \to C_6 D_2; C_6 \to a; D_2 \to B B$
+  \end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Еще немного упростим}      
+  
+\begin{align*}
+  S &\to bA \mid aB \\
+  A &\to a  \mid aS \mid bAA  \\
+  B &\to b  \mid bS \mid aBB 
+\end{align*}
+
+\vfill 
+
+\begin{align*}
+  S   &\to C_b A \mid C_a B \\
+  A   &\to a \mid C_a S \mid C_b D_1 \\
+  B   &\to b \mid C_b S \mid C_a D_2 \\
+  D_1 &\to A A \\
+  D_2 &\to B B \\
+  C_a &\to a \\
+  C_b &\to b 
+\end{align*}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Алгоритм приведения в НФХ}      
+  
+  \begin{enumerate}
+    \item Удалить стартовый нетерминал из правых частей правил 
+    \begin{itemize}
+      \item добавляется новое правило $S_0 \to S, S_0 \notin V_N, S_0$ делается новым стартовым
+    \end{itemize}
+    \item Избавиться от неодиночных терминалов в правых частях 
+    \begin{itemize} 
+      \item новое правило $C_c \to c$
+    \end{itemize}
+    \item Удалить длинные правила (длины больше 2)
+    \item Удалить непродуктивные правила ($\varepsilon$-правила)
+    \begin{itemize}
+      \item Если $A \to \varepsilon$, то $A$~--- $\varepsilon$-правило
+      \item Если $A \to X_1 X_2 \dots X_n, \forall i: X_i$~--- $\varepsilon$-правило, то $A$~--- $\varepsilon$-правило
+      \item Заменяем $A \to X_1 X_2 \dots X_n$ на множество правил, где каждое из $\varepsilon$-правил опущено во всех возможных комбинациях, удаляем те, которые выводят $\varepsilon$
+    \end{itemize}
+    \item Удалить цепные правила
+    \begin{itemize}
+      \item Для каждой пары правил $A \to B; B \to  X_1 X_2 \dots X_n$ добавить правило $A \to  X_1 X_2 \dots X_n$, цепное правило удалить
+    \end{itemize}
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Порядок действий при приведении в НФХ}      
+  
+  \begin{center}
+    Порядок \textbf{важен}!
+  \end{center}
+  
+  \begin{enumerate}
+    \item Удалить стартовый нетерминал из правых частей правил 
+    \item Избавиться от неодиночных терминалов в правых частях 
+    \item Удалить длинные правила (длины больше 2)
+    \item Удалить непродуктивные правила ($\varepsilon$-правила)
+    \item Удалить цепные правила
+  \end{enumerate}
+
+  \begin{itemize}
+    \item 1 шаг порождает новые цепные правила, поэтому его нельзя выполнять после 5 шага
+    \item Если выполнить 4 шаг перед 3 шагом, то произойдет экспоненциальный взрыв грамматики
+    \item 5 шаг приводит к квадратичному возрастанию размера грамматики
+    \item Наиболее эффективны порядки $1, 2, 3, 4, 5$ и $1,3, 4,5,2$
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Увеличение размера грамматики при нормализации}
+
+\begin{center}
+    Порядок \textbf{важен}!
+\end{center}
+  
+  \begin{enumerate}
+    \item Удалить стартовый нетерминал из правых частей правил 
+    \begin{itemize}
+      \item Увеличение на 1
+    \end{itemize}
+    \item Избавиться от неодиночных терминалов в правых частях 
+    \begin{itemize}
+      \item Увеличение на $|V_T|$ правил
+    \end{itemize}
+    \item Удалить длинные правила (длины больше 2)
+    \begin{itemize}
+      \item Увеличение не более, чем в 2 раза (для правил длины $k \geq 3$ порождается $k-1$ новых правил)
+    \end{itemize}
+    \item Удалить непродуктивные правила ($\varepsilon$-правила)
+    \begin{itemize}
+      \item Увеличение не более, чем в 3 раза
+    \end{itemize}
+    \item Удалить цепные правила
+    \begin{itemize}
+      \item Увеличение не более, чем в $O(n^2)$ (цепных правил не больше $n^2$, где $n$~--- число нетерминалов)
+    \end{itemize}
+  \end{enumerate}
+  
+  Итого: \textbf{полиномиальное} увеличение размеров грамматики при правильном порядке действий
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Синтаксический анализ: алгоритм Кока-Янгера-Касами (Cocke-Younger-Kasami algorithm, CYK)}
+  
+  \begin{center}
+    Что значит $A \to a$?
+  \end{center} \pause
+
+ \[ A \to a  \derives \omega \Leftrightarrow \omega = a \]
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Синтаксический анализ: алгоритм Кока-Янгера-Касами (Cocke-Younger-Kasami algorithm)}
+  
+  \begin{center}
+    Что значит $A \to BC$?
+  \end{center} \pause
+  
+  \[
+    A \to BC  \derives \omega \Leftrightarrow 
+              \begin{cases}
+                \exists \omega_1, \omega_2: \omega = \omega_1 \omega_2\\
+                B \derives \omega_1\\
+                C \derives \omega_2
+              \end{cases}
+  \] \pause
+
+  
+  \begin{center}
+    Или:
+  \end{center}
+
+  \[
+    A \to BC  \derives \omega \Leftrightarrow \exists k \in [0 \dots |\omega|]:
+              \begin{cases}
+                B \derives \omega[0 \dots k]\\
+                C \derives \omega[k+1 \dots |\omega|]
+              \end{cases}
+  \]
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Синтаксический анализ: алгоритм Кока-Янгера-Касами (Cocke-Younger-Kasami algorithm, CYK)}
+  \begin{itemize}
+      \item Алгоритм синтаксического анализа, работающий с грамматиками в НФХ
+      \item Динамическое программирование
+  \end{itemize}
+
+  \begin{figure}
+    \begin{tikzpicture}
+    \draw (0,2.8) -- (-0.5, 1.7);
+    \draw (0,2.8) -- (0.5, 1.7);
+    \draw (-0.5, 1.3) -- (-2, 0.05);
+    \draw (0.5, 1.3) -- (2, 0.05);
+    \draw (-0.5, 1.3) -- (-0.2, 0.05);
+    \draw (0.5, 1.3) -- (0.2, 0.05);
+    \draw (0,2.8) -- (-2, 0.05);
+    \draw (0,2.8) -- (2, 0.05);
+    \node[draw=none,fill=none] (A) at (0, 3) {A}; 
+    \node[draw=none,fill=none] (B) at (-0.5, 1.5) {B}; 
+    \node[draw=none,fill=none] (C) at (0.5, 1.5) {C};
+    \node[draw=none,fill=none] (w) at (-3.5, -0.2) {$\omega$:};
+    \node[draw=none,fill=none] (o) at (-2.9, -0.6) {};
+    \node[draw=none,fill=none, right=0.6 of o]  {i};
+    \node[draw=none,fill=none, right=2.35 of o]  {k};
+    \node[draw=none,fill=none] at (0.5, -0.615)  {k+1};
+    \node[draw=none,fill=none, right=4.6 of o] {j};
+    
+    \draw[draw=black] (-3,-0.4) rectangle ++(6,0.4);
+    \draw[draw=black] (-2.2,-0.4) rectangle ++(0.4,0.4);
+    \draw[draw=black] (-0.4,-0.4) rectangle ++(0.4,0.4);
+    \draw[draw=black] (0,-0.4) rectangle ++(0.4,0.4);
+    \draw[draw=black] (1.8,-0.4) rectangle ++(0.4,0.4);
+
+    \end{tikzpicture}
+  \end{figure}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{CYK}
+  \begin{itemize}
+      \item Дано: строка $\omega$ длины $n$, грамматика $G = \langle V_T, V_N, P, S\rangle$ в НФХ
+      \item Используем трехмерный массив d булевых значений размером $|V_N| \times n \times n$, $d[A][i][j] = true \Leftrightarrow A \derives \omega[i \dots j]$
+      \item Инициализация: $i = j$
+      \begin{itemize}
+        \item $d[A][i][i] = true$, если в грамматике есть правило $A \to \omega[i]$
+        \item $d[A][i][i] = false$, иначе
+      \end{itemize}
+      \item Динамика. Предполагаем, d построен для всех нетерминалов и пар $\{(i', j') \mid j' - i' < m \}$
+      \begin{itemize}
+        \item $d[A][i][j] = \bigvee_{A\to BC}^{}{\bigvee_{k=i}^{j-1}{d[B][i][k] \wedge d[C][k][j]}}$
+      \end{itemize}
+      \item В конце работы алгоритма в $d[S][0][n]$ записан ответ, выводится ли $\omega$ в данной грамматике
+  \end{itemize}
+\end{frame}
+
+ \end{document}
+ 
+
+  
