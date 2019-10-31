@@ -168,7 +168,7 @@
 %% before \maketitle command
 \begin{abstract}
 GPUs have been known to be used to facilitate computation-\\ally-intensive problems solving.
-And while this approach allows speed ups to the orders of magnitude, it is often challenging to achieve maximum performance. Also, while memory optimizations are being the most significant ones, GPUs memory hierarchy implies certain limitations, thus memory should be utilized carefully. Generally, on-chip data access is to be preferred over global one.
+And while this approach allows speed ups to the orders of magnitude, it is often challenging to achieve maximum performance. Also, while memory optimizations are being the most significant ones, GPUs memory hierarchy implies certain limitations, thus memory should be utilized carefully. Generally, on-chip data access is to be preferred over global one.\todo{Add here the use-case/problem}
 This paper proposes the idea of leveraging static\footnote{Compile-time known data or data that can be determined not to be changing during runtime} data memory management, using partial evaluation, a program transformation technique that enables the data to be embedded into the code and eventually end up directly in the registers. \question{Generalization to runtime detection of static?}
 An empirical evaluation of a straightforward string pattern matching algorithm implementation \question{utilizing} this technique is provided.
 \question{Our approach achieves up to $6x$\ performance gain compared to a straightforward naive CUDA C implementation.}  
@@ -218,21 +218,28 @@ Moreover, the latency could be aggravated by wrong access patterns or misaligned
 For example, global memory access \todo{order} could be not clear, thus preventing GPU from efficient coalescing. It imposes a burden of memory management to a programmer or make one to rely on caching mechanisms. 
 
 In order to achieve the fastest memory access constant, shared or registers memory should be utilized.
-However, constant memory lacks flexibility in a sense that the size of data should be known beforehand and access \todo{order} also should be kept in mind. Shared memory is to be used carefully due to considerations of synchronization and bank conflicts, while register allocation is managed by the compiler and explicit storing of data to them is difficult.
+However, constant memory lacks flexibility in a sense that the size of data should be known beforehand and access \todo{order} also should be kept in mind.
+ Shared memory is to be used carefully due to considerations of synchronization and bank conflicts, while register allocation is managed by the compiler and explicit storing of data to them is difficult.
 E.g. small arrays could be stored to registers, but only if the compiler is able to figure out that arrays indexing is static and if it does not, the array would end up in local memory.
 
-\todo{Given that caches tend to undergo misses and random access could hurt coalescing or broadcasting}, we exploit partial evaluation techniques to specialize a GPU program on static data in such a way to move the data straight into the code rather than to any memory space.
+Constant memory is rather generic in a sense it only requires the data to be read only and does not make a distinction whether the data is statically or dynamically known.
+However, there are applications, where some pieces of data are known statically.
+For instance, consider a problem of \textit{file carving}\cite{DataCarving}, in a field of \textit{cyber forensics} it stands for extracting files from raw data,\question{i.e. from lost clusters, unallocated clusters and slack space of the disk or digital media.}
+To extract a file, the file itself should provide a header, thus for a predefined set of files the headers to search for are known beforehand and commonly are relatively short.
 
-\question{Partial evaluation is a program transformation optimization technique that emphasizes on full automation.\cite{Jones:1993:PEA:153676}
+%\todo{Given that caches tend to undergo misses and random access could hurt coalescing or broadcasting}, we exploit partial evaluation techniques to specialize a GPU program on static data in such a way to move the data straight into the code rather than to any memory space.
+
+There is a known program optimization technique that optimizes a given program with respect to statically known inputs, producing another program which if given only the remaining dynamic inputs will produce the same results as initial one would have produced, given both inputs.
+\question{The technique is \textit{partial evaluation}, a program transformation optimization technique that emphasizes on full automation.\cite{Jones:1993:PEA:153676}
 Basically, given a function $f$ of $n$ arguments with some of them being static, denoted with $k$, partial evaluator evaluates or \textit{specializes} those parts of the function depending only on static arguments, producing a residual function $f'$ of $(n-k)$ arguments.
 Thus it gives a more optimal function in a sense that the function needs less computations when being actually invoked.}
 
-Regarding GPU memory management partial evaluation is able to produce an optimization of memory access.
-Consider the snippet of code from \hyperref[lst1]{\textbf{Listing 1}}.
-Suppose the array named \textit{template} and its size \textit{template\_size} are statically known. The array \textit{ibuffer} is dynamic.
-Given that memory access indexing and the content of the array are static, the snippet could be transformed to \textit{.ptx} instructions during the compilation as presented in \hyperref[lst2]{\textbf{Listing 2}}.
-The thing is the content of \textit{template} array has been embedded into the comparison instructions rather than to be globally loaded multiple times as in \hyperref[lst2]{\textbf{Listing 3}}.  
-\lstset{style=mystyle}
+Regarding GPU memory management partial evaluation is able to produce an optimization for memory access. Considering the problem of file carving with a known set of file headers, the result of memory access for a particular header could be embedded into the code during compilation, rather than being compiled to load instructions for different memory spaces. More precisely, partial evaluation results in data being accessed through instruction cache. 
+%Consider the snippet of code from \hyperref[lst1]{\textbf{Listing 1}}.
+%Suppose the array named \textit{template} and its size \textit{template\_size} are statically known. The array \textit{ibuffer} is dynamic.
+%Given that memory access indexing and the content of the array are static, the snippet could be transformed to \textit{.ptx} instructions during the compilation as presented in \hyperref[lst2]{\textbf{Listing 2}}.
+%The thing is the content of \textit{template} array has been embedded into the comparison instructions rather than to be globally loaded multiple times as in \hyperref[lst2]{\textbf{Listing 3}}.  
+%\lstset{style=mystyle}
 % \begin{figure}[b]
 % \begin{lstlisting}[language=C,caption=Partial evaluation example,label=lst1]
 % /*
@@ -264,49 +271,50 @@ The thing is the content of \textit{template} array has been embedded into the c
 % As long as the limitation on the number of registers per thread is met, all static data eventually \todo{get} into registers memory.
 % \question{Moreover, if excessive usage of register memory happens, data would automatically leak to cached local memory resulting in automatic memory management, i.e. avoiding explicit allocations.}
 
-\begin{figure}[b]
-\begin{lstlisting}[language=C,caption=Partial evaluation example,label=lst1]
-/*
-*   assume  template is ['\x49','\x44',...]  
-*/
 
- for i in unroll(0,template_size) {
-    //global/constant memory access
-    if ibuffer(t_id + i as i64) != template(i) { 
-        //... Do something ... //
-    }
- }
-\end{lstlisting}
-\end{figure}
+%\begin{figure}[b]
+%\begin{lstlisting}[language=C,caption=Partial evaluation example,label=lst1]
+%/*
+%*   assume  template is ['\x49','\x44',...]  
+%*/
+%
+% for i in unroll(0,template_size) {
+%    //global/constant memory access
+%    if ibuffer(t_id + i as i64) != template(i) { 
+%        //... Do something ... //
+%    }
+% }
+%\end{lstlisting}
+%\end{figure}
 
-\begin{figure}[b]
-\begin{lstlisting}[language=C,caption=Code after partial evaluation,label=lst2]
-    ...
- LDG.E.U8 R0, [R4] ; //load from global memory, i.e. ibuffer(...)
- BFE R6, R0, 0x1000 ;
- ISETP.NE.AND P0, PT, R6, 0x49, PT ; //0x49 got extracted, so we have avoided global memory access!
- @P0 SYNC ;
- LDG.E.U8 R0, [R4+0x1] ;
- BFE R0, R0, 0x1000 ;
- ISETP.NE.AND P0, PT, R0, 0x44, PT ; //extracted again!
-    //and so on
-    ...
-\end{lstlisting}
-\end{figure}
+%\begin{figure}[b]
+%\begin{lstlisting}[language=C,caption=Code after partial evaluation,label=lst2]
+%    ...
+% LDG.E.U8 R0, [R4] ; //load from global memory, i.e. ibuffer(...)
+% BFE R6, R0, 0x1000 ;
+% ISETP.NE.AND P0, PT, R6, 0x49, PT ; //0x49 got extracted, so we have avoided global memory access!
+% @P0 SYNC ;
+% LDG.E.U8 R0, [R4+0x1] ;
+% BFE R0, R0, 0x1000 ;
+% ISETP.NE.AND P0, PT, R0, 0x44, PT ; //extracted again!
+%    //and so on
+%    ...
+%\end{lstlisting}
+%\end{figure}
 
-\begin{figure}[b]
-\begin{lstlisting}[language=C,caption=Code without partial evaluation,label=lst3]
- LDG.E.U8 R8, [R8] //load global
- LDG.E.U8 R6, [R6] ; // load global
- BFE R13, R8, 0x1000 ;
- BFE R12, R6, 0x1000 ;
- ISETP.NE.AND P0, PT, R13, R12, PT ; //compare pre-loaded registers
+%\begin{figure}[b]
+%\begin{lstlisting}[language=C,caption=Code without partial evaluation,label=lst3]
+% LDG.E.U8 R8, [R8] //load global
+% LDG.E.U8 R6, [R6] ; // load global
+% BFE R13, R8, 0x1000 ;
+% BFE R12, R6, 0x1000 ;
+% ISETP.NE.AND P0, PT, R13, R12, PT ; //compare pre-loaded registers
 
-\end{lstlisting}
-\end{figure}
+%\end{lstlisting}
+%\end{figure}
 
-The partial evaluator being used is one developed as part of \textit{AnyDSL} framework.
-\question{The specialized achieves got up to $6x$ better performance compared to straightforward implementations with \textit{CUDA C}.}
+The partial evaluator being used is one developed as part of \textit{AnyDSL} framework\cite{LeiBa}.
+\question{For the fiel carving probleam the partially evaluated version of algorithm achieves up to $6x$ better performance compared to straightforward implementations with \textit{CUDA C}.}
 
 \begin{figure}[ht]
 \centering
@@ -318,25 +326,23 @@ The partial evaluator being used is one developed as part of \textit{AnyDSL} fra
 \section{Performance Evaluation}
 The approach has been evaluated on Ubuntu 18.04 system with \textit{Intel Core i7-6700} processor, 8GB of RAM and \textit{Pascal}-based \textit{GeForce GTX 1070} GPU with 8GB device memory.
 
-To estimate the performance gain brought by partial evaluation the problem of searching multiple string occurrences in some subject string has been considered.
-The problem arises in many areas like computer security or bioinformatics where the patterns are often known beforehand, rather small and to be searched in huge arrays of data. 
-
-For the evaluation the piece of data of 4 GB size has been taken from a hard drive and patterns to be searched have been taken from a taxonomy of file headers specifications.
-The patterns have been divided to groups of size 16 and run over multiple times. The results are presented in \hyperref[fig:eval]{\textbf{Figure 1}}.
+To estimate the performance gain brought by partial evaluation the problem of file carving has been evaluated.
+For the evaluation the piece of data of 4 GB size has been taken from a hard drive and patterns to be searched have been taken from a taxonomy of file headers specifications\cite{Headers}.
+The headers have been divided to groups of size 16 and run over multiple times. The results are presented in \ref{fig:eval}.
 The points are the average kernel running time and the gray regions are the area of standard deviation.   
 
-The evaluation compares AnyDSL framework implementation leveraging partial evaluation with respect to the patterns against two base-line implementations in CUDA C with global and constant memory for patterns storing respectively. 
+The evaluation compares AnyDSL framework implementation leveraging partial evaluation with respect to the file headers against two base-line implementations in CUDA C with global and constant memory for header access respectively. 
 All implementations invoke the algorithm in a separate thread for each position in the subject string.
 
-The patterns are stored as a single char-array and accessed via offsets.
-The algorithm simply iterates over all patterns searching for a match, if it encounters a mismatch, it jumps to the next pattern forward through the array.
-Since the patterns could be lengthy and mismatches happen quite often, such access pattern hurts coalescing, increasing the overall number of memory transactions. 
-Given that, the performance speed up partially evaluated algorithm achieves is up to $6x$  compared to CUDA C version with global memory and up to $3x$ with constant one as illustrated in \hyperref[fig:eval]{\textbf{Figure 1}}. 
+The headers are stored as a single char-array and accessed via offsets.
+The algorithm simply iterates over all headers searching for a match, if it encounters a mismatch, it jumps to the next header forward through the array.
+Since the headers could be lengthy and mismatches happen quite often, such access pattern hurts coalescing, increasing the overall number of memory transactions. 
+Given that, the performance speed up partially evaluated algorithm achieves on a raw data piece of 4 GB size is up to $8x$ compared to CUDA C version with global memory and up to $3x$ with constant one as illustrated in \ref{fig:eval}. Namely, partially evaluated version spends about 300 ms for searching while global and constant memory CUDA C versions making it in 800 ms and 2500 ms respectively.  
 
 \section{Conclusion}
-The work proposes the idea of applying partial evaluation to optimize GPU programs. The program transformation moves data from arrays directly into the code, thus enhancing performance due to memory access transactions number reduction. \todo{It results in a noticeable performance gain but not always.}
+The work proposes the idea of applying partial evaluation to optimize GPU programs. The program transformation moves data from arrays directly into the code, thus enhancing performance due to memory access transactions number reduction. In the context of file carving problem evaluation it has achieved up to $8x$ performance gain.
     
-The partial evaluator being used assumes the programs to be written with special \textit{DSL} and up to the current level of progress requires the array-like data to be passed \todo{inplace} for \textit{JIT} compiler to be able to extract information from it. \question{+ maybe add a remark that PE could enhance programs asymptotically}. Nevertheless, this could be \todo{rectified} with \todo{symbolic computation?} and we strongly believe that GPU specialization is \question{possible in runtime, i.e. during kernel execution}.
+The partial evaluator being used assumes the programs to be written with special \textit{DSL} and up to the current level of progress requires the array-like data to be passed \todo{inplace} for the \textit{JIT} compiler to be able to extract information from it. Nevertheless, this could be \todo{rectified} with \todo{symbolic computation?} and the upcoming research is dedicated to the generalization of the technique so as the partial evaluation could be applied at runtime, i.e. during kernel execution.
 
 %% Acknowledgments
 \begin{acks}                            %% acks environment is optional
