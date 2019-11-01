@@ -1,0 +1,782 @@
+\documentclass{beamer}
+\usepackage{beamerthemesplit}
+\usepackage{wrapfig}
+\usetheme{SPbGU}
+\usepackage{pdfpages}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{cmap} 
+\usepackage[T2A]{fontenc} 
+\usepackage[utf8]{inputenc}
+\usepackage[english,russian]{babel}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{multirow}
+\usepackage[noend]{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{ stmaryrd }
+\usepackage{qtree}
+\usetikzlibrary{shapes,arrows}
+\usepackage{fancyvrb}
+
+\usetikzlibrary{positioning}
+\usetikzlibrary{decorations.pathmorphing}
+
+\usetikzlibrary{shapes,arrows}
+\usetikzlibrary{positioning,automata}
+\tikzset{
+  snake it/.style={decorate, decoration=snake},
+  every state/.style={minimum size=0.2cm},
+  initial text={}
+}
+
+\newtheorem{rutheorem}{Теорема}
+\newtheorem{ruproof}{Доказательство}
+\newtheorem{rudefinition}{Определение}
+\newtheorem{rulemma}{Лемма}
+\beamertemplatenavigationsymbolsempty
+
+\newcommand{\derive}[0]{\xRightarrow[]{*}}
+\newcommand{\derives}[0]{\xRightarrow[]{}}
+\newcommand{\derivek}[1]{\xRightarrow[]{#1}}
+\newcommand{\deriveg}[1]{\xRightarrow[#1]{*}}
+\newcommand{\derivegone}[1]{\xRightarrow[#1]{}}
+
+\setbeamertemplate{itemize item}[circle]
+\setbeamertemplate{enumerate item}[circle]
+
+  % \newcommand{\derives}[1][*]{\xRightarrow[]{#1}}
+  % \newcommand{\deriveg}[1]{\xRightarrow[#1]{*}}
+  % \newcommand{\derivegone}[1]{\xRightarrow[#1]{}}
+
+\title[]{Теория автоматов и формальных языков}
+\subtitle[]{Контекстно-свободные языки}
+\institute[]{
+Санкт-Петербургский государственный электротехнический университет <<ЛЭТИ>>\\
+}
+
+\author[]{Екатерина Вербицкая}
+
+\date{31 октября 2019}
+
+\definecolor{orange}{RGB}{179,36,31}
+
+\begin{document}
+{
+  \begin{frame}
+    \titlepage
+  \end{frame}
+}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{В предыдущей серии}
+  \begin{itemize}
+    \item Контекстно-свободные грамматики (все правила вида $A \to \alpha$) 
+    \item КС языки и разрешимость проверки пустоты
+    \item Нормальная форма Хомского
+    \item Алгоритм CYK
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{В предыдущей серии: НФХ}
+  КС грамматика находится в \textbf{нормальной форме Хомского}, если все ее правила имеют вид: 
+  \begin{itemize}
+    \item $A \to B C$, где $A,B,C \in V_N$
+    \item $A \to a$, где $A \in V_N, a \in V_T$
+    \item $S \to \varepsilon$, если в языке есть пустое слово, где $S$ --- стартовый нетерминал
+  \end{itemize}
+
+  \begin{enumerate}
+    \item Удалить стартовый нетерминал из правых частей правил 
+    \item Избавиться от неодиночных терминалов в правых частях 
+    \item Удалить длинные правила (длины больше 2)
+    \item Удалить непродуктивные правила ($\varepsilon$-правила)
+    \item Удалить цепные правила
+   \end{enumerate}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{В предыдущей серии: CYK}
+  \begin{itemize}
+      \item Алгоритм синтаксического анализа, работающий с грамматиками в НФХ
+      \item Динамическое программирование
+  \end{itemize}
+
+  \begin{figure}
+    \begin{tikzpicture}
+    \draw (0,2.8) -- (-0.5, 1.7);
+    \draw (0,2.8) -- (0.5, 1.7);
+    \draw (-0.5, 1.3) -- (-2, 0.05);
+    \draw (0.5, 1.3) -- (2, 0.05);
+    \draw (-0.5, 1.3) -- (-0.2, 0.05);
+    \draw (0.5, 1.3) -- (0.2, 0.05);
+    \draw (0,2.8) -- (-2, 0.05);
+    \draw (0,2.8) -- (2, 0.05);
+    \node[draw=none,fill=none] (A) at (0, 3) {A}; 
+    \node[draw=none,fill=none] (B) at (-0.5, 1.5) {B}; 
+    \node[draw=none,fill=none] (C) at (0.5, 1.5) {C};
+    \node[draw=none,fill=none] (w) at (-3.5, -0.2) {$\omega$:};
+    \node[draw=none,fill=none] (o) at (-2.9, -0.6) {};
+    \node[draw=none,fill=none, right=0.6 of o]  {i};
+    \node[draw=none,fill=none, right=2.35 of o]  {k};
+    \node[draw=none,fill=none] at (0.5, -0.615)  {k+1};
+    \node[draw=none,fill=none, right=4.6 of o] {j};
+    
+    \draw[draw=black] (-3,-0.4) rectangle ++(6,0.4);
+    \draw[draw=black] (-2.2,-0.4) rectangle ++(0.4,0.4);
+    \draw[draw=black] (-0.4,-0.4) rectangle ++(0.4,0.4);
+    \draw[draw=black] (0,-0.4) rectangle ++(0.4,0.4);
+    \draw[draw=black] (1.8,-0.4) rectangle ++(0.4,0.4);
+
+    \end{tikzpicture}
+  \end{figure}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{CYK}
+  \begin{itemize}
+      \item Дано: строка $\omega$ длины $n$, грамматика $G = \langle V_T, V_N, P, S\rangle$ в НФХ
+      \item Используем трехмерный массив d булевых значений размером $|V_N| \times n \times n$, $d[A][i][j] = true \Leftrightarrow A \derives \omega[i \dots j]$
+      \item Инициализация: $i = j$
+      \begin{itemize}
+        \item $d[A][i][i] = true$, если в грамматике есть правило $A \to \omega[i]$
+        \item $d[A][i][i] = false$, иначе
+      \end{itemize}
+      \item Динамика. Предполагаем, d построен для всех нетерминалов и пар $\{(i', j') \mid j' - i' < m \}$
+      \begin{itemize}
+        \item $d[A][i][j] = \bigvee_{A\to BC}^{}{\bigvee_{k=i}^{j-1}{d[B][i][k] \wedge d[C][k][j]}}$
+      \end{itemize}
+      \item В конце работы алгоритма в $d[S][0][n]$ записан ответ, выводится ли $\omega$ в данной грамматике
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{CYK --- алгоритм восходящего анализа}
+
+\begin{center}
+    Восходящий анализ: начинаем с символов входной строки, строим дерево вывода до стартового нетерминала
+\end{center}
+
+\vfill 
+
+\begin{tabular}{p{2.5cm} p{1cm} p{1cm} | p{6cm}}
+  
+\Tree [.E [.E T ] + T ] 
+&
+\begin{center}
++
+\end{center} 
+&
+\begin{center}
+T 
+\end{center}
+&  
+
+\Tree [.E [.E [.E T ] + T ] + T ]  
+
+\end{tabular}
+
+\vfill
+
+
+\begin{center}
+    Восходящий анализ контринтуинтивен 
+    
+    (особенно при диагностике ошибок)
+\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Нисходящий синтаксический анализ}
+  \begin{itemize}
+    \item Top-down parsing
+    \item Начинаем разбирать со стартового нетерминала, применяем правила грамматики, пока не получим строку
+    \begin{itemize}
+      \item С откатом ([full] backtracking)
+      \item Без отката (without backtracking)
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Нисходящий синтаксический анализ с откатом}
+  \begin{itemize}
+    \item Метод грубой силы, bruteforce
+    \item Перебираем все возможные варианты разбора, если что-то пошло не так --- возвращаемся к началу и пробуем снова
+  \end{itemize}
+\end{frame}  
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Bruteforce parsing: пример}
+  \[
+  \begin{array}{crcccl}
+  &S& \to & a A d & | & a B \\
+  &A& \to & b     & | & c \\
+  &B& \to & c c d & | & d d c
+  \end{array}
+  \]
+  
+  \[\omega = a d d c\] \pause 
+  
+  $S \pause \derives a A d \pause \derives a b d$ \pause \hfill не подходит, откатываемся \pause 
+  
+  $S \derives a A d \pause \derives a c d$ \pause \hfill не подходит, откатываемся \pause 
+  
+  $S \pause \derives a B \pause \derives a c c d$ \pause \hfill не подходит, откатываемся \pause 
+  
+  $S \derives a B \pause \derives a d d c$ \pause \hfill ура!
+  
+  \vfill
+  
+  
+  \begin{center}
+    Проблема: ну очень уж долго работает: экспоненциальное время!
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Нисходящий синтаксический анализ без отката}
+  \begin{itemize}
+    \item Рекурсивный спуск (recursive descent parsing)
+    \begin{itemize}
+      \item Для каждого нетерминала написана функция
+      \item Функции для нетерминалов рекурсивно вызывают друг друга
+    \end{itemize}
+  \end{itemize}
+  
+  \[
+  S \to ( S ) \mid \varepsilon
+  \]
+  
+\begin{verbatim}
+parse_S word =
+  if (word == empty) then (true, word)
+  else  
+    let (r, w') = parse_lbr word in
+      if (not r) 
+      then (false, word)
+      else 
+        let (r, w'') = parse_S w' in
+          if (not r) 
+          then (false, w')
+          else parser_rbr w''
+\end{verbatim}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Нисходящий синтаксический анализ без отката: LL(1)}
+  \begin{itemize}
+    \item Идея: откат запрещен, но разрешен предпросмотр
+    \item По следующему терминалу принять решение о том, какую продукцию использовать
+    \item Как и предыдущие 2 подхода не может обрабатывать леворекурсивные правила грамматики
+    \item Достаточно хорош для используемых на практике языков
+  \end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{LL(1)-анализ}
+  \begin{itemize}
+   \item Нисходящий синтаксический анализ с предпросмотром одного символа
+   \item Читает вход слева направо (L: left-to-right), строит левый вывод в грамматике (L: leftmost)
+   \item Состоит из:
+   \begin{itemize}
+     \item Входного буфера (откуда читается входная строка)
+     \item Стека (для промежуточных данных)
+     \item \textbf{Таблицы} анализатора (управляет процессом разбора)
+   \end{itemize}
+   \item Работает за $O(n)$, где $n$ --- длина входной строки
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Таблица LL(1)-анализатора}
+  
+  \begin{center}
+    Управляет процессом разбора: показывает, какую продукцию применять, если во время анализа рассматривается нетерминал $A$, а~следующий символ входа --- $t$
+  \end{center}
+
+
+  
+\vfill
+  
+\begin{center}
+\begin{tabular}{ r || c | c | c | c  }
+      & $\dots$ & $t$          & $\dots$ & $\$ $ \\ \hline
+      & $\dots$ & $\dots$      & $\dots$ & $\dots$ \\ \hline 
+  $A$ & $\dots$ & $A\to\alpha$ & $\dots$ & $\dots$ \\ \hline 
+      & $\dots$ & $\dots$      & $\dots$ & $\dots$    
+\end{tabular} 
+\end{center} 
+
+\vfill
+
+\begin{center}
+  Для заполнения таблицы надо научиться считать множества символов, которые можно встретить во время анализа
+\end{center}
+\end{frame} 
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Множество FIRST}
+\begin{center}
+  Множество символов, которые могут появиться первыми во время вывода из данной сентенциальной формы
+\end{center}
+
+  \begin{itemize}
+   \item $FIRST(a \alpha) = \{ a \}, $ если $\, a \in V_T, \alpha \in (V_T \cup V_N)^*$
+   \item $FIRST(\varepsilon) = \{ \varepsilon \}$
+   \item $FIRST(\alpha \beta) = FIRST(\alpha) \cup (FIRST(\beta), \text{ если } \varepsilon \in FIRST(\alpha))$
+   \item $FIRST(S) = FIRST(\alpha) \cup FIRST(\beta),$ если есть правило $S \to \alpha \mid \beta $
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Множество FIRST: пример}
+  \[
+  \begin{array}{crcl}
+  &S  & \to & a S' \\
+  
+  &S' & \to & A b B S' \mid \varepsilon \\
+  
+  &A  & \to & a A' \mid \varepsilon \\
+  &A' & \to & b \mid a \\
+  &B  & \to & c \mid \varepsilon  
+  \end{array}
+  \] \pause
+  
+  \begin{itemize}
+    \item $FIRST(S) = \{ a \}$ \pause
+    \item $FIRST(A) = \{ a, \varepsilon \}$ \pause
+    \item $FIRST(A') = \{ a, b \}$ \pause
+    \item $FIRST(B) = \{ c, \varepsilon \}$ \pause
+    \item $FIRST(S') = \{ a, b, \varepsilon \}$ 
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Множество FOLLOW}
+\begin{center}
+  Множество символов, которые могут появиться в некотором выводе сразу после данной сентенциальной формы
+\end{center}
+
+  \begin{itemize}
+
+   \item Положим $FOLLOW(X) = \varnothing $
+   \item Если $X$ --- стартовый нетерминал, $FOLLOW(X) = FOLLOW(X) \cup \{ \$ \}$ --- символ конца строки
+   \item Для всех правил вида $A \to \alpha X \beta$, $FOLLOW(X) = FOLLOW(X) \cup (FIRST(\beta) \setminus \{ \varepsilon\})$
+   \item Для всех правил вида $A \to \alpha X$ и $A \to \alpha X \beta$, где $\varepsilon \in FIRST(\beta)$, $FOLLOW(X) = FOLLOW(X) \cup FOLLOW(A)$
+   \item Повторять последние 2 пункта, пока можно что-то добавлять
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Множество FOLLOW: пример}
+  \[
+  \begin{array}{crcl}
+  &S  & \to & a S' \\
+  
+  &S' & \to & A b B S' \mid \varepsilon \\
+  
+  &A  & \to & a A' \mid \varepsilon \\
+  &A' & \to & b \mid a \\
+  &B  & \to & c \mid \varepsilon  
+  \end{array}
+  \] \pause
+  
+  \begin{itemize}
+    \item $FOLLOW(S) = \{ \$ \}$ \pause
+    \item $FOLLOW(S') = \{ \$ \}$ \hfill $(S \to a S')$  \pause
+    \item $FOLLOW(A) = \{ b \}$ \hfill $(S' \to A b B S')$ \pause
+    \item $FOLLOW(A') = \{ b \}$ \hfill $(A \to a A')$ \pause
+    \item $FOLLOW(B) = \{ a, b, \$ \}$ \hfill $(S' \to A b B S', \varepsilon \in FIRST(S'))$ 
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Таблица LL(1)-анализатора}
+  \[
+  S \to ( S ) \mid \varepsilon
+  \] 
+  
+\vfill
+   
+  \begin{center}    
+    Размещаем продукции в таблице 
+    
+    (по горизонтали --- нетерминалы; по вертикали --- терминалы + $\$ $)
+  \end{center}
+
+  \begin{itemize}
+    \item Продукции вида $A \to \alpha$ --- в ячейки $(A, a)$, где $a \in FIRST(A)$
+    \item Продукции вида $A \to \varepsilon$ --- в ячейки $(A, a)$, где $a \in FOLLOW(A)$
+  \end{itemize}   
+
+  \vfill
+  
+\begin{center}
+\begin{tabular}{ l || c | c || c | c | r }
+  N & FIRST & FOLLOW & ( & ) & $\$ $ \\ \hline  
+  $S$ & \pause $\{ (, \varepsilon \}$ & $\{ ), \$ \}$ & \pause $S \to (S)$ & \pause $S \to \varepsilon$ & $S \to \varepsilon$ 
+\end{tabular} 
+\end{center} 
+\end{frame}  
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{LL(1)-анализ}
+\begin{itemize}
+  \item Инициализация: указатель в строке на первый символ, в стек помещаем \$ и стартовый нетерминал
+  \item Пока стек не пуст
+  \begin{itemize}
+    \item Если на вершине стека нетерминал $N$, указатель в строке на символе $t$, смотрим на содержимое ячейки $(N,t)$ управляющей таблицы
+    \begin{itemize}
+      \item Если ячейка пуста, сообщаем об ошибке анализа
+      \item Если в ячейке продукция $N \to \varepsilon$, cнимаем со стека $N$
+      \item Если в ячейке продукция $N \to \alpha$, снимаем со стека $N$, символы $\alpha$ кладем на стек в обратном порядке
+    \end{itemize}
+    \item Если на вершине стека терминал $t$
+    \begin{itemize}
+      \item Если указатель в строке на терминале $t$, снимаем со стека вершину, двигаем указатель на следующий символ
+      \item Если указатель в строке на любом другом терминале, сообщаем об ошибке
+    \end{itemize}
+  \end{itemize}
+  
+  \item Если строка прочитана полностью, анализ завершен успешно.
+  Иначе — полагается сообщить об ошибке
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Пример (доска)}
+  \[
+  S \to ( S ) \mid \varepsilon
+  \]   
+
+\begin{center}
+\begin{tabular}{ l || c | c || c | c | r }
+  N & FIRST & FOLLOW & ( & ) & $\$ $ \\ \hline  
+  $S$ & $\{ (, \varepsilon \}$ & $\{ ), \$ \}$ & $S \to (S)$ & $S \to \varepsilon$ & $S \to \varepsilon$ 
+\end{tabular}  
+\end{center}
+
+$\omega = (()) \$ $
+
+Стек: $\$, S, ), S, (, ), S, ($ 
+\end{frame}  
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Когда LL-анализ не возможен}
+\begin{itemize}
+  \item Леворекурсивные правила
+  \item Когда при построении таблицы в одну ячейку нужно записать
+  больше одной записи
+  \begin{itemize}
+    \item FIRST-FIRST конфликт
+    \begin{itemize}
+      \item $A \to \alpha \mid \beta, FIRST(\alpha) \cap FIRST(\beta) \neq \varnothing$
+      \item $E \to T + E \mid T * E$
+    \end{itemize}
+    \item FIRST-FOLLOW конфликт
+    \begin{itemize}
+      \item $FIRST(A) \cap FOLLOW (A) \neq \varnothing$
+      \item $S \to Aab, A \to a \mid \varepsilon$
+    \end{itemize}
+  \end{itemize}
+  \item Как с этим бороться?
+  \begin{itemize}
+    \item Избавиться от левой рекурсии
+    \item Избавиться от недетерминизма
+    \item Факторизовать грамматику
+    \item Использовать аннотации (если есть)
+    \item Переписать грамматику
+    \item Использовать более одного символа предпросмотра
+  \end{itemize}
+\end{itemize}
+\end{frame}  
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Леворекурсивные правила грамматики}
+  \begin{itemize}
+    \item Явная (непосредственная) левая рекурсия
+    \begin{itemize}
+      \item $A \to A \beta$
+    \end{itemize}
+    \item Неявная левая рекурсия
+    \begin{itemize}
+      \item $A \to \alpha A \beta, \, \alpha \derive \varepsilon$
+    \end{itemize}
+    \item Взаимная рекурсия
+    \begin{itemize}
+      \item $A \to \alpha B \beta, \, B \to \gamma A \delta, \, \alpha \derive \varepsilon, \gamma \derive \varepsilon$
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Избавление от левой рекурсии}
+  \begin{itemize}
+   \item $A \to A \alpha \mid \beta \Leftrightarrow A \to \beta A', \, A' \to \varepsilon \mid \alpha A'$
+  \end{itemize} \pause
+  \begin{itemize}
+    \item $E \to E + T \mid T \Leftrightarrow E \to T E', \, E' \to \varepsilon \mid + T E'$
+  \end{itemize} \pause
+
+\begin{tabular}{p{5.5cm} p{6cm}}
+  
+\Tree [.E [.E [.E T ] + T ] + T ]  
+& 
+\Tree [.E T [.E' + T [.E' + T [.E' $\varepsilon$ ] ] ] ] 
+
+\end{tabular}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Избавление от левой рекурсии: более общий случай}
+  \begin{itemize}
+   \item $A \to A \alpha_1 \mid A \alpha_2 \mid \dots \mid A \alpha_n \mid \beta_1 \mid \beta_2 \mid \dots \mid \beta_k$
+  \end{itemize}
+  \begin{itemize}
+   \item $A \to \beta_1 A' \mid \beta_2 A' \mid \dots \mid \beta_k A'$
+   \item $A' \to \varepsilon \mid \alpha_1 A' \mid \alpha_2 A' \mid \dots \mid \alpha_n A' $
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Избавление от взаимной левой рекурсии}
+  \begin{itemize}
+   \item Избавляемся от $\varepsilon$-продукций
+   \item Упорядочиваем правила по индексу нетерминала
+   \item Добиваемся того, чтобы не было правил вида $A_i \to A_j \alpha, j \leq i$
+   \begin{itemize}
+     \item Перебираем все $A_i$
+     \item Перебираем все $A_j, 1 \leq j < i$
+     \item Для каждого правила $p: A_i \to A_j \gamma$
+     \begin{itemize}
+       \item Удалить правило $p$
+       \item Для каждого правила $A_j \to \delta_1 \,|\, \dots \mid \delta_k$ Добавить правила $A_i \to \delta_l$
+     \end{itemize}
+     \item Устранить непосредственную левую рекурсию для $A_i$
+   \end{itemize}
+  \end{itemize}
+\end{frame}
+
+ 
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Левая факторизация грамматики}
+  \begin{itemize}
+   \item Выделяем наибольший общий префикс продукций $A \to \alpha \beta \mid \alpha \gamma \Rightarrow A\to \alpha A', \, A' \to \beta \mid \gamma$
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Пример}
+  \[
+  \begin{array}{crcl}
+  &S& \to & a S S b S \\
+  & &           | & a S a S b \\
+  & &           | & a b b \\
+  & &           | & b 
+  \end{array}
+  \]
+ \pause
+  \[
+  \begin{array}{crcl}
+  &S & \to & a S' \\
+  &  &           | & b \\
+  
+  &S'& \to & S S b S \\
+  &  &           | & S a S b \\
+  &  &           | & b b 
+  \end{array}
+  \]
+  \pause
+  \[
+  \begin{array}{crcl}
+  &S  & \to & a S' \mid b \\
+  
+  &S' & \to & S S'' \mid b b \\
+  
+  &S''& \to & S b S \mid a S b 
+  \end{array}
+  \]
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{LL(k)-анализ}
+
+  \begin{itemize}
+    \item Можно использовать более одного символа предпросмотра 
+    \item Все равно применимо не ко всем КС-грамматикам
+  \end{itemize}
+
+\end{frame}
+
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{LL(k): функция $FIRST$}
+  \begin{itemize}
+      \item Функция $FIRST^G_k(\alpha) = $
+      
+      $\{ \omega \in V_T^* \, |$ либо $|\omega| < k$ и $ \alpha \derive \omega$, либо $|\omega| = k$ и $\alpha \derive \omega \gamma, \gamma \in V_T^*\}$
+      \begin{itemize}
+        \item По сути: первые $k$ символов, встречающиеся в выводе из $\alpha$
+      \end{itemize}
+      \item Пример
+      \begin{itemize}
+        \item $S \to S S \mid a S b \mid \varepsilon$
+        \item $FIRST^G_3( a S b ) = \{ ab, aab, aaa\} $
+        \item $aba \notin FIRST^G_3 (a S b)$!
+      \end{itemize}    
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{LL(k): функция FOLLOW}
+  \[FOLLOW^G_k(\beta) = \{ \omega \in V_T^* \mid S \derive \gamma \beta \alpha, \omega \in FIRST^G_k(\alpha) \}, k \geq 0\]
+
+  \vfill
+  
+   Пример: $S \to S S \mid a S b \mid \varepsilon$
+   
+   \begin{itemize}
+     \item  $FOLLOW^G_3( a a ) = \{ a b b, a a b, a a a, a b a, b a a, b a b, b b, b b a, \dots \}$
+     \item $\varepsilon, b \notin FOLLOW^G_3$!
+   \end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Нисходящий синтаксический анализ: LL-грамматики}
+    Фундаментальное свойство: по сентенциальной форме $a_1 a_2 \dots a_j A \beta, a_i \in V_T, A \in V_N, \beta \in (V_T \cup V_N)^*$ однозначно определяется, какое правило нужно применять дальше, чтобы разобрать всю строку \pause
+    
+    \vfill
+      
+   КС грамматика $G$ является $\textbf{LL(k)}$\textbf{-грамматикой} для некоторого $k$,  если для любых двух левосторонних выводов вида 
+  \begin{itemize}
+    \item $S \derive \omega A \alpha \Rightarrow \omega \beta \alpha \derive \omega \delta$
+    \item $S \derive \omega A \alpha \Rightarrow \omega \gamma \alpha \derive \omega \eta$
+  \end{itemize}
+  в которых $FIRST^G_k(\delta) = FIRST ^G_k(\eta)$, верно $\beta = \gamma$
+
+\vfill
+
+  КС грамматика $G$ является $\textbf{LL}$\textbf{-грамматикой}, если она является $LL(k)$-грамматикой для некоторого $k \geq 0$
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Пример LL(1)-грамматики}
+  $S \to a B S \mid b$
+  
+  $B \to a \mid b S B$
+
+  Надо показать: для любых левосторонних выводов
+  \begin{itemize}
+    \item $S \derive \omega A \alpha \Rightarrow \omega \beta \alpha \derive \omega \delta$
+    \item $S \derive \omega A \alpha \Rightarrow \omega \gamma \alpha \derive \omega \eta$
+  \end{itemize} 
+  если $\delta$ и $\eta$ начинаются с одного символа, то $\beta = \gamma$
+  
+  Рассматриваем выводы, где роль $A$ выполняет $S$: $S \Rightarrow a B S, S \Rightarrow b$. $\omega = \alpha = \varepsilon, \beta = a B S, \gamma = b$. Любая цепочка, выводимая из $\beta \alpha = a B S$ начинается на $a$; любая цепочка, выводимая из $\gamma \alpha = b$ начинается на $b$. Однозначно определяется, какой альтернативе следовать. 
+  
+  Аналогично с $A = B: S \Rightarrow a B S \Rightarrow a a S; S \Rightarrow a B S \Rightarrow a b S B S$ 
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Простая LL(1)-грамматика}
+  КС-грамматика $G$ называется \textbf{простой LL(1)-грамматикой}, если в ней нет $\varepsilon$-правил, и все альтернативы для каждого нертерминала начинаются с терминалов, и притом различных. 
+  
+  \vfill 
+  
+  $\forall (A, a), A \in V_N, a \in V_T, \exists $ максимум 1 альтернатива вида $A \to a \alpha$
+  
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{LL-грамматика: необходимое и достаточное условие}
+  \begin{rutheorem}
+  КС грамматика $G = \langle V_N, V_T, P, S \rangle$ является $LL(k)$-грамматикой $\Leftrightarrow FIRST^G_k(\beta \alpha) \cap FIRST^G_k(\gamma \alpha) = \varnothing$, для всех таких $\alpha, \beta, \gamma: A \to \beta, A \to \gamma \in P, \beta \neq \gamma, \exists$ вывод $S \derive \omega A \alpha$
+  \end{rutheorem}  
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{LL(1)-грамматика: необходимое и достаточное условие}
+  \begin{rutheorem}
+    КС-грамматика  $G = \langle V_N, V_T, P, S \rangle$ является $LL(1)$-грамматикой $\Leftrightarrow FIRST^G_1 (\beta FOLLOW^G_1(A)) \cap FIRST^G_1(\gamma FOLLOW^G_1(A)) = \varnothing, \forall A \in V_N, \beta, \gamma \in (V_N \cup V_T)^*, A \to \gamma, A \to \beta \in P, \beta \neq \gamma$
+  \end{rutheorem}
+  
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{LL(1)-грамматика: необходимое и достаточное условие: другая формулировка}
+  \begin{rutheorem}
+    КС-грамматика  $G = \langle V_N, V_T, P, S \rangle$ является $LL(1)$-грамматикой $\Leftrightarrow 
+    \forall A \to \alpha_1 \mid \alpha_2 \mid \dots \mid \alpha_n$ верно: 
+    \begin{itemize}
+      \item $FIRST^G_1(\alpha_i) \cap FIRST^G_1(\alpha_j) = \varnothing, i \neq j, 1 \leq i, j \leq n$
+      \item если $\alpha_i \derive \varepsilon,$ то $FIRST^G_1(\alpha_j) \cap FOLLOW^G_1(A) = \varnothing, 1 \leq j \leq n, i \neq j$
+    \end{itemize}
+   \end{rutheorem}
+  
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Леворекурсивность}
+  \begin{rutheorem}
+    Если  КС-грамматика  $G = \langle V_N, V_T, P, S \rangle$ леворекурсивна, то она не является $LL(k)$-грамматикой ни при каком $k$
+  \end{rutheorem}
+\end{frame}
+
+ 
+   \end{document}
+ 
+
+  
