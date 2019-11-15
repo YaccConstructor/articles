@@ -1,8 +1,8 @@
 \section{Matrix-based Algorithm for CFPQ}
 
 Matrix-based algorithm for CFPQ was proposed by Rustam Azimov~\cite{Azimov:2018:CPQ:3210259.3210264}.
-This algorithm can be expressed in terms of operations over matrices (see listing~\ref{lst:algo1}), and it is a sufficient advantage for implementation.
-It was shown that the utilization of GPGPU improves the context-free path querying performance significantly in comparison to other implementations~\cite{Azimov:2018:CPQ:3210259.3210264} even if float matrices are used instead of boolean matrices.
+This algorithm can be expressed in terms of operations over matrices boolean (see listing~\ref{lst:algo1}), and it is a sufficient advantage for implementation.
+%It was shown that the utilization of GPGPU improves the context-free path querying performance significantly in comparison to other implementations~\cite{Azimov:2018:CPQ:3210259.3210264} even if float matrices are used instead of boolean matrices.
 
 \begin{algorithm}
   \floatname{algorithm}{Listing}
@@ -14,15 +14,20 @@ It was shown that the utilization of GPGPU improves the context-free path queryi
     \State{$n \gets$ the number of nodes in $D$}
     \State{$E \gets$ the directed edge-relation from $D$}
     \State{$P \gets$ the set of production rules in $G$}
-    \State{$T \gets$ the matrix $n \times n$ in which each element is $\varnothing$}
+    \State{$N \gets$ the set of nonterminals in $G$}
+    \State{$T \gets \{T^{A_i} \mid A_i \in N, T^{A_i}$ is a matrix $n \times n$ in which each element is \texttt{false}\}}
     \ForAll{$(i,x,j) \in E$}
     \Comment{Matrix initialization}
-        \State{$T_{i,j} \gets T_{i,j} \cup \{A~|~(A \rightarrow x) \in P \}$}
+        \State{$B \gets \{B_i \mid B_i \to x \in P\}$}
+        \For{$B_i \in B$}
+        \State{$T^{B_i}_{i,j} \gets \texttt{true}$}
+        \EndFor
     \EndFor
-    \While{matrix $T$ is changing}
-
-        \State{$T \gets T \cup (T \times T)$}
+    \While{any matrix in $T$ is changing}
         \Comment{Transitive closure calculation}
+        \For{$A_i \to A_j A_k \in P$}
+          \State{$T^{A_i} \gets T^{A_i} + (T^{A_j} \times T^{A_k})$}
+        \EndFor
     \EndWhile
 \State \Return $T$
 \EndFunction
@@ -30,15 +35,15 @@ It was shown that the utilization of GPGPU improves the context-free path queryi
 \end{algorithm}
 
 Here $D = (V, E)$ is the input graph and $G = (N,\Sigma,P)$ is the input grammar.
-Each cell of the matrix $T$ contains the set of nonterminals such that $N_k \in T[i,j] \iff \exists p = v_i \ldots v_j $---path in $D$, such that $N_k \xRightarrow[G]{*} \omega(p) $, where $\omega(p)$ is a word formed by the labels along the path $p$.
+For each matrix $T^{A_i}$, $T^{A_i}[i,j] = \texttt{true} \iff \exists \pi = v_i \ldots v_j $---path in $D$, such that $A_i \xRightarrow[G]{*} \omega(\pi) $, where $\omega(\pi)$ is a word formed by the labels along the path $\pi$.
 Thus, this algorithm solves reachability problem, or, according to Hellings~\cite{hellingsRelational}, processes CFPQs by using relational query semantics.
 
-The performance-critical part of the algorithm is matrix multiplication.
-Note, that the set of nonterminals is finite, and we can represent the matrix $T$ as a set of boolean matrices: one for each nonterminal.
-In this case the operation of matrix update is $T_{N_i} \leftarrow T_{N_i} + (T_{N_j} \times T_{N_k})$ for each production $N_i \rightarrow N_j \ N_k$ in $P$.
-Thus we can reduce CFPQ to boolean matrices multiplication.
-After such transformation, we can apply the next optimization: we can skip update if the matrices $T_{N_j}$ and $T_{N_k}$ have not been changed at the previous iteration.
+The performance-critical part of the algorithm is matrix boolean multiplication.
+Note, that we can apply the next optimization: we can skip update if the matrices $T_{N_j}$ and $T_{N_k}$ have not been changed at the previous iteration.
+Also, it is important for applications that real-world data is almost sparse, so it should be better solution to use linraries which manipulates with sparse matrices.
 
-Thus, the most important part is the efficient implementation of operations over boolean matrices.
-In this paper, we compare the effects of different approaches to matrices multiplication.
+As we can see, CFPQ can be naturally reduced to linead algebra. 
+Linear algebra for graph problems is an actively developed area. 
+One of the most important result is a GraphBLAS API which provides a way to operate over matrices and vectors over user-defined semirings.
+In this paper we use SuteSparse implementation of GraphBLAS and boolena semiring.
 All our implementations are based on the optimized version of the algorithm.
