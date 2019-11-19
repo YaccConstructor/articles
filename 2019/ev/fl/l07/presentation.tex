@@ -1,0 +1,534 @@
+\documentclass[dvipsnames]{beamer}
+\usepackage{beamerthemesplit}
+\usepackage{wrapfig}
+\usetheme{SPbGU}
+\usepackage{pdfpages}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{cmap} 
+\usepackage[T2A]{fontenc} 
+\usepackage[utf8]{inputenc}
+\usepackage[english,russian]{babel}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{multirow}
+\usepackage[noend]{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{stmaryrd}
+\usepackage{qtree}
+\usetikzlibrary{shapes,arrows}
+\usepackage{fancyvrb}
+\usepackage{xcolor}
+\usepackage{stmaryrd}
+
+\usetikzlibrary{positioning}
+\usetikzlibrary{decorations.pathmorphing}
+\usetikzlibrary{arrows.meta}
+
+\usetikzlibrary{shapes,arrows}
+\usetikzlibrary{positioning,automata}
+\tikzset{
+  snake it/.style={decorate, decoration=snake},
+  every state/.style={minimum size=0.2cm},
+  initial text={}
+}
+
+\newtheorem{rutheorem}{Теорема}
+\newtheorem{ruproof}{Доказательство}
+\newtheorem{rudefinition}{Определение}
+\newtheorem{rulemma}{Лемма}
+
+\beamertemplatenavigationsymbolsempty
+
+\setbeamertemplate{itemize item}[circle]
+\setbeamertemplate{enumerate item}[circle]
+
+\newcommand{\derive}[0]{\xRightarrow[]{*}}
+\newcommand{\derives}[0]{\xRightarrow[]{}}
+\newcommand{\derivek}[1]{\xRightarrow[]{#1}}
+\newcommand{\deriveg}[1]{\xRightarrow[#1]{*}}
+\newcommand{\derivegone}[1]{\xRightarrow[#1]{}}
+
+\newcommand{\state}[1]{{\color{red}{#1}}}
+\newcommand{\stack}[1]{{\color{blue}{#1}}}
+\newcommand{\symbl}[1]{{\color{PineGreen}{#1}}}
+\newcommand{\conf}[3]{( \state{#1},\symbl{#2},\stack{#3} )}
+\newcommand{\trans}[3]{\delta ( \state{#1},\symbl{#2},\stack{#3} )}
+
+\newenvironment{myauto}[1][3]
+{
+  \begin{center}
+    \begin{tikzpicture}[> = stealth,node distance=#1cm, on grid, very thick]
+}
+{
+    \end{tikzpicture}
+  \end{center}
+}
+
+
+\title[]{Теория автоматов и формальных языков}
+\subtitle[]{Магазинные автоматы}
+\institute[]{
+Санкт-Петербургский государственный электротехнический университет <<ЛЭТИ>>\\
+}
+
+\author[]{Екатерина Вербицкая}
+
+\date{21 ноября 2019}
+
+\definecolor{orange}{RGB}{179,36,31}
+
+\begin{document}
+{
+  \begin{frame}
+    \titlepage
+  \end{frame}
+}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{В предыдущей серии}
+  \begin{itemize}
+    \item Регулярные языки распознаются с помощью конечных автоматов
+    \item Разные алгоритмы синтаксического анализа для контекстно-свободных языков
+    \begin{itemize}
+    	\item CYK
+    	\item Рекурсивный спуск
+    	\item LL(1)
+    	\item LR(0), SLR(1), CLR(1), LALR(1)
+    \end{itemize}
+    \item Есть ли универсальный распознаватель для КС-языков?
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{TLDR}
+  \begin{itemize}
+  	\item Произвольный КС язык можно распознать при помощи магазинного автомата (он же автомат с магазинной памятью, он же pushdown automata, он же pda)
+  	\item Магазинный автомат по сути --- автомат со стеком
+  	\item Детерминированные магазинные автоматы могут распознавать только детерминированные КС языки
+  	\item Недетерминированные магазинные автоматы могут распознавать произольные КС языки
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Что такое магазинный автомат}
+  
+  \begin{center}
+    \begin{tikzpicture}[> = stealth,very thick]
+  
+      \draw[draw=black] (0,0) rectangle ++(4,3);
+
+      \draw[draw=black] (-5,-3) rectangle ++(7,1);
+      \draw[draw=black] (-4,-3) rectangle ++(1.5,1);
+      \draw[draw=black] (-2.5,-3) rectangle ++(1,1);
+      \draw[draw=black] (-1.5,-3) rectangle ++(1,1);
+      \draw[draw=black] (1,-3) rectangle ++(1,1);
+      
+      
+      \draw[draw=black] (5.5,-3.5) rectangle ++(1,5);
+      \draw[draw=black] (5.5,-2.5) rectangle ++(1,2);
+      \draw[draw=black] (5.5,-0.5) rectangle ++(1,1);
+      \draw (5.3,-3.5) -- (6.7, -3.5);
+
+
+      
+      \node[draw=none, fill=none] at (-1, 3) {\huge{finite}};
+      \node[draw=none, fill=none] at (-1.2, 2.3) {\huge{control}};
+
+      \node[draw=none, fill=none] at (0.5, 2.5) {$\mbox{\Huge $\delta$ }$};
+      \node[draw=none, fill=none] at (3.7, 0.5) {$\mbox{\Huge $\state{p}$ }$};
+      \node[draw=none, fill=none] at (6.1, 1) {$\mbox{\Huge $\stack{A}$ }$};
+      \node[draw=none, fill=none] at (6,-1.4) {$\mbox{\Huge $\vdots$}$};
+
+      \node[draw=none, fill=none] at (-1, -2.5) {$\mbox{\Huge $\symbl{a}$}$};
+      \node[draw=none, fill=none] at (-3.2, -2.5) {$\mbox{\LARGE $\dots$}$};
+      \node[draw=none, fill=none] at (0.3, -2.5) {$\mbox{\LARGE $\dots$}$};
+
+      \node[draw=none, fill=none] at (3.5, -0.5) {\huge{state}};
+      \node[draw=none, fill=none] at (6, -4) {\huge{stack}};
+      \node[draw=none, fill=none] at (6, 2) {\huge{top}};
+      \node[draw=none, fill=none] at (-1.5, -3.5) {\huge{input tape}};
+
+      \draw (3.55,0.5) circle (0.4);
+
+      \draw [->, rounded corners=8mm] (0,0.5) -- (-1, 0.9) -- (-2.5, 0.8) -- (-1.4,-1) -- (-1.5, -2);
+      \draw [->, rounded corners=4mm] (4,0.5) -- (5, 0.4) -- (4.2,1.2) -- (5.5, 1);
+      \end{tikzpicture}
+  \end{center}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Что такое магазинный автомат: неформально}
+\begin{itemize}
+	\item Автомат, переходы которого осуществляются по входному символу, текущему состоянию и символу на вершине стека
+	\begin{itemize}
+		\item У конечного автомата не было стека
+	\end{itemize}
+	\item Никакие состояния стека, кроме вершины, не доступны
+	\item Во время перехода может изменяться стек
+	\begin{itemize}
+		\item Положить что-то на стек (push)
+		\item Снять верхушку со стека (pop)
+	\end{itemize}
+	\item А может и не изменяться
+	\begin{itemize}
+		\item Магазинный автомат может вообще игнорировать стек
+		\item Или стек может не изменяться, хоть значение оттуда и читается
+	\end{itemize}
+	\item Итого: по тройке (входной символ, состояние, символ на вершине стека) получается новое состояние, и модифицируется (или нет) стек
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Формальное определение}
+  \emph{Недетерминированный} магазинный автомат это $(Q, \Sigma, \Gamma, \delta, q_0, Z, F)$
+  \begin{itemize}
+    \item $Q$ --- конечное множество состояний
+    \item $\Sigma$ --- конечное множество символов, входной алфавит
+    \item $\Gamma$ --- конечное множество символов, стековый алфавит
+    \item $\delta: Q \times (Z \cup \varepsilon) \times \Gamma \to 2^{Q \times \Gamma^*}$ --- функция переходов
+    \item $q_0 \in Q$ --- стартовое состояние
+    \item $Z \in \Gamma$ --- начальный элемент стека
+    \item $F \subseteq Q$ --- множество принимающих (конечных) состояний
+  \end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Отношение переходов}
+
+\begin{center}
+    $(\state{q}, \stack{\alpha}) \in \trans{p}{a}{A}$  означает
+\end{center}
+
+  \begin{itemize}
+    \item Если магазинный автомат находится в состоянии $p \in Q$, 
+    \item на вершине стека находится $A \in \Gamma$, 
+    \item а со входа читается символ $a \in \Sigma \cup \varepsilon$, 
+    \vspace{0.5cm}
+    \item то изменяем состояние на $q \in Q$, 
+    \item снимаем со стека символ $A$, записываем на стек строку $\alpha \in \Gamma^*$
+    \vspace{0.5cm}
+    \item $\Sigma \cup \varepsilon$ сигнализирует о том, что вход можно и не читать
+  \end{itemize}
+
+  \begin{myauto}
+    \node[state]   (q_1)                 {$\state{p}$};
+    \node[state]   (q_2)  [right=of q_1] {$\state{q}$};
+
+    \path[->] (q_1) edge node [above] {$\symbl{a}; \stack{A / \alpha}$} (q_2);
+  \end{myauto} 
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Семантика магазинного автомата}
+\begin{itemize}
+  \item Мгновенное описание МА: $\conf{p}{\omega}{\beta} \in Q \times \Sigma^* \times \Gamma^*$
+  \begin{itemize}
+  	\item $p$ --- текущее состояние автомата
+  	\item $\omega$ --- непрочитанный фрагмент входного потока
+  	\item $\beta$ --- содержимое стека (верхушка записана первой)
+  \end{itemize}    
+  \item Отношение $\vdash$ на мгновенных описаниях (шаг)
+  \begin{itemize}
+  	\item Для каждого $(\state{q}, \stack{a}) \in \trans{p}{a}{A}$, верно $\conf{p}{a x}{A \gamma}) \vdash \conf{q}{x}{\alpha \gamma})$ для произвольных $x \in \Sigma^*, \gamma \in \Gamma^*$
+  \end{itemize}
+  % \item В недетерминированных магазинных автоматах может существовать несколько шагов
+  % \begin{itemize}
+  %   \item Можно выбрать любой
+  %   \item Если какой-нибудь выбор приведет к успеху, значит, строка распознается
+  % \end{itemize}
+  \item Шаг не определен, если стек пуст
+\end{itemize}
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Семантика магазинного автомата: вычисление}
+  \begin{itemize}
+    \item Вычисление --- последовательность шагов
+    \item Начальное мгновенное описание $\conf{q_0}{\omega}{Z}$
+    \item Выбирается любой из подходящих шагов
+    \item Если какой-нибудь выбор приведет к успеху, значит, строка распознается
+    \vspace{0.5cm}
+    \item Два варианта окончания работы
+    \begin{itemize}
+      \item По достижении конечного состояния
+      \begin{itemize}
+        \item $L(M) = \{ \omega \in \Sigma^* \mid \conf{q_0}{\omega}{Z} \vdash^* \conf{f}{\varepsilon}{\gamma}, f \in F, \gamma \in \Gamma^* \}$
+      \end{itemize}
+      \item По опустошении стека
+      \begin{itemize}
+      	\item $N(M) = \{ \omega \in \Sigma^* \mid \conf{q_0}{\omega}{Z}) \vdash^* \conf{q}{\varepsilon}{\varepsilon}, q \in Q\}$
+      \end{itemize}
+      \item Эти варианты эквивалентны: по автомату, завершающемуся по первой схеме, можно посмотроить автомат, завершающийся по второй схеме, и наоборот
+    \end{itemize}
+    \item $\vdash^*$ --- транзитивно рефлексивное замыкание отношения $\vdash$
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Пример: язык $\{ 0^n 1^n \mid n \geq 0 \}$}
+  \begin{myauto}
+    \node[state,initial]   (p)              {$\state{p}$};
+    \node[state]           (q) [right=of p] {$\state{q}$};
+    \node[state,accepting] (r) [right=of q] {$\state{r}$};
+
+    \path[->] (p) edge [loop above]    node [left] {$\symbl{0}; \stack{Z / AZ}$} ()
+                  edge [loop below]    node [left] {$\symbl{0}; \stack{A / AA}$} ()
+                  edge node [below] {$\symbl{\varepsilon}$} (q)
+              (q) edge [loop above]    node [above] {$\symbl{1}; \stack{A / \varepsilon}$} ()
+                  edge node [below] {$\symbl{\varepsilon}; \stack{Z / Z}$} (r)
+              ;
+  \end{myauto} 
+
+Вычисление на строке $0011$:
+\begin{itemize}
+  \item $\conf{p}{0011}{Z} \vdash \conf{q}{0011}{Z} \vdash \conf{r}{0011}{Z}$ --- провал
+  \item $\conf{p}{0011}{Z} \vdash \conf{p}{011}{AZ} \vdash \conf{q}{011}{AZ}$ --- провал
+  \item $\conf{p}{0011}{Z} \vdash \conf{p}{011}{AZ} \vdash \conf{p}{11}{AAZ} \vdash \conf{q}{11}{AAZ} \vdash \conf{q}{1}{AZ} \vdash \conf{q}{\varepsilon}{Z} \vdash \conf{r}{\varepsilon}{Z}$ --- успех (по принимающему состоянию)
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Пример: язык $\{ 0^n 1^n \mid n \geq 0 \}$}
+  \begin{myauto}
+    \node[state,initial]   (p)              {$\state{p}$};
+    \node[state]           (q) [right=of p] {$\state{q}$};
+    \node[state,accepting] (r) [right=of q] {$\state{r}$};
+
+    \path[->] (p) edge [loop above]    node [left] {$\symbl{0}; \stack{Z / AZ}$} ()
+                  edge [loop below]    node [left] {$\symbl{0}; \stack{A / AA}$} ()
+                  edge node [below] {$\symbl{\varepsilon}$} (q)
+              (q) edge [loop above]    node [above] {$\symbl{1}; \stack{A / \varepsilon}$} ()
+                  edge node [below] {$\symbl{\varepsilon}; \stack{Z / Z}$} (r)
+              ;
+  \end{myauto} 
+
+Вычисление на строке $00111$:
+\begin{itemize}
+  \item $\conf{p}{00111}{Z} \vdash \conf{q}{00111}{Z} \vdash \conf{r}{00111}{Z}$ --- провал
+  \item $\conf{p}{00111}{Z} \vdash \conf{p}{0111}{AZ} \vdash \conf{q}{0111}{AZ}$ --- провал
+  \item $\conf{p}{00111}{Z} \vdash \conf{p}{0111}{AZ} \vdash \conf{p}{111}{AAZ} \vdash \conf{q}{111}{AAZ} \vdash \conf{q}{11}{AZ} \vdash \conf{q}{1}{Z} \vdash \conf{r}{1}{Z}$ --- провал
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Детерминированные магазинные автоматы vs недетерминированные}
+\begin{itemize}
+	\item В общем случае одной входной строке может соответствовать несколько вычислений
+	\begin{itemize}
+		\item Некоторые из них могут завершаться в принимающих состояниях
+	\end{itemize}
+	\item Если существует хотя бы одно вычисление, завершающееся в принимающем состоянии, строка принадлежит языку
+	\item Если для каждой строки существует ровно одно вычисление в магазинном автомате, то он является \emph{детерминированным}
+	\begin{itemize}
+		\item Соответствующий язык является \emph{детерминированным КС языком}
+	\end{itemize}
+	\item Детерминированный магазинный автомат является частным случаем недетерминированного, поэтому детерминированные КС языки --- строгое подмножество контекстно-свободных 
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Неэквивалентность двух видов приема для детерминированных магазинных автоматов}
+
+  \emph{Беспрефиксный язык} --- язык, в котором никакое слово не является префиксом другого
+
+  \begin{itemize}
+    \item Прием языка детерминированным магазинным автоматом по пустому стеку и по допускающему состоянию эквивалентно только для беспрефиксных языков
+    \item Рассмотрим слово $\omega = \alpha \beta: \alpha, \beta \in \Sigma^*, \omega, \alpha \in L \text{, где } L \subseteq \Sigma^*$
+    \item При попытке распознать слово $\omega$ ДМП завершит свою работу, как только прочитает $\alpha$
+    \item $\omega$ никогда не будет принята
+    \item Можно построить ДМП, принимающий по допускающему состоянию, который допускает префиксный язык
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Построение магазинного автомата по КС-грамматике}
+  \begin{itemize}
+    \item Интуиция:
+    \begin{itemize}
+      \item Для каждого нетерминала: заменяем его на стеке на правую часть правила
+      \item Для каждого терминала: считываем со входа этот терминал и кладем его на стек
+    \end{itemize}
+    \item Построение:
+    \begin{itemize}
+      \item Для каждого правила $A \rightarrow \alpha$ добавляем $(\state{1}, \stack{\alpha})$ в $\trans{1}{\varepsilon}{A}$
+      \item Для каждого терминала $a$ добавляем $(\state{1},\stack{\varepsilon})$ в $\trans{1}{a}{a}$
+    \end{itemize}
+    \item Относительно бесполезный автомат: как найти правильное вычисление?
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Лемма о накачке для КС языков}
+  \begin{rutheorem}
+    Если язык $L$ является контекстно свободным, то 
+    
+    $\exists p \geq 1: \forall s \in L : |s| \geq p $ можно разбить на подстроки $s = uvwxy: |vwx| \leq p, |vx| \geq 1$ и
+    
+     $\forall n \geq 0. \, u v^n w x^n y \in L$
+  \end{rutheorem}
+  \vspace{-0.5cm}
+  \begin{columns}[T]
+    \begin{column}{0.38\textwidth}
+      \begin{center}
+        \begin{tikzpicture}
+        \node[draw=none, fill=none] at (0, 4) {S};
+        \node[draw=none, fill=none] at (-0.1, 2.8) {A};
+        \node[draw=none, fill=none] at (0.1, 1.6) {A};
+        \node[draw=none, fill=none] at (-0, 0.8) {A};
+    
+        \draw (-2,0) -- (0,3.8);
+        \draw (0,3.8) -- (2,0);
+        \draw (-1.5,0) -- (-0.1,2.6);
+        \draw (-0.1,2.6) -- (1.5,0);
+        \draw (-1,0) -- (0.1,1.4);
+        \draw (0.1,1.4) -- (1,0);
+        \draw (-0.5,0) -- (0,0.6);
+        \draw (0,0.6) -- (0.5,0);
+
+        \fill[Orchid] (-2,-0.5) rectangle ++(0.5,0.5);
+        \fill[Dandelion] (-1.5,-0.5) rectangle ++(1,0.5);
+        \fill[LimeGreen] (-0.5,-0.5) rectangle ++(1,0.5);
+        \fill[Salmon] (0.5,-0.5) rectangle ++(1,0.5);
+        \fill[Turquoise] (1.5,-0.5) rectangle ++(0.5,0.5);
+        
+        \draw[draw=black] (-2,-0.5) rectangle ++(4,0.5);
+        \draw[draw=black] (-1.5,-0.5) rectangle ++(3,0.5);
+        \draw[draw=black] (-1,-0.5) rectangle ++(2,0.5);
+        \draw[draw=black] (-0.5,-0.5) rectangle ++(1,0.5);
+    
+        \draw [thick,densely dotted, rounded corners=1mm](0,3.8) --  (0.1, 3.4) -- (-0.15, 3.2) -- (-0.1, 2.9);
+    
+        \draw [thick,densely dotted, rounded corners=1mm](-0.1, 2.6) --  (-0.1, 2.3) -- (0.15, 1.9) -- (0.1, 1.75);
+
+        \draw [thick,densely dotted, rounded corners=1mm](0.1,1.4) -- (-0.05, 1.1) -- (0, 1);
+    
+        \node[draw=none, fill=none] at (-1.75,-0.25) {$u$};
+        \node[draw=none, fill=none] at (-1.25,-0.25) {$v$};
+        \node[draw=none, fill=none] at (-0.75,-0.25) {$v$};
+        \node[draw=none, fill=none] at (0,-0.25) {$w$};
+        \node[draw=none, fill=none] at (0.75,-0.25) {$x$};
+        \node[draw=none, fill=none] at (1.25,-0.25) {$x$};
+        \node[draw=none, fill=none] at (1.75,-0.25) {$y$};
+        \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.05\textwidth}
+      \vspace{2cm}
+      \[\color{teal} \Mapsfrom\]
+    \end{column}
+    \begin{column}{0.3\textwidth}
+      \begin{center}
+        \begin{tikzpicture}
+        \node[draw=none, fill=none] at (0, 4) {S};
+        \node[draw=none, fill=none] at (-0.1, 2.3) {A};
+        \node[draw=none, fill=none] at (0.1, 1) {A};
+    
+        \draw (-1.5,0) -- (0,3.8);
+        \draw (0,3.8) -- (1.5,0);
+        \draw (-1,0) -- (-0.1,2.1);
+        \draw (-0.1,2.1) -- (1,0);
+        \draw (-0.5,0) -- (0.1,0.8);
+        \draw (0.1,0.8) -- (0.5,0);
+    
+        \fill[Orchid] (-1.5,-0.5) rectangle ++(0.5,0.5);
+        \fill[Dandelion] (-1,-0.5) rectangle ++(0.5,0.5);
+        \fill[LimeGreen] (-0.5,-0.5) rectangle ++(1,0.5);
+        \fill[Salmon] (0.5,-0.5) rectangle ++(0.5,0.5);
+        \fill[Turquoise] (1,-0.5) rectangle ++(0.5,0.5);
+
+        \draw[draw=black] (-1.5,-0.5) rectangle ++(3,0.5);
+        \draw[draw=black] (-1,-0.5) rectangle ++(2,0.5);
+        \draw[draw=black] (-0.5,-0.5) rectangle ++(1,0.5);
+    
+        \draw [thick,densely dotted, rounded corners=1mm](0,3.8) --  (0.1, 2.9) -- (-0.15, 2.7) -- (-0.1, 2.4);
+    
+        \draw [thick,densely dotted, rounded corners=1mm](-0.1, 2.1) --  (-0.1, 1.7) -- (0.15, 1.4) -- (0.1, 1.1);
+    
+    
+        \node[draw=none, fill=none] at (-1.25,-0.25) {$u$};
+        \node[draw=none, fill=none] at (-0.75,-0.25) {$v$};
+        \node[draw=none, fill=none] at (0,-0.25) {$w$};
+        \node[draw=none, fill=none] at (0.75,-0.25) {$x$};
+        \node[draw=none, fill=none] at (1.25,-0.25) {$y$};
+        \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.05\textwidth}
+      \vspace{2cm}
+      \[\color{teal} \Mapsto\]
+    \end{column}
+    \begin{column}{0.23\textwidth}
+      \begin{center}
+        \begin{tikzpicture}
+        \node[draw=none, fill=none] at (0, 4) {S};
+        \node[draw=none, fill=none] at (0.1, 1) {A};
+    
+        \draw (-1,0) -- (0,3.8);
+        \draw (0,3.8) -- (1,0);
+  
+        \draw (-0.5,0) -- (0.1,0.8);
+        \draw (0.1,0.8) -- (0.5,0);
+    
+        \fill[Orchid] (-1,-0.5) rectangle ++(0.5,0.5);
+        \fill[LimeGreen] (-0.5,-0.5) rectangle ++(1,0.5);
+        \fill[Turquoise] (0.5,-0.5) rectangle ++(0.5,0.5);
+
+        \draw[draw=black] (-1,-0.5) rectangle ++(2,0.5);
+        \draw[draw=black] (-0.5,-0.5) rectangle ++(1,0.5);
+    
+        \draw [thick,densely dotted, rounded corners=1mm] (0,3.8) --  (-0.1, 2.5) -- (0.15, 1.4) -- (0.1, 1.1);
+    
+    
+        \node[draw=none, fill=none] at (-0.75,-0.25) {$u$};
+        \node[draw=none, fill=none] at (0,-0.25) {$w$};
+        \node[draw=none, fill=none] at (0.75,-0.25) {$y$};
+        \end{tikzpicture}
+      \end{center}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Лемма о накачке для КС языков: пример}
+  Язык $L = \{ a^n b^n c^n \}$
+  
+  Предполагаем, что он КС, тогда по Лемме существует $p$... 
+  
+  Рассмотрим слово $a^p b^p c^p = uvwxy, |vwx| \leq p, |vx| \geq 1 $
+  
+  \begin{itemize}
+    \item $vwx = a^j, j \leq p$
+    \item $vwx = a^j b^k, j + k \leq p$
+    \item $vwx = b^j, j \leq p$
+    \item $vwx = b^j c^k, j + k \leq p$
+    \item $vwx = c^j, j \leq p$
+  \end{itemize}   
+  
+  Строка $u v^i w x^i y $ не содержит одинаковое количество букв для всех $i$. Например, рассмотреть $i = 2$. Получили противоречие --- успех
+\end{frame}
+
+\end{document}
