@@ -16,6 +16,10 @@
 \usepackage{algorithmicx}
 \usepackage{verbatim}
 
+%\AtBeginDocument{%
+%  \providecommand\BibTeX{{%
+%    \normalfont B\kern-0.5em{\scshape i\kern-0.25em b}\kern-0.8em\TeX}}}
+
 \setcopyright{acmcopyright}
 \copyrightyear{2018}
 \acmYear{2018}
@@ -33,27 +37,42 @@
 
 \begin{document}
 
-\title{Context-Free Path Querying via Real Matrix Equations}
+\title{Context-Free Path Querying via Matrix Equations}
 
 \author{Yuliya Susanina}
 \affiliation{%
-    \institution{Saint Petersburg State University}
-    \streetaddress{7/9 Universitetskaya nab.}
-    \city{St. Petersburg} 
-    \state{Russia} 
-    \postcode{199034}
+  \institution{Saint Petersburg State University}
+  \streetaddress{7/9 Universitetskaya nab.}
+  \city{St. Petersburg} 
+  \state{Russia} 
+  \postcode{199034}
+}
+\affiliation{
+  \institution{JetBrains Research}
+  \streetaddress{Universitetskaya nab., 7-9-11/5A}
+  \city{St. Petersburg}
+  \country{Russia}
+  \postcode{199034}
 }
 \email{st049970@student.spbu.ru}
 
 \author{Semyon Grigorev}
 \affiliation{%
-    \institution{Saint Petersburg State University}
-    \streetaddress{7/9 Universitetskaya nab.}
-    \city{St. Petersburg}
-    \state{Russia}  
-    \postcode{199034}
+	\institution{Saint Petersburg State University}
+	\streetaddress{7/9 Universitetskaya nab.}
+	\city{St. Petersburg}
+	\state{Russia}  
+	\postcode{199034}
+}
+\affiliation{
+  \institution{JetBrains Research}
+  \streetaddress{Universitetskaya nab., 7-9-11/5A}
+  \city{St. Petersburg}
+  \country{Russia}
+  \postcode{199034}
 }
 \email{s.v.grigoriev@spbu.ru}
+\email{semen.grigorev@jetbrains.com}
 
 
 
@@ -61,7 +80,11 @@
 %% The abstract is a short summary of the work to be presented in the
 %% article.
 \begin{abstract}
-  Context-free path querying is reduced to the problem of solving a system of matrix equations over $\mathbb{R}$.
+  Graph data model is very popular nowadays (bioinformatics, static code analysis). 
+  Context-free path querying (CFPQ) underlies many problems related to this data model.
+  The importance of developing highly efficient approaches for solving CFPQ problem connected with a large amount of data to process.
+  Сomputational mathematics may be very useful due to the meaningful theoretical basis and multiple constantly improving implementations.
+  We show how to reduce GFPQ evaluation to solving the systems of matrix equations over $\mathbb{R}$ and also demonstrate the applicability of our approach to the real-world data.
 \end{abstract}
 
 %%
@@ -90,7 +113,6 @@
 
 \ccsdesc[500]{Information systems~Query languages}
 \ccsdesc[500]{Theory of computation~Formal languages and automata theory}
-\ccsdesc[500]{Design and analysis of algorithms~Approximation algorithms analysis}
 
 
 \keywords{context-free path querying, graph databases, context-free grammar, nonlinear matrix equations, newton method}
@@ -99,56 +121,42 @@
 
 \section{Introduction}
 
-Context-free path querying (CFPQ) is becoming more popular in many different areas, for example, bioinformatics~\cite{Bio}, graph \linebreak databases~\cite{graphDB} or static code analysis~\cite{zhang2013fast}, etc. 
-A query is presented as a context-free grammar and all possible paths (strings) are a set with a directed labeled graph. 
+Context-free path querying (CFPQ) is becoming more popular in many areas, e. g. bioinformatics~\cite{Bio}, graph databases~\cite{graphDB} or static code analysis~\cite{zhang2013fast}. 
+A query is presented as a context-free grammar and all possible paths (strings) are set as a directed labeled graph. 
 This type of query increases the expressive power of commonly used regular expressions and therefore forms a promising research area.
-The computation of such queries is a graph parsing with respect to the given grammar. 
-The result of the CFPQ evaluation is a set of triples $(A, m, n)$, such that a path from the node $m$ to the node $n$ exists in the given graph and a string obtained by concatenating the labels of the edges along this path can be derived from nonterminal $A$ of the given context-free grammar.
-%And, in that case, it is said that the context-free path query was processed using the relational query semantics.
+The computation of such queries is parsing all paths in the input graph with respect to the given grammar. 
+The result of the CFPQ evaluation is a set of triples $(A, m, n)$, such that a path from the node $m$ to the node $n$ exists in the given graph and a string obtained by concatenating the labels of the edges along this path is derived from nonterminal $A$ of the given context-free grammar.
 
-For most CFPQ application areas a large amount of data is common, so an especially pronounced problem is search and development of high-performance algorithms.
+A large amount of data is typical for most CFPQ application areas, so an especially pronounced problem is the search and development of high-performance algorithms.
 The matrix-based algorithms, for example, ~\cite{azimov2018context}, are the most potential for practical tasks.
 The possibility of applying various computing techniques to speed up matrix calculations, such as GPGPU or sparse matrix representation allows to improve the performance on the real-world data~\cite{mishin2019evaluation}.
-However, these algorithms, just like the others, suffer from computational problem issues and can be low-speed in some cases.
+But these algorithms, just like the others, suffer from computational problem issues and can be low-speed in some cases.
 
 There are also several reasons to consider the applicability of numerical linear algebra and computational mathematics for CFPQ.
-Firstly, the benefits of matrix-based CFPQ algorithms (e.g. the utilization of parallel techniques) will remain.
+The benefits of matrix-based CFPQ algorithms (e.g. the utilization of parallel techniques) will remain.
 Well-known linear algebra operations, such as matrix inversion or decomposition, can be used in the creation of better algorithms. 
 For instance, there are several successful results of applying linear algebra methods to logic programming~\cite{sato2017linear, aspis2018linear}. 
-Secondly, approximate computational methods can accelerate CFPQs processing.
+Also, approximate computational methods can accelerate CFPQs processing.
 And most importantly, the popularity of artificial intelligence techniques pushed the development and improvement of many efficient libraries for numerical computing.
 
-In this article, we modify the matrix-based algorithm mentioned above and reduce GFPQ evaluation to solving the systems of Boolean matrix equations.
-And then we propose a new approach for CFPQs processing, based on solving the systems of equations over $\mathbb{R}$.
+In this article, we modify the matrix-based algorithm mentioned above and reduce GFPQ to solving the systems of Boolean matrix equations.
+And then we propose a new approach for CFPQs processing, based on solving the systems of equations in the set of real numbers $\mathbb{R}$.
 We also assess the feasibility of using both accurate and approximate methods of computational mathematics.
-The evaluation of our approach on a set of conventional benchmarks shows its practical applicability.
+The evaluation of our approach on a set of conventional benchmarks shows its applicability.
 
 \section{Background}
 
-\subsection{Preliminaries}
-
-Context-free grammar (CFG) is a quadruple $G=(N, \Sigma, R)$, where $N$ is a set of nonterminal symbols, $\Sigma$ is a set of terminal symbols and $R$ is a set of productions of the followings form: $A \Rightarrow \alpha$, $\alpha \in (N \cup \Sigma)^*$. 
+Context-free grammar (CFG) is a triple $G=(N, \Sigma, R)$, where $N$ is a set of nonterminal symbols, $\Sigma$ is a set of terminal symbols and $R$ is a set of productions of the followings form: $A \Rightarrow \alpha$, $\alpha \in (N \cup \Sigma)^*$. 
 $\mathcal{L}(G_S)$ denotes a language specified by CFG $G$ with respect to $S \in N$: $\mathcal{L}(G_S) = \{\omega~|~S \Rightarrow_{G}^{*} \omega\}$.
 
 Directed graph is a triple $D = (V,E,\sigma)$, where $V$ is a set of vertices, $\sigma \subseteq \Sigma$ is a set of labels, and a set of edges $E\subseteq V\times \sigma \times V$. 
-Path $p$ in graph $D$ is a list of incident edges: 
-$p = e_0,\dots,e_{n-1}$, where $v_i \in V$, $e_i=(v_i,l_i,v_{i+1}) \in E$, $l_i \in \sigma$, $|p| = n, n \geq 1$. 
-$P = \{p \mid p \text{ --- path in } D\}$.
-For $p \in P$, \mbox{$trace(p)$} is the unique word, obtained by concatenating the labels of the edges along the path $p$.
+Denote a path from the node $m$ to the node $n$ in graph $D$ as $m\lambda n$, where
+$\lambda$ is the unique word, obtained by concatenating the labels of the edges along this path.
+P is a set of all paths in $D$.
 
-For a graph $D$ and a CFG $G$, we define \emph{context-free relations} \mbox{$R_A \subseteq V \times V$} for each \mbox{$A \in N$}: $R_A = \{p \mid p \in P, ~trace(p) \in \mathcal{L}(G_A)\}.$
+For a graph $D$ and a CFG $G$, we define \emph{context-free relations} \mbox{$R_A \subseteq V \times V$} for each \mbox{$A \in N$}: $R_A = \{(m, n) \mid m\lambda n \in P, \lambda \in \mathcal{L}(G_A)\}.$
 
-\subsection{Matrix-Based CFPQ Algorithm}
-
-Matrix-based algorithm, proposed by Rustam Azimov ~\cite{azimov2018context}, processes CFPQs by using relational query semantics~\cite{hellings2015querying}.
-It constructs  a parsing table $T$ of size $|V| \times |V|$ for an input graph $D = (V, E)$ and grammar $G = (N,\Sigma,R)$ in Chomsky normal form.
-Each element of $T$ contains the set of nonterminals such that $A \in T_{i,j} \iff \exists p \in R_A$.
-
-For each vertices $i$ and $j$ we initialize $T_{i,j} = \{A \mid (i, a, j) \in E, A \rightarrow a \in R\}$. 
-Then, the computations of parsing table T happens through the calculation of matrix transitive closure: $M^* = M^{(1)} \cup M^{(2)} \dots$, where $M^{(1)} = M$, $M^{(k)} = M^{(k-1)} \cup (M^{(k-1)} \times M^{(k-1)})$ for $k > 1$.
-Also we can represent parsing table $T$ as a set of Boolean matrices of size $|V| \times |V|$ for each $A \in N$. So, we can replace the computation of transitive closure $T = T \cup (T \times T)$ to several Boolean matrix multiplications $T_A = T_A + T_B T_C$ for each $A \rightarrow BC \in R$.
-
-This algorithm can be effectively applied to real-world data with implementation based on parallel techniques and high-performance libraries~\cite{mishin2019evaluation}, but it takes time $\mathcal{O}(|N|^3|V|^2(BMM(|V|) + BMU(|V|)))$. 
+Matrix-based algorithm, proposed by Rustam Azimov ~\cite{azimov2018context}, processes CFPQs by using relational query semantics~\cite{hellings2015querying} and offloads the most time-consuming operations onto Boolean matrix multiplication, thus allowing significantly increase the performance~\cite{mishin2019evaluation}, but it takes time $\mathcal{O}(|V|^{4+\omega})$. 
 
 
 \section{Equation-Based Approach}
@@ -156,18 +164,13 @@ This algorithm can be effectively applied to real-world data with implementation
 In this section we transform matrix-based algorithm. 
 We replace the calculation of matrices' products by the computation of several matrix equations.
 
-\subsection{From Iteration to Equations}
-
-The main difference of our approach is that we do not transform the input grammar to Chomsky normal form, as the matrix-based algorithm requires. 
-However, the elimination of $\varepsilon$-rules is still needed.
-%We can also remove the unit rules, but it is not a nessesary condition.
-
 For each $X \in (N \cup \Sigma)$ we create a Boolean matrix $T_X$. 
-All matrices corresponding to nonterminals are filled in accordance with an input graph: $((T_x)_{ij} = 1 \iff (v_i, x, v_j) \in E)$ for  $x \in \Sigma$, and cannot be changed. 
+All matrices corresponding to nonterminals are fixed according to the input graph: $((T_a)_{ij} = 1 \iff (v_i, a, v_j) \in E)$ for $a \in \Sigma$. 
+And for each $A \in N$: $((T_A)_{ij} = 1 \iff (i, j) \in R_A)$.
 
 
 Let's consider a simple CFG $G_1 : S \rightarrow aSb \mid ab$ and its representation in Chomsky normal form: $G_1 : S \rightarrow AS_1 \mid AB$; $ S_1 \rightarrow SB$; $ A \rightarrow a$; $B \rightarrow b$.
-In the original algorithm on each step of the while loop Boolean matrices is changing in 3 calculations (rules $ A \rightarrow a$ and $B \rightarrow b$ are not used after matrices initialization). It can be replaced into a simple iterative process:
+In the matrix-based algorithm we construct a matrix transitive closure in a while loop and on each iteration Boolean matrices is changing in 3 calculations (rules $ A \rightarrow a$ and $B \rightarrow b$ are not used after matrices initialization). It can be replaced into a simple iterative process:
 
 \begin{center}
 \(
@@ -227,22 +230,26 @@ And the corresponding matrix series $\{ \mathcal{T}_S^{k}\}$, which converges to
 \)
 \end{center}
 
-It can be proved that $(\mathcal{T}_S^{k+1})_{ij} > 0 \iff (T_S^{k+1})_{ij} = 1$ and $ceil(\mathcal{T}_S^*) = T_S^*$, where $ceil$ returns the smallest integer not less than x.
+It can be proved that $((\mathcal{T}_S^{k+1})_{ij} > 0 \iff (T_S^{k+1})_{ij} = 1)$ and $ceil(\mathcal{T}_S^*) = T_S^*$, where $ceil(x)$ returns the smallest integer not less than $x$.
 
 So, each rule of the following form $X \rightarrow V \ldots W \mid \dots \mid Y \ldots Z$, where $X \in N$, $V, W, \ldots , Y, Z \in (N \cup \Sigma)$ can be replaced by equation:
 $T_X = \epsilon_X (T_V \cdot \ldots \cdot T_W + \dots + T_Y \cdot \ldots \cdot T_Z)$, where $\epsilon_X$ is chosen such that $\mathcal{T}_X^{k} \leq \textbf{1}$ for each $k$.
 
+Mostly we deal with the systems of matrix equations. Let's briefly consider the possible cases of these systems.
 
-\subsection{Linear Equations}
+\textbf{Linear Equations}
 
-If the input CFG is linear, then the most difficult case is the one presented as an example in the previous subsection. 
-We can solve it as a Sylvester equation in $\mathcal{O}(|V|^3)$, but only for one type of brackets.
-Otherwise it can be reduced to solving a linear system $Ax = b$, where $A$ is a matrix of size $(|V|^2 \times |V|^2)$ and time required to compute its solution is $\mathcal{O}(|V|^6)$ or $\mathcal{O}(|V|^{4\omega + 2})$ with more efficient matrix multiplication algorithms. 
+If the input CFG is linear, each equation of the system is of the form of generalized Sylvester equation: $\sum_{i = 1}^{k} A_iXB_i = C$.
+For $k = 1, 2$ we can solve it in $\mathcal{O}(|V|^3)$.
+Otherwise, for $k > 2$ it can be reduced using Kronecker product to solving a linear system $Ax = b$, where $A$ is a matrix of size $(|V|^2 \times |V|^2)$ and time required to compute its solution is $\mathcal{O}(|V|^6)$ or $\mathcal{O}(|V|^{4\omega + 2})$ with more efficient matrix multiplication algorithms. 
 The use of sparse matrix representation can be very efficient for solving the equations of this type.
 
-\subsection{Nonlinear Equations}
+For the system of equations, we construct the dependency graph $D_G$ for nonterminals of the given grammar $G$ and split the set of the equations into the disjoint subsets accordingly to the set of strongly connected components in $D_G$, which can be found in $\mathcal{O}(|V| + |E|)$.
+Then we solve our system in stages, for each subset.
 
-We can rewrite our equation of the form $X = \Psi(X)$ to the equivalent $F(X) = X - \Psi(X) = 0$ and use Newton's method for nonlinear functions root finding:
+\textbf{Nonlinear Equations}
+
+For the nonlinear case we can rewrite each equation of the form $X = \Psi(X)$ to the equivalent $F(X) = X - \Psi(X) = 0$ and use Newton's method for nonlinear functions root finding:
 
 \begin{center}
 \(
@@ -271,22 +278,16 @@ X_{i+1} = X_i + H_i
 
 Here $X_0$ is an initial guess, in our case $X_0 = $ \textbf{0}, as our solution is a matrix consists of small positive numbers. 
 The convergence of this method can be quadratic which allows finding the solution significantly faster.
-Even as it is necessary to solve an equation for $H_i$ on each iteration step, the majority of high-performance implementations do not compute the Jacobian inverse and use its approximate value.
+Even as it is necessary to solve an equation for $H_i$ (also generalized Sylvester equation) on each iteration step, the majority of high-performance implementations do not compute the Jacobian inverse and use its approximate value.
 
 The main difficulty in using Newton's method is choosing an appropriate $\epsilon$, to ensure the least positive solution for nonlinear equations $\epsilon$ must be smaller than $\frac{1}{|V|}$.
-
-\subsection{Systems of Equations}
-
-Until now, we consider only cases with one equation, but mostly we will deal with the systems of matrix equations.
-We construct the dependency graph $D_G$ for nonterminals of the given grammar $G$ and split the set of the equations into the disjoint subsets accordingly to the set of strongly connected components in $D_G$, which can be found in $\mathcal{O}(|V| + |E|)$.
-So we can solve our system in stages without any troubles.
 
 
 \section{Evaluation}
 
 The equation-based approach for CFPQ was implemented.
-We evaluated \textbf{Query 2} from ~\cite{azimov2018context}.
-The equation constructed for this query were resolved by two different ways using Python package \textit{scipy}: 
+We evaluated \textbf{Query 2}~\cite{azimov2018context}.
+The equation constructed for this query were resolved on the CPU by two different ways using Python package \textit{scipy}: 
 \textbf{sSLV} --- solving as a sparse linear system using \textit{spsolve}
 and
 \textbf{dNWT} --- funding roots of a function using \textit{optimize.newton\texttt{\_}krylov}.
@@ -296,28 +297,22 @@ and
 \caption{Evaluation results for Query 2 (in ms)}
 \label{tbl2}
 
-\begin{tabular}{ | c | c | c | c | c | c |}
+\begin{tabular}{ | c | c | c | c | c | c | c |}
 \hline
-Ontology & dGPU & sCPU & dNWT & sSLV & sGPU \\
+Ontology & |V| & dGPU & sCPU & dNWT & sSLV & sGPU \\
 \hline 
 \hline
-skos   & 10 & 2 & 5 & 7 & 1\\
-generations  & 9 & 2 & 0 & 5 & 0\\
-travel   & 31 & 7 & 51 & 5 & 10\\
-univ-bench   & 55 & 15 & 40 & 8 & 9\\
-atom   & 36 & 9 & 40 & 27 & 2\\
-bio-meas  & 276 & 91 & 284 & 35 & 24\\
-foaf & 53 & 14 & 26 & 16 & 3\\
-people-pets   & 144 & 38 & 73 & 49 & 6\\
-funding  & 1246 & 344 & 502 & 184 & 27\\
-wine  & 722 & 179 & 791 & 171 & 6\\
-pizza  & 943 & 256 & 334 & 161 & 23\\
+bio-meas & 341 & 276 & 91 & 284 & 35 & 24\\
+people-pets & 337 & 144 & 38 & 73 & 49 & 6\\
+funding & 778 & 1246 & 344 & 502 & 184 & 27\\
+wine  & 733 & 722 & 179 & 791 & 171 & 6\\
+pizza  & 671 & 943 & 256 & 334 & 161 & 23\\
 \hline
 \end{tabular}
 
 \end{table}
 
-We compare the results with the first matrix-based algorithm implementations described in ~\cite{azimov2018context} (Table ~\ref{tbl2}). 
+We compare (Table ~\ref{tbl2}) the results with the first matrix-based algorithm implementations described in ~\cite{azimov2018context}. 
 Our approach demonstrates that it can be applied on real-world data as well as the matrix-based algorithm. 
 Moreover, we can improve the performance by the utilization of parallel techniques for matrix operations.
 
@@ -327,7 +322,8 @@ We proposed a new approach for CFPQs processing, based on solving the systems of
 The evaluation of our approach on a set of conventional benchmarks showed its practical applicability on real-world data.
 
 The directions for future research are high-performance implementation using GPGPU or other parallel techniques. 
-Also, we plan to examine the special cases of the reduction of solving the systems of matrix equations to CFPQ.
+Also, it seems interesting to determine the subclasses of (system of) polynomial equations whose solution can be reduced to CFPQ and try to construct bidirectional reduction between CFPQ and these subclasses, thereby finding efficient solutions for both these problems at a time.
+
 
 
 \begin{acks}
