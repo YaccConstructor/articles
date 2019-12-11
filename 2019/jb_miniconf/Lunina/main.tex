@@ -1,0 +1,367 @@
+\documentclass{beamer}
+\usepackage{beamerthemesplit}
+\usepackage{wrapfig}
+\usetheme{SPbGU}
+\usepackage{pdfpages}
+\usepackage{amsmath}
+\usepackage{cmap} 
+\usepackage[T2A]{fontenc} 
+\usepackage[utf8]{inputenc}
+\usepackage[english,russian]{babel}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{multirow}
+\usepackage[noend]{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usetikzlibrary{shapes,arrows}
+\usepackage{fancyvrb}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usetikzlibrary{calc}
+\usetikzlibrary{shapes,arrows}
+\usetikzlibrary{arrows,automata}
+\usetikzlibrary{positioning}
+\usepackage[labelformat=empty]{caption}
+\usepackage[labelformat=empty]{subcaption}
+\beamertemplatenavigationsymbolsempty
+
+
+\newcommand{\tikzmark}[1]{\tikz[overlay,remember picture] \node (#1) {};}
+\def\Put(#1,#2)#3{\leavevmode\makebox(0,0){\put(#1,#2){#3}}}
+
+\newcommand{\ltz}{$< 1$}
+\tikzset{
+    state/.style={
+           rectangle,
+           rounded corners,
+           draw=black, very thick,
+           minimum height=2em,
+           inner sep=2pt,
+           text centered,
+           },
+}
+
+\title[СА + НС]{Комбинирование нейронных сетей и синтаксического анализа для обработки вторичной структуры последовательностей}
+\institute[]{
+JetBrains Research, Programming Languages and Tools Lab \\
+Санкт-Петербургский государственный университет }
+
+\author[Полина Лунина]{Полина Лунина}
+
+
+\date{14 декабря 2019г.}
+\begin{document}
+{
+\begin{frame}[fragile]
+  \begin{tabular}{p{2.0cm} p{7.5cm} p{1cm}}
+   \begin{center}
+      \includegraphics[height=1.5cm]{pics/jetbrainsResearch.pdf}
+    \end{center}
+    &
+    \begin{center}
+      \includegraphics[height=1.5cm]{pics/YC_logo.pdf}
+    \end{center}
+    &
+    \begin{center}
+      \includegraphics[height=1.5cm]{pics/SPbGU_Logo.png}
+    \end{center}
+  \end{tabular}
+  \titlepage
+\end{frame}
+}
+
+\begin{frame} \frametitle{Биоинформатика}
+\begin{tabular}{cl}  
+    \parbox{0.44\linewidth}{
+        \begin{itemize}
+            \item Задачи
+            \begin{itemize}
+                \item Распознавание
+                \item Классификация
+                \item Предсказание вторичных структур
+                \item ...
+            \end{itemize}
+  \onslide<2,3> {\item Формальное задание вторичной структуры}
+  \onslide<3>  {\item Вероятностная оценка}
+        \end{itemize}
+    }
+    & \begin{tabular}{l}
+        \vspace{-0.8cm}
+        \hspace{-0.8cm}
+        \includegraphics[width=5.0cm]{pics/16s.pdf}
+    \end{tabular}  \\
+\end{tabular}
+\end{frame}
+
+\begin{frame}{Наш подход}
+\begin{itemize}
+    \item Задать основные элементы вторичной структуры (стемы) с помощью грамматики 
+    \item Для вероятностной оценки использовать нейронные сети
+\end{itemize}
+
+\vspace{1.0cm}
+\begin{center}
+    \includegraphics[width=8.5cm]{pics/molekula.pdf} 
+\end{center}
+    
+\end{frame}
+
+\begin{frame} \frametitle{Структура решения}
+\vspace{0.5cm}
+\scriptsize
+  \begin{tikzpicture}[->,>=stealth']
+  \node[state,
+        align=left,
+        text width = 3.2cm] (grm)
+   {
+   \textbf{Грамматика}\\
+   Описывает стемы вторичной структуры.
+   };
+
+  \node[state,
+        below of=grm,
+        node distance=1.6cm,
+        align = left,
+        text width = 3.2cm] (sqs)
+   {
+   \textbf{Цепочки РНК}\\
+   Строки над алфавитом $\{A, C, G, U\}$.
+   };
+
+  \node[state,
+        below right = -0.4cm and 0.4cm of grm,
+        align = left,
+        text width = 3.0cm](parser)
+  {
+  \textbf{Парсер}\\
+  Извлекает стемы вторичной структуры из входных данных.
+  };
+
+  \node[state,
+        right of=parser,
+        node distance=4.3cm,
+        align = left,
+        text width = 4.6cm] (mtrx)
+  {
+\textbf{Матрицы}\\
+{\tiny
+\[ \left( \begin{array}{cccc}
+0 & 1 & 0 & 1\\
+0 & 0 & 1 & 0\\
+0 & 0 & 0 & 1\\
+0 & 0 & 0 & 0
+\end{array} \right)\]}
+\vspace{-0.2cm}
+
+  Результат работы парсера для входной строки $\omega$ -- булева матрица $M$, где $ M[i,j] = 1 $ $\iff$  \linebreak  $\text{\ttfamily{s}} \xrightarrow{*}{} \omega[i,j]$.
+  };
+
+
+  \node[state,
+        below = 1.2cm of mtrx,
+        node distance=3cm,
+        align = left,
+        text width = 4.6cm](vector)
+  {
+  \textbf{Входные данные для НС}\\
+  Изображения, вектора или другой формат, удобный для конкретной задачи.
+  };
+
+  \node[state,
+        left = 0.5cm of vector,
+        align = left,
+        text width = 4.6cm](DNN)
+  {
+  \textbf{Нейронная сеть}\\
+
+  Решает поставленную задачу распознавания, классификации, генерации и т.д.
+
+  };
+  
+    \node[state,
+        left of = DNN,
+        node distance=3.7cm,
+        align = left,
+        text width = 1.4cm](result)
+  {
+  \textbf{Результат}
+  };
+
+  \path (grm.east) edge (parser.-200)
+   (sqs.east) edge (parser.-160)
+   (parser) edge (mtrx)
+   (mtrx) edge (vector)
+   (vector) edge (DNN)
+   (DNN) edge (result)
+   ;
+
+  \end{tikzpicture}
+
+  \tikzmark{zzz}{
+  }
+  \pause
+  \onslide<2>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2, rounded corners] ($ (zzz) + (0.11,5.97)$) rectangle ($ (zzz) + (3.46,3.3)$);}}
+
+  \onslide<3>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2, rounded corners] ($ (zzz) + (3.89,5.25)$) rectangle ($ (zzz) + (7.05,3.865)$);}}
+
+  \onslide<4>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2, rounded corners] ($ (zzz) + (7.4,6.17)$) rectangle ($ (zzz) + (12.15,2.98)$);}}
+
+  \onslide<5>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2, rounded corners] ($ (zzz) + (7.4,1.75)$) rectangle ($ (zzz) + (12.15,0.35)$);}}
+
+  \onslide<6>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2, rounded corners] ($ (zzz) + (2.1,1.75)$) rectangle ($ (zzz) + (6.87,0.33)$);}}
+
+  \onslide<7>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2, rounded corners] ($ (zzz) + (0.03,1.35)$) rectangle ($ (zzz) + (1.55,0.75)$);}}
+
+\end{frame}
+
+\begin{frame}{Оптимизация}
+\textbf{Проблема:} времязатратность синтаксического анализа
+\vspace{8pt}
+
+\textbf{Решение:}
+    \begin{itemize}
+        \item Создать нейронную сеть, обрабатывающую непосредственно цепочку РНК
+        \item Обучение в 2 этапа
+        \begin{itemize}
+            \item Обучить нейронную сеть на результате работы парсера
+            \item Расширить ее верхними слоями, принимающими исходную последовательность
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}\frametitle{Эксперименты}
+\textbf{Задачи:}
+\begin{itemize}
+    \item Классификация тРНК эукариотов и прокариотов
+    \item Классификация тРНК архей, бактерий, грибов и растений
+\end{itemize}
+\vspace{6mm}
+\textbf{Технологии:}
+\begin{itemize}
+    \item Платформа YaccConstructor
+    \item Библиотека Keras и фреймворк Tensorflow
+\end{itemize}
+\vspace{6mm}
+\textbf{Базы данных:}
+\begin{itemize}
+    \item tRNADB-CE
+    \item Genomic tRNA database
+\end{itemize}
+\end{frame}
+
+\begin{frame}\frametitle{Эксперименты}
+    \begin{itemize}
+        \item Два формата представления матриц
+        \begin{itemize}
+            \item Вектора
+            \item Черно-белые изображения
+        \end{itemize}
+        \item Обучение нейронных сетей на этих данных
+        \item Обучение нейронных сетей, принимающих непосредственно последовательности РНК и использующих веса предыдущих моделей
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Результаты}
+EP --- эукариоты/прокариоты
+
+ABFP --- археи/бактерии/растения/грибы
+\vspace{5mm}
+\input{pics/table_acc.tex}
+\end{frame}
+
+\begin{frame}{Результаты}
+EP --- эукариоты/прокариоты
+
+ABFP --- археи/бактерии/растения/грибы
+\vspace{5mm}
+\input{pics/table_pr.tex}
+\end{frame}
+
+
+\begin{frame}\frametitle{Публикации}
+\begin{itemize}
+    \item \textbf{BIOINFORMATICS-2019}
+      \begin{itemize}
+        \item Семён Григорьев, Полина Лунина. The Composition of Dense Neural Networks and Formal Grammars for Secondary Structure Analysis
+        \item Публикация: Scopus
+      \end{itemize}
+      \item \textbf{BIATA-2019} (постерный доклад)
+      \begin{itemize}
+         \item Семён Григорьев, Полина Лунина. Improved Architecture of Artificial Neural Network for Secondary Structure Analysis
+         \item Публикация: BMC Bioinformatics, Scopus
+      \end{itemize}
+      \item \textbf{CIBB-2019} (доклад)
+      \begin{itemize}
+        \item Полина Лунина, Семён Григорьев. On Secondary Structure Analysis by Using Formal Grammars and Artificial Neural Networksm
+        \item Публикация: ожидается
+      \end{itemize}
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{Идея следующего исследования} 
+\begin{itemize}
+    \item Парсер находит в цепочке все возможные стемы, однако не все они действительно будут входить в состав вторичной структуры
+    \item Хотим сконструировать нейронную сеть, которая отфильтрует лишние контакты между нуклеотидами и предскажет вторичную структуру цепочки
+\end{itemize}
+\vspace{0.5cm}
+\begin{figure}
+\centering
+\begin{subfigure}{.3\textwidth}
+  \centering
+  \fbox{\includegraphics[width=.6\linewidth]{pics/structure.png}}
+  \caption{Вторичная структура}
+\end{subfigure}%
+\begin{subfigure}{.3\textwidth}
+  \centering
+  \fbox{\includegraphics[width=.6\linewidth]{pics/etalon.png}}
+  \caption{Contact map}
+\end{subfigure}
+\begin{subfigure}{.3\textwidth}
+  \centering
+  \fbox{\includegraphics[width=.6\linewidth]{pics/parsed.png}}
+  \caption{Результат парсера}
+\end{subfigure}%
+\end{figure}
+
+\end{frame}
+
+\begin{frame}{Первые эксперименты}
+\textbf{Задача:} предсказание вторичных структур цепочек тРНК длины 90
+
+\vspace{6mm}
+\textbf{Данные:}
+\begin{itemize}
+    \item RNAcentral (последовательности тРНК)
+    \item CentroidFold (эталонные структуры)
+\end{itemize}
+
+\vspace{6mm}
+
+\textbf{Результаты тестирования на 11000 образцов:}
+\begin{itemize}
+    \item Precision = 84\% (сколько из предсказанных контактов действительно являются контактами в эталоне)
+    \item Recall = 89\% (сколько из требуемых контактов было найдено)
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{Планы}
+\begin{itemize}
+    \item Предсказание вторичных структур для цепочек различных РНК любой длины
+    \item Улучшение точности результата путем увеличения количества данных и настройки параметров нейронной сети 
+    \item Выбор оптимального источника эталонных данных
+    \begin{itemize}
+        \item Лучшие результаты на бенчмарках
+        \item Возможность предсказания псевдоузлов
+    \end{itemize}
+\end{itemize}
+
+\end{frame}
+
+
+
+
+\end{document}
