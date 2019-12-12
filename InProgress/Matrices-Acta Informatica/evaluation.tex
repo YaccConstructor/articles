@@ -1,2 +1,311 @@
 \section{Evaluation}
 \label{section_evaluation}
+
+%To show the practical applicability of the proposed algorithm for context-free path querying w.r.t. relational query semantics, we implemented this algorithm with a number of optimizations and applied these implementations to the navigation query problem for some popular ontologies, taken from~\cite{RDF}. We also compared the performance of our implementations with existing analogues from~\cite{GLL,RDF}. These analogues use more complex algorithms, while our algorithm uses only the simple matrix operations.
+
+Since our algorithm works with graphs, each RDF file from a dataset was converted to an edge-labeled directed graph as follows. For each triple $(o,p,s)$ from an RDF file, we added an edge $(o,p,s)$ to the graph. In addition, we added an edge $(s,p^{-1},o)$ to the graph, if $p$ corresponded to the terminals \emph{subClassOf} and \emph{type} of the query grammars. %We also constructed synthetic graphs $g_1$, $g_2$ and $g_3$, simply repeating $8$ times the existing graphs for \emph{funding}, \emph{wine} and \emph{pizza}, respectively.
+
+All tests were run on a PC with the following characteristics:
+
+\begin{itemize}
+	\item OS: Microsoft Windows 10 Pro
+	\item System Type: x64-based PC
+	\item CPU: Intel(R) Core(TM) i7-4790 CPU @ 3.60GHz, 3601 Mhz, 4 Core(s), 4 Logical Processor(s)
+	\item RAM: 16 GB
+	\item GPU: NVIDIA GeForce GTX 1070
+	\begin{itemize}
+		\item CUDA Cores:		1920 
+		\item Core clock:		1556 MHz 
+		\item Memory data rate:	8008 MHz
+		\item Memory interface:	256-bit 
+		\item Memory bandwidth:	256.26 GB/s
+		\item Dedicated video memory:	8192 MB GDDR5
+	\end{itemize}
+\end{itemize}
+
+%We denote the implementation of the algorithm from a paper~\cite{GLL} as $GLL$. Our algorithm can be easily implemented using the existing libraries for matrix operations calculation on a CPU or on a GPU. We did not find suitable libraries for bit matrix multiplication to implement our Boolean matrix multiplication. Therefore, we used standard libraries for matrix operations. The algorithm, presented in this paper, is implemented in F\# programming language~\cite{fsharp} and is available on GitHub\footnote{GitHub repository of the YaccConstructor project: \url{https://github.com/YaccConstructor/YaccConstructor}.}. We denote our implementations of the proposed algorithm as follows:
+
+%\begin{itemize}
+%	\item dGPU (dense GPU)~--- an implementation with a row-major matrix representation and a GPU for matrix operation calculation. For the calculations of matrix operations on a GPU, we used a wrapper for the CUBLAS library from the managedCuda\footnote{GitHub repository of the managedCuda library: \url{https://kunzmi.github.io/managedCuda/}.} library.
+%	\item sCPU (sparse CPU)~--- an implementation using the CSR format for sparse matrix representation and a CPU for matrix operation calculation. For sparse matrix representation in CSR format we used the Math.Net Numerics\footnote{The Math.Net Numerics WebSite: \url{https://numerics.mathdotnet.com/}.} package.
+%	\item sGPU (sparse GPU)~--- an implementation using the CSR format for sparse matrix representation and a GPU for matrix operation calculation. For calculations of the matrix operations on a GPU, where matrices represented in a CSR format, we used a wrapper for the CUSPARSE library from the managedCuda library.
+%\end{itemize}
+
+%We omit $dGPU$ performance on graphs $g_1$, $g_2$ and $g_3$, since a dense matrix representation leads to a significant performance degradation as the graph size grows. 
+
+We evaluated two classical \emph{same-generation queries}~\cite{FndDB} which, for example, can be used in bioinformatics.
+
+\textbf{Query 1} is based on the grammar $G_1$ for retrieving the concepts on the same layer, where:
+\begin{itemize}
+	\item the grammar $G_1 = (N_1, \Sigma_1, P_1)$;
+	\item the set of non-terminals $N_1 = \{S,S_1,S_2,S_3,S_4,S_5,S_6\}$;
+	\item the set of terminals \[\Sigma_1 = \{subClassOf, subClassOf^{-1}, type, type^{-1}\}\]
+	\item the set of production rules $P_1$ is presented on Figure~\ref{ProductionRulesQuery1}.
+\end{itemize}
+
+\begin{figure}[h]
+	\[
+	\begin{array}{rccl}
+	0: & S & \rightarrow & S_1 \ S_5 \\
+	1: & S & \rightarrow & S_3 \ S_6 \\
+	2: & S & \rightarrow & S_1 \ S_2 \\
+	3: & S & \rightarrow & S_3 \ S_4 \\
+	4: & S_5 & \rightarrow & S \ S_2 \\
+	5: & S_6 & \rightarrow & S \ S_4 \\ 
+	6: & S_1 & \rightarrow & \text{\emph{subClassOf}}^{-1} \\ 
+	7: & S_2 & \rightarrow & \text{\emph{subClassOf}} \\ 
+	8: & S_3 & \rightarrow & \text{\emph{type}}^{-1} \\ 
+	9: & S_4 & \rightarrow & \text{\emph{type}} \\ 
+	\end{array}
+	\]
+	\caption{Production rules for the Query 1 grammar.}
+	\label{ProductionRulesQuery1}
+\end{figure}
+
+\begin{table*}[ht]
+	\centering
+	\caption{Initial graph characteristics for Query 1}
+	\label{tbl1}
+	
+	\begin{tabular}{ | c | c | c | c | c | c | c | c | c |}
+		\hline
+		Ontology & E & \#$S$ & \#$S_1$ & \#$S_2$ & \#$S_3$ & \#$S_4$ & \#$S_5$ & \#$S_6$\\
+		\hline 
+		\hline
+		funding        & 1480 & 0 & 0 & 0 & 0 & 0 & 0 & 0\\
+		wine           & 2450 & 0 & 0 & 0 & 0 & 0 & 0 & 0\\
+		pizza          & 2604 & 0 & 0 & 0 & 0 & 0 & 0 & 0\\
+		core           & 4342 & 0 & 0 & 0 & 0 & 0 & 0 & 0\\
+		pathways       & 18598 & 0 & 0 & 0 & 0 & 0 & 0 & 0\\
+		enzyme         & 109695 & 0 & 0 & 0 & 0 & 0 & 0 & 0\\
+		eclass\_514en  & 523727 & 0 & 0 & 0 & 0 & 0 & 0 & 0\\
+		go             & 534311 & 0 & 0 & 0 & 0 & 0 & 0 & 0\\
+		go-hierarchy   & 980218 & 0 & 0 & 0 & 0 & 0 & 0 & 0\\
+		\hline
+	\end{tabular}
+	
+\end{table*}
+
+
+\begin{table*}[ht]
+	\centering
+	\caption{Evaluation characteristics for Query 1}
+	\label{tbl2}
+	
+	\begin{tabular}{ | c | c | c | c |}
+		\hline
+		Ontology & time mean (ms) & time std (ms) & iterations \\
+		\hline 
+		\hline
+		funding        & 0.0 & 0.0 & 8\\
+		wine           & 3.0 & 0.0 & 10\\
+		pizza          & 1.0 & 0.0 & 8\\
+		core           & 0.0 & 0.0 & 16\\
+		pathways       & 1.0 & 0.0 & 10\\
+		enzyme         & 4.0 & 0.0 & 10\\
+		eclass\_514en  & 50.0 & 0.0 & 10\\
+		go             & 1063.0 & 0.0 & 42\\
+		go-hierarchy   & 198.0 & 0.0 & 8\\
+		\hline
+	\end{tabular}
+	
+\end{table*}
+
+\begin{table*}[ht]
+	\centering
+	\caption{Graph characteristics after CFPQ evaluation for Query 1}
+	\label{tbl3}
+	
+	\begin{tabular}{ | c | c | c | c | c | c | c | c |}
+		\hline
+		Ontology & \#$S$ & \#$S_1$ & \#$S_2$ & \#$S_3$ & \#$S_4$ & \#$S_5$ & \#$S_6$\\
+		\hline 
+		\hline
+		funding        & 17634 & 90 & 90 & 304 & 304 & 6555 & 2375\\
+		wine           & 66572 & 126 & 126 & 485 & 485 & 8172 & 16261\\
+		pizza          & 56195 & 259 & 259 & 365 & 365 & 23044 & 720\\
+		core           & 316 & 178 & 178 & 706 & 1412 & 82 & 239\\
+		pathways       & 884 & 3117 & 3117 & 3118 & 3118 & 882 & 882\\
+		enzyme         & 396 & 8163 & 8163 & 14989 & 14989 & 393 & 393\\
+		eclass\_514en  & 90994 & 90962 & 90962 & 72517 & 72517 & 35505 & 30330\\
+		go             & 304070 & 90512 & 90512 & 58483 & 58483 & 278610 & 39642\\
+		go-hierarchy   & 588976 & 490109 & 490109 & 0 & 0 & 324016 & 0\\
+		\hline
+	\end{tabular}
+	
+\end{table*}
+
+%The grammar $G^1$ is transformed into an equivalent grammar in normal form, which is necessary for our algorithm. Let $R_S$ be a context-free relation for a start non-terminal in the transformed grammar.
+
+%The result of query 1 evaluation is presented in Table~\ref{tbl1}, where $V$ is a number of vertices in the constructed graph, $E$ is a number of edges in the graph, and \#results is a number of pairs $(n,m)$ in the context-free relation $R_S$. We can determine whether $(i,j) \in R_S$ by asking whether $S \in a^{cf}_{i,j}$, where $a^{cf}$ is a transitive closure, calculated by the proposed algorithm. All implementations in Table~\ref{tbl1} have the same \#results and demonstrate up to 1000 times better performance in comparison with the algorithm, presented in~\cite{RDF}. Our implementation $sGPU$ demonstrates a better performance than $GLL$, on almost all graphs. $GLL$ is faster than $sGPU$ only on two small graphs due to a data transfer between CPU and GPU. Also, for this query, the acceleration from the $GPU$ increases with the graph size growth.
+
+\textbf{Query 2} is based on the grammar $G_2$ for retrieving concepts on the adjacent layers, where:
+\begin{itemize}
+	\item the grammar $G_2 = (N_2, \Sigma_2, P_2)$;
+	\item the set of non-terminals $N_2 = \{S, S_1, S_2, S_3\}$;
+	\item the set of terminals $\Sigma_2 = \{subClassOf, subClassOf^{-1}\}$;
+	\item the set of production rules $P_2$ is presented on Figure~\ref{ProductionRulesQuery2}.
+\end{itemize}
+
+\begin{figure}[h]
+	\[
+	\begin{array}{rccl}
+	0: & S & \rightarrow & S_1 \ S_3 \\ 
+	1: & S & \rightarrow & \text{\emph{subClassOf}} \\
+	2: & S_3 & \rightarrow & S \ S_2 \\ 
+	3: & S_1 & \rightarrow & \text{\emph{subClassOf}}^{-1} \\
+	4: & S_2 & \rightarrow & \text{\emph{subClassOf}} \\
+	\end{array}
+	\]
+	\caption{Production rules for the Query 2 grammar.}
+	\label{ProductionRulesQuery2}
+\end{figure}
+
+\begin{table*}[ht]
+	\centering
+	\caption{Initial graph characteristics for Query 2}
+	\label{tbl4}
+	
+	\begin{tabular}{ | c | c | c | c | c | c |}
+		\hline
+		Ontology & E & \#$S$ & \#$S_1$ & \#$S_2$ & \#$S_3$\\
+		\hline 
+		\hline
+		funding        & 1480 & 0 & 0 & 0 & 0\\
+		wine           & 2450 & 0 & 0 & 0 & 0\\
+		pizza          & 2604 & 0 & 0 & 0 & 0\\
+		core           & 4342 & 0 & 0 & 0 & 0\\
+		pathways       & 18598 & 0 & 0 & 0 & 0\\
+		enzyme         & 109695 & 0 & 0 & 0 & 0\\
+		eclass\_514en  & 523727 & 0 & 0 & 0 & 0\\
+		go             & 534311 & 0 & 0 & 0 & 0\\
+		go-hierarchy   & 980218 & 0 & 0 & 0 & 0\\
+		\hline
+	\end{tabular}
+	
+\end{table*}
+
+\begin{table*}[ht]
+	\centering
+	\caption{Evaluation characteristics for Query 2}
+	\label{tbl5}
+	
+	\begin{tabular}{ | c | c | c | c |}
+		\hline
+		Ontology & time mean (ms) & time std (ms) & iterations \\
+		\hline 
+		\hline
+		funding        & 0.0 & 0.0 & 7\\
+		wine           & 3.0 & 0.0 & 3\\
+		pizza          & 0.0 & 0.0 & 8\\
+		core           & 0.0 & 0.0 & 4\\
+		pathways       & 1.0 & 0.0 & 2\\
+		enzyme         & 3.0 & 0.0 & 2\\
+		eclass\_514en  & 53.0 & 0.0 & 4\\
+		go             & 594.0 & 0.0 & 23\\
+		go-hierarchy   & 281.0 & 0.0 & 4\\
+		\hline
+	\end{tabular}
+	
+\end{table*}
+
+\begin{table*}[ht]
+	\centering
+	\caption{Graph characteristics after CFPQ evaluation for Query 2}
+	\label{tbl6}
+	
+	\begin{tabular}{ | c | c | c | c | c |}
+		\hline
+		Ontology & \#$S$ & \#$S_1$ & \#$S_2$ & \#$S_3$\\
+		\hline 
+		\hline
+		funding        & 1158 & 90 & 90 & 566\\
+		wine           & 133 & 126 & 126 & 35\\
+		pizza          & 1262 & 259 & 259 & 384\\
+		core           & 214 & 178 & 178 & 108\\
+		pathways       & 3117 & 3117 & 3117 & 3010\\
+		enzyme         & 8163 & 8163 & 8163 & 8156\\
+		eclass\_514en  & 96163 & 90962 & 90962 & 60633\\
+		go             & 334850 & 90512 & 90512 & 327628\\
+		go-hierarchy   & 738937 & 490109 & 490109 & 422848\\
+		\hline
+	\end{tabular}
+	
+\end{table*}
+
+
+%The grammar $G^2$ is transformed into an equivalent grammar in normal form. Let $R_S$ be a context-free relation for a start non-terminal in the transformed grammar.
+
+%The result of the query 2 evaluation is presented in Table~\ref{tbl2}. All implementations in Table~\ref{tbl2} have the same \#results. On almost all graphs $sGPU$ demonstrates a better performance than $GLL$ implementation, and we also can conclude, that acceleration from the $GPU$ increases with the graph size growth.
+
+\textbf{Query 3} is based on the grammar $G_3$ for retrieving ...TODO..., where:
+\begin{itemize}
+	\item the grammar $G_3 = (N_3, \Sigma_3, P_3)$;
+	\item the set of non-terminals $N_3 = \{S, S_1, BT, BTR\}$;
+	\item the set of terminals $\Sigma_3 = \{bt, bt^{-1}\}$;
+	\item the set of production rules $P_3$ is presented on Figure~\ref{ProductionRulesQuery3}.
+\end{itemize}
+
+\begin{figure}[h]
+	\[
+	\begin{array}{rccl}
+	0: & S & \rightarrow & BT \ S_1 \\
+	1: & S_1 & \rightarrow & S \ BTR \\
+	2: & S & \rightarrow & BT \ BTR \\	 
+	3: & BT & \rightarrow & \text{\emph{bt}} \\
+	4: & BTR & \rightarrow & \text{\emph{bt}}^{-1} \\
+	\end{array}
+	\]
+	\caption{Production rules for the Query 3 grammar.}
+	\label{ProductionRulesQuery3}
+\end{figure}
+
+\begin{table*}[ht]
+	\centering
+	\caption{Initial graph characteristics for Query 3}
+	\label{tbl7}
+	
+	\begin{tabular}{ | c | c | c | c | c | c |}
+		\hline
+		Ontology & E & \#$S$ & \#$S_1$ & \#$BT$ & \#$BTR$\\
+		\hline 
+		\hline
+		geospeices        & 2311461 & 0 & 0 & 0 & 0\\
+		\hline
+	\end{tabular}
+	
+\end{table*}
+
+\begin{table*}[ht]
+	\centering
+	\caption{Evaluation characteristics for Query 2}
+	\label{tbl8}
+	
+	\begin{tabular}{ | c | c | c | c |}
+		\hline
+		Ontology & time mean (ms) & time std (ms) & iterations \\
+		\hline 
+		\hline
+		geospeices        & 13980.0 & 0.0 & 11\\
+		\hline
+	\end{tabular}
+	
+\end{table*}
+
+\begin{table*}[ht]
+	\centering
+	\caption{Graph characteristics after CFPQ evaluation for Query 2}
+	\label{tbl9}
+	
+	\begin{tabular}{ | c | c | c | c | c |}
+		\hline
+		Ontology & \#$S$ & \#$S_1$ & \#$BT$ & \#$BTR$\\
+		\hline 
+		\hline
+		geospeices        & 226669749 & 21361542 & 20867 & 20867\\
+		\hline
+	\end{tabular}
+	
+\end{table*}
+
+%As a result, we conclude, that our algorithm can be applied to some real-world problems and allows us to speed up the computations, using GPGPU. Also, our algorithm can be easily implemented using standard libraries for matrix operations calculation. We can also speculate, that the use of bit matrix multiplication algorithms to implement our Boolean matrix multiplication can significantly improve the performance of our algorithm.
