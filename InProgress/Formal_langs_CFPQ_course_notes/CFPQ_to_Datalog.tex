@@ -1,32 +1,138 @@
-\section{От CFPQ к вычислению Datalog-запросов}\label{Subsection Datalog}
+\chapter{От CFPQ к вычислению Datalog-запросов}\label{Subsection Datalog}
+Рассмотрим грамматику  $S \rightarrow aSb \mid SS \mid \varepsilon$, заданную через набор предикатов:
+\begin{itemize}
+	\item $a(i, w)$ --- Предикат, соответствующий терминалу. Обращается в True, если на $i$-том месте в строке $w$ стоит символ $a$
+	\item $S(i, j, w)$ --- Предикат, соответствующий нетерминалу. Обращается в True, если выполняется одно из условий:
+	\begin{enumerate}
+		\item $i == j \quad(\varepsilon)$
+		\item $\exists k: i \leq k \leq j \And S(i, k - 1, w) \And S(k, j, w)  \quad (SS)$
+		\item  ${a(i, w) \And S(i+1, j-1, w) \And b(j-1, w)} \quad (aSb)$
+	\end{enumerate}
+\end{itemize}
+
+Таким образом $S(0,|w|,w)$ покажет, выводится ли строка $w$ из данной грамматики,
+а $S(\_,\_,w)$ даст нам список всех цепочек внутри $w$, выводящихся из $S$.
 
 \subsection{Datalog}
-Конечные Эрбрановы модели.
-Наименьшая неподвижная точка.
-$C \coloneq d$
+Datalog~\cite{Datalog}\footnote{\url{https://www.computer.org/csdl/journal/tk/1989/01/k0146/13rRUx0xPIQ}} --- декларативный логический язык программирования. Используется для написания запросов к дедуктивным базам данных\footnote{\url{https://en.wikipedia.org/wiki/Deductive_database}}. 
+
+\begin{example}
+	Пример программы на даталоге.
+	\begin{enumerate}
+		\item Набор фактов (часто факты находятся в базе данных):
+		\begin{itemize}
+			\item $a(0).$
+			\item $b(1).$
+			\item $a(2).$
+			\item $b(3).$
+			\item $s(I, I).$
+		\end{itemize}
+		\item Набор правил:
+		\begin{itemize}
+			\item $s(I, J) \coloneq s(I, K-1), s(K,J), (I \leq K \leq J)$
+			\item $s(I,J)\coloneq a(I), s(I+1, J-1),b(J)$
+		\end{itemize}
+		\item Запросы:
+		\begin{itemize}
+			\item $?- s(I, J)$
+		\end{itemize}
+	\end{enumerate}
+\end{example}
+
+Таким образом мы описали на даталоге строку через набор фактов, грамматику, указанную выше, через набор фактов и правил и сделали запрос на все цепочки, выводящиеся из $S$. 
+
+\textbf{NB!} Обратите внимание~\cite{Datalog}, что строки, начинающиеся с большой буквы, в даталоге считаются переменными. Также важно, что все переменные неявно квантифицированны.
 
 
-\subsection{КС-запрос как запрос на Datalog}
+\subsection{Datalog для работы с графами}
+На даталоге также можно задавать графы и писать к ним запросы.
+\begin{example}
+	Пример описания графа на даталоге.
+	\begin{center}
+		\begin{tikzpicture}[shorten >=1pt,on grid,auto]
+		\node[state] (q_0)   {$0$};
+		\node[state] (q_1) [above right=of q_0] {$1$};
+		\node[state] (q_2) [right=of q_0] {$2$};
+		\node[state] (q_3) [right=of q_2] {$3$};
+		\path[->]
+		(q_0) edge  node {$a$} (q_1)
+		(q_1) edge  node {$a$} (q_2)
+		(q_2) edge  node {$a$} (q_0)
+		(q_2) edge[bend left, above]  node {$b$} (q_3)
+		(q_3) edge[bend left, below]  node {$b$} (q_2);
+		\end{tikzpicture}
+	\end{center}
+\begin{itemize}
+	\item[] $a(0, 1).$
+	\item[] $a(1, 2).$
+	\item[] $a(2, 0).$
+	\item[]	$b(2, 3).$
+	\item[]	$b(3, 2).$
+\end{itemize}
+	
+\end{example}
 
-Покажем, что для данного графа и КС-запроса можно построить эквивалентный запрос на Datalog.
+Теперь зададим рассмотренную выше грамматику для работы с графом.
+\begin{itemize}
+	\item[] $s(I, I).$
+	\item[] $s(I,J) \coloneq s(I, K-1),s(K, J).$
+	\item[] $s(I, J) \coloneq a(I, L),S(L,M),b(M,J).$
+\end{itemize}
 
-Пусть дан граф
-Граф преобразуется в набор фактов (базу данных).
+Тогда запрос $?-s(I, J)$ выдаст нам все такие пути в графе, что последовательность составляющих их вершин в порядке прохождения выводится их грамматики.
 
-Пусть есть граммтика $G$: $S \rightarrow a \ b \ | \ a \ S \ b$.
-Она может быть преобразована в запрос следующего вида.
-$s(X,Y) \coloneq a(X,Z), b(Z,Y). $
-$s(X,Y) \coloneq a(X,Z), s(Z,W) b(W,Y). $
-$? \coloneq s(X,Y)$
+\subsection{Алгоритм Эрли}
+Для распознавания контекстно-свободных грамматик может использоваться алгоритм Эрли~\cite{Earley} \footnote{\url{https://en.wikipedia.org/wiki/Earley}}.
+Рассмотрим грамматику $G=(N,T,P,S)$, слово $a_1...a_n$,
+и правило $A \rightarrow \alpha\beta$. Будем считать, что утверждение
+$[A\rightarrow \alpha \bullet \beta](i,j), j \in [1..n]$ является истиной, если верно, что:
+\begin{itemize}
+	\item $\alpha \xrightarrow{\smash{*}} a_{i+1}...a_j$ (Последовательность выводится из $\alpha$)
+	\item $S \xrightarrow{\smash{*}} a_1...a_jA_\gamma$ 
+\end{itemize}
 
-Наблюдения: появились пременные, есть порядок у конъюнктов, который задаёт порядок связывания.
 
-\subsection{Обобщение GLL для вычисления Datalog-запросов}
-Дескриптор --- состояние процесса: состояние автомата, результат проделанной работы, подстановка.
-Задача --- найти подстановки.
-На каждом шаге есть набор подстановок.
+Рассмотрим правила вывода для подобных утверждений:
 
-\subsection{Вопросы и задачи}
+\begin{enumerate}
+	\item $\frac{S \rightarrow \alpha \in P}{[S \rightarrow \bullet \alpha](0,0)}$ Инициализация (Init)
+	
+	\item $\frac{\left[A \rightarrow \alpha \bullet a_{j+1} \beta\right](i, j)}{\left[A \rightarrow \alpha a_{j+1} \bullet \beta\right](i, j+1)}$ Сканирование (Scan)
+	
+	\item $\frac{[A \rightarrow \alpha \cdot B \beta](i, j) \quad B \rightarrow \gamma \in P}{[B \rightarrow \bullet \gamma](j, j)}$ Предсказание (Predict)
+	
+	\item $\frac{[A \rightarrow \alpha \cdot B](i, j) \quad[B \rightarrow \gamma \bullet](j, k)}{[A \rightarrow \alpha B \bullet \beta](i, k)}$ Завершение (Complete)
+	
+\end{enumerate}
+
+Идея алгоритма Эрли заключается в том, чтобы, начиная с инициализации, используя правила, вывести утверждение, содержащие данную строку слева от точки, и ничего справа, или попробовать все возможные выводы и признать, что строка не выводима.
+
+Сложность алгоритма Эрли составляет $O(|P|^2n^3)$
+
+\begin{example} Пример начала одной из веток дерева вывода для алгоритма Эрли для рассматриваемой грамматики
+	
+	$$\underline{S \rightarrow SS} \quad Init$$
+	$$\underline{[S \rightarrow \bullet SS](0,0), \space S \rightarrow aSb} \quad Predict$$
+	$$\underline{[S \rightarrow \bullet aSb](0,0)} \quad Scan$$
+	$$\underline{[S \rightarrow a \bullet Sb](0,1), S \rightarrow \varepsilon} \quad Predict$$
+	$$\underline{[S \rightarrow \bullet](0, 1), [S \rightarrow aS \bullet b](0,1)} \quad Complete$$
+	$$\underline{[S \rightarrow aS \bullet b](0,1)} \quad Scan$$
+	$$\underline{[S \rightarrow \bullet SS](0,0),[S \rightarrow aSb \bullet](0,2)} \quad Complete$$
+	$$[\underline{S \rightarrow S \bullet S](0,2)}$$
+	$$\cdot\cdot\cdot$$
+	
+\end{example}
+
+Сложность можно понизить, изменив правила ``Предсказание'' и ``Завершение'' таким образом:
+\begin{itemize}
+	\item $\frac{[A \rightarrow \alpha \cdot B \beta](i, j) \quad B \rightarrow \gamma \in P}{[B \rightarrow \bullet \gamma](j, j)} \Rightarrow$ $
+	\frac{[A \rightarrow \alpha \cdot B \beta](i, j)}{? B(j)}; \quad \frac{? B(j) \quad B \rightarrow \gamma \in P}{[B \rightarrow \cdot \gamma](j, j)}$
+	\item $\frac{[A \rightarrow \alpha \cdot B](i, j) \quad[B \rightarrow \gamma \bullet](j, k)}{[A \rightarrow \alpha B \bullet \beta](i, k)} \Rightarrow$ $\frac{[B \rightarrow \gamma \bullet](j, k)}{B(j, k)}; \quad \frac{[A \rightarrow \alpha \cdot B \beta](i, j) \quad B(j, k)}{[A \rightarrow \alpha B \cdot \beta](i, k)}$
+\end{itemize}
+Так, разложив каждое правило на два, мы избавляемся от необходимости перевычислять дерево разбора каждого нетерминала после того, как однократно вычислим, что он выводим (мемоизируем его). Получаем сложность $O(|P|)$.
+
+Описанный подход мемоизации~\cite{Magic} части используется для оптимизации программ на даталоге. Можно либо видоизменять правила, задающие грамматику в тексте программы, либо модифицировать компилятор, чтобы он пытался сделать это автоматически. 
+\section{Вопросы и задачи}
 \begin{enumerate}
   \item Написать синтаксический анализатор раз.
   \item Написать синтаксический анализатор два.
