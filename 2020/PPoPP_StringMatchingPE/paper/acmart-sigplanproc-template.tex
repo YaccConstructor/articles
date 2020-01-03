@@ -195,12 +195,15 @@ Parallel Programming (PPoPP '20), February 22--26, 2020, San Diego, CA, USA}
 %% Note: \begin{abstract}...\end{abstract} environment must come
 %% before \maketitle command
 \begin{abstract}
-While GPU utilization allows one to speed up computations to the orders of magnitude, memory management remains the bottleneck making it often a challenge to achieve the desired performance. Thus, different memory optimizations are leveraged to reduce the number of memory transactions and make memory being used more effectively.
+While GPU utilization allows one to speed up computations to the orders of magnitude, memory management remains the bottleneck making it often a challenge to achieve the desired performance. Hence, different memory optimizations are leveraged to
+% reduce the number of memory transactions and 
+make memory being used more effectively.
 %Notably, memory optimizations are being the most significant problem: GPUs memory hierarchy implies certain limitations, thus making data memory allocation management nontrivial and memory to be utilized carefully.
 %In the paper we propose an approach automating memory management utilizing partial evaluation, a program transformation technique that enables the data accesses to be precomputed, optimized, and embedded into the code, mitigating memory transactions.
-In the paper we propose an approach automating memory management utilizing partial evaluation, a program transformation technique that enables the data accesses to be pre-computed, optimized, and embedded into the code, saving memory transactions.
-As an empirical evaluation of our approach we applied the technique to a straightforward CUDA C na\"ive string pattern matching algorithm implementation.
-Our experiments show that the transformed program is up to 8 times as efficient as the original one.
+We propose an approach automating memory management utilizing partial evaluation, a program transformation technique that enables data accesses to be pre-computed, optimized, and embedded into the code, saving memory transactions.
+%As an empirical evaluation of our approach we applied the technique to a straightforward CUDA C na\"ive string pattern matching algorithm implementation.
+%Our experiments show that the transformed program is up to 8 times as efficient as the original one.
+An empirical evaluation of our approach shows that the transformed program could be up to 8 times as efficient as the original one in the case of CUDA C na\"ive string pattern matching algorithm implementation.   
 \end{abstract}
 
 %%Default
@@ -287,7 +290,7 @@ Further, since GPU memory access latency varies between various memory types, te
 However, memory access latency could be aggravated by improper access patterns that entail the increase of the total number of memory transactions 
 making the memory type being used much less effectively.
 The proposed approach is a runtime memory optimization addressing the mentioned issues that reduces the overall memory transactions number.
-The approach is based on the following typical feature for GPU-based solutions common workflow.
+The approach is based on the following typical feature of GPU-based solutions common workflow.
 
 %At the same time, a common workflow of a GPU-based solution has a feature that allows one to introduce runtime optimizations which originally are static.
 Suppose % the next scenario.
@@ -295,8 +298,8 @@ we have created an interactive solution for huge data analysis allowing the end-
 Let a query be relatively small and data be large, resulting in execution time being signigicant.
 Simple examples of such scenarios are multiple patterns matching, database querying, convolutional filtering.
 The GPU kernel should be generic and have at least two parameters: a query and data.
-But at the moment the user issues a query and the host code is ready to run the kernel the query could be used as a static data for the kernel runtime optimization, since the query remains the same during the execution. 
-Specifically, the kernel could be \emph{partially evaluated} in runtime with respect to the query being issued.
+But at the moment the user issues a query and the host code is ready to run the kernel, the query could be used as static data for the kernel runtime optimization, since the query remains the same during the execution. 
+Specifically, the kernel could be \emph{partially evaluated} at runtime with respect to the query being issued.
 
 \textit{Partial evaluation} or \textit{specialization} is a well-known  optimization technique that given a program and part of its input data, called \emph{static}, specializes the program with respect to the data, producing another, optimized, program which if given only the remaining part of input data, called \emph{dynamic}, yields the same results as the original program would have produced being executed given both parts of the input data~\cite{Jones:1993:PEA:153676,PartialEvalPaper}.
 
@@ -309,8 +312,8 @@ Specifically, the kernel could be \emph{partially evaluated} in runtime with res
 
 Application of specialization for one of the described scenarios, namely database querying, has been recently known to significantly improve CPU-based queries execution performance~\cite{10.1007/978-3-319-74313-4_27}.
 It appears that partial evaluation is able to achieve similar results for GPU-based applications, optimizing memory accesses.
-Particularly, considering the problem of multiple patterns matching, where the patterns are \emph{static} during the execution, the result of the memory access for a particular pattern could be evaluated in specialization time and embedded as a value into the code during compilation, rather than being compiled to a load instruction for some memory type.
-More precisely, partial evaluation lets the values to be accessed thought instructions cache, avoiding memory load transactions.
+Particularly, considering the problem of multiple patterns matching, where the patterns are \emph{static} during the execution, the result of a memory access for a particular pattern could be evaluated at specialization time and embedded as a value into the code during compilation, rather than being compiled to a load instruction for some memory type.
+More precisely, partial evaluation lets the values to be accessed through instructions cache, avoiding issuing load transactions.
 Thus, in this work we propose to apply partial evaluation for GPU code optimization.
 
 %Consider the snippet of code from \hyperref[lst1]{\textbf{Listing 1}}.
@@ -396,42 +399,46 @@ Thus, in this work we propose to apply partial evaluation for GPU code optimizat
 
 \section{Evaluation}
 
-The approach has been evaluated considering the problem of \textit{file carving}~\cite{DataCarving} that stands for extracting files from raw data in a fied of \emph{cyber forensics}. To extract a file, a specific file header should be detected, and the set of relatively short file headers becomes static at the search query executing time. Hence, the query could be specialized with respect to the headers. 
+The approach has been evaluated considering the problem of \textit{file carving}~\cite{DataCarving} that stands for extracting files from raw data in a fied of \emph{cyber forensics}. To extract a file, a specific file header should be detected, and the set of relatively short file headers becomes static at the search query execution time. Hence, the query could be specialized with respect to the headers. 
 %the headers to search for are known beforehand and commonly are relatively short. 
 %As an instance of a problem, consider the \textit{file carving}~\cite{DataCarving}, in a field of \textit{cyber forensics} it stands for extracting files from raw data, i.e. from lost clusters, unallocated clusters and slack space of the disk or digital media.
 %To extract a file, we should detect a specific file header: for a predefined set of file types, the headers to search for are known beforehand and commonly are relatively short.
 
-The partial evaluator being used is one developed as part of \textit{AnyDSL} framework~\cite{LeiBa}.
-Thus, we compare\footnote{The approach has been evaluated on Ubuntu 18.04 system with \emph{Intel Core i7-6700} processor, 8GB of RAM and \emph{Pascal}-based \emph{GeForce GTX 1070} GPU with 8GB device memory.} na\"ive multiple string matching algorithm implementations: one utilizing AnyDSL framework, leveraging partial evaluation with respect to the file headers, and two base-line ones in CUDA C with global and constant memory for header access respectively.
-All implementations invoke the algorithm in a separate thread for each position in the subject string.
-The headers are stored as a single char-array and accessed via offsets.
-The algorithm simply iterates over all headers searching for a match, if it encounters a mismatch, it jumps to the next header forward through the array. Basically, during specialization the partial evaluator performs loop unrolling and evaluates unrolled memory access instructions for the headers.
+Basically, we compare\footnote{The approach has been evaluated on Ubuntu 18.04 system with \emph{Intel Core i7-6700} processor, 8Gb of RAM and \emph{Pascal}-based \emph{GeForce GTX 1070} GPU with 8Gb device memory.} na\"ive multiple string matching algorithm implementations: one leveraging partial evaluator developed as part of AnyDSL framework~\cite{LeiBa}, and two base-line ones in CUDA C with global and constant memory for header access respectively.  
+%The partial evaluator being used is one developed as part of \textit{AnyDSL} framework~\cite{LeiBa}.
+%Thus, we compare\footnote{The approach has been evaluated on Ubuntu 18.04 system with \emph{Intel Core i7-6700} processor, 8Gb of RAM and \emph{Pascal}-based \emph{GeForce GTX 1070} GPU with 8Gb device memory.} na\"ive multiple string matching algorithm implementations: one utilizing AnyDSL framework, leveraging partial evaluation with respect to the file headers, and two base-line ones in CUDA C with global and constant memory for header access respectively.
+All the implementations invoke the algorithm in a separate thread for each position in the subject string.
+% stored as as a single char-array as well as the headers accessed via offsets.
+%The headers are stored as a single char-array and accessed via offsets.
+The algorithm simply iterates over the headers char-array searching for a match, if it encounters a mismatch, it jumps to the next header forward through the array. During specialization the partial evaluator performs loop unrolling and evaluates unrolled memory access instructions for the runtime-known headers. The results\footnote{The points are the average kernel running time and the grey regions are the area of standard deviation.} of the evaluation\footnote{The subject string has been taken from a hard drive and patterns to be searched have been taken from a taxonomy of file headers specifications~\cite{Headers}.} are presented in Figure~\ref{fig:eval}.
 
 
 %The approach has been evaluated on Ubuntu 18.04 system with \textit{Intel Core i7-6700} processor, 8GB of RAM and \textit{Pascal}-based \textit{GeForce GTX 1070} GPU with 8GB device memory.
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=0.46\textwidth]{results.pdf}
+  \includegraphics[width=0.38\textwidth ,height=0.26\textwidth]{results.pdf}
   \caption{Multiple string pattern matching evaluation}
   \label{fig:eval}
 \end{figure}
 
 %To estimate the performance gain brought by partial evaluation the problem of file carving has been evaluated.
-For the evaluation, the piece of data of 4 GB size has been taken from a hard drive and patterns to be searched have been taken from a taxonomy of file headers specifications~\cite{Headers}.
-The headers have been divided into groups of size 16 and run over multiple times.
-The results are presented in Figure~\ref{fig:eval}.
-The points are the average kernel running time and the grey regions are the area of standard deviation.
+%For the evaluation, a 4 Gb piece of data has been taken from a hard drive and patterns to be searched have been taken from a taxonomy of file headers specifications~\cite{Headers}.
+%The headers have been divided into the groups of size 16 and run over multiple times.
+%The results are presented in Figure~\ref{fig:eval}.
+%The points are the average kernel running time and the grey regions are the area of standard deviation.
 
 Since mismatches happen quite often inducing thread divergence, such access pattern hurts coalescing, increasing the overall number of memory transactions.
-Given that, the performance speedup of a partially evaluated algorithm achieved on a raw data piece of 4 GB size is up to $8$ compared to CUDA C version with global memory and up to $3$ with constant one as illustrated in Figure~\ref{fig:eval}. Namely, the partially evaluated version spends about 300 ms for searching while global and constant memory CUDA C versions making it in 800 ms and 2500 ms respectively.
-Note that specialization time is 2 sec, so in case of analysing 1 Tb storage, performance improvement would be significant.
+Given that, the performance speedup of a partially evaluated algorithm achieved on a raw 4 Gb data piece is up to $8$ compared to CUDA C version with global memory and up to $3$ with constant one as illustrated in Figure~\ref{fig:eval}. Namely, the partially evaluated version spends about 300 ms for searching while global and constant memory CUDA C versions making it in 800 ms and 2500 ms respectively.
+Specialization overhead constitutes 2 sec, which makes performance improvement significant in case of analysing 1 Tb storage.
+%Note that specialization time is 2 sec, hence in case of analysing 1 Tb storage performance improvement would be significant.
 
 
 \section{Conclusion}
-In this work, we apply partial evaluation to optimize GPU programs.
-We show that this optimization technique in the context of file carving problem can improve the performance up to $8$ times if compare na\"ive implementation executed with optimization and without it.
-Note that optimizations do not require manual manipulation with source code and implementation of additional memory management routines.
+In this work, we apply partial evaluation to optimize GPU programs, showing
+that this optimization technique can significantly improve performance, not requiring manual manipulation with source code and implementation of additional memory management routines.
+%in the context of file carving problem can improve the performance up to $8$ times if compare na\"ive implementation executed with optimization and without it.
+%Optimizations do not require manual manipulation with source code and implementation of additional memory management routines.
 
 The partial evaluator being used assumes the programs to be written with special \textit{DSL}.
 Nevertheless, partial evaluation could be applied to general-purpose languages, and CUDA C, and the upcoming research is dedicated to the generalization of the technique so as the partial evaluation could be applied at runtime, during GPU-based application execution.
