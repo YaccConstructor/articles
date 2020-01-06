@@ -1,0 +1,124 @@
+\section{Evaluation and Discussion}
+
+We evaluate all the described implementations on all the datasets and the queries presented.
+We compare our implementations with~\cite{Mishin:2019:ECP:3327964.3328503} and~\cite{Kuijpers:2019:ESC:3335783.3335791}.
+We measure the full time of query execution including all overhead on data preparation.
+This way we can estimate the applicability of the matrix-based algorithm to real-world problems.
+
+For evaluation, we use a PC with Ubuntu 18.04 installed.
+It has Intel core i7-6700 CPU, 3.4GHz, DDR4 32Gb RAM, and Geforce GTX 1070 GPGPU with 8Gb RAM.
+
+The results of the evaluation are summarized in the tables below.
+We provide results only for a part of the collected dataset because of the page limit.
+Running time is measured in seconds, RAM memory consumption is measured in megabytes unless specified otherwise.
+Note that we provide results from the corresponding papers for all implementations except our own.
+The cell is left blank if the time limit is exceeded, or if there is not enough memory to allocate the data.
+
+{\setlength{\tabcolsep}{0.4em}
+\begin{table*}[h]
+\caption{RDFs querying results}
+\label{tbl:tableRDF}
+\rowcolors{3}{}{lightgray}
+\begin{tabular}{| p{1.5cm} | c | c |c | c | c | c | c | c | c | c |}
+    \hline
+    \multicolumn{5}{|c|}{RDF}        & \multicolumn{3}{|c|}{Query $G_1$}                               & \multicolumn{3}{|c|}{Query $G_2$} \\
+    \hline
+    Name                  & \#V    & \#E     & \#type &\#subClassOf & RG\_CPU & RG\_M4RI  & RG\_CUSP   & RG\_CPU & RG\_M4RI  & RG\_CUSP \\
+    \hline
+    \hline
+    \small{funding}       & 778    & 1480    & 304   & 90           & 0.01      & <0.01   & 0.02       & < 0.01  & < 0.01    & < 0.01    \\
+    \small{pizza}         & 671    & 2604    & 365   & 259          & 0.01      & <0.01   & 0.02       & < 0.01  & < 0.01    & < 0.01    \\
+    \small{wine}          & 733    & 2450    & 485   & 126          & 0.01      & <0.01   & 0.02       & < 0.01  & < 0.01    & < 0.01    \\
+    \small{core}          & 1323   & 8684    & 1412  & 178          & < 0.01    & 0.12    & 0.02       & < 0.01  & < 0.01    & < 0.01    \\
+    \small{pathways}      & 6238   & 37196   & 3118  & 3117         & 0.01      & 0.18    & 0.03       & < 0.01  & 0.06      & < 0.01    \\
+    \small{go-hierarchy}  & 45007  & 1960436 & 0     & 490109       & 0.09      & -       & 1.50       & < 0.01  & -         & 0.55      \\
+    \small{enzyme}        & 48815  & 219390  & 14989 & 8163         & 0.02      & 61.23   & 0.10       & < 0.01  & 6.97      & 0.02      \\
+    \small{eclass\_514en} & 239111 & 1047454 & 72517 & 90962        & 0.06      & -       & 0.39       & 0.01    & -         & 0.10      \\
+    \small{go}            & 272770 & 1068622 & 58483 & 90512        & 0.49      & -       & 0.83       & 0.01    & -         & 0.11      \\
+    \hline
+  \end{tabular}
+\end{table*}
+}
+
+
+The results of the first dataset \textbf{[RDF]} are presented in table~\ref{tbl:tableRDF}.
+We can see that the running time of both CPU and GPGPU versions is small even for graphs with a big number of vertices and edges.
+The relatively small number of edges of interest may be the reason for such behavior.
+We believe it is necessary to extend the dataset with new queries which involve more different types of edges.
+Also, we can see, that \textit{m4ri} version which uses dense bit matrices requires more memory.
+Thus we recommend to use sparse matrices on GPGPU.
+
+Geospecies dataset currently can be processed only by using CPU version and we compare our matrix-based CPU implementation with the result form~\cite{Kuijpers:2019:ESC:3335783.3335791} for \textit{AnnGram$_{\textit{rel}}$} algorithm\footnote{Only \textit{AnnGram} works correctly and fits limits, other implementations are faster, but either return an incorrect result or do not fit the memory .}.
+Fortunately, both algorithms calculate queries under relational semantics.
+The result is provided in the table~\ref{tbl:geo}.
+
+\begin{table}[H]
+\caption{Evaluation results on geospecies data}
+\label{tbl:geo}
+\begin{tabular}{| c | c | c | c | }
+    \hline
+     \multicolumn{2}{|c|}{RG\_CPU}     & \multicolumn{2}{|c|}{Neo4j\_AnnGram$_{\text{rel}}$}          \\
+     \hline
+     Time  & Memory (Gb)  & Time  & Memory (Gb)   \\
+    \hline
+    \hline
+    6.8   & 6.83    & 6 953.9  & 29.17   \\
+    \hline
+\end{tabular}
+\end{table}
+
+As we can see, the matrix-based algorithm implemented for RedisGraph is more than 1000 times faster than the one based on annotated grammar implemented for Neo4j and uses more than 4 times less memory.
+We can conclude that the matrix-based algorithm is better than other CFPQ algorithms for query evaluation under a relational semantics for real-world data processing.
+CFPQ evaluation under other semantics (single path, all paths, etc) by using a matrix-based algorithm is a direction for future research.
+
+\begin{table*}[h]
+\caption{Free scale graphs querying results}
+\label{tbl:tableFreeScale}
+\rowcolors{3}{}{lightgray}
+\begin{tabular}{| l | c  c | c  c | c  c | c  c | c  c |}
+    \hline
+    \multirow{2}{*}{Graph} & \multicolumn{2}{|c|}{RG\_CPU} & \multicolumn{2}{|c|}{RG\_m4ri} & \multicolumn{2}{|c|}{RG\_CUSP} &\multicolumn{2}{|c|}{Neo4j\_AnnGram$_{\text{rel}}$} &\multicolumn{2}{|c|}{Neo4j\_Matrix} \\
+    \cline{2-11}
+                  & Time     & Mem             & Time   & Mem          & Time     & Mem         & Time    & Mem         & Time    & Mem\\
+    \hline
+    \hline
+    G(100,1)      & < 0.01  & < 0.01           & < 0.01  & 0.10        & 0.01   & 2.00          & < 0.02  & 0.08      & 0.20     & 0.03  \\
+    G(100,3)      & < 0.01  & < 0.01           & < 0.01  & 0.10        & 0.04   & 2.00          & 0.02    & 0.15      & 0.40     & 0.03  \\
+    G(100,5)      & < 0.01  & < 0.01           & < 0.01  & 0.10        & 0.05   & 2.00          & 0.03    & 0.21      & 0.40     & 0.03  \\
+    G(100,10)     & < 0.01  & < 0.01           & 0.01    & 0.10        & 0.07   & 2.00          & 0.09    & 0.60      & 0.60     & 0.03  \\
+    \hline
+    G(500,1)      & < 0.01  & < 0.01           & < 0.01  & 2.00        & 0.01   & 2.00          & < 0.02  & 0.20      & 20.00    & 0.60   \\
+    G(500,3)      & < 0.01  & < 0.01           & < 0.01  & 2.00        & 0.07   & 2.00          & 0.03    & 0.50      & 40.00    & 0.60   \\
+    G(500,5)      & < 0.01  & 0.17             & < 0.01  & 2.00        & 0.10   & 2.00          & 0.10    & 1.10      & 50.00    & 0.60   \\
+    G(500,10)     & 1.24    & 0.78             & 0.01    & 2.00        & 0.11  & 4.00           & 0.50    & 4.00      & 55.00    & 0.60   \\
+    \hline
+    G(2500,1)     & < 0.01  & 0.11             & 0.07    & 30.00       & 0.03   & 2.00          & 0.03    & 0.70       & 0.023   & 14.00  \\
+    G(2500,3)     & 0.01    & 0.11             & 0.11    & 30.00       & 0.10   & 2.00          & 0.15    & 2.50       & 0.105   & 14.00  \\
+    G(2500,5)     & 2.06    & 0.11             & 0.11    & 30.00       & 0.12   & 4.00          & 0.70    & 8.00       & 1.636   & 14.00  \\
+    G(2500,10)    & 3.25    & 3.77             & 0.13    & 30.00       & 0.31  & 31.20          & 5.00    & 20.00      & 13.071  & 14.00  \\
+    \hline
+    \Cline{6-7}
+    G(10000,1)    & < 0.01  & 0.47             & 1.55    & 200.00      & \Thickvrulel{0.04} & \Thickvruler{2.0}           & 0.10    & 2.50       & -       & -  \\
+    G(10000,3)    & 5.439   & 1.15             & 3.60    & 200.00      & \Thickvrulel{0.20} & \Thickvruler{3.20}          & 0.40    & 10.00      & -       & -  \\
+    G(10000,5)    & 7.978   & 2.64             & 3.32    & 200.00      & \Thickvrulel{0.25} & \Thickvruler{13.20}         & 3.00    & 35.00      & -       & -  \\
+    G(10000,10)   & 13.180  & 21.08            & 3.60    & 200.00      & \Thickvrulel{1.23} & \Thickvruler{198.00}        & 40.00   & 240.00     & -       & -  \\
+    \hline
+    \Cline{6-7}
+  \end{tabular}
+\end{table*}
+
+The next is the \textbf{[FreeScale]} datatset.
+We compare our implementations with two implementations form~\cite{Kuijpers:2019:ESC:3335783.3335791} which evaluate queries under relatonal semantics: \textit{Neo4j\_AnnGram${_\textit{rel}}$} and \textit{Neo4j\_Matrix}. The results are presented in table~\ref{tbl:tableFreeScale}.
+The evaluation shows that sparsity of graphs (value of parameter \texttt{p}) is important both for implementations which use sparse matrices and for implementations which use dense matrices.
+Note that the results for implementations for Neo4j are restored from graphics provided in~\cite{Kuijpers:2019:ESC:3335783.3335791}.
+So, values are not precise, but it is possible to compare implementations.
+
+Evaluation shows that our CPU version is comparable with \textit{Neo4j\_AnnGram$_{\textit{rel}}$} and for relatively dense graphs (each vertex has 10 connections) our implementation is faster. Moreover, while \textit{Neo4j\_Matrix} exceeded limits on the biggest graph, our implementation works fine.
+This demonstrantes the importance of using of appropriate libraries for matrix-based algorithm implementation.
+Also, we can see, that GPGPU version which utilizes sparse matrices is significantly faster than the other implementations.
+Note, that for GPGPU versions we include time required for data transferring and formats convertion.
+
+Finally, we conclude that the matrix-based algorithm paired with a suitable database and employing appropriate libraries for linear algebra is a promising way to make CFPQ applicable for real-world data analysis.
+We show that SuiteSparse-based CPU implementation is performant enough to be comparable with GPGPU-based implementations on real-world data.
+It means that we can handle more complex data.
+We can also see, that more complex queries should be added to the dataset to make it more representable.

@@ -1,0 +1,321 @@
+\documentclass{beamer} 
+\usepackage{beamerthemesplit} 
+\usepackage{wrapfig} 
+\usepackage{verbatim} 
+\usetheme{SPbGU} 
+\usepackage{pdfpages} 
+\usepackage{amsmath} 
+\usepackage{cmap}
+\usepackage{array} 
+\usepackage[T2A]{fontenc} 
+\usepackage[utf8]{inputenc} 
+\usepackage{tikz} 
+\usetikzlibrary{positioning, automata}
+\usepackage{multirow} 
+\usepackage[noend]{algpseudocode} 
+\usepackage{algorithm} 
+\usepackage{algorithmicx} 
+\usetikzlibrary{shapes,arrows} 
+\usepackage{fancyvrb} 
+\usepackage{pgfplots} 
+\usepackage{sidecap} 
+\usepackage{soul}
+\usepackage{xcolor}
+\usepackage{tabu}
+\usepackage{tikz}
+\usetikzlibrary{calc}
+\usepackage{zref-savepos}
+\usepackage{colortbl}
+\usepackage[normalem]{ulem}
+\pgfplotsset{compat=1.9} 
+\newtheorem{rutheorem}{Теорема} 
+\newtheorem{ruproof}{Доказательство} 
+\newtheorem{rudefinition}{Определение} 
+\newtheorem{rulemma}{Лемма} 
+\beamertemplatenavigationsymbolsempty 
+
+\newcounter{NoTableEntry}
+\renewcommand*{\theNoTableEntry}{NTE-\the\value{NoTableEntry}}
+
+\newcommand*{\strike}[2]{%
+	\multicolumn{1}{#1}{%
+		\stepcounter{NoTableEntry}%
+		\vadjust pre{\zsavepos{\theNoTableEntry t}}% top
+		\vadjust{\zsavepos{\theNoTableEntry b}}% bottom
+		\zsavepos{\theNoTableEntry l}% left
+		\hspace{0pt plus 1filll}%
+		#2% content
+		\hspace{0pt plus 1filll}%
+		\zsavepos{\theNoTableEntry r}% right
+		\tikz[overlay]{%
+			\draw
+			let
+			\n{llx}={\zposx{\theNoTableEntry l}sp-\zposx{\theNoTableEntry r}sp-\tabcolsep},
+			\n{urx}={\tabcolsep},
+			\n{lly}={\zposy{\theNoTableEntry b}sp-\zposy{\theNoTableEntry r}sp},
+			\n{ury}={\zposy{\theNoTableEntry t}sp-\zposy{\theNoTableEntry r}sp}
+			in
+			(\n{llx}, \n{lly}) -- (\n{urx}, \n{ury})
+			;
+		}% 
+	}%
+}
+
+\title[Effective CFL-reachability]{Эффективные алгоритмы для CFL-reachability} 
+% То, что в квадратных скобках, отображается в левом нижнем углу. 
+\institute[]{ JetBrains Research, Programming Languages and Tools Lab  \\
+    Сенкт-Петербургский Академический Университет } 
+
+\author[Екатерина Шеметова]{Екатерина Шеметова}
+
+\date{14.12.2019} 
+
+\begin{document} 
+\definecolor{red}{RGB}{255,0,0} 
+
+\begin{frame}
+	\begin{tabular}{p{2.0cm} p{7.5cm} p{1cm}}
+        \begin{center}
+            \includegraphics[height=1.5cm]{pictures/jetbrainsResearch.pdf}
+        \end{center}
+        
+    \end{tabular}
+	\titlepage
+\end{frame}
+
+
+\begin{frame}
+\frametitle{CFL-reachability}
+        \begin{center}
+           достижимость в графе + контекстно-свободные ограничения
+        \end{center}
+\begin{columns}[c] % The "c" option specifies centered vertical alignment while the "t" option is used for top vertical alignment
+
+\column{.55\textwidth} % Left column and width
+\begin{tikzpicture}[shorten >=1pt,node distance=2cm,on grid,auto] 
+   \node[state] (q_1)   {$1$}; 
+   \node[state] (q_2) [above right=of q_1] {$2$}; 
+   \node[state] (q_3) [right=of q_2] {$3$}; 
+   \node[state] (q_4) [right=of q_3] {$4$};
+    \path[->] 
+    (q_1) edge  node {a} (q_2)          
+    (q_2) edge  node {a} (q_3)
+    (q_3) edge  node {a} (q_1)
+    (q_3) edge[bend left, above]  node {b} (q_4)
+    (q_4) edge[bend left, below]  node {b} (q_3);
+\end{tikzpicture}
+
+\column{.4\textwidth} % Right column and width
+$S \rightarrow aSb$ $|$ $ab$
+\\
+Решения: $(S, 2, 4), (S, 1, 3), ..., (S, 3, 3)$
+\\2-4: ab
+\\1-3: aabb
+\\3-4: aaabbb
+\\ ...
+\\3-3: aaaaaabbbbbb
+
+
+\end{columns}
+
+
+\begin{itemize}
+\item Вход: контекстно-свободная грамматика $G$ и помеченный ориентированный граф $D$
+\itemСферы применения: статический анализ кода, запросы к графовым базам данных
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Проблемы и цель}
+\textbf{Цель:} Хотим эффективно решать задачу CFL-reachability
+\\
+\textbf{Проблемы:} 
+\begin{enumerate}
+\item Классический алгоритм для решения задачи CFL-reachability работает за $O(n^3)$ ($n$ --- число вершин в графе).
+\\\textbf{Большая открытая проблема:} существует ли алгоритм, работающий за $O(n^{3-\varepsilon})$ (т.н. \textit{субкубический алгоритм})?
+
+\end{enumerate}
+\end{frame}
+
+\begin{frame}
+\frametitle{Проблемы и цель}
+\textbf{Цель:} Хотим эффективно решать задачу CFL-reachability
+\\ 
+\textbf{Проблемы:} 
+\begin{enumerate}
+\item Классический алгоритм для решения задачи CFL-reachability работает за $O(n^3)$ ($n$ --- число вершин в графе).
+\\\textbf{Большая открытая проблема:} существует ли алгоритм, работающий за $O(n^{3-\varepsilon})$ (т.н. \textit{субкубический алгоритм})?
+\item Параллельный алгоритм --- доказано, что для задачи CFL-reachability нельзя построить эффективный параллельный алгоритм
+
+\end{enumerate}
+\end{frame}
+
+\begin{frame}
+\frametitle{Проблемы и цель}
+\textbf{Цель:} Хотим эффективно решать задачу CFL-reachability
+\\ 
+\textbf{Проблемы:} 
+\begin{enumerate}
+\item Классический алгоритм для решения задачи CFL-reachability работает за $O(n^3)$ ($n$ --- число вершин в графе).
+\\\textbf{Большая открытая проблема:} существует ли алгоритм, работающий за $O(n^{3-\varepsilon})$ (т.н. \textit{субкубический алгоритм})?
+\item Параллельный алгоритм --- доказано, что для задачи CFL-reachability нельзя построить эффективный параллельный алгоритм
+
+\end{enumerate}
+\textbf{Подход:} Попробуем найти подклассы граматик, для которых задача может быть эффективно решена
+
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Параллельная сложность}
+\begin{itemize}
+\item Хотим знать, какие задачи эффективно параллелятся, а какие --- нет
+\item Что в теории значит ``эффективно параллелялятся''?
+\end{itemize}
+\end{frame}
+\begin{frame}
+\frametitle{Параллельная сложность}
+\begin{itemize}
+\item Хотим знать, какие задачи эффективно параллелятся, а какие --- нет
+\item Что в теории значит ``эффективно параллелялятся''?
+\begin{itemize}
+\item Для входа длиной $n$ задача может быть решена:
+\begin{itemize}
+\item полиномиальным от $n$ числом процессоров и 
+\item за полилогарифмическое от $n$ время $polylog(n)$
+\end{itemize}
+\item Если время хотя бы линейно от входа, то параллелить уже неэффективно
+\end{itemize}
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{CFL-reachability и параллельная сложность}
+\begin{itemize}
+\item Классический результат: в общем случае для задачи CFL-reachability нельзя построить эффективный параллельный алгоритм
+\item Но утверждается, что для некоторых фиксированных классов контекстно-свободных грамматик данная задача эффективно параллелится
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}
+\frametitle{CFL-reachability и параллельная сложность}
+\begin{itemize}
+\item Классический результат: в общем случае для задачи CFL-reachability нельзя построить эффективный параллельный алгоритм
+\item Но утверждается, что для некоторых фиксированных классов контекстно-свободных грамматик данная задача эффективно параллелится
+\item \textbf{Вопросы:} Что объединяет эти эффективные классы? Много ли их? Почему они обладают этим свойством? Можем ли мы получить новые, полезные на практике?
+\end{itemize}
+\end{frame}
+
+
+
+
+\begin{frame}
+\frametitle{Эффективные подклассы}
+\begin{itemize}
+\item Эффективность зависит от специального параметра языка --- рационального индекса $\rho_L(n)$
+\item $\rho_L(n) = \max\{\min\{|w|:w \in L \cap K\}, K \in {Rat}_n, L \cap K \neq \emptyset\}$
+\begin{columns}[c] % The "c" option specifies centered vertical alignment while the "t" option is used for top vertical alignment
+
+\column{.55\textwidth} % Left column and width
+\begin{tikzpicture}[shorten >=1pt,node distance=2cm,on grid,auto] 
+   \node[state] (q_1)   {$1$}; 
+   \node[state] (q_2) [above right=of q_1] {$2$}; 
+   \node[state] (q_3) [right=of q_2] {$3$}; 
+   \node[state] (q_4) [right=of q_3] {$4$};
+    \path[->] 
+    (q_1) edge  node {a} (q_2)          
+    (q_2) edge  node {a} (q_3)
+    (q_3) edge  node {a} (q_1)
+    (q_3) edge[bend left, above]  node {b} (q_4)
+    (q_4) edge[bend left, below]  node {b} (q_3);
+\end{tikzpicture}
+
+\column{.4\textwidth} % Right column and width
+$S \rightarrow aSb$ $|$ $ab$
+\\
+Решения: $(S, 2, 4), (S, 1, 3), ..., (S, 3, 3)$
+\\2-4: ab
+\\1-3: aabb
+\\3-4: aaabbb
+\\ ...
+\\\textbf{3-3: aaaaaabbbbbb}
+
+
+\end{columns}
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Эффективные подклассы}
+\begin{itemize}
+\item Эффективность зависит от специального параметра языка --- рационального индекса  $\rho_L(n)$
+\item $\rho_L(n) = \max\{\min\{|w|:w \in L \cap K\}, K \in {Rat}_n, L \cap K \neq \emptyset\}$
+\item Если индекс полиномиален от числа вершин в графе --- задача может быть эффективно распараллелена, экспоненциален --- нет
+\item Что влияет на величину индекса?
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Эффективные подклассы}
+\begin{itemize}
+\item Эффективность зависит от специального параметра языка --- рационального индекса  $\rho_L(n)$
+\item $\rho_L(n) = \max\{\min\{|w|:w \in L \cap K\}, K \in {Rat}_n, L \cap K \neq \emptyset\}$
+\item Если индекс полиномиален от числа вершин в графе --- задача может быть эффективно распараллелена, экспоненциален --- уже нет
+\item Что влияет на величину индекса?
+\begin{itemize}
+\item Некоторые ограничения на стек pushdown автомата делают рациональный индекс соответствующего языка полиномиальным!
+\item Примеры: one-turn, oscillation-boundness, один элемент в стековом алфавите и т.д.
+\end{itemize}
+\item Также полезно изучить влияние операций над языками на величину индекса
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Результаты}
+\begin{itemize}
+\item Ограничения на стек  pushdown автомата дают нам эффективные языки
+\item Найдены новые подклассы, для которых можно построить эффективный параллельный алгоритм: металинейные, суперлинейные, oscillation-bounded языки
+\item А также известные эффективные языки можно комбинировать с помощью операций конкатенации, union, пересечения с регулярными языками, substitution closure и др. и получать новые эффективные примеры
+\item Для решения задачи адаптирован параллельный алгоритм Брента--Гольдшляггера--Риттера  (на эффективных подклассах число процессоров $O(n^6)$, время --- $O(\log^2 n)$, $n$ --- число вершин в графе)
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Результаты}
+А что по поводу субкубического алгоритма?
+\begin{itemize}
+\item Эффективные для распараллеливания подклассы языков более эффективны и для последовательного алгоритма
+\item Благодаря использованию класса one-counter языков, была получена аппроксимация общей задачи за субкубическое время
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Публикации}
+\begin{itemize}
+\item \textbf{Журнал ``Theory of Computing Systems''} \\
+Ekaterina Shemetova, Semyon Grigorev and Alexander Okhotin. Parallel efficient variants of context-free language reachability problem.
+\\\textit{Статус: планируется публикация}
+\end{itemize}
+Прошлое полугодие: 
+\begin{itemize}
+\item  \textbf{Журнал ``Труды Института системного программирования РАН''}
+\\Шеметова Е.Н., Григорьев С.В. Задача поиска путей в ациклических графах с ограничениями в терминах булевых грамматик. 
+\\\textit{Статус: опубликовано}
+\end{itemize}
+
+\end{frame}
+\begin{frame}
+\frametitle{Планы}
+\begin{itemize}
+\item Построение обощенного субкубического алгоритма для найденных эффективных подклассов КС-языков
+\item Планируется найти эффективные подклассы графов путем изучения влияния структурных характеристик графа, таких как treewidth, pathwidth, сutwidth и др., на эффективность решения задачи
+\item Пробуем использовать найденные эффективные подклассы (как графов, так и грамматик) для получения решения задачи в общем случае 
+\item Подобных проблем много (например APSP), и занимается ими целое сообщество (``fine-grained'' complexity). Ждем ответа от Barna Saha (University of California Berkeley, автор cубкубического алгоритма для LED).
+\end{itemize}
+
+\end{frame}
+\end{document}
+

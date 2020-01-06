@@ -70,12 +70,13 @@
 %\authorrunning{Short form of author list} % if too long for running head
 
 \institute{E. Shemetova \at
-             St. Petersburg Academic University, ul. Khlopina, 8, Saint Petersburg 194021, Russia, \\ JetBrains Research \\
+             St. Petersburg Academic University, ul. Khlopina, 8, Saint Petersburg 194021, Russia, and \\ JetBrains Research \\
               \email{katyacyfra@gmail.com}           %  \\
 %             \emph{Present address:} of F. Author  %  if needed
            \and
            S. Grigorev \at
-              St. Petersburg State University, 7/9 Universitetskaya nab., Saint Petersburg 199034, Russia, \\ JetBrains Research  \\
+              St. Petersburg State University, 7/9 Universitetskaya nab., Saint Petersburg 199034, Russia, 
+and  JetBrains Research  \\
               \email{s.v.grigoriev@spbu.ru}    
 }
 
@@ -86,10 +87,17 @@
 \maketitle
 
 \begin{abstract}
-The context-free language (CFL) reachability problem for a context-free grammar $G$ and directed edge-labelled graph $D$ consists of determining for every pair of nodes  $v$ and $u$ whether $v$ can reach $u$ via a path labelled by string in $L(G)$. 
-\par
-Inspite the 
-\keywords{CFL-reachability \and Complexity \and Boolean circuit}
+The context-free language (CFL) reachability problem for a context-free grammar $G$ and directed edge-labelled graph $D$ consists of determining for every pair of nodes  $v$ and $u$ whether $v$ can reach $u$ via a path labelled by a string in $L(G)$. Whereas it has been shown that CFL-reachability problem is P-complete, there are subclasses of context-free languages and graphs, for which CFL-reachability lies is in NC complexity class.
+
+
+We investigate parallel complexity of variants of CFL-reachability problem with interesting subclasses of context-free grammars and graphs. A Boolean circuit for this problem is presented. We obtain characteristic affecting the effectiveness of Boolean circuit and observe lower and upper bounds on its value.
+
+
+As the result, we generalize known cases of context-free languages and graphs, for which CFL-reachability problem is in NC class; new examples of such subclasses are also obtained. We demonstrate connection between different restrictions on pushdown automata or graph and effectiveness of an appropriate Boolean circuit. 
+
+
+Particularly, CFL-reachability problem for languages of finite-turn pushdown automata, oscillation-bounded automata, one-counter automata and for acyclic graphs with self-loops lies is in NC and, hence, can be effectively parallelized.
+\keywords{CFL-reachability \and parallel complexity \and Boolean circuit \and graphs \and regular languages \and context-free languages \and context-free path queries}
 % \PACS{PACS code1 \and PACS code2 \and more}
 % \subclass{MSC code1 \and MSC code2 \and more}
 \end{abstract}
@@ -98,22 +106,48 @@ Inspite the
 
 \section{Introduction}
 \label{intro}
-The context-free language (CFL) reachability problem is an important problem underlying some fundamential static code analysis \cite*{RepsBasic, Incremental} and graph database query evaluation \cite{HellingsCFPQ}\cite{RDF}\cite{GrigorevRagozina}.
-\par
-Unlike context-free language recognition, which is in NC, CFL-reachability is P-complete \cite{Yannakakis}\cite{RepSeq}. Practically, it means that we don't have an efficient parallel algorithm for solving this problem (unless $P \neq NC$). But want some cases... . Simple cases (examples, trees etc)... Our focus is on the...
-\\This paper is organized as follows.
+The context-free language (CFL) reachability is an important problem underlying some fundamential static code analysis like inter-procedural data flow analysis, inter-procedural slicing and other \cite*{Chatterjee, RepsBasic, Incremental}, and graph database query evaluation \cite*{HellingsCFPQ, RDF, GrigorevRagozina, Azimov}. CFL-reachability is some kind of graph reachability problem with path constraints in terms of context-free languages. Unlike context-free language recognition, which is in NC, CFL-reachability is P-complete \cite*{Yannakakis, RepSeq}. Practically, it means that there is no efficient parallel algorithm for solving this problem (unless P $\neq$ NC). 
+
+
+There are two important models for parallel computation: circuits and PRAMs. Complexity class NC is a class of problems which can be parallelized effectively. It is closely related with the boolean circuit compexity. Also it is known that PRAM algorithm can be simulated by a circuit family. In this work we will use the computational model of boolean circuits.
+
+
+While problem is not parallelizable in general, it is useful to develop more efficient parallel solutions for interesting classes of grammars and graphs. For example, there are context-free languages which admit more efficient parallel algorithms in compare with the general case of context-free recognition \cite*{IBARRA, IBARRA2}.  The same holds for CFL-reachability problem: there are some examples of context-free languages and graphs, for which CFL-reachability problem lies in $NL$ space complexity class (for example linear languages, trees, acyclic graphs) \cite*{Regularrealizability, LReach}. It is well known that $NL \subseteq NC^2$, so an effective parallel circuit for some subclasses of graph and context-free languages exists. Above mentioned works study space complexity, so they don't purpose any parallel algorithms for an ``easy'' subclasses. 
+
+Our focus is on investigating the parallel complexity of CFL-reachability. Especially we are interested in generalization of ``easy'' subclasses and discovering new examples of context-free grammars and graphs, for which CFL-reachability is in NC. Effective subclasses can be useful in practice, because general problem is hard \cite{ExperimentalCFPQ}. Also it is natural to ask which properties of such subclasses implies P-completeness or effectiveness of an appropriate circuit. \cite*{Regularrealizability, ChainQ} mentions a rational index and a fringe property as an example of such properties, but there are no characteristics in terms of pushdown automata, grammar or graph for subclasses with the good rational index and fringe property. The second goal of this work is to construct effective circuit for solving CFL-reachability problem for an ``easy'' cases.
+
+
+\textbf{Related work.}
+CFL-reachability can be considered as an extention of graph reachability problem with path constraints in terms of context-free languages or as context-free recognition problem with non-linear, graph input. Graph reachability is a classical example of highly parallelizable
+problem, it lies in $NC^2$ complexity class \cite{Hirschberg}. It is well-known that context-free recognition is in $NC^2$ too \cite*{Brent, Rytter}. Moreover, there are subclasses of context-free languages, like unambigious context-free languages,  visibly pushdown languages and other, which in $NC^1$ \cite*{IBARRA, IBARRA2, Rossmanith, Okhotin2014ComplexityOI}.
+\\
+However, CFL-reachability problem has long been known to be P-complete \cite{PCompl}. A parallel complexity of this problem is studied by both static code analysis \cite*{RepsBasic, RepSeq} and database communities \cite*{ChainQ, Yannakakis, Ullman}. 
+There are works investigating computational complexity of the language reachability for different variants of languages (regular, context-free) and graphs (acyclic graphs, trees, grid graphs)\cite*{Barrett, LReach, LabelledGraphs}. In \cite{Regularrealizability} focus is on the context-free languages and their subclasses with respect to the rational index measure (\cite{RatBasic}). 
+\\
+On the other hand, CFL-reachability problem can be observed as an intersection non-emptiness problem for context-free language (pushdown automaton) and regular language, because labelled graph is a special kind of nondeterministic finite automata. Complexity of such problem is studied in \cite*{Intersection, VyalyiRR, ganardi2016circuit}.
+
+\textbf{Our contributions.} Our results can be summarized as follows:
+\begin{itemize}
+\item We adapt the Brent-Goldschlager-Rytter parallel algorithm for solving CFL-reachability problem. The resulting circuit has polynomial number of elements and its depth (hence, parallel time) depends on the special parameter denoted by $\mathzapf{L}$. $\mathzapf{L}$ is defined as follows. Fix two nodes $i$ and $j$ of the input graph. For a grammar $G = (\Sigma, N, P)$ consider the shortest path between $i$ and $j$, such that a word obtained from concatenation of edge labeles of this path is in $L(G_A)$ (assume that such path exists), where $A \in N$ and $G_A$ is the input grammar $G$ with fixed start nonterminal $A$. $\mathzapf{L}$ is the maximum length of such paths in all triples $(A, i, j)$. We show that context-free language or graph with polynomial on the number of input graph nodes $\mathzapf{L}$ lies in NC complexity class. 
+\\
+Notice that the said parameter $\mathzapf{L}$ is also useful for estimating the complexity of context-free path queries with single-path query semantics \cite{HellingsCFPQ}. While CFL-reachability problem consists of finding the binary relation between pairs of graph nodes, the mentioned queries evaluate to a single path, which provide a proof that two nodes is related. For example, if there is a path $\pi$ between graph nodes $i$ and $j$, such that a concatenation of edge labeles $l(\pi)$ of $\pi$ is in $L(G)$, CFL-reachability algorithm should return true value for $i$ and $j$. Context-free path query with single-path query semantics evaluates to $\pi$ in this case. Clearly, $\mathzapf{L}$ is exactly an upper bound on the minimum length of such path for all pair of graph nodes and all nonterminals of the input grammar.
+\item We show that languages of pushdown automata with a natural restrictions on stack, like finite-turn pushdown automata (linear, metalinear, superlinear languages), oscillation-bounded automata (oscillation-bounded languages) and automata with a single stack symbol (one-counter languages) have polynomial $\mathzapf{L}$, and hence, CFL-reachability for such languages and an arbitrary graphs is in $NC^2$. The same holds for the substitution closures of such languages. In contrast, languages with deterministic properties, like LL(k) languages, have exponential $\mathzapf{L}$ in the worst case, which implies P-completeness of CFL-reachability for these languages.
+\item We obtain that CFL-reachability problem for directed acyclic graphs with loops, which is associated with partially ordered finite automata, and for arbitrary context-free languages lies in $NC^2$ complexity class. It means that partial order on the input graph nodes implies polynomial $\mathzapf{L}$.
+\end{itemize}
+
+
+\textbf{Organization.} This paper is organized as follows. In Section \ref{sec:prel}, we present the basic definitions from formal languages and complexity theory used in this paper. In Section \ref{sec:circuit} we present Boolean circuit for solving CFL-reachability problem and bounds on size and depth of the resulting circuits. In Section \ref{sec:cfl} we investigate bounds on $\mathzapf{L}$ for interesting classes of context-free languages and arbitratrary graphs. In Section \ref{sec:graph} our focus is on the estimating $\mathzapf{L}$ for arbitrary context-free languages and fixed subtypes of graphs. We conclude in Section \ref{sec:conc} with a summary of our findings.
 \input{preliminaries.tex}
 \input{circuit.tex}
 \input{cfl.tex}
 \input{graphs.tex}
 \section{Conclusions and open problems}
-Metalinear grammars used in DNA computing? --- check it.
-For every algebraic number $\alpha$ bigger than 1, a Greibach language whose rational index is in $n^\alpha$ can be found \ref{}. However some context-
-free languages with polynomial rational indexes are not Greibach languages \ref{}.
-Add to open --- how can we describe all easy CFL? Is it possible?  Seems like not. 
-\\Do only stack restictions imply easyness? (bounded stack --- regular languages).
-\\Two-counter automaton is powerfull: it can simulate the Turing machine
+\label{sec:conc}
+We have constructed a Boolean circuit for CFL-reachability problem and have shown that parallel complexity of CFL-reachability depends on the parameter $\mathzapf{L}$ --- the length of the maximum in all nonterminals and all pairs of graph nodes shortest path labelled by a string from $L(G)$, where $G$ is the input grammar. CFL-reachability is in $NC^2$ for context-free languages and graphs with polynomial $\mathzapf{L}$, and is P-complete, when the value of $\mathzapf{L}$ is exponential.
 
+ We have shown that natural restrictions on the pushdown storage implies polynomial $\mathzapf{L}$ for corresponding context-free language. The most trivial case of such restriction is a bounded height of the stack. Pushdown automata with bounded stack accept regular languages. It is known that L-reachibility for regular languages is in $NL \subseteq NC^2$ \cite*{LReach, Yannakakis}. We have observed another restrictions on the stack like constant number of turns, single stack symbol (one-counter automata) and constant oscillation of PDA run. CFL-reachability for languages of such pushdown automata and arbitrary graphs is in NC. Also operations like substitution closure, which is related with PDA stack nesting, applied to a language with polynomial $\mathzapf{L}$, give a new language with polynomial $\mathzapf{L}$. However, one restriction on the pushdown storage can not be simulated by others: for example, Dyck language $D_1$, which is accepted by one-counter automata, is a $k$-oscillating language for no $k$. This leads to the question of having the common property for pushdown automata accepted languages with polynomial $\mathzapf{L}$. In other words, is there any common characteristic for PDA or grammar, which implies the polynomial value of $\mathzapf{L}$?
+
+In the case of an arbitrary context-free grammar and fixed graph, we have shown that CFL-reachability for directed labelled graphs, which can be associated with partially ordered automata, is in $NC^2$. It means that CFL-reachability for directed acyclic graphs with loops and arbitrary context-free language is in NC. 
 
 %\begin{acknowledgements}
 %If you'd like to thank anyone, place your comments here
