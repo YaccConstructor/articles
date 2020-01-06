@@ -8,7 +8,7 @@ all: clean
 	pdflatex --shell-escape $(SOURCE)
 
 clean:
-	rm -rf auto _* *.aux *.log *.nav *.out *.snm *.toc *~ *.blg *.bbl
+	rm -rf auto _* *.aux *.log *.nav *.out *.snm *.toc *~ *.blg *.bbl *.cut
 
 cleanall: clean
 	rm -rf $(MAIN).pdf
