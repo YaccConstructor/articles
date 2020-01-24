@@ -22,6 +22,31 @@
 \usetikzlibrary{arrows,automata}
 \usetikzlibrary{positioning}
 
+\usepackage{fontawesome}
+
+\usetikzlibrary{shapes.callouts}
+
+\usepackage{xparse}
+
+\tikzset{
+    invisible/.style={opacity=0,text opacity=0},
+    visible on/.style={alt=#1{}{invisible}},
+    alt/.code args={<#1>#2#3}{%
+      \alt<#1>{\pgfkeysalso{#2}}{\pgfkeysalso{#3}} % \pgfkeysalso doesn't change the path
+    },
+}
+
+\NewDocumentCommand{\mycallout}{r<> O{opacity=0.8,text opacity=1} m m}{%
+\tikz[remember picture, overlay]\node[align=center, fill=cyan!20, text width=3.5cm,
+#2,visible on=<#1>, rounded corners,
+draw,rectangle callout,anchor=pointer,callout relative pointer={(230:1cm)}]
+at (#3) {#4};
+}
+
+%\newcommand{\tikzmark}[1]{\tikz[overlay,remember picture,baseline=-0.5ex] \node (#1) {};}
+
+
+
 \usepackage{tabularx}
 \newcolumntype{Y}{>{\raggedleft\arraybackslash}X}
 
@@ -49,18 +74,18 @@
 
 \beamertemplatenavigationsymbolsempty
 
-\title[CFPQ on GPGPU]{Evaluation of the Context-Free Path Querying Algorithm Based on Matrix Multiplication}
+\title[Partial Evaluation for GPGPU]{POSTER: Optimizing GPU Programs By Partial Evaluation}
 %\subtitle[YaccConstructor]{Parsing techniques for graph analysis}
 % То, что в квадратных скобках, отображается в левом нижнем углу.
-\institute[JetBrains Research]{
+\institute[JB Research, SPbSU]{
 JetBrains Research, Programming Languages and Tools Lab  \\
 Saint Petersburg University
 }
 
 % То, что в квадратных скобках, отображается в левом нижнем углу.
-\author[Semyon Grigorev]{Nikita Mishin, Iaroslav Sokolov, Egor Spirin, Vladimir Kutuev, Egor Nemchinov, Sergey Gorbatyuk, \textbf{Semyon Grigorev}}
+\author[Semyon Grigorev]{Aleksey Tyurin, Daniil Berezun, \textbf{Semyon Grigorev}}
 
-\date{June 30, 2019}
+\date{February 24, 2020}
 
 \begin{document}
 {
@@ -69,7 +94,7 @@ Saint Petersburg University
   \centering
   \begin{tabularx}{\linewidth}{YcX}
     \includegraphics[height=1.5cm]{pictures/jetbrainsResearch.pdf} \hfill
-    & \begin{minipage}[t]{0.3\textwidth}\center \vspace{-1cm}  GRADES-NDA 2019
+    & \begin{minipage}[t]{0.3\textwidth}\center \vspace{-1cm}  PPoPP 2020
       \end{minipage}
     & \hfill \includegraphics[height=1.5cm]{pictures/SPbGU_Logo.png}
   \end{tabularx}
@@ -78,101 +103,110 @@ Saint Petersburg University
 \end{frame}
 }
 
-\begin{frame} \frametitle{Context-Free Path Querying}
-  \begin{minipage}[m]{0.45\linewidth}
-  \raisebox{-0.5\totalheight}{\includegraphics[width=\textwidth]{pictures/hierarchical.pdf}}
+\begin{frame} \frametitle{GPGPU Architecture}
+  \begin{minipage}[m]{0.4\linewidth}
+  \raisebox{-0.5\totalheight}{\includegraphics[width=\textwidth]{pictures/GPUMemory2.pdf}}
   \end{minipage}\hfill
-  \begin{minipage}[m]{0.5\linewidth}
+  \begin{minipage}[m]{0.55\linewidth}
   Navigation through a graph
   \begin{itemize}
-        \item Are nodes A and B on the same level of hierarchy?
-        \item Is there a path of form $\textbf{Up}^n \, \textbf{Down}^n$?
-        \item Find all paths of form $\textbf{Up}^n \, \textbf{Down}^n$ which start from the~node A
+        \item Global memory
+        \begin{itemize}
+          \item[\faSmileO] Big
+          \pause
+          \item[\faFrownO] Slow
+        \end{itemize}
+        \item Shared memory
+          \begin{itemize}
+            \item[\faSmileO] Fast
+            \pause
+            \item[\faFrownO] Relatively small
+            \item[\faFrownO] Manual allocation mamagement
+          \end{itemize}
+          \item Constant memory
+          \begin{itemize}
+            \item[\faSmileO] Fast
+            \pause
+            \begin{itemize}
+              \item[\faFrownO] Only for appropriate access pattern
+            \end{itemize}
+            \item[\faFrownO] Small
+            \item[\faFrownO] Static allocation
+          \end{itemize}
+        \item \textbf{Memory traffic is a bottleneck}
   \end{itemize}
 
   \end{minipage}
 
   \end{frame}
 
-%  \begin{frame}[fragile] \frametitle{Applicatipons}
-%    \begin{itemize}
-%      \item Static code analysis
-%      \item Graph database querying
-%      \item RDF analysis
-%    \end{itemize}
-%  \end{frame}
 
-  \begin{frame}[fragile]
-    \frametitle{Context-Free Path Querying: Relational Query Semantics}
+  \begin{frame}[fragile] \frametitle{Data Processing}
     \begin{itemize}
-      \item $\mathbb{G} = (\Sigma, N, P)$ --- context-free grammar in normal form
-      \begin{itemize}
-        \item $A \rightarrow B C$, where $A, B, C \in N$
-        \item $A \rightarrow x$, where $A \in N, x \in \Sigma$
-        \item $L(\mathbb{G},A) = \{ \omega \mid A \Rightarrow^* \omega \}$
-      \end{itemize}
-      \pause
-      \item $G = (V,E,L)$ --- directed graph
-        \begin{itemize}
-          \item $v \xrightarrow{l} u \in E$
-          \item $L \subseteq \Sigma$
-        \end{itemize}
-        \pause
-      %\item $p = v_0 \xrightarrow{l_0} v_1 \xrightarrow{l_1} \cdots \xrightarrow{l_{n-2}} v_{n-1} \xrightarrow{l_{n-1}} v_n$ --- path in $G$
-      \item $\omega(\pi) = \omega(v_0 \xrightarrow{l_0} v_1 \xrightarrow{l_1} \cdots \xrightarrow{l_{n-2}} v_{n-1} \xrightarrow{l_{n-1}} v_n) = l_0 l_1 \cdots l_{n-1}$
-      \pause
-      \item $R_A = \{ (n, m) \mid \exists n \pi m$, such that $\omega(\pi) \in L(\mathbb{G},A)\}$
+      \item Substring matching
+      %\item Regexp matching
+      \item Filtering by using Hidden Markov Models (HMM)
     \end{itemize}
-  \end{frame}
+    \pause
+    \tikzmark{zzz}{
+    }
+    \begin{verbatim}
+      __global__ void estimateSimilarity
+                         (int* filterParams, int* data, ...)
+      {
+         __shared__ int cachedFilterParams[size];
 
-  \begin{frame}[fragile] \frametitle{Matrix-Based Algorithm}
-    \begin{algorithm}[H]
-    \begin{algorithmic}[1]
-    \caption{Context-Free Path Querying by Matrix Multiplication}
-    \Function{contextFreePathQuerying}{D, G}
-
-        \State{$n \gets$ the number of nodes in $D$}
-        \State{$E \gets$ the directed edge-relation from $D$}
-        \State{$P \gets$ the set of production rules in $G$}
-        \State{$T \gets$ the matrix $n \times n$ in which each element is $\varnothing$}
-        \ForAll{$(i,x,j) \in E$}
-        \Comment{Matrix initialization}
-            \State{$T_{i,j} \gets T_{i,j} \cup \{A~|~(A \rightarrow x) \in P \}$}
-        \EndFor
-        \While{matrix $T$ is changing}
-            \State{$T \gets T \cup (T \times T)$}
-            \Comment{Transitive closure $T^{cf}$ calculation}
-        \EndWhile
-    \State \Return $T$
-    \EndFunction
-    \end{algorithmic}
-    \end{algorithm}
+         /*some code to load filterParams
+           to cachedFilterParams*/
+         ...
+      }
+    \end{verbatim}
+    \pause
+    \onslide<3>{\tikz[overlay,remember picture]{\draw[draw=red, fill opacity=0.2, line width=0.25mm] ($ (zzz) + (5.15,-0.8)$) rectangle ($  (zzz) + (8.6,-1.3)$);}}
+    \onslide<4>{\tikz[overlay,remember picture]{\draw[draw=red, fill opacity=0.2, line width=0.25mm] ($ (zzz) + (8.9,-0.8)$) rectangle ($  (zzz) + (10.8,-1.3)$);}}
+    \onslide<5>{\tikz[overlay,remember picture]{\draw[draw=red, fill opacity=0.2, line width=0.25mm] ($ (zzz) + (1.5,-1.8)$) rectangle ($  (zzz) + (10,-3.7)$);}}
   \end{frame}
 
 
-  \begin{frame}[fragile] \frametitle{Matrix-Based Algorithm: Technical Details}
+  \begin{frame}[fragile] \frametitle{Big Data Processing}
     \begin{itemize}
-      \item The matrix $T$ can be represented as set of Boolean matrices: one matrix per nonterminal
-      \item The algorithm can be implemented in terms of Boolean matrices multiplication
-      \item All matrices can be statically allocated in memory
+      \item Substring matching $\Rightarrow$ Data curving (digital forensics)
+      %\item Regexp matching $\RightArrow$
+      \item Filtering by using Hidden Markov Models (HMM)  $\Rightarrow$ Homology search (bioinformatics)
     \end{itemize}
+    \pause
+
+    \tikzmark{xxx}{
+    }
+    \begin{verbatim}
+      __global__ void estimateSimilarity
+                         (int* filterParams, int* data, ...)
+      {
+         ...
+      }
+    \end{verbatim}
+    \pause
+    \onslide<4-6>{\tikz[overlay,remember picture]{\draw[draw=red, fill opacity=0.2, line width=0.25mm] ($ (xxx) + (5.15,-0.8)$) rectangle ($  (xxx) + (8.6,-1.3)$);}
+    \mycallout<4-6>[opacity=1]{$ (xxx) + (5.15,-0.8)$}{One filter for many data chunks}
+    }
+    \onslide<3-6>{\tikz[overlay,remember picture]{\draw[draw=red, fill opacity=0.2, line width=0.25mm] ($ (xxx) + (8.9,-0.8)$) rectangle ($  (xxx) + (10.8,-1.3)$);}
+    \mycallout<3-6>[opacity=1]{$ (xxx) + (8.9,-0.8)$}{Many data chunks $\Rightarrow$ many runs of procedure}
+    }
+
+\begin{center}
+    \onslide<5-6>{\texttt{filterParams} is a static during one data porcessing session.\\}
+    \onslide<6>{How can we use this fact to optimize our procedure?}
+\end{center}
   \end{frame}
 
-
-\begin{frame}[fragile] \frametitle{Research Questions}
+\begin{frame}[fragile] \frametitle{Partial Evaluation}
   \begin{itemize}
-    \item Does GPGPUs utilization for CFPQ improve performance in comparison with the CPU version?
-    \pause
-    \item Is it possible to achieve higher performance by using existing libraries for operations over matrices or do we need to create our own specialized solution?
-    \pause
-    \item Can we achieve high performance with high-level languages?
-    \pause
-    \item Can we improve performance with sparse matrix representation?
+    \item
   \end{itemize}
 \end{frame}
 
 
-\begin{frame}[fragile] \frametitle{CPU-Based Implementations}
+\begin{frame}[fragile] \frametitle{!!! Framework}
   \begin{minipage}[t]{1cm}
 \hspace{1cm}
   \end{minipage}
@@ -187,7 +221,7 @@ Saint Petersburg University
 \end{frame}
 
 
-\begin{frame}[fragile] \frametitle{GPGPU-Based Implementations}
+\begin{frame}[fragile] \frametitle{Evaluation: Data Curving}
   \begin{minipage}[t]{1cm}
 \hspace{1cm}
   \end{minipage}
@@ -206,7 +240,7 @@ multiplication in \textbf{Python} by using \textbf{numba} compiler
 \end{minipage}
 \end{frame}
 
-\begin{frame}[fragile] \frametitle{Reference Implementations}
+\begin{frame}[fragile] \frametitle{Evaluation: !!!}
   \begin{minipage}[t]{1cm}
 \hspace{1cm}
   \end{minipage}
@@ -229,7 +263,7 @@ multiplication in \textbf{Python} by using \textbf{numba} compiler
 \end{frame}
 
 
-\begin{frame}[fragile] \frametitle{Dataset}
+\begin{frame}[fragile] \frametitle{Limitations}
   \begin{minipage}[t]{1cm}
 \hspace{1cm}
   \end{minipage}
@@ -289,142 +323,12 @@ $G_5: s \to SCOR \ s \ SCO \ | \ SCO$
 \end{minipage}
 \end{frame}
 
-\begin{frame} \frametitle{Evaluation}
+\begin{frame} \frametitle{Conclusion}
   \begin{itemize}
    \item OS: Ubuntu 18.04
    \item CPU: Intel core i7 8700k 3,7GHz
    \item RAM: DDR4 32 Gb
    \item GPGPU: NVIDIA GeForce 1080Ti (11Gb RAM)
-  \end{itemize}
-\end{frame}
-
-\begin{frame}[fragile] \frametitle{Evaluation: [RDF]\footnote{Time in milliseconds}}
-\begin{center}
-  {\tiny
-  \rowcolors{1}{}{lightgray}
-  \begin{tabular}{| p{1.25cm} | c | c | c | c | c | c | c | c | c |}
-      \hline
-      \multicolumn{3}{|c|}{RDF}        & \multicolumn{7}{|c|}{Query $G_4$}  \\
-      \hline
-      Name                                & \#V & \#E  & Scipy & M4RI  & GPU4R & GPU\_N & GPU\_Py & CuSprs & CYK~\footnote{Results from X. Zhang et al, 2016, ``Context-Free Path Queries on RDF Graphs''} \\
-      \hline
-      \hline
-      \tiny{atm-prim}                    & 291 & 685  & 3     &  2    & 2     & 1      & 5       & 269  & 515285  \\
-      \tiny{biomed}                      & 341 & 711  & 3     &  5    & 2     & 1      & 5       & 283  & 420604  \\
-      \tiny{foaf}                        & 256 & 815  & 2     &  9    & 2     & \ltz   & 5       & 270  & 5027    \\
-      \tiny{funding}                     & 778 & 1480 & 4     &  7    & 4     & 1      & 5       & 279  & 499     \\
-      \tiny{generations}                 & 129 & 351  & 3     &  3    & 2     & \ltz   & 5       & 273  & 6091    \\
-      \tiny{people\_pets}                & 337 & 834  & 3     &  3    & 3     & 1      & 7       & 284  & 82081   \\
-      \tiny{pizza}                       & 671 & 2604 & 6     &  8    & 3     & 1      & 6       & 292  & 3233587 \\
-      \tiny{skos}                        & 144 & 323  & 2     &  4    & 2     & \ltz   & 5       & 273  & 1044    \\
-      \tiny{travel}                      & 131 & 397  & 3     &  5    & 2     & \ltz   & 6       & 268  & 13971   \\
-      \tiny{unv-bnch}                    & 179 & 413  & 2     &  4    & 2     & \ltz   & 5       & 266  & 20981   \\
-      \tiny{wine}                        & 733 & 2450 & 7     &  6    & 4     & 1      & 7       & 294  & 4075319 \\
-      \hline
-    \end{tabular}
-    }
- \end{center}
-
-\end{frame}
-
-
-\begin{frame} \frametitle{Evaluation: [Worst]\footnote{Time in seconds}}
-  \tikzmark{yyy}{
-  }
-  \begin{centering}
-  \rowcolors{1}{}{lightgray}
-  \begin{tabular}{| l | c | c | c | c | c | c | }
-      \hline
-      \#V  & Scipy    & M4RI    & GPU4R  & GPU\_N  & GPU\_Py & CuSprs   \\
-      \hline
-      \hline
-      16   & 0.032    & $< 0.001$    & 0.008  & 0.002   & 0.027   & 0.309    \\
-      32   & 0.118    & 0.001   & 0.034  & 0.008   & 0.136   & 0.441    \\
-      64   & 0.476    & 0.041   & 0.133  & 0.032   & 0.524   & 0.988    \\
-      128  & 2.194    & 0.226   & 0.562  & 0.129   & 2.751   & 3.470    \\
-      256  & 15.299   & 1.994   & 3.088  & 0.544   & 11.883  & 15.317   \\
-      512  & 121.287  & 23.204  & 13.685 & 2.499   & 43.563  & 102.269  \\
-      1024 & 1593.284 & 528.521 & 88.064 & 19.357  & 217.326 & 1122.055 \\
-      2048 & -        & -       & -      & 325.174 & -       & -        \\
-      \hline
-    \end{tabular}
-  \end{centering}
-  \pause
-\onslide<2>{\tikz[overlay,remember picture]{\draw[draw=red,thick,fill opacity=0.2] ($ (yyy) + (6.5,0.01)$) rectangle ($ (yyy) + (8.1,-4.5)$);}}
-\end{frame}
-
-\begin{frame} \frametitle{Evaluation: [Sparse]\footnote{Time in seconds}}
-  \tikzmark{yyy}{
-  }
-{\small
-  \rowcolors{1}{}{lightgray}
-  \begin{tabular}{| l | c | c | c | c | c | c | }
-      \hline
-      Graph              & Scipy   & M4RI     & GPU4R  & GPU\_N & GPU\_Py & CuSprs  \\
-      \hline
-      \hline
-      \small{G5k-0.001}  & 10.352  & 0.647    & 0.113  & 0.041  & 0.216   & 5.729   \\
-      \small{G10k-0.001} & 37.286  & 2.395    & 0.435  & 0.215  & 1.331   & 35.937  \\
-      \small{G10k-0.01}  & 97.607  & 1.455    & 0.273  & 0.138  & 0.763   & 47.525  \\
-      \small{G10k-0.1}   & 601.182 & 1.050    & 0.223  & 0.114  & 0.859   & 395.393 \\
-      \small{G20k-0.001} & 150.774 & 11.025   & 1.842  & 1.274  & 6.180   & -       \\
-      \small{G40k-0.001} & -       & 97.841   & 11.663 & 8.393  & 37.821  & -       \\
-      \small{G80k-0.001} & -       & 1142.959 & 88.366 & 65.886 & -       & -       \\
-      \hline
-    \end{tabular}
-}
-\onslide<2>{\tikz[overlay,remember picture]{\draw[draw=red,thick,fill opacity=0.2] ($ (yyy) + (-0.05,-1.8)$) rectangle ($ (yyy) + (3.75,-2.7)$);}}
-\onslide<3>{\tikz[overlay,remember picture]{\draw[draw=red,thick,fill opacity=0.2] ($ (yyy) + (-0.05,-1)$) rectangle ($ (yyy) + (12.1,-2.3)$);}}
-\end{frame}
-
-
-\begin{frame}[fragile] \frametitle{Evaluation: [Full]\footnote{Time in seconds}}
-\begin{center}
-  {\small
-  \rowcolors{1}{}{lightgray}
-  \begin{tabular}{| l | c | c | c | c | c | c |}
-      \hline
-      \multirow{2}{*}{\#V} & \multicolumn{6}{|c|}{Query $G_2$}  \\
-      \cline{2-7}
-                           & Scipy   & M4RI    & GPU4R   & GPU\_N  & GPU\_Py & CuSprs  \\
-      \hline
-      \hline
-      100                  & 0.007   & 0.002    & 0.002   & $< 0.001$    & 0.003   & 0.278       \\
-      200                  & 0.040   & 0.003    & 0.002   & 0.001   & 0.004   & 0.279       \\
-      500                  & 0.480   & 0.003    & 0.003   & 0.001   & 0.004   & 0.329       \\
-      1000                 & 3.741   & 0.007    & 0.005   & 0.001   & 0.006   & 0.571       \\
-      2000                 & 40.309  & 0.063    & 0.019   & 0.003   & 0.017   & 1.949       \\
-      5000                 & 651.343 & 0.366    & 0.125   & 0.038   & 0.150   & 99.651      \\
-      10000                & -       & 1.932    & 0.552   & 0.315   & 0.840   & 1029.042    \\
-      25000                & -       & 33.236   & 7.252   & 5.314   & 15.521  & -           \\
-      50000                & -       & 360.035  & 58.751  & 44.611  & 129.641 & -           \\
-      80000                & -       & 1292.817 & 256.579 & 190.343 & 641.260 & -           \\
-
-      \hline
-    \end{tabular}
-    }
-    \end{center}
-\end{frame}
-
-
-\begin{frame}[fragile] \frametitle{Conclusion}
-  \begin{itemize}
-    \item GPGPUs utilization significantly increases the performance of CFPQ
-    \pause
-    \item High performance libraries utilization is a good idea
-    \begin{itemize}
-      \item But not always: M4RI (CPU) is better then cuSPARSE (GPGPU)
-    \end{itemize}
-    \pause
-    \item Automatic translation from a high-level language to GPGPU language provides a good balance between performance and implementation complexity
-    \pause
-    \item Sparse matrix representation is important for performance %([Scipy] for [Sparse])
-  \end{itemize}
-  \pause
-  \begin{itemize}
-    \item Dataset is published: both graphs and queries
-    \item Implementations are available on GitHub
-    \item Link: \url{https://github.com/SokolovYaroslav/CFPQ-on-GPGPU}
   \end{itemize}
 \end{frame}
 
