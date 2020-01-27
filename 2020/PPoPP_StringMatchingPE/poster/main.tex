@@ -43,24 +43,48 @@
 %\usepackage{pgf}
 
 \usepackage[utf8]{inputenc}
-\usetikzlibrary{shapes,arrows}
 \usepackage{tikz}
-\usetikzlibrary{automata,positioning}
+\usetikzlibrary{calc}
+\usetikzlibrary{shapes,arrows}
+\usetikzlibrary{arrows,automata}
+\usetikzlibrary{positioning}
+\usetikzlibrary{shapes.callouts}
+
 
 \usepackage{multicol}
-
 \usepackage{hyperref}
-
 \usepackage[font=small,labelfont=bf]{caption}
-
 \usepackage{makecell}
 \usepackage{enumitem}
+\usepackage{fontawesome}
+\usepackage{xparse}
+
+
+\newcommand{\tikzmark}[1]{\tikz[overlay,remember picture] \node (#1) {};}
+\def\Put(#1,#2)#3{\leavevmode\makebox(0,0){\put(#1,#2){#3}}}
+
+%\tikzset{
+%    invisible/.style={opacity=0,text opacity=0},
+%    visible on/.style={alt=#1{}{invisible}},
+%    alt/.code args={<#1>#2#3}{%
+%      \alt<#1>{\pgfkeysalso{#2}}{\pgfkeysalso{#3}} % \pgfkeysalso doesn't change the path
+%    },
+%}
+
+\NewDocumentCommand{\mycallout}{r<> O{opacity=0.8,text opacity=1} m m}{%
+\tikz[remember picture, overlay]\node[align=center, fill=cyan!20, text width=3.5cm,
+#2, rounded corners,
+draw,rectangle callout,anchor=pointer,callout relative pointer={(230:1cm)}]
+at (#3) {#4};
+}
 
 \renewcommand\theadalign{bc}
 \renewcommand\theadfont{\bfseries}
 \renewcommand\theadgape{\Gape[4pt]}
 \renewcommand\cellgape{\Gape[4pt]}
 
+%for [[ ]]
+\usepackage{stmaryrd}
 
 \setlist[itemize]{leftmargin=*}
 
@@ -120,13 +144,13 @@ background=none,
 headerborder=none, % Change to closed for a line under the content box headers
 boxshade=plain
 }
-{\includegraphics[width=3cm]{sigm0d2.png}}
+{\includegraphics[width=2.5cm]{figures/PPoPP.pdf}}
 %
 %----------------------------------------------------------------------------------------
 %   TITLE AND AUTHOR NAME
 %----------------------------------------------------------------------------------------
 %
-{\bf \huge{Evaluation of \ the Context-Free Path Querying Algorithm Based on Matrix Multiplication} }
+{\bf \huge{Optimizing GPU Programs By Partial Evaluation} }
 %\\  \Large \it Context-free grammars and neural networks for secondary structure} % Poster title
 {\vspace{0.6em} \smaller \textbf{Semyon Grigorev} \\  % Author names
 \smaller \it {JetBrains Research, Saint Petersburg University, Russia } \\ % Author email addresses
@@ -137,37 +161,21 @@ boxshade=plain
 %----------------------------------------------------------------------------------------
 %   INTRODUCTION
 %----------------------------------------------------------------------------------------
-\begin{posterbox}[name=CFPQ,column=0,row=0, span=4]{Context-Free Path Querying}
+\begin{posterbox}[name=CFPQ,column=0,row=0, span=4]{Problem Statement}
 
-  Find paths which satisfy constraints in form of a formal language $L=\{a^n b^n \mid n > 0\}$
-    \includegraphics[width=7cm]{example_graph_transparent.png}
-
-    Query = grammar for $L$: $S  \rightarrow a  \ b \ | \ a \ S \ b  \\$
-
-  Result: $ \{(u,v) \mid \exists p \text{ from } u \text{ to } v: \text{word}(p) \in L\} $
-
+  Memory traffic is a bottleneck of GPGPU programms.
+  There are cases of big data analysis when some of kernel parameters are fixed during many kernel runs.
+  \begin{itemize}
+    \item Patterns in substring matching
+    \item
+    \item
+  \end{itemize}
 \end{posterbox}
 
-\headerbox {Matrix-Based Algorithm~\cite{Azimov:2018:CPQ:3210259.3210264}}
-{name=matrices,column=0,span=4, row=2, below=CFPQ}%,bottomaligned=sol2}
+\headerbox {Example}
+{name=matrices,column=0,span=6, row=2, below=CFPQ}%,bottomaligned=sol2}
 {
-
-$T$ is an adjacency matrix of the input graph\\
-The grammar is in the normal form
-\vspace{-0.5cm}
-
-\begin{align*}
-T_{ij} &=\{ N \mid N \xRightarrow[]{*} \omega,  \omega \text{ -- path bw } i \text{ and } j \} \\
-T_{ik} \times T_{kj} &= \{ A \mid B \in T_{ik}, C \in T_{kj}, A \rightarrow B C \} \\
-T^{(i)} &= T^{(i-1)} \cup (T^{(i-1)} \times T^{(i-1)})
-\end{align*}
-
-\begin{itemize}
-  \item Can be formulated in terms of boolean \\ matrices multiplication
-  \item Easy to run in parallel environments: GPUs, multithreaded CPUs, clusters
-%  \item Existing matrix multiplication library can be used
-\end{itemize}
-\vspace{0.1cm}
+\includegraphics[width=0.99\textwidth]{figures/CodeSample1.pdf}
 }
 
 \headerbox {Results}{name=results,column=4,row=0, span=4, bottomaligned=CFPQ}{
@@ -183,47 +191,28 @@ T^{(i)} &= T^{(i-1)} \cup (T^{(i-1)} \times T^{(i-1)})
 
 \headerbox {Future Research}{name=answers,column=8,row=0, span=4, bottomaligned=results}{
 
-\begin{itemize}
-  \item Create an open extensible platform for CFPQ \\ algorithms evaluation
-  \item Extend dataset with new data
-  \item Implement and evaluate distributed \\ matrix-based CFPQ algorithms
-  \item Implement and evaluate sparse boolean matrix-based CFPQ algorithms
-\end{itemize}
+  \begin{itemize}
+    \item Switch to CUDA C partial evaluator
+    \begin{itemize}
+      \item LLVM.mix: partial evaluator for LLVM IR
+    \end{itemize}
+    \item Reduce specialization overhead to make it applicable in run-time
+    \item Integrete with shared memory register spilling~\cite{DBLP:journals/corr/abs-1907-02894}
+    \item Evaluate on real-world examples
+  \end{itemize}
 
 }
 
 
-\headerbox {Implementations}
-{name=impl,column=4,span=8, row=2, below=results,bottomaligned=matrices}
+\headerbox {Partial Evaluation~\cite{Jones:1993:PEA:153676}}
+{name=impl,column=6,span=6, row=2, below=results,bottomaligned=matrices}
 {
-\textbf{Our implementations~\cite{Mishin:2019:ECP:3327964.3328503}:}\\
-\begin{minipage}[t]{0.6cm}
-\hspace{0.6cm}
-\end{minipage}
-~
-\begin{minipage}[t]{0.93\textwidth}
-\begin{itemize}
-\item[\textbf{[Scipy]}] Matrix-based algorithm which uses sparse matrices from \textbf{Scipy} library (\textbf{Python})
-\item[\textbf{[M4RI]}] Matrix-based algorithm which uses dense matrices multiplication from \textbf{m4ri} library (Method of Four Russians, \textbf{C})
-\item[\textbf{[GPU]}] Matrix-based algorithm which uses our own implementation of the na\"{\i}ve boolean matrix multiplication in \textbf{CUDA C}
-\end{itemize}
-\end{minipage}
+$$ \llbracket \underbrace{handleData}_{handleData} \rrbracket [filterParams, data] =  \llbracket \underbrace{\llbracket mix \rrbracket [handleData,filterParams]}_{handleData_{mix}}\rrbracket [data]$$
+%\vspace{5cm}
 
-\vspace{0.5cm}
-\textbf{Reference implementations:}\\
-\begin{minipage}[t]{1cm}
-\hspace{1cm}
-\end{minipage}
-~
-\begin{minipage}[t]{0.91\textwidth}
-\begin{itemize}
-\item[\textbf{[CuSprs]}] Matrix-based algorithm~\cite{Azimov:2018:CPQ:3210259.3210264} uses NVIDIA cuSPARSE library (\textbf{CUDA C, GPGPU})
-\item[\textbf{[CYK]}]  CYK-based algorithm~\cite{10.1007/978-3-319-46523-4_38} implemented in \textbf{Java} (CPU)
-  %\item X. Zhang et al, 2016, ``Context-free path queries on RDF graphs''
+\hspace{7cm}$\llbracket mix \rrbracket [handleData,[|2;3|]]$\\
 
-\end{itemize}
-
-\end{minipage}
+\includegraphics[width=0.99\textwidth]{figures/CodeSample2.pdf}
 }
 
 
@@ -316,7 +305,6 @@ Grammar: $S \to \textit{scor} \ S \ \textit{sco} \ | \ \textit{tr} \ S \ \textit
 }
 
 
-
 \headerbox {\smaller{Contact Us}}{name=contact,column=0,span=5,below=scaling}{
 \scriptsize
 \begin{minipage}[t]{0.65\textwidth}
@@ -326,8 +314,8 @@ Our team:
   \item Semyon Grigorev: \href{mailto:s.v.grigoriev@spbu.ru}{s.v.grigoriev@spbu.ru}
   \item Nikita Mishin: \href{mailto:mishinnikitam@gmail.com}{mishinnikitam@gmail.com}
   \item Iaroslav Sokolov: \href{mailto:sokolov.yas@gmail.com}{sokolov.yas@gmail.com}
-  \item Egor Spirin: \href{mailto:egor@spirin.tech}{egor@spirin.tech}
-  \item Egor Nemchinov: \href{mailto:nemchegor@gmail.com}{nemchegor@gmail.com}
+  %\item Egor Spirin: \href{mailto:egor@spirin.tech}{egor@spirin.tech}
+  %\item Egor Nemchinov: \href{mailto:nemchegor@gmail.com}{nemchegor@gmail.com}
 \end{itemize}
 
 
@@ -336,10 +324,10 @@ Our team:
 \begin{minipage}[t]{3cm}
 \includegraphics[width=3cm]{qr-research-jetbra.pdf}
 \end{minipage}
-\begin{itemize}
-  \item Vladimir Kutuev: \href{mailto:vladimir.kutuev@gmail.com}{vladimir.kutuev@gmail.com}
-  \item Sergey Gorbatyuk: \href{mailto:sergeygorbatyuk171@gmail.com}{sergeygorbatyuk171@gmail.com}
-\end{itemize}
+%\begin{itemize}
+%  \item Vladimir Kutuev: \href{mailto:vladimir.kutuev@gmail.com}{vladimir.kutuev@gmail.com}
+%  \item Sergey Gorbatyuk: \href{mailto:sergeygorbatyuk171@gmail.com}{sergeygorbatyuk171@gmail.com}
+%\end{itemize}
 \vspace{1cm}
 {\normalsize
 Both dataset and implementations are available on GitHub:\\
