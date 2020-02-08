@@ -9,47 +9,70 @@ Suppose we have an RDF graph and whatn to analize hierarchical dependencies over
 Our goal is for fhe given object to find all objects which lies on the same lavel of hierarchy!!!
 !!!!!
 
-\subsection{Graph Schema}
-After graph loaded to the database first we should to do is to create typed schema: specify types of nodes oad edges.
+\subsection{Simple Solution}
 
 \begin{lstlisting}
-def sameGen2():Symbol[Entity,Entity,_] =
-    syn(inE((_: Entity).label() == "skos__narrowerTransitive") ~ sameGen2 .? ~ (outE((_: Entity).label() == "skos__narrowerTransitive")))
+val rName = "skos__narrowerTransitive"
+def qSameGen () =
+    syn(inE((_: Entity).label() == rName) ~ qSameGen().? ~
+        outE((_: Entity).label() == rName))
 \end{lstlisting}
 
+This query specifies exactly path we want, but still not a solution.
+First of all, we can not specify start vertex and can not extract final vertices.
+Also, this query for one specified relation.
+If we want to investigate hierarchy over othe relations, we need to rewrite this query.
 
+\subsection{Compositionality}
+
+First step is a generalization of the same generation query to simplfy handling of different types of relations.
+To do it we introduce a helper function \verb|reduceChoice| which takes a list of subqueryes and combine them by using alternation operation.
 
 \begin{lstlisting}
-
-def reduceChoice[L, N, V](xs: List[Symbol[L, N, V]]): Symbol[L, N, V] = {
-  xs match {
-	case x :: Nil => x
-	case x :: y :: xs =>
-	  syn(xs.foldLeft(x | y)(_ | _))
+def reduceChoice(qs: List[_]) = {
+  qs match {
+     case x :: Nil => x
+     case x :: y :: qs => syn(qs.foldLeft(x | y)(_ | _))
   }
 }
 \end{lstlisting}
 
+After that we use this function in new version of \verb|sameGen| to combine subqueryes for different types of braces.
+To make it possible to use differetn types of braces without query rewriting we pass barces as a parameter.
 
 \begin{lstlisting}
-def sameGen1[L, N, V]( brs: List[(Symbol[L, N, V], Symbol[L, N, V])]):Symbol[L,N,_] =
-   reduceChoice(
-	 brs.map {
-	   case (lbr, rbr) => syn(lbr ~ (sameGen1(brs).?) ~ rbr)
-	 }
-   )
+def sameGen(brs: List[(_,_)]) =
+    reduceChoice( brs.map {
+      case (lbr, rbr) => syn(lbr ~ sameGen(brs).? ~ rbr)
+      })
 \end{lstlisting}
 
-\begin{lstlisting}
+Now we are ready to provide ability to specify start vertex and collect information of final vertices.
+First of all, we provide a filter to select only vertices with \verb|uri| property.
 
-def queryFromV1[L, N](startV: Symbol[L, N, _],
-					 query: Symbol[L, N, _]) =
-  syn(startV ~ query ~ uriV & {case _ ~ _ ~ (v:Entity) => v.getProperty[String]("uri")})
+\begin{lstlisting}
+val uriV = syn(V((_: Entity).hasProperty("uri")) ^^)
 \end{lstlisting}
 
+After thet we create a function which takes two parameters, start vertex and a path query, and create a new query to find all vertices with \verb|uri| property which are reachcbl from the specified strat vertex by specified path.
+Finally we collect values of \verb|uri| for all reachable vertices.
+To do it we specify user-defined action {\small \verb|{case _ ~ _ ~ (v: Entity) => v.getProperty[String]("uri")}|} which captures result of query (it is a triple-sequence of subqueryes results) and gets the \verb|uri| property form result of last subquery.
+
 \begin{lstlisting}
-def sameGen[L, N, V](
-      brs: List[(Symbol[L, N, V], Symbol[L, N, V])]): Symbol[L, N, Int] =
+def queryFromV (startV, query) =
+  syn(startV ~ query ~ uriV &
+      {case _ ~ _ ~ (v: Entity) =>
+            v.getProperty[String]("uri")})
+\end{lstlisting}
+
+
+\subsection{User-Defined Actions and Advanced Results Processing}
+
+Final step is to extend the query with calculation of lengths of all paths which satisfie conditions.
+To do it we equip \verb|sameGen| query with additional user-defined actions.
+
+\begin{lstlisting}
+def sameGen(brs: List[(_,_)]) =
     reduceChoice(
       brs.map {
         case (lbr, rbr) =>
@@ -57,61 +80,57 @@ def sameGen[L, N, V](
             case _~Nil~_ => 2
             case _~((x:Int)::Nil)~_ =>  x + 2
           })
-      }
-    )
+      })
+\end{lstlisting}
+
+Top level query function now handles not only theard element, but also the second one in order to get access to accamulated lenghts of paths.
+
+\begin{lstlisting}
+def queryFromV(startV, query) =
+    syn(startV ~ query ~ uriV &
+      {case _ ~ (len:Int) ~ (v:Entity) =>
+        (len, v.getProperty[String]("uri"))})
 \end{lstlisting}
 
 \begin{lstlisting}
-val uriV: Symbol[Entity, Entity, Entity] =
-    syn(V((_: Entity).hasProperty("uri")) ^^)
+def makeBrs (brs:List[_]) =
+    brs.map(name =>
+       (syn(inE((_: Entity).label() == name) ^^),
+        syn(outE((_: Entity).label() == name) ^^)))
+    .toList
+    
+def runExample (brs: List[_], startVId, graph) =
+    val startV = V(getIdFromNode(_: Entity) == startVId
+    executeQuery(queryFromV( syn(startV)^^),
+                               sameGen(makeBrs(brs))),
+                   graph).toList
 
-  def queryFromV[L, N](startV: Symbol[L, N, _],
-                               query: Symbol[L, N, _]) =
-    syn(startV ~ query ~ uriV & {case _ ~ (len:Int) ~ (v:Entity) => (len, v.getProperty[String]("uri"))})
-	\end{lstlisting}
-
-
-
-\begin{lstlisting}
-def runExample2(brs: List[String]) =
-    runWithGraph({ graph: Input[Entity, Entity] =>
-      val symbolBrs = brs
-        .map(name =>
-          (syn(inE((_: Entity).label() == name) ^^), syn(outE((_: Entity).label() == name)^^)))
-        .toList
-
-
-      val result =
-        executeQuery(queryFromV(syn(V(getIdFromNode(_: Entity) == 1)^^), sameGen(symbolBrs)), graph).toList
-
-      print(result)
-    })
-
-
-runExample2(RdfConstants.RDFS__SUB_CLASS_OF :: Nil)
-
+runExample(RdfConstants.RDFS__SUB_CLASS_OF :: Nil, 1, graph)
 \end{lstlisting}
 
-\subsection{Compositionality}
 
-same generation query for each type of relation?
-
-We can cretae generic function!
 
 \subsection{Type Safety}
 
-\includegraphics[width=0.48\textwidth]{pictures/image.png}
+If subqueryes are composed incorrectly, then
 
-\includegraphics[width=0.48\textwidth]{pictures/image1.png}
+In example showed in figure~\ref{fig:types}, elements of pair wich represents query result are used incorrectly: we want to find total length of all paths but sum final vertices' identifiers instead of lenghths.
+As a result, compiler statically detect a error because integer expected instead of string.
 
-
-Static type chacking
-
-\subsection{User-Defined Actions}
-
-We want to get all reachcbale vertices and collect inforamation about paths as a result of a query.
-To do it we equip query with additional user-defined actions.
+\begin{figure}[ht]
+   \includegraphics[width=0.48\textwidth]{pictures/image.png}
+   \caption{!!!}
+   \label{fig:types}
+\end{figure}
 
 \subsection{IDE Support}
 
-Screens!!!!
+Since you can use IDE for development, you get all features for qury development, such as syntah highkighting, code navigation, autocompletion, without any additional effor.
+An example of autocompletion suggestions for vertex is presented in figure~\ref{fig:autocompletion}.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.48\textwidth]{pictures/image1.png}
+    \caption{!!!!}
+    \label{fig:autocompletion}
+\end{figure}
