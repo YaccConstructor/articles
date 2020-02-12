@@ -1,15 +1,25 @@
-\section{Combinators for Context-Free Path Querying}
+\section{Example of CFPQ With Combinators}
 
 In this section we demonstrate main features of combinators in the context of context-free path querying and integration with general-purpose programming languages.
-To do it we first introduce a simple graph analysis problem and then show how to solve it by using parser combinators
+To do it we first introduce a simple graph analysis problem and then show how to solve it by using parser combinators.
 In our wirk we use Merrkst.Graph combinators library.
 
-\subsection{Problem Statement}
+\underline{\textbf{Problem statement.}}
 Suppose we have an RDF graph and whatn to analize hierarchical dependencies over different types of relations.
-Our goal is for fhe given object to find all objects which lies on the same lavel of hierarchy!!!
-!!!!!
+Our goal is for fhe given object to find all objects which lies on the same lavel of hierarchy.
+Namely, for the given set of relations $r = \{R_0 \ldots R_i\}$ and for the given vertex $v$ we want to find all vertices reachable form $v$ by paths which specified by the following context free grammar in EBNF: 
+%\begin{align*} 
+ %\textit{qSameGen} \to & {R_0}^{-1} R_0 \mid \ldots {R_i}^{-1} R_i  \mid \\
+ %                      & {R_0}^{-1} \textit{qSameGen } R_0 \mid \ldots \mid {R_i}^{-1} \textit{qSameGen } R_i.
+ $\textit{qSameGen} \to {R_0}^{-1} \textit{qSameGen? } R_0 \mid \ldots \mid {R_i}^{-1} \textit{qSameGen? } R_i.$
+ %\end{align*}
+Additionally we want to calculate lenght of these paths.
 
-\subsection{Simple Solution}
+%\subsection{Simple Solution}
+
+The first step is to specify paths constraint. 
+For example, we fix relation to be \verb|skos__narrowerTransitive|.
+Then constraint may be specified in terms of combinators as follows:
 
 \begin{lstlisting}
 val rName = "skos__narrowerTransitive"
@@ -18,23 +28,23 @@ def qSameGen () =
         outE((_: Entity).label() == rName))
 \end{lstlisting}
 
+Here we use \verb|inE| and \verb|outE| to specify incoming nad outgoing edges with respective label, \verb|~| to concatenate subqueryes, and \verb|.?| to specify zero or one repitition of subquery.
+
 This query specifies exactly path we want, but still not a solution.
 First of all, we can not specify start vertex and can not extract final vertices.
-Also, this query for one specified relation.
-If we want to investigate hierarchy over othe relations, we need to rewrite this query.
+Also, this query is for one specified relation.
+To investigate hierarchy over a set of relations we need to rewrite it.
 
-\subsection{Compositionality}
-
-First step is a generalization of the same generation query to simplfy handling of different types of relations.
+\underline{\textbf{Compositionality.}}
+First step is a generalization of the query to simplfy handling of different types of relations.
 To do it we introduce a helper function \verb|reduceChoice| which takes a list of subqueryes and combine them by using alternation operation.
 
 \begin{lstlisting}
-def reduceChoice(qs: List[_]) = {
+def reduceChoice(qs: List[_]) =
   qs match {
      case x :: Nil => x
      case x :: y :: qs => syn(qs.foldLeft(x | y)(_ | _))
   }
-}
 \end{lstlisting}
 
 After that we use this function in new version of \verb|sameGen| to combine subqueryes for different types of braces.
@@ -66,10 +76,9 @@ def queryFromV (startV, query) =
 \end{lstlisting}
 
 
-\subsection{User-Defined Actions and Advanced Results Processing}
-
+\underline{\textbf{User-defined actions.}}
 Final step is to extend the query with calculation of lengths of all paths which satisfie conditions.
-To do it we equip \verb|sameGen| query with additional user-defined actions.
+To do it we equip \verb|sameGen| with additional user-defined actions.
 
 \begin{lstlisting}
 def sameGen(brs: List[(_,_)]) =
@@ -83,7 +92,7 @@ def sameGen(brs: List[(_,_)]) =
       })
 \end{lstlisting}
 
-Top level query function now handles not only theard element, but also the second one in order to get access to accamulated lenghts of paths.
+The \verb|queryFromV| now handles not only theard element, but also the second one in order to get access to accamulated lenghts.
 
 \begin{lstlisting}
 def queryFromV(startV, query) =
@@ -110,8 +119,7 @@ runExample(RdfConstants.RDFS__SUB_CLASS_OF :: Nil, 1, graph)
 
 
 
-\subsection{Type Safety}
-
+\underline{\textbf{Type safety.}}
 If subqueryes are composed incorrectly, then
 
 In example showed in figure~\ref{fig:types}, elements of pair wich represents query result are used incorrectly: we want to find total length of all paths but sum final vertices' identifiers instead of lenghths.
@@ -123,8 +131,7 @@ As a result, compiler statically detect a error because integer expected instead
    \label{fig:types}
 \end{figure}
 
-\subsection{IDE Support}
-
+\underline{\textbf{IDE Support.}}
 Since you can use IDE for development, you get all features for qury development, such as syntah highkighting, code navigation, autocompletion, without any additional effor.
 An example of autocompletion suggestions for vertex is presented in figure~\ref{fig:autocompletion}.
 
