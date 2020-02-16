@@ -1,53 +1,77 @@
 \section{Evaluation}
 
+In this section, we present the results of experiments whose purpose is to demonstrate the practical applicability of the proposed algorithm.
+
+All tests were run on a PC with the following characteristics:
+\begin{itemize}
+    \item OS: Linux Mint 19.1
+    \item CPU: Intel i5-8250U, 1600-3400 Mhz, 4 Core(s), 8 Logical Processor(s)
+    \item RAM: 8 GB
+    \item GPU: NVIDIA GeForce GTX 1050 MAX-Q
+\end{itemize}
+
+We implement two different versions of Valiant's algorithm and its modification in C++ programming language (the source code is available on GitHub\footnote{GitHub repository of the YaccConstructor project: \url{https://github.com/YaccConstructor/YaccConstructor}.}):
+
+\begin{itemize}
+    \item CPU-based solutions (valCPU and modCPU): \\
+    A high-performance library M4RI~\cite{Albrecht_2010} for fast Boolean matrix multiplication is used. This library conclude one of the most efficient implementations of the “Method of the Four Russians”~\cite{arlazarov1970economical}.
+    \item GPU-based solutions (valGPU and modGPU): \\
+    A naive Boolean matrix multiplication in CUDA C with Boolean values treated as bits and packed into uint\_32 is implemented.
+\end{itemize}
 
 
+We evaluate these implementations on context-free grammars $D_2$ (Figure~\ref{d2}) and $BIO$ (Figure~\ref{bio}).
+Grammar $D_2$ generate Dyck language on two kinds of parentheses and is chosen because grammars that describe well-balanced sequences of brackets are often used in string analysis in bioinformatics. 
+Grammar $BIO$ applies to the tRNA classification problem in paper~\cite{bioinformatics19}.
+We test various strings with length $N$ up to 8191 and search substrings with length $s$ up to 2040.
 
-\begin{figure}[t]
-%\subfloat{%
-\begin{minipage}{0.4\textwidth}
-\footnotesize
-\begin{alltt}
-s: s s | ( s ) | [ s ] | \(\varepsilon \)
-\end{alltt}
+\vspace{-5pt}
+\begin{figure}
+\centering
+\begin{minipage}{0.5\textwidth}
+	\[
+	\begin{array}{ccl}
+	s & \rightarrow & s \ s \ | \ ( \ s \ ) \ | \ [ \ s \ ] \ | \ \varepsilon \\
+	\end{array}
+	\]
+	\caption{Grammar $D_2$.}
+	\label{d2}
 \end{minipage}
- % }
-\end{figure}
-            
-            
-
-\begin{figure}[t]
-%\subfloat{%
-\begin{minipage}{0.4\textwidth}
-\footnotesize
-\begin{alltt}
-s: stem<s0>
-any_str: any_smb*[2..10]
-s0: any_str | any_str stem<s0> s0
-any_smb: A | U | C | G
-stem1<s1>: A s1 U | G s1 C | U s1 A | C s1 G 
-stem2<s1>: stem1<stem1<s1>>
-stem<s1>:  
-    A stem<s1> U 
-    | U stem<s1> A 
-    | C stem<s1> G 
-    | G stem<s1> C 
-    | stem1<stem2<s1>>              
-\end{alltt}
+\hfill
+\begin{minipage}{0.5\textwidth}
+	\[
+	\begin{array}{ccl}
+            s & \rightarrow & \ \ \text{stem}\langle s0 \rangle \\
+            \text{any\_str} & \rightarrow & \ \ \text{any\_smb}*[2..10] \\
+            s0 & \rightarrow & \ \ \text{any\_str} \ | \ \text{any\_str} \ \text{stem}\langle s0 \rangle \ s0 \\
+            \text{any\_smb} & \rightarrow &  \ \ A \ | \ U \ | \ C \ | \  G \\
+            \text{stem1}\langle s1 \rangle & \rightarrow & \ \ A \ s1 \  U \ | \ G \ s1 \ C \ | \ U \ s1 \ A \ | \ C \ s1 \ G \\
+            \text{stem2}\langle s1 \rangle & \rightarrow & \ \ \text{stem1}\langle \text{stem1}\langle s1 \rangle \rangle \\
+            \text{stem}\langle s1 \rangle & \rightarrow & \ \ A \ \text{stem}\langle s1 \rangle \ U
+              \ | \ U \ \text{stem}\langle s1 \rangle \ A \\
+              & &    | \ C \ \text{stem}\langle s1 \rangle \ G
+              \ | \ G \ \text{stem}\langle s1 \rangle \ C \\
+              & &    | \ \text{stem1}\langle \text{stem2}\langle s1 \rangle \rangle \\
+    \end{array}
+	\]
+	\caption{Grammar $BIO$.}
+	\label{bio}
 \end{minipage}
- % }
 \end{figure}
 
+\vspace{-5pt}
+The results of the evaluation are summarized in the tables below.
+Time is measured in milliseconds.
 
 \begin{table*}[h]
-\caption{}
+\caption{The comparative analysis}
 \label{tbl1}
 \centering
 \resizebox{\columnwidth}{!}{%
 \begin{tabular}{|| c||c|c|c|c || c|c|c|c ||} 
 \hline
-\multirow{2}{1em}{N} & \multicolumn{4}{c||}{Gramma $D2$} & \multicolumn{4}{c||}{Grammar $BIO$} \\
-& valCPU & yavCPU & valGPU & yavGPU & valCPU & yavCPU & valGPU & yavGPU \\
+\multirow{2}{1em}{N} & \multicolumn{4}{c||}{Grammar $D_2$} & \multicolumn{4}{c||}{Grammar $BIO$} \\
+& valCPU & modCPU & valGPU & modGPU & valCPU & modCPU & valGPU & modGPU \\
 \hline
 127 & 78 & 76 & 195 & 105 & 1345 & 1339 & 193 & 106 \\
 255 & 289 & 292 & 523 & 130 & 5408 & 5488 & 525 & 140 \\
@@ -61,64 +85,18 @@ stem<s1>:
 }
 \end{table*}
 
-\begin{figure}[h]
-\centering
-\subfloat[]{
-    \begin{tikzpicture}[scale=.4]
-    \begin{axis}[
-    legend cell align=left,
-    legend pos = north west,
-    xlabel = {string length},
-    ylabel = {time, sec},
-    %ymode=log
-    ]
-    \addplot [color=blue, mark=triangle*] coordinates {
-        (127, 0.078) (255, 0.289) (511,1.212) (1023,4.858) (2047,19.613) (4095,78.361)
-    };
-    \addplot [color=red, mark=*] coordinates {
-        (127, 0.076) (255, 0.292) (511,1.177) (1023,4.779) (2047,19.379) (4095,78.279)
-    };
-    \legend{ 
-        valCPU, 
-        yavCPU
-    };
-    \end{axis}
-    \end{tikzpicture}
-    \label{fig:GSSedges}
-}
-~
-    \subfloat[]{
-    \begin{tikzpicture}[scale=.4]
-    \begin{axis}[
-    legend cell align=left,
-    legend pos = north west,
-    xlabel = {string length},
-    ylabel = {time, sec},
-    %ymode=log
-    ]
-    \addplot [color=blue, mark=triangle*] coordinates {
-    (127, 0.195) (255, 0.523) (511,1.995) (1023,7.888) (2047,34.008) (4095,141.173)
-    };
-    \addplot [color=red, mark=*] coordinates {
-    (127, 0.105) (255, 0.140) (511,0.256) (1023,0.590) (2047,1.7) (4095,5.453)
-    };
-    \legend{ 
-    valGPU, 
-    yavGPU
-    };
-    \end{axis}
-    \end{tikzpicture}
-    \label{fig:Time}
-}
+The comparative analysis (table~\ref{tbl1}) shows that the performance of Valiant's and modified algorithms is the same for the CPU-based solutions.
+GPU-based implementation of Valiant algorithm is slower for grammar $D_2$ than the CPU-based one. 
+It can be assumed that it is because of processing a large amount of small matrix multiplication which cannot be computed concurrently. 
+In other cases, GPU-based solution provides significant performance improvement, especially for our modification, where the utilization of parallelism works for matrix multiplication itself as well as each matrix in the layer.
 
-\caption{ (grammar $D2$).}
-\label{expPlots}
-\end{figure}
+To adapt our algorithm for the string-matching problem the $main()$ function takes an additional argument $s$ ---  the maximum length of strings we want to find, so the modification has no need to compute all layers as shown in section 3.3.
+The corresponding implementations denote as  adpCPU and adpGPU.
 
 \begin{table*}
 
 \begin{center}
-\caption{}
+\caption{The string-searching problem}
 \label{tbl3}
     \begin{tabular}{ ||c||c||c|c|| } 
     \hline
@@ -142,3 +120,5 @@ stem<s1>:
 \end{center}
 
 \end{table*}
+
+The results of the second evaluation (table~\ref{tbl3}) shows that the modified version of algorithm can find all derivable substrings much faster than Valiant's algorithm, so can be efficiently applied to the string-searching problem.
