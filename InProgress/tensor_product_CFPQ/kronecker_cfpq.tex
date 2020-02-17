@@ -4,7 +4,7 @@ The idea of the algorithm is based on generalisation of the finite-state machine
 
 As an input algorithm accepts context-free grammar $G=(\Sigma,N,P$) and graph $\mathcal{G}=(V,E,L)$. All sets in the grammar and graph are supposed to be of finite size. Recursive automata $R$ is created from $G$. The process of the creation is out of the scope of this article. $M_1$ and $M_2$ are the adjacency matrices for automata $R$ and graph $\mathcal{G}$ correspondingly. Cell values of this matrices could be represented as sets of elements from $L \cup N \cup \Sigma$.
 
-Then the $\varepsilon$ symbol is explicitly added for matrices $M_1$ and $M_2$. For each state of the $R$ algorithm adds transitions from state $i$ to state $i$ via $\varepsilon$ if $i$ is initial and final state for some non-terminal. This info is queried via $getNonterminals()$ function call. Also for each vertex $i$ of the graph $\mathcal{G}$ the edge from $i$ to $i$ with label $\varepsilon$ is added. Here the rule is implied: each vertex of the graph $\mathcal{G}$ is reachable by itself through $\varepsilon$-transition. 
+Then for each vertex $i$ of the graph $\mathcal{G}$ the algorithm adds loops with non-terminals, which allows to derive $\varepsilon$-word. Here the rule is implied: each vertex of the graph is reachable by itself through $\varepsilon$-transition.  Since the automata $R$ does not have $\varepsilon$-transitions, the $\varepsilon$-word could be derived only if some state $s$ of the $R$ is initial and final for some non-terminal. This info is queried by $getNonterminals()$ function for each state $s$ correspondingly. 
 
 The algorithm is executed while matrix $M_2$ is changing. For each iteration Kronecker product of matrices $M_1$ and $M_2$ is evaluated. The result is saved in $M_3$ as a Boolean matrix. For given $M_3$ evaluated $C_3$ matrix via $transitiveClosure()$ function call. The $M_3$ could be interpreted as an adjacency matrix for an oriented graph without labels, used to evaluate transitive closure in terms of classical graph definition of this operation. Then the algorithm iterates over cells of the $C_3$. For pair of indices $(i,j)$ computes $s$ and $f$ - initial and final states in recursive automata $R$ which relate to the concrete $C_3[i,j]$ of the tensor matrix. Function $hasPathForNonterminals()$ checks whether for given $s$ and $f$ states automata has at least one non-terminal path. If the conditional statement is $true$ then algorithm adds non-terminals of that path via $getNonterminals()$ to the concrete cell of the adjacency matrix $M_2$ of the graph.
 
@@ -21,15 +21,10 @@ As an result the algorithm returns updated matrix $M_2$ which contains initial g
     \State{$M_1 \gets$ Adjacency matrix for $R$}
     \State{$M_2 \gets$ Adjacency matrix for $\mathcal{G}$}
     % Eps-transition handling for graph
-    \For{$i \in 0..dim(M_1)-1$} 
-        \If{$|\textit{getNonterminals}(R,i,i)| > 0$}
-            \Comment{Has at least one non-terminal}
-            \State{$M_2[i,i] \gets M_2[i,i] \cup \{ \varepsilon \}$}
-        \EndIf
-    \EndFor
-    % Eps-transition handling for graph
-    \For{$i \in 0..dim(M_2)-1$} 
-        \State{$M_3[i,i] \gets M_3[i,i] \cup \{ \varepsilon \}$}
+    \For{$s \in 0..dim(M_1)-1$}
+        \For{$i \in 0..dim(M_2)-1$}
+            \State{$M[i,i] \gets M[i,i] \cup \textit{getNonterminals}(R,s,s)$} 
+        \EndFor
     \EndFor
     \While{Matrix $M_2$ is changing}
         \State{$M_3 \gets M_1 \otimes M_2$}
@@ -75,7 +70,7 @@ Since the Kronecker product evaluated in the fixed order, such as $M_1 \otimes M
 \end{algorithmic}
 \end{algorithm}
 
-The proposed algorithm terminates in finite number of steps. Since functions, used in the algorithm, terminate in finite number of steps, it is enough to proof that the $while$ loop takes finite number of iterations. The matrix $M_2$ is updated only by possible addition of the new non-terminals in the line \textbf{20}. The number of elements in the cell of matrix $M_2$ only grows and cannot exceed $|L \cup N \cup \Sigma|$. Therefore, the $while$ loop terminates in finite number of iterations, which no more than $|L \cup N \cup \Sigma| * |V|^2$ in case when only 1 symbol is added for only one vertex per iteration.
+The proposed algorithm terminates in finite number of steps. Since functions, used in the algorithm, terminate in finite number of steps, it is enough to proof that the $while$ loop takes finite number of iterations. The matrix $M_2$ is updated only by possible addition of the new non-terminals in the line \textbf{18}. The number of elements in the cell of matrix $M_2$ only grows and cannot exceed $|L \cup N \cup \Sigma|$. Therefore, the $while$ loop terminates in finite number of iterations, which no more than $|L \cup N \cup \Sigma| * |V|^2$ in case when only 1 symbol is added for only one vertex per iteration.
 
 \subsection{Example}
 
@@ -143,7 +138,7 @@ Adjacency matrices $M_1$ and $M_2$ for automata $R$ and graph $\mathcal{G}$ resp
     \end{pmatrix}.
     $$
 
-After all the data is initialised in lines \textbf{2--4}, the algorithm handles $\varepsilon$-case. Because automata $R$ does not have $\varepsilon$-transitions and $\varepsilon$-word is not included in grammar $G$ language lines \textbf{5-9} of the algorithm do not affect on the input data.
+After all the data is initialised in lines \textbf{2--4}, the algorithm handles $\varepsilon$-case. Because automata $R$ does not have $\varepsilon$-transitions and $\varepsilon$-word is not included in grammar $G$ language lines \textbf{5--9} of the algorithm do not affect on the input data.
 
 Then the algorithm enters while loop and iterates as long as matrix $M_2$ is changing. We provide step-by-step evaluation of matrices $M_3$, $C_3$ and updating of matrix $M_2$. All the matrices are denoted with upper index of the current loop iteration. The first loop iteration is indexed as 1.
 
@@ -212,7 +207,7 @@ Note here that the dimension $n$ of the matrix $M_3$ equals 16, and this value i
 
 After the transitive closure evaluation matrix $C_3^1$ cell $(1,15)$ contains non-zero value. It means that vertex with index $15$ is accessible from vertex with index $1$ in a graph, represented by adjacency matrix $M_3^1$.
 
-Then the algorithm lines \textbf{14--20} are executed. In that section algorithm adds non-terminals to the graph matrix $M_2^1$. Because this step is additive we are only interested in newly appeared values in matrix $C_3^1$ such as value $C_3^1[1,15]$.
+Then the algorithm lines \textbf{14--18} are executed. In that section algorithm adds non-terminals to the graph matrix $M_2^1$. Because this step is additive we are only interested in newly appeared values in matrix $C_3^1$ such as value $C_3^1[1,15]$.
 
 For the value $C_3^1[1,15]$:
 \begin{itemize}
