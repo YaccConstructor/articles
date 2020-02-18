@@ -1,41 +1,45 @@
 \section{Kronecker Product Based CFPQ Algorithm}
 
-% 1. Описать вычисление тензерного произведения для булевых матриц?
-% 2. Расписать определение грамматики и графа?
-% 3. Kronecker = tensor product в контексте нашей задачи?
-% 4. Стоит ли рассмотреть еще примеры (выигрыш, различные автоматы)?
+The idea of the algorithm is based on generalisation of the finite-state machine intersection for a recursive automata, created from input grammar, and an input graph. The result of the intersection is evaluated as a Kronecker product of the corresponding adjacency matrices for automata and graph. To solve reachability problem it is enough to represent intersection result as a Boolean matrix, what simplifies algorithm implementation and allows to express it in terms of basic matrix operations. Listing~\ref{tensor:cfpq}. shows main steps of the solution.
 
-The idea of the algorithm is based on generalisation of the finite-state machine intersection for a recursive automata, created from input grammar, and an input graph. The result of the intersection is evaluated as a tensor product of the corresponding adjacency matrices for automata and graph. To solve reachability problem it is enough to represent intersection result as a Boolean matrix, what simplifies algorithm implementation and allows to express it in terms of basic matrix operations. Listing \ref{tensor:cfpq}. shows main steps of the solution.
+As an input algorithm accepts context-free grammar $G=(\Sigma,N,P$) and graph $\mathcal{G}=(V,E,L)$. All sets in the grammar and graph are supposed to be of finite size. Recursive automata $R$ is created from $G$. The process of the creation is out of the scope of this article. $M_1$ and $M_2$ are the adjacency matrices for automata $R$ and graph $\mathcal{G}$ correspondingly. Cell values of this matrices could be represented as sets of elements from $L \cup N \cup \Sigma$.
 
-As an input algorithm accepts context-free grammar $G=(\Sigma,N,P$) and graph $\mathcal{G}=(V,E,L)$. Recursive automata $R$ is created from $G$. The process of the creation is out of the scope of this article. $M_1$ and $M_2$ are the adjacency matrices for automata $R$ and graph $\mathcal{G}$ correspondingly. Cell values of this matrices could be represented as sets of elements from $L \cup N \cup \Sigma$.
+Then for each vertex $i$ of the graph $\mathcal{G}$ the algorithm adds loops with non-terminals, which allows to derive $\varepsilon$-word. Here the rule is implied: each vertex of the graph is reachable by itself through $\varepsilon$-transition.  Since the automata $R$ does not have $\varepsilon$-transitions, the $\varepsilon$-word could be derived only if some state $s$ of the $R$ is initial and final for some non-terminal. This info is queried by $getNonterminals()$ function for each state $s$ correspondingly. 
 
-The algorithm is executed while matrix $M_2$ is changing. For each iteration tensor product of matrices $M_1$ and $M_2$ is evaluated.  The result is saved in $M_3$ as a Boolean matrix. For given $M_3$ evaluated $tC_3$ matrix via $transitiveClosure()$ function call. The $M_3$ could be interpreted as an adjacency matrix for an oriented graph without labels, used to evaluate transitive closure in terms of classical graph definition of this operation. Then the algorithm iterates over cells of the $tC_3$. For pair of indices $(i,j)$ computes $s$ and $f$ - initial and final states in recursive automata $R$ which relate to the concrete $tC_3[i,j]$ of the tensor matrix. Function $hasPathForNonterminals()$ checks whether for given $s$ and $f$ states automata has at least one non-terminal path. If the conditional statement is $true$ then algorithm adds non-terminals of that path via $getNonterminals()$ to the concrete cell of the adjacency matrix $M_2$ of the graph.
+The algorithm is executed while matrix $M_2$ is changing. For each iteration Kronecker product of matrices $M_1$ and $M_2$ is evaluated. The result is saved in $M_3$ as a Boolean matrix. For given $M_3$ evaluated $C_3$ matrix via $transitiveClosure()$ function call. The $M_3$ could be interpreted as an adjacency matrix for an oriented graph without labels, used to evaluate transitive closure in terms of classical graph definition of this operation. Then the algorithm iterates over cells of the $C_3$. For pair of indices $(i,j)$ computes $s$ and $f$ - initial and final states in recursive automata $R$ which relate to the concrete $C_3[i,j]$ of the tensor matrix. Function $hasPathForNonterminals()$ checks whether for given $s$ and $f$ states automata has at least one non-terminal path. If the conditional statement is $true$ then algorithm adds non-terminals of that path via $getNonterminals()$ to the concrete cell of the adjacency matrix $M_2$ of the graph.
 
 As an result the algorithm returns updated matrix $M_2$ which contains initial graph $\mathcal{G}$ data and non-terminals from $N$. If a cell $M_2[i,j]$ for any valid indices $i$ and $j$ contains symbol $S \in N$, therefore, vertex $j$ is reachable from vertex $i$ in grammar $G$ for non-terminal $S$.
 
-\begin{algorithm}
+\begin{algorithm}[h]
 \floatname{algorithm}{Listing}
 \begin{algorithmic}[1]
 \caption{Kronecker product based CFPQ}
 \label{tensor:cfpq}
 \Function{contextFreePathQuerying}{G, $\mathcal{G}$}
+    % Input data preparation
     \State{$R \gets$ Recursive automata for $G$}
     \State{$M_1 \gets$ Adjacency matrix for $R$}
     \State{$M_2 \gets$ Adjacency matrix for $\mathcal{G}$}
+    % Eps-transition handling for graph
+    \For{$s \in 0..dim(M_1)-1$}
+        \For{$i \in 0..dim(M_2)-1$}
+            \State{$M[i,i] \gets M[i,i] \cup \textit{getNonterminals}(R,s,s)$} 
+        \EndFor
+    \EndFor
     \While{Matrix $M_2$ is changing}
         \State{$M_3 \gets M_1 \otimes M_2$}
         \Comment{Evaluate tensor product}
-        \State{$tC_3 \gets \textit{transitiveClosure}(M_3)$}
-        \State{$n \gets$ Matrix $M_3$ dimension}
+        \State{$C_3 \gets \textit{transitiveClosure}(M_3)$}
+        \State{$n \gets$ dim($M_3)$}
         \Comment{Matrix $M_3$ size = $n \times n$}
+        % Add non-terminals (possibly new)
         \For{$i \in 0..n-1$}
            \For{$j \in 0..n-1$}
-                \If{$tC_3[i,j]$}
-                    \State{$s \gets$ initial vertex of the edge $tC_3[i,j]$}
-                    \State{$f \gets$ final vertex of the edge $tC_3[i,j]$}
-                    \If{$hasPathForNonterminals(R,s,f)$}
-                        \State{$x, y \gets getCoordinates(tC_3,i,j)$}
-                        \State{$M_2[x,y] \gets M_2[x,y] \cup getNonterminals(R,s,f)$}
+                \If{$C_3[i,j]$}
+                    \State{$s, f \gets \textit{getStates}(C_3,i,j)$}
+                    \If{$\textit{hasPathForNonterminals}(R,s,f)$}
+                        \State{$x, y \gets \textit{getCoordinates}(C_3,i,j)$}
+                        \State{$M_2[x,y] \gets M_2[x,y] \cup \textit{getNonterminals}(R,s,f)$}
                     \EndIf
                 \EndIf
            \EndFor
@@ -46,21 +50,31 @@ As an result the algorithm returns updated matrix $M_2$ which contains initial g
 \end{algorithmic}
 \end{algorithm}
 
-\subsection{Remarks}
-\label{section:remarks}
+Since the Kronecker product evaluated in the fixed order, such as $M_1 \otimes M_2$, the functions $getStates$ and $getCoordinates$ could be implemented as shown in Listing~\ref{tensor:cfpq:help}. This implementation appeals to the blocked structure of the matrix $C_3$, where each block corresponds to some automata and graph edge.
 
-% Про eps обязательно надо написать, так как это весьма болезненная тема?
-% Здесь стоит посмотреть еще раз, не бред ли получился?
-% Почему алгоритм завершается - надо написать? Про сложность надо пояснить?
+\begin{algorithm}[h]
+\floatname{algorithm}{Listing}
+\begin{algorithmic}[1]
+\caption{Help functions for Kronecker product based CFPQ}
+\label{tensor:cfpq:help}
+\Function{getStates}{$C, i, j$}
+    \State{$r \gets dim(M_1)$}
+    \Comment{$M_1$ is adjacency matrix for automata $R$}
+    \State \Return{$\left\lfloor{i / r}\right\rfloor, \left\lfloor{j / r}\right\rfloor$}
+\EndFunction
+\Function{getCoordinates}{$C, i, j$}
+    \State{$n \gets dim(M_2)$}
+    \Comment{$M_2$ is adjacency matrix for graph $\mathcal{G}$}
+    \State \Return{$i \bmod n, j \bmod n$}
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
 
-\begin{itemize}
-    \item Mentioned above algorithm description does not take into account the use of $\epsilon$-transitions in the automata $R$. This transitions might appear in the automata if the grammar allows to derive $\epsilon$-word for some non-terminal. In this case there is required additional step for matrix $M_2$ before the $while$ loop is entered. For each $i \in 0..dim(M_2)-1$ symbol $\epsilon$ must be explicitly added for $M_2[i,i]$ as follows: $M_2[i,i] \gets M_2[i,i] \cup \{\epsilon\}$. Here the rule is implied: each vertex of the graph $\mathcal{G}$ is reachable by itself through $\epsilon$-transition.
-    \item The performance-critical part of the algorithm is transitive closure computation. Generally this step requires $O(n^{3})$ operations and $O(n^{2})$ memory where $n$ is dimension of $M_3$ what equals $dim(M_1) \times dim(M_2)$.
-\end{itemize}{}
+The proposed algorithm terminates in finite number of steps. Since functions, used in the algorithm, terminate in finite number of steps, it is enough to proof that the $while$ loop takes finite number of iterations. The matrix $M_2$ is updated only by possible addition of the new non-terminals in the line \textbf{18}. The number of elements in the cell of matrix $M_2$ only grows and cannot exceed $|L \cup N \cup \Sigma|$. Therefore, the $while$ loop terminates in finite number of iterations, which no more than $|L \cup N \cup \Sigma| * |V|^2$ in case when only 1 symbol is added for only one vertex per iteration.
 
 \subsection{Example}
 
-This section is intended to provide step-by-step demonstration of the proposed algorithm. As an example query consider the following context-free grammar $G=(\Sigma,N,P)$ for a language $\{a^n b^n | n \geq 1\}$ where:
+This section is intended to provide step-by-step demonstration of the proposed algorithm. As an example consider the following query, theoretical worst case for CFPQ time complexity, proposed by Hellings~\cite{Hellings}: graph $\mathcal{G}$ presented in Figure~\ref{input:graph} and  context-free grammar $G=(\Sigma,N,P)$ for a language $\{a^n b^n | n \geq 1\}$ where:
 
 \begin{itemize}
     \item Set of terminals $\Sigma = \{a, b\}$.
@@ -68,9 +82,7 @@ This section is intended to provide step-by-step demonstration of the proposed a
     \item Set of production rules $P = \{ S \to a S b, S \to a b\}$.
 \end{itemize}
 
-Since the proposed algorithm processes grammar in form of recursive automata, we first provide automata $R$ in Figure \ref{input:automata}. The initial state of the automata is $(0)$, the final state is $(3)$. The notation $\{S\}$ denotes here that non-terminal $S$ could be derived in automata path from vertex $(0)$ to $(3)$.
-
-% Proper alignment for figures?
+Since the proposed algorithm processes grammar in form of recursive automata, we first provide automata $R$ in Figure~\ref{input:automata}. The initial state of the automata is $(0)$, the final state is $(3)$. The notation $\{S\}$ denotes here that non-terminal $S$ could be derived in automata path from vertex $(0)$ to $(3)$.
 
 \begin{figure}[h]
      \begin{tikzpicture}[shorten >=1pt,auto]
@@ -88,8 +100,6 @@ Since the proposed algorithm processes grammar in form of recursive automata, we
     \caption{The recursive automata $R$ of grammar $G$ for example query}
     \label{input:automata}
 \end{figure}
-
-For this example we run query on graph $\mathcal{G}$ presented in Figure \ref{input:graph}. This graph consists of 4 vertices and 5 edges with labels.
 
 \begin{figure}[h]
         \centering
@@ -128,11 +138,11 @@ Adjacency matrices $M_1$ and $M_2$ for automata $R$ and graph $\mathcal{G}$ resp
     \end{pmatrix}.
     $$
 
-Because automata $R$ does not have $\varepsilon$-transitions and $\varepsilon$-word is not included in grammar $G$ language, we can skip additional step for matrix $M_2$ mentioned in section~\ref{section:remarks}.
+After all the data is initialised in lines \textbf{2--4}, the algorithm handles $\varepsilon$-case. Because automata $R$ does not have $\varepsilon$-transitions and $\varepsilon$-word is not included in grammar $G$ language lines \textbf{5--9} of the algorithm do not affect on the input data.
 
-After all the data is initialised in lines \textbf{2--4} of the algorithm, it enters while loop and iterates as long as matrix $M_2$ is changing. We provide step-by-step evaluation of matrices $M_3$, $tC_3$ and updating of matrix $M_2$. All the matrices are denoted with upper index of the current loop iteration. The first loop iteration is indexed as 1.
+Then the algorithm enters while loop and iterates as long as matrix $M_2$ is changing. We provide step-by-step evaluation of matrices $M_3$, $C_3$ and updating of matrix $M_2$. All the matrices are denoted with upper index of the current loop iteration. The first loop iteration is indexed as 1.
 
-For the first while loop iteration the tensor product $M_3^1 = M_1 \otimes M_2^0$ and transitive closure $tC_3^1$ are evaluated as follows:
+For the first while loop iteration the tensor product $M_3^1 = M_1 \otimes M_2^0$ and transitive closure $C_3^1$ are evaluated as follows:
 
 %\begin{figure}
     {\renewcommand{\arraystretch}{0.6}
@@ -163,7 +173,7 @@ For the first while loop iteration the tensor product $M_3^1 = M_1 \otimes M_2^0
     \end{array}
     \right)
     ,~~~~~~
-    tC_3^1 =
+    C_3^1 =
     \left(
     \begin{array}{c c c c | c c c c | c c c c | c c c c }
     . & . & . & .  &  . & 1 & . & .  &  . & . & . & .  &  . & . & . & . \\
@@ -193,18 +203,17 @@ For the first while loop iteration the tensor product $M_3^1 = M_1 \otimes M_2^0
     %\label{example:iteration1eval}
 %\end{figure}
 
-The dimension $n$ of the matrix $M_3$ equals 16, and this value is constant in time of the algorithm execution.
+Note here that the dimension $n$ of the matrix $M_3$ equals 16, and this value is constant in time of the algorithm execution.
 
+After the transitive closure evaluation matrix $C_3^1$ cell $(1,15)$ contains non-zero value. It means that vertex with index $15$ is accessible from vertex with index $1$ in a graph, represented by adjacency matrix $M_3^1$.
 
-After the transitive closure evaluation matrix $tC_3^1$ cell $(1,15)$ contains non-zero value. It means that vertex with index $15$ is accessible from vertex with index $1$ in a graph, represented by adjacency matrix $M_3^1$.
+Then the algorithm lines \textbf{14--18} are executed. In that section algorithm adds non-terminals to the graph matrix $M_2^1$. Because this step is additive we are only interested in newly appeared values in matrix $C_3^1$ such as value $C_3^1[1,15]$.
 
-Then the algorithm lines \textbf{9-16} are executed. In that section algorithm adds non-terminals to the graph matrix $M_2^1$. Because this step is additive we are only interested in newly appeared values in matrix $tC_3^1$ such as value $tC_3^1[1,15]$.
-
-For the value $tC_3^1[1,15]$:
+For the value $C_3^1[1,15]$:
 \begin{itemize}
-    \item Indices of the automata vertices $s = 0$ and $f = 3$, because value $tC_3^1[1,15]$ located in upper right matrix block $(0,3)$.
+    \item Indices of the automata vertices $s = 0$ and $f = 3$, because value $C_3^1[1,15]$ located in upper right matrix block $(0,3)$.
     \item Indices of the graph vertices $x = 1$ and $y = 3$ are evaluated as
-    value $tC_3^1[1,15]$ indices relatively to its block $(0,3)$.
+    value $C_3^1[1,15]$ indices relatively to its block $(0,3)$.
     \item Function call $hasPathForNonterminals()$ returns \textbf{true} since the automata $R$ has path for non-terminal $S$ from vertex $0$ to $3$.
     \item Function call $getNonterminals()$ returns $\{S\}$ since this is the only non-terminal which could be derived in path from vertex $0$ to $3$.
 \end{itemize}{}
@@ -242,10 +251,9 @@ For the value $tC_3^1[1,15]$:
     \label{example:iteration1res}
 \end{figure}
 
-After the first loop iteration matrix symbol $S$ is added to the cell $M_2^1[1,3]$. It is relevant data, because initial graph has path $1 \to 2 \to 3$ which could be derived for $S$. The updated matrix and graph are depicted in figure \ref{example:iteration1res}.
+After the first loop iteration matrix symbol $S$ is added to the cell $M_2^1[1,3]$. It is relevant data, because initial graph has path $1 \to 2 \to 3$ which could be derived for $S$. The updated matrix and graph are depicted in Figure~\ref{example:iteration1res}.
 
-For the second loop iteration matrices $M_3^2$ and $tC_3^2$ are evaluated as listed in figure \ref{example:iteration2eval}. For this iteration in the matrix $tC_3^2$ appeared new non-zero values in cells with indices $[0,11]$, $[0,14]$ and $[5,14]$. Because only the cell value with index $[0,14]$ corresponds to the automata path with not empty non-terminal set $\{S\}$
-its data affects adjacency matrix $M_2$. The update matrix and graph $\mathcal{G}$ are depicted in figure~\ref{example:iteration2res}.
+For the second loop iteration matrices $M_3^2$ and $C_3^2$ are evaluated as listed in Figure~\ref{example:iteration2eval}. For this iteration in the matrix $C_3^2$ appeared new non-zero values in cells with indices $[0,11]$, $[0,14]$ and $[5,14]$. Because only the cell value with index $[0,14]$ corresponds to the automata path with not empty non-terminal set $\{S\}$ its data affects adjacency matrix $M_2$. The updated matrix and graph $\mathcal{G}$ are depicted in Figure~\ref{example:iteration2res}.
 
 \begin{figure}
     \renewcommand{\arraystretch}{0.6}
@@ -275,7 +283,7 @@ its data affects adjacency matrix $M_2$. The update matrix and graph $\mathcal{G
     . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .
     \end{array}
     \right)
-    tC_3^2 =
+    C_3^2 =
     \left(
     \begin{array}{c c c c | c c c c | c c c c | c c c c }
     . & . & . & .  &  . & 1 & . & .  &  . & . & . & \textbf{1}  &  . & . & \textbf{1} & . \\
@@ -338,15 +346,15 @@ its data affects adjacency matrix $M_2$. The update matrix and graph $\mathcal{G
     \label{example:iteration2res}
 \end{figure}
 
-The remaining matrices $tC_3$ and $M_2$ for the algorithm main loop execution are listed in the figure~\ref{example:iteration3to6eval} and figure~\ref{example:iteration3to6res} correspondingly. For the sake of simplicity evaluated matrices $M_3$ are not included because its computation is a straightforward process. The last loop iteration is $7$. Although the matrix $M_2^6$ is updated with new non-terminal $S$ for the cell $[2,2]$ after transitive closure evaluation the new values to the matrix $M_2$ is not added. Therefore matrix $M_2$ has stopped changing and the algorithm is successfully finished.
+The remaining matrices $C_3$ and $M_2$ for the algorithm main loop execution are listed in the Figure~\ref{example:iteration3to6eval} and Figure~\ref{example:iteration3to6res} correspondingly. For the sake of simplicity evaluated matrices $M_3$ are not included because its computation is a straightforward process. The last loop iteration is $7$. Although the matrix $M_2^6$ is updated with new non-terminal $S$ for the cell $[2,2]$ after transitive closure evaluation the new values to the matrix $M_2$ is not added. Therefore matrix $M_2$ has stopped changing and the algorithm is successfully finished.
 
-For the example query algorithm takes $7$ iterations for the $while-loop$. The updated graph $\mathcal{G}$ is depicted in the figure~\ref{example:result}.
+For the example query algorithm takes $7$ iterations for the $while-loop$. The updated graph $\mathcal{G}$ is depicted in the Figure~\ref{example:result}.
 
 \begin{figure}
     \renewcommand{\arraystretch}{0.6}
     \centering
     $$
-    tC_3^3 =
+    C_3^3 =
     \left(
     \begin{array}{c c c c | c c c c | c c c c | c c c c }
     . & . & . & .  &  . & 1 & . & .  &  . & . & . & 1  &  . & . & 1 & . \\
@@ -370,7 +378,7 @@ For the example query algorithm takes $7$ iterations for the $while-loop$. The u
     . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .
     \end{array}
     \right)
-    tC_3^4 =
+    C_3^4 =
     \left(
     \begin{array}{c c c c | c c c c | c c c c | c c c c }
     . & . & . & .  &  . & 1 & . & .  &  . & . & . & 1  &  . & . & 1 & . \\
@@ -396,7 +404,7 @@ For the example query algorithm takes $7$ iterations for the $while-loop$. The u
     \right)
     $$
     $$
-    tC_3^5 =
+    C_3^5 =
     \left(
     \begin{array}{c c c c | c c c c | c c c c | c c c c }
     . & . & . & .  &  . & 1 & . & .  &  . & . & \textbf{1} & 1  &  . & . & 1 & \textbf{1} \\
@@ -420,7 +428,7 @@ For the example query algorithm takes $7$ iterations for the $while-loop$. The u
     . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .
     \end{array}
     \right)
-    tC_3^6 =
+    C_3^6 =
     \left(
     \begin{array}{c c c c | c c c c | c c c c | c c c c }
     . & . & . & .  &  . & 1 & . & .  &  . & . & 1 & 1  &  . & . & 1 & 1 \\
