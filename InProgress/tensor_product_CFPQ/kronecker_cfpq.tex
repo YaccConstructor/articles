@@ -6,9 +6,9 @@ As an input algorithm accepts context-free grammar $G=(\Sigma,N,P$) and graph $\
 
 Then for each vertex $i$ of the graph $\mathcal{G}$ the algorithm adds loops with non-terminals, which allows to derive $\varepsilon$-word. Here the rule is implied: each vertex of the graph is reachable by itself through $\varepsilon$-transition.  Since the automata $R$ does not have $\varepsilon$-transitions, the $\varepsilon$-word could be derived only if some state $s$ of the $R$ is initial and final for some non-terminal. This info is queried by $getNonterminals()$ function for each state $s$ correspondingly. 
 
-The algorithm is executed while matrix $M_2$ is changing. For each iteration Kronecker product of matrices $M_1$ and $M_2$ is evaluated. The result is saved in $M_3$ as a Boolean matrix. For given $M_3$ evaluated $C_3$ matrix via $transitiveClosure()$ function call. The $M_3$ could be interpreted as an adjacency matrix for an oriented graph without labels, used to evaluate transitive closure in terms of classical graph definition of this operation. Then the algorithm iterates over cells of the $C_3$. For pair of indices $(i,j)$ computes $s$ and $f$ - initial and final states in recursive automata $R$ which relate to the concrete $C_3[i,j]$ of the tensor matrix. Function $hasPathForNonterminals()$ checks whether for given $s$ and $f$ states automata has at least one non-terminal path. If the conditional statement is $true$ then algorithm adds non-terminals of that path via $getNonterminals()$ to the concrete cell of the adjacency matrix $M_2$ of the graph.
+The algorithm is executed while matrix $M_2$ is changing. For each iteration Kronecker product of matrices $M_1$ and $M_2$ is evaluated. The result is saved in $M_3$ as a Boolean matrix. For given $M_3$ evaluated $C_3$ matrix via $transitiveClosure()$ function call. The $M_3$ could be interpreted as an adjacency matrix for an oriented graph without labels, used to evaluate transitive closure in terms of classical graph definition of this operation. Then the algorithm iterates over cells of the $C_3$. For pair of indices $(i,j)$ computes $s$ and $f$ - initial and final states in recursive automata $R$ which relate to the concrete $C_3[i,j]$ of the tensor matrix. Then algorithm checks whether for given $s$ and $f$ states automata has at least one non-terminal path. If the conditional statement is $true$ then algorithm adds non-terminals of that path via $getNonterminals()$ to the concrete cell of the adjacency matrix $M_2$ of the graph.
 
-As an result the algorithm returns updated matrix $M_2$ which contains initial graph $\mathcal{G}$ data and non-terminals from $N$. If a cell $M_2[i,j]$ for any valid indices $i$ and $j$ contains symbol $S \in N$, therefore, vertex $j$ is reachable from vertex $i$ in grammar $G$ for non-terminal $S$.
+As a result the algorithm returns updated matrix $M_2$ which contains initial graph $\mathcal{G}$ data and non-terminals from $N$. If a cell $M_2[i,j]$ for any valid indices $i$ and $j$ contains symbol $S \in N$, therefore, vertex $j$ is reachable from vertex $i$ in grammar $G$ for non-terminal $S$.
 
 \begin{algorithm}[h]
 \floatname{algorithm}{Listing}
@@ -23,7 +23,7 @@ As an result the algorithm returns updated matrix $M_2$ which contains initial g
     % Eps-transition handling for graph
     \For{$s \in 0..dim(M_1)-1$}
         \For{$i \in 0..dim(M_2)-1$}
-            \State{$M[i,i] \gets M[i,i] \cup \textit{getNonterminals}(R,s,s)$} 
+            \State{$M_2[i,i] \gets M[i,i]_2 \cup \textit{getNonterminals}(R,s,s)$} 
         \EndFor
     \EndFor
     \While{Matrix $M_2$ is changing}
@@ -37,7 +37,7 @@ As an result the algorithm returns updated matrix $M_2$ which contains initial g
            \For{$j \in 0..n-1$}
                 \If{$C_3[i,j]$}
                     \State{$s, f \gets \textit{getStates}(C_3,i,j)$}
-                    \If{$\textit{hasPathForNonterminals}(R,s,f)$}
+                    \If{$\textit{getNonterminals}(R,s,f) \neq \emptyset$}
                         \State{$x, y \gets \textit{getCoordinates}(C_3,i,j)$}
                         \State{$M_2[x,y] \gets M_2[x,y] \cup \textit{getNonterminals}(R,s,f)$}
                     \EndIf
@@ -70,11 +70,9 @@ Since the Kronecker product evaluated in the fixed order, such as $M_1 \otimes M
 \end{algorithmic}
 \end{algorithm}
 
-The proposed algorithm terminates in finite number of steps. Since functions, used in the algorithm, terminate in finite number of steps, it is enough to proof that the $while$ loop takes finite number of iterations. The matrix $M_2$ is updated only by possible addition of the new non-terminals in the line \textbf{18}. The number of elements in the cell of matrix $M_2$ only grows and cannot exceed $|L \cup N \cup \Sigma|$. Therefore, the $while$ loop terminates in finite number of iterations, which no more than $|L \cup N \cup \Sigma| * |V|^2$ in case when only 1 symbol is added for only one vertex per iteration.
-
 \subsection{Example}
 
-This section is intended to provide step-by-step demonstration of the proposed algorithm. As an example consider the following query, theoretical worst case for CFPQ time complexity, proposed by Hellings~\cite{Hellings}: graph $\mathcal{G}$ presented in Figure~\ref{input:graph} and  context-free grammar $G=(\Sigma,N,P)$ for a language $\{a^n b^n | n \geq 1\}$ where:
+This section is intended to provide step-by-step demonstration of the proposed algorithm. As an example consider the following query, theoretical worst case for CFPQ time complexity, proposed by J.Hellings~\cite{hellings2015querying}: graph $\mathcal{G}$ presented in Figure~\ref{input:graph} and  context-free grammar $G=(\Sigma,N,P)$ for a language $\{a^n b^n~|~n \geq 1\}$ where:
 
 \begin{itemize}
     \item Set of terminals $\Sigma = \{a, b\}$.
@@ -82,24 +80,7 @@ This section is intended to provide step-by-step demonstration of the proposed a
     \item Set of production rules $P = \{ S \to a S b, S \to a b\}$.
 \end{itemize}
 
-Since the proposed algorithm processes grammar in form of recursive automata, we first provide automata $R$ in Figure~\ref{input:automata}. The initial state of the automata is $(0)$, the final state is $(3)$. The notation $\{S\}$ denotes here that non-terminal $S$ could be derived in automata path from vertex $(0)$ to $(3)$.
-
-\begin{figure}[h]
-     \begin{tikzpicture}[shorten >=1pt,auto]
-           \node[state, initial] (q_0)   {$0 \{S\}$};
-           \node[state] (q_1) [right=of q_0] {$1$};
-           \node[state] (q_2) [right=of q_1] {$2$};
-           \node[state, accepting] (q_3) [right=of q_2] {$3\{S\}$};
-            \path[->]
-            (q_0) edge node {a} (q_1)
-            (q_1) edge node {S} (q_2)
-            (q_2) edge node {b} (q_3)
-            (q_1) edge [bend left, above]  node {b} (q_3);
-    \end{tikzpicture}
-    \centering
-    \caption{The recursive automata $R$ of grammar $G$ for example query}
-    \label{input:automata}
-\end{figure}
+Since the proposed algorithm processes grammar in form of recursive automata, we first provide automata $R$ in Figure~\ref{example:automata}. The initial state of the automata is $(0)$, the final state is $(3)$. The notation $\{S\}$ denotes here that non-terminal $S$ could be derived in automata path from vertex $(0)$ to $(3)$.
 
 \begin{figure}[h]
         \centering
@@ -138,7 +119,7 @@ Adjacency matrices $M_1$ and $M_2$ for automata $R$ and graph $\mathcal{G}$ resp
     \end{pmatrix}.
     $$
 
-After all the data is initialised in lines \textbf{2--4}, the algorithm handles $\varepsilon$-case. Because automata $R$ does not have $\varepsilon$-transitions and $\varepsilon$-word is not included in grammar $G$ language lines \textbf{5--9} of the algorithm do not affect on the input data.
+After all the data is initialised in lines \textbf{2--4}, the algorithm handles $\varepsilon$-case. Because automata $R$ does not have $\varepsilon$-transitions and $\varepsilon$-word is not included in grammar $G$ language lines \textbf{5--7} of the algorithm do no affect the input data.
 
 Then the algorithm enters while loop and iterates as long as matrix $M_2$ is changing. We provide step-by-step evaluation of matrices $M_3$, $C_3$ and updating of matrix $M_2$. All the matrices are denoted with upper index of the current loop iteration. The first loop iteration is indexed as 1.
 
@@ -225,7 +206,7 @@ For the value $C_3^1[1,15]$:
     M_2^1 =
     \begin{pmatrix}
     . & \{a\} & . & .     \\
-    . & . & \{a\} & \{S\} \\
+    . & . & \{a\} & \{\textbf{S}\} \\
     \{a\} & . & . & \{b\} \\
     . & . & \{b\} & .
     \end{pmatrix}
@@ -268,7 +249,7 @@ For the second loop iteration matrices $M_3^2$ and $C_3^2$ are evaluated as list
     . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
     \hline
     . & . & . & .  &  . & . & . & .  &  . & . & . & .           &  . & . & . & .   \\
-    . & . & . & .  &  . & . & . & .  &  . & . & . & \textbf{1}  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & \cellcolor{lightgray}\textbf{1}  &  . & . & . & .   \\
     . & . & . & .  &  . & . & . & .  &  . & . & . & .           &  . & . & . & 1 \\
     . & . & . & .  &  . & . & . & .  &  . & . & . & .           &  . & . & 1 & . \\
     \hline
@@ -286,13 +267,13 @@ For the second loop iteration matrices $M_3^2$ and $C_3^2$ are evaluated as list
     C_3^2 =
     \left(
     \begin{array}{c c c c | c c c c | c c c c | c c c c }
-    . & . & . & .  &  . & 1 & . & .  &  . & . & . & \textbf{1}  &  . & . & \textbf{1} & . \\
+    . & . & . & .  &  . & 1 & . & .  &  . & . & . & \cellcolor{lightgray}\textbf{1}  &  . & . & \cellcolor{lightgray}\textbf{1} & . \\
     . & . & . & .  &  . & . & 1 & .  &  . & . & . & .  &  . & . & . & 1 \\
     . & . & . & .  &  1 & . & . & .  &  . & . & . & .  &  . & . & . & . \\
     . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
     \hline
     . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
-    . & . & . & .  &  . & . & . & .  &  . & . & . & 1  &  . & . & \textbf{1} & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & 1  &  . & . & \cellcolor{lightgray}\textbf{1} & . \\
     . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & 1 \\
     . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
     \hline
@@ -318,7 +299,7 @@ For the second loop iteration matrices $M_3^2$ and $C_3^2$ are evaluated as list
     $$
     M_2^2 =
     \begin{pmatrix}
-    .     & \{a\} & \{S\} & .     \\
+    .     & \{a\} & \{\textbf{S}\} & .     \\
     .     & .     & \{a\} & \{S\} \\
     \{a\} & .     & .     & \{b\} \\
     .     & .     & \{b\} & .
@@ -348,7 +329,7 @@ For the second loop iteration matrices $M_3^2$ and $C_3^2$ are evaluated as list
 
 The remaining matrices $C_3$ and $M_2$ for the algorithm main loop execution are listed in the Figure~\ref{example:iteration3to6eval} and Figure~\ref{example:iteration3to6res} correspondingly. For the sake of simplicity evaluated matrices $M_3$ are not included because its computation is a straightforward process. The last loop iteration is $7$. Although the matrix $M_2^6$ is updated with new non-terminal $S$ for the cell $[2,2]$ after transitive closure evaluation the new values to the matrix $M_2$ is not added. Therefore matrix $M_2$ has stopped changing and the algorithm is successfully finished.
 
-For the example query algorithm takes $7$ iterations for the $while-loop$. The updated graph $\mathcal{G}$ is depicted in the Figure~\ref{example:result}.
+For the example query algorithm takes $7$ iterations for the $while$-loop. The updated graph $\mathcal{G}$ is depicted in the Figure~\ref{example:result}.
 
 \begin{figure}
     \renewcommand{\arraystretch}{0.6}
@@ -362,7 +343,7 @@ For the example query algorithm takes $7$ iterations for the $while-loop$. The u
     . & . & . & .  &  1 & . & . & .  &  . & . & \cellcolor{lightgray}\textbf{1} & .  &  . & . & . & \cellcolor{lightgray}\textbf{1} \\
     . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
     \hline
-    . & . & . & .  &  . & . & . & .  &  . & . & 1 & .  &  . & . & . & \textbf{1} \\
+    . & . & . & .  &  . & . & . & .  &  . & . & 1 & .  &  . & . & . & \cellcolor{lightgray}\textbf{1} \\
     . & . & . & .  &  . & . & . & .  &  . & . & . & 1  &  . & . & 1 & . \\
     . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & 1 \\
     . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
@@ -382,13 +363,13 @@ For the example query algorithm takes $7$ iterations for the $while-loop$. The u
     \left(
     \begin{array}{c c c c | c c c c | c c c c | c c c c }
     . & . & . & .  &  . & 1 & . & .  &  . & . & . & 1  &  . & . & 1 & . \\
-    . & . & . & .  &  . & . & 1 & .  &  . & . & . & \textbf{1}  &  . & . & \textbf{1} & 1 \\
+    . & . & . & .  &  . & . & 1 & .  &  . & . & . & \cellcolor{lightgray}\textbf{1}  &  . & . & \cellcolor{lightgray}\textbf{1} & 1 \\
     . & . & . & .  &  1 & . & . & .  &  . & . & 1 & .  &  . & . & . & 1 \\
     . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
     \hline
     . & . & . & .  &  . & . & . & .  &  . & . & 1 & .  &  . & . & . & 1 \\
     . & . & . & .  &  . & . & . & .  &  . & . & . & 1  &  . & . & 1 & . \\
-    . & . & . & .  &  . & . & . & .  &  . & . & . & 1  &  . & . & \textbf{1} & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & 1  &  . & . & \cellcolor{lightgray}\textbf{1} & 1 \\
     . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
     \hline
     . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
@@ -407,13 +388,13 @@ For the example query algorithm takes $7$ iterations for the $while-loop$. The u
     C_3^5 =
     \left(
     \begin{array}{c c c c | c c c c | c c c c | c c c c }
-    . & . & . & .  &  . & 1 & . & .  &  . & . & \textbf{1} & 1  &  . & . & 1 & \textbf{1} \\
+    . & . & . & .  &  . & 1 & . & .  &  . & . & \cellcolor{lightgray}\textbf{1} & 1  &  . & . & 1 & \cellcolor{lightgray}\textbf{1} \\
     . & . & . & .  &  . & . & 1 & .  &  . & . & . & 1  &  . & . & 1 & 1 \\
     . & . & . & .  &  1 & . & . & .  &  . & . & 1 & .  &  . & . & . & 1 \\
     . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
     \hline
     . & . & . & .  &  . & . & . & .  &  . & . & 1 & .  &  . & . & . & 1 \\
-    . & . & . & .  &  . & . & . & .  &  . & . & 1 & 1  &  . & . & 1 & \textbf{1} \\
+    . & . & . & .  &  . & . & . & .  &  . & . & 1 & 1  &  . & . & 1 & \cellcolor{lightgray}\textbf{1} \\
     . & . & . & .  &  . & . & . & .  &  . & . & . & 1  &  . & . & 1 & 1 \\
     . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
     \hline
@@ -433,10 +414,10 @@ For the example query algorithm takes $7$ iterations for the $while-loop$. The u
     \begin{array}{c c c c | c c c c | c c c c | c c c c }
     . & . & . & .  &  . & 1 & . & .  &  . & . & 1 & 1  &  . & . & 1 & 1 \\
     . & . & . & .  &  . & . & 1 & .  &  . & . & . & 1  &  . & . & 1 & 1 \\
-    . & . & . & .  &  1 & . & . & .  &  . & . & 1 & \textbf{1}  &  . & . & \textbf{1} & 1 \\
+    . & . & . & .  &  1 & . & . & .  &  . & . & 1 & \cellcolor{lightgray}\textbf{1}  &  . & . & \cellcolor{lightgray}\textbf{1} & 1 \\
     . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
     \hline
-    . & . & . & .  &  . & . & . & .  &  . & . & 1 & 1  &  . & . & \textbf{1} & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & 1 & 1  &  . & . & \cellcolor{lightgray}\textbf{1} & 1 \\
     . & . & . & .  &  . & . & . & .  &  . & . & 1 & 1  &  . & . & 1 & 1 \\
     . & . & . & .  &  . & . & . & .  &  . & . & . & 1  &  . & . & 1 & 1 \\
     . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
@@ -464,13 +445,13 @@ For the example query algorithm takes $7$ iterations for the $while-loop$. The u
     \begin{pmatrix}
     .     & \{a\} & \{S\} & .       \\
     .     & .     & \{a\} & \{S\}   \\
-    \{a\} & .     & .     & \{b,S\} \\
+    \{a\} & .     & .     & \{b,\textbf{S}\} \\
     .     & .     & \{b\} & .
     \end{pmatrix}
     M_2^4 =
     \begin{pmatrix}
     .     & \{a\} & \{S\}   & .       \\
-    .     & .     & \{a,S\} & \{S\}   \\
+    .     & .     & \{a,\textbf{S}\} & \{S\}   \\
     \{a\} & .     & .       & \{b,S\} \\
     .     & .     & \{b\}   & .
     \end{pmatrix}
@@ -478,7 +459,7 @@ For the example query algorithm takes $7$ iterations for the $while-loop$. The u
     $$
     M_2^5 =
     \begin{pmatrix}
-    .     & \{a\} & \{S\}   & \{S\}   \\
+    .     & \{a\} & \{S\}   & \{\textbf{S}\}   \\
     .     & .     & \{a,S\} & \{S\}   \\
     \{a\} & .     & .       & \{b,S\} \\
     .     & .     & \{b\}   & .
@@ -487,7 +468,7 @@ For the example query algorithm takes $7$ iterations for the $while-loop$. The u
     \begin{pmatrix}
     .     & \{a\} & \{S\}   & \{S\}   \\
     .     & .     & \{a,S\} & \{S\}   \\
-    \{a\} & .     & \{S\}   & \{b,S\} \\
+    \{a\} & .     & \{\textbf{S}\}   & \{b,S\} \\
     .     & .     & \{b\}   & .
     \end{pmatrix}
     $$
@@ -504,13 +485,13 @@ For the example query algorithm takes $7$ iterations for the $while-loop$. The u
         \node[state] (q_3) [right=of q_2]       {$3$};
           \path[->]
             (q_0) edge  node {a} (q_1)
-            (q_1) edge  node {a,S} (q_2)
+            (q_1) edge  node {a,\textbf{S}} (q_2)
             (q_2) edge[bend right, above]  node {a} (q_0)
-            (q_2) edge[loop right]  node {S} (q_2)
+            (q_2) edge[loop right]  node {\textbf{S}} (q_2)
             (q_1) edge[bend left, above]  node {S} (q_3)
             (q_0) edge[bend right, above]  node {S} (q_2)
-            (q_2) edge[bend left, above]  node {b,S} (q_3)
-            (q_0) edge[bend right, below]  node {S} (q_3)
+            (q_2) edge[bend left, above]  node {b,\textbf{S}} (q_3)
+            (q_0) edge[bend right, below]  node {\textbf{S}} (q_3)
             (q_3) edge[bend left, below]  node {b} (q_2);
     \end{tikzpicture}
     \end{center}{}
