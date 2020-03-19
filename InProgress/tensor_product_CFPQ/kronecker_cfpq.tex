@@ -1,18 +1,40 @@
 \section{Kronecker Product Based CFPQ Algorithm}
 
-In this section, we introduce an algorithm for the computation of context-free reachability in a graph $\mathcal{G}$ and an RSM $R$. The algorithm is based on the generalization of the FSM intersection for an RSM, created from an input grammar, and an input graph. Since a graph can be interpreted as FSM, where edges with labels represent transitions between vertices of the graph, and an RSM is composed of a set of FSMs, it is clear to evaluate the intersection of such machines using the classical algorithm for FSM, represented in~\cite{automata:theory:10.5555/1177300}. 
+In this section, we introduce the algorithm for the computation of context-free reachability in a graph $\mathcal{G}$.
+The algorithm determines the existence of a path, which forms a sentence of the language defined by the input RSM $R$, between each pair of vertices in the graph $\mathcal{G}$.
+The algorithm is based on the generalization of the FSM intersection for an RSM, and an input graph.
+Since a graph can be interpreted as a FSM, in which transitions correspond to the labeled edges between vertices of the graph, and an RSM is composed of a set of FSMs, the intersection of such machines can be computed using the classical algorithm for FSM intersection, presented in~\cite{automata:theory:10.5555/1177300}.
 
-The result of the intersection could be evaluated as a Kronecker product of the corresponding adjacency matrices for RSM and graph. To solve the reachability problem it is enough to represent intersection result as a Boolean matrix because we are interested only in the reachability of vertices. It simplifies algorithm implementation and allows to express it in terms of basic matrix operations. 
+The intersection can be computed as a Kronecker product of the corresponding adjacency matrices for an RSM and a graph.
+Since we are only determining the reachability of vertices, it is enough to represent intersection result as a Boolean matrix.
+It simplifies the algorithm implementation and allows one to express it in terms of basic matrix operations.
 
-Listing~\ref{tensor:cfpq} shows main steps of the solution. As an input algorithm accepts context-free grammar $G=(\Sigma,N,P$) and graph $\mathcal{G}=(V,E,L)$. RSM $R$ is created from $G$. Note, that $R$ must have no $\varepsilon$-transitions. $M_1$ and $M_2$ are the adjacency matrices for machine $R$ and graph $\mathcal{G}$ correspondingly. 
+Listing~\ref{tensor:cfpq} shows main steps of the algorithm.
+The algorithm accepts context-free grammar $G=(\Sigma,N,P$) and graph $\mathcal{G}=(V,E,L)$ as an input.
+An RSM $R$ is created from the grammar $G$.
+Note, that $R$ must have no $\varepsilon$-transitions.
+$M_1$ and $M_2$ are the adjacency matrices for the machine $R$ and the graph $\mathcal{G}$ correspondingly.
 
-Then for each vertex $i$ of the graph $\mathcal{G}$, the algorithm adds loops with non-terminals, which allows deriving $\varepsilon$-word. Here the rule is implied: each vertex of the graph is reachable by itself through $\varepsilon$-transition. Since the machine $R$ does not have $\varepsilon$-transitions, the $\varepsilon$-word could be derived only if a state $s$ in the box $B$ of the $R$ is initial and final at the same time. This info is queried by $getNonterminals()$ function for each state $s$. 
+Then for each vertex $i$ of the graph $\mathcal{G}$, the algorithm adds loops with non-terminals, which allows deriving $\varepsilon$-word.
+Here the following rule is implied: each vertex of the graph is reachable by itself through an $\varepsilon$-transition.
+Since the machine $R$ does not have any $\varepsilon$-transitions, the $\varepsilon$-word could be derived only if a state $s$ in the box $B$ of the $R$ is both initial and final.
+This data is queried by the $getNonterminals()$ function for each state $s$.
 
-The algorithm is executed while matrix $M_2$ is changing. For each iteration Kronecker product of matrices $M_1$ and $M_2$ is evaluated. The result is saved in $M_3$ as a Boolean matrix. For given $M_3$ evaluated $C_3$ matrix via $transitiveClosure()$ function call. The $M_3$ could be interpreted as an adjacency matrix for an oriented graph without labels, used to evaluate transitive closure in terms of classical graph definition of this operation. Then the algorithm iterates over cells of the $C_3$. For pair of indices $(i,j)$ computes $s$ and $f$ --- initial and final states in recursive automata $R$ which relate to the concrete $C_3[i,j]$ of the closure matrix. If given $s$ and $f$ belongs to a same box $B$ of $R$ and $s = q_B^0$ and $f \in F_B$, then $getNonterminals()$ returns the respective non-terminal. If the conditional statement is $true$ then algorithm adds computed non-terminals to the respective cell of the adjacency matrix $M_2$ of the graph.
+The algorithm terminates when the matrix $M_2$ stops changing.
+Kronecker product of matrices $M_1$ and $M_2$ is evaluated for each iteration.
+The result is stored in $M_3$ as a Boolean matrix.
+For the given $M_3$ a $C_3$ matrix is evaluated by the $transitiveClosure()$ function call.
+The $M_3$ could be interpreted as an adjacency matrix for an oriented graph with no labels, used to evaluate transitive closure in terms of classical graph definition of this operation.
+Then the algorithm iterates over cells of the $C_3$.
+For the pair of indices $(i,j)$, it computes $s$ and $f$ --- the initial and final states in the recursive automata $R$ which relate to the concrete $C_3[i,j]$ of the closure matrix.
+If the given $s$ and $f$ belong to the same box $B$ of $R$, $s = q_B^0$, and $f \in F_B$, then $getNonterminals()$ returns the respective non-terminal.
+If the the condition holds then the algorithm  adds the computed non-terminals to the respective cell of the adjacency matrix $M_2$ of the graph.
 
-The functions $getStates$ and $getCoordinates$ (see listing~\ref{tensor:cfpq:help}) are used to map indexes between Kronecker product arguments and result matrix. Implementation appeals to the blocked structure of the matrix $C_3$, where each block corresponds to some automata and graph edge.
+The functions $getStates$ and $getCoordinates$ (see listing~\ref{tensor:cfpq:help}) are used to map indices between Kronecker product arguments and the result matrix.
+The Implementation appeals to the blocked structure of the matrix $C_3$, where each block corresponds to some automata and graph edge.
 
-The algorithm returns updated matrix $M_2$ which contains initial graph $\mathcal{G}$ data and non-terminals from $N$. If a cell $M_2[i,j]$ for any valid indices $i$ and $j$ contains symbol $S \in N$, therefore, vertex $j$ is reachable from vertex $i$ in grammar $G$ for non-terminal $S$.
+The algorithm returns the updated matrix $M_2$ which contains the initial graph $\mathcal{G}$ data as well as non-terminals from $N$.
+If a cell $M_2[i,j]$ for any valid indices $i$ and $j$ contains symbol $S \in N$, then vertex $j$ is reachable from vertex $i$ in grammar $G$ for non-terminal $S$.
 
 
 \begin{algorithm}[h]
@@ -28,7 +50,7 @@ The algorithm returns updated matrix $M_2$ which contains initial graph $\mathca
     % Eps-transition handling for graph
     \For{$s \in 0..dim(M_1)-1$}
         \For{$i \in 0..dim(M_2)-1$}
-            \State{$M_2[i,i] \gets M[i,i]_2 \cup \textit{getNonterminals}(R,s,s)$} 
+            \State{$M_2[i,i] \gets M_2[i,i] \cup \textit{getNonterminals}(R,s,s)$}
         \EndFor
     \EndFor
     \While{Matrix $M_2$ is changing}
@@ -76,7 +98,7 @@ The algorithm returns updated matrix $M_2$ which contains initial graph $\mathca
 \subsection{Example}
 \label{example:section}
 
-This section is intended to provide a step-by-step demonstration of the proposed algorithm. 
+This section is intended to provide a step-by-step demonstration of the proposed algorithm.
 As an example consider the theoretical worst case for CFPQ time complexity, proposed by J.Hellings~\cite{hellings2015querying}: graph $\mathcal{G}$ presented in Figure~\ref{input:graph} and context-free grammar $G$ for a language $\{a^n b^n~|~n \geq 1\}$: $ S \to a S b \mid a b$.
 
 Since the proposed algorithm processes grammar in form of recursive machine, we first provide RSM $R$ in Figure~\ref{example:automata}. The initial box of the $R$ is $S$, the initial state $q_S^0$ is $(0)$, the set of final states $F_S = \{ (3) \}$.
@@ -290,7 +312,7 @@ For the second loop iteration matrices $M_3^2$ and $C_3^2$ are evaluated as foll
     . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
     . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .
     \end{array}
-    \right), 
+    \right),
     C_3^2 =
     \left(
     \begin{array}{c c c c | c c c c | c c c c | c c c c }
@@ -317,7 +339,7 @@ For the second loop iteration matrices $M_3^2$ and $C_3^2$ are evaluated as foll
     \right).
     $$
 }
-%listed in Figure~\ref{example:iteration2eval}. 
+%listed in Figure~\ref{example:iteration2eval}.
 For this iteration in the matrix $C_3^2$ appeared new non-zero values in cells with indices $[0,11]$, $[0,14]$ and $[5,14]$. Because only the cell value with index $[0,14]$ corresponds to the automata path with not empty non-terminal set $\{S\}$ its data affects adjacency matrix $M_2$. The updated matrix and graph $\mathcal{G}$ are depicted in Figure~\ref{example:iteration2res}.
 
 %\begin{figure}
