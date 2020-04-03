@@ -1,4 +1,4 @@
-\section{Implementation}
+\section{Implementation Details}
 
 We showed that CFPQ can be naturally reduced to linear algebra.
 Linear algebra for graph problems is an actively developed area.
@@ -13,32 +13,32 @@ Note that currently, we do not provide complete integration with the querying me
 Instead, a query should be provided explicitly as a file with grammar in Chomsky normal form.
 This is enough to evaluate querying algorithms and we plan to improve integration in the future to make our solution easier to use. 
 
-Both \textbf{CPU-based implementation} use SuteSparse implementation of GraphBLAS, which is also used in RedisGraph and provides a set of sparse matrix operation.
+Below we show an index building algorithm for extracting paths using both the GPU and the CPU. The \textbf{path extraction} algorithm currently has only the CPU version. This is a conscious choice because the current path extraction algorithm does not not adapt well to the GPGPU architecture (it is difficult to create coalesced access to global memory during executing of the algorithm for multiple vertices).
 
-The first one ($\textbf{RG\_CPU}_{rel}$) implements relational path semantic problem. It utilizes RedisGraph relationship adjacency matrices, so we avoid data format issues. For addition and multiplication of matrices we use the standard boolean semiring provided by SuiteSparse.
+Both \textbf{CPU-based implementation} use SuiteSparse implementation of GraphBLAS, which is also used in RedisGraph and provides a set of sparse matrix operation.
 
-The second ($\textbf{RG\_CPU}_{path}$) solve single-path semantic problem. SuiteSparse supports creation of custom semiring, so we implemented all the operations over \textit{PathIndex} in a simple way thanks to GraphBlas Api.
+The first one ($\textbf{RG\_CPU}_{\textit{rel}}$) implements relational path semantics problem. It utilizes RedisGraph relationship adjacency matrices, so we avoid data format issues. For addition and multiplication of matrices we use the standard Boolean semiring provided by SuiteSparse.
+
+The second ($\textbf{RG\_CPU}_{\textit{path}}$) solves the problem for the single-path query semantics. SuiteSparse supports creation of custom semiring, so we implemented all the operations over \textit{PathIndex} in a simple way thanks to GraphBLAS API.
 
 \textbf{GPGPU-based implementation} has three versions.
-The first one ($\textbf{RG\_CUSP}_{rel}$) utilizes a CUSP~\cite{Cusp} library for matrix operations, the second one ($\textbf{RG\_SPARSE}_{rel}$) is our implementation based on the idea from this paper~\cite{NsparsePaper} and the third one ($\textbf{RG\_SPARSE}_{path}$) is our implementation of single-path semantics.
-First implementation require matrix format conversion but the last two does not.
+The first one ($\textbf{RG\_CUSP}_{\textit{rel}}$) utilizes a CUSP~\cite{Cusp} library for matrix operations, the second one ($\textbf{RG\_SPARSE}_{\textit{rel}}$) is our implementation based on the idea from paper~\cite{NsparsePaper} and the third one ($\textbf{RG\_SPARSE}_{\textit{path}}$) is our implementation for the single-path query semantics.
+First implementation require matrix format conversion but the last two do not.
 
-We choose the CUSP library as base solution which uses sparse matrices because dense matrices cannot be applied to huge graphs. CUSP is a C++ templated library which allows us to multiply boolean matrices (that solve relational path semantic problem). But in fact, performing CFPQ with relational paths semantics on the largest graph using CUSP does not fit in GPU memory and this fact led us to develop an algorithm that would be more memory efficient.
+We choose the CUSP library as base solution which uses sparse matrices because dense matrices cannot be applied to huge graphs. CUSP is a C++ templated library which allows us to multiply Boolean matrices (that solves relational path semantics problem). But in fact, performing CFPQ with relational paths semantics on the largest graph using CUSP does not fit in GPU memory and this fact led us to develop an algorithm that would be more memory efficient.
 
-The second ($\textbf{RG\_SPARSE}_{rel}$) implementation utilizes low-latency on-chip shared memory for hash table of each row of the result matrix. For more details of algorithm see the original paper~\cite{NsparsePaper}. An original solution designed for single and double precision SpGEMM. Since we have a boolean matrix in CSR format, we can discard the array of values and optimize usage of shared memory. But boolean matrix multiplication is only one part of the algorithm, since we must effectively combine two boolean sparse matrices. We use merge path~\cite{GpuMergePathPaper} algorithm to merge corresponding rows of the result matrix.
+The second ($\textbf{RG\_SPARSE}_{\textit{rel}}$) implementation utilizes low-latency on-chip shared memory for hash table of each row of the result matrix. For more details of algorithm see the original paper~\cite{NsparsePaper}. An original solution designed for single and double precision SpGEMM. Since we have a Boolean matrix in CSR format, we can discard the array of values and optimize usage of shared memory. But Boolean matrix multiplication is only one part of the algorithm, since we must effectively combine two Boolean sparse matrices. We use merge path~\cite{GpuMergePathPaper} algorithm to merge corresponding rows of the result matrix.
 
-The third ($\textbf{RG\_SPARSE}_{path}$) algorithm must perform matrix multiplication and addition over \textit{PathIndex} semiring. To solve this problem, we must answer three questions: 
+The third ($\textbf{RG\_SPARSE}_{\textit{path}}$) algorithm must perform matrix multiplication and addition over \textit{PathIndex} semiring. To solve this problem, we must answer three following questions. 
 
 \begin{itemize}
-  \item how to determine the size and structure of final sparse matrices
-  \item how to map tasks with variable complexity to the GPU
-  \item how to accumulate intermediate result of multiplication
+  \item How to determine the size and structure of final sparse matrices?
+  \item How to map tasks with variable complexity to the GPU?
+  \item How to accumulate intermediate result of multiplication?
 \end{itemize}
 
-The first problem is how to determine the size and structure of final sparse matrices. Since we have the $\textbf{RG\_SPARSE}_{rel}$ algorithm we naturally know the final size and structure of all sparse matrices. Therefore we run the $\textbf{RG\_SPARSE}_{rel}$ algorithm on first step.
+The first problem is how to determine the size and structure of final sparse matrices. Since we have the $\textbf{RG\_SPARSE}_{\textit{rel}}$ algorithm we naturally know the final size and structure of all sparse matrices. Therefore we run the $\textbf{RG\_SPARSE}_{\textit{rel}}$ algorithm on first step.
 
 The second problem is how to map tasks with variable complexity to the GPU. Assume that we must to calculate $C = C + (A * B)$ multiple times. The final structure of the matrix $C$ already known, so we can fill it with the $\bot$ values before starting. We assign each row of the matrix $C$ to one CUDA block. Since we know how many values exist in each row, our algorithm divides the rows into groups and applies the same configuration parameters (shared memory size, block size) for each row from one group.
  
-The third problem is how to accumulate intermediate result of multiplication. Since we already knows final structure of matrices we can accumulate results without additionally memory allocations. But for make it possible we must learn how to perform atomically $\oplus$ operation defined for \textit{PathIndex}. For every element of the matrix with indexes $i,j$ it either $PathIndex = (i,j,\_,\_,\_)$ or $\bot$. Also note that \textit{length} information does not matter in the algorithm and can be restored later, so only two elements are really important: \textit{middle} and \textit{height}. We can store two 4 bytes value into one 8 byte value and perform an atomic operation. In high four bytes we store the \textit{height} and in the low four bytes we store the \textit{middle}. For the value of $\bot$ we use maximum unsigned integer value of 8 bytes in size. Now we can use \textit{atomicMin} as $\oplus$.
-
-Since we can prepare the index for path extraction using both the GPU and the CPU, the \textbf{path extraction} algorithm currently has only the CPU version. This is a conscious choice because the current path extraction algorithm does not not adapt well to the GPGPU architecture (it is difficult to create coalesced access to global memory during executing of the algorithm for multiple vertices).
+The third problem is how to accumulate intermediate result of multiplication. Since we already know final structure of matrices we can accumulate results without additionally memory allocations. But for make it possible we must learn how to perform atomically $\oplus$ operation defined for \textit{PathIndex}. For every element of the matrix with indexes $i,j$ it either $PathIndex = (i,j,\_,\_,\_)$ or $\bot$. Also note that \textit{length} information does not matter in the algorithm and can be restored later, so only two elements are really important: \textit{middle} and \textit{height}. We can store two 4 bytes value into one 8 byte value and perform an atomic operation. In high four bytes we store the \textit{height} and in the low four bytes we store the \textit{middle}. For the value of $\bot$ we use maximum unsigned integer value of 8 bytes in size. Now we can use \textit{atomicMin} as $\oplus$.

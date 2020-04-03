@@ -1,45 +1,39 @@
 \section{Evaluation and Discussion}
 
-We evaluate all the described implementations on \textbf{[RDF]} dataset and the queries presented.
+We evaluate all the described implementations on real-world RDFs.
 We measure the full time of query execution including all overhead on data preparation.
 This way we can estimate the applicability of the matrix-based algorithm to real-world problems.
 
 For evaluation, we use a PC with Ubuntu 18.04 installed.
 It has Intel core i7-6700 CPU, 3.4GHz, DDR4 32Gb RAM, and Geforce GTX 1070 GPGPU with 8Gb RAM.
 
-The results of the evaluation are summarized in the tables below.
+\subsection{Dataset}
+As far as it was shown that matrix-based CFPQ algorithms are performant enought to handle big RDF~\cite{Mishin:2019:ECP:3327964.3328503}, we extend CFPQ\_Data dataset~\cite{Mishin:2019:ECP:3327964.3328503} with new RDFs: \textit{go-hierarchy, go, enzime, core, pathways, eclass-514en}, and use the extended dataset in our evaluation. Also we add Geospecies RDF and related query from~\cite{Kuijpers:2019:ESC:3335783.3335791}. 
+Detailed description of th dataset and queries are provided in appendix~\ref{section:dataset}.
+
+
+\subsection{Evaluation Results}
 We provide results only for a part of the collected dataset because of the page limit.
 Running time is measured in seconds, RAM memory consumption is measured in megabytes unless specified otherwise.
 
-The results of the \textbf{[RDF]} dataset are presented in tables ~\ref{.....}.
-We can see that the running time of both CPU and GPGPU versions is small even for graphs with a big number of vertices and edges.
+The results of the CFPQ evaluation are presented in tables \ref{tbl:tableRDFQ1}, \ref{tbl:tableRDFQ2} and \ref{tbl:tableGeospeciesResults}.
+We can see that the running time of both CPU and GPGPU versions for the relational query semantics is small even for graphs with a big number of vertices and edges.
 The relatively small number of edges of interest may be the reason for such behavior.
 We believe it is necessary to extend the dataset with new queries which involve more different types of edges.
-%Also, we can see, that $\textbf{RG\_CUSP}_{rel}$ implementation which uses dense bit matrices requires more memory.
+Also, we can see, that $\textbf{RG\_CUSP}_{\textit{rel}}$ implementation which uses dense bit matrices requires more memory.
 Thus we recommend to use sparse matrices on GPGPU.
 
-%Geospecies dataset currently can be processed only by using CPU version and we compare our matrix-based CPU implementation with the result form~\cite{Kuijpers:2019:ESC:3335783.3335791} for \textit{AnnGram$_{\textit{rel}}$} algorithm\footnote{Only \textit{AnnGram} works correctly and fits limits, other implementations are faster, but either return an incorrect result or do not fit the memory .}.
-%Fortunately, both algorithms calculate queries under relational semantics.
-%The result is provided in the table~\ref{tbl:geo}.
+As we can see, the matrix-based algorithm for relational query semantics implemented for RedisGraph is more than 1000 times faster than the one based on annotated grammar implemented for Neo4j~\cite{Kuijpers:2019:ESC:3335783.3335791} and uses more than 4 times less memory.
+We can conclude that the matrix-based algorithm is more performant than other CFPQ algorithms for query evaluation under a relational semantics for real-world data processing.
 
-As we can see, the matrix-based algorithm implemented for RedisGraph is more than 1000 times faster than the one based on annotated grammar implemented for Neo4j and uses more than 4 times less memory.
-We can conclude that the matrix-based algorithm is better than other CFPQ algorithms for query evaluation under a relational semantics for real-world data processing.
-
-%The next is the \textbf{[FreeScale]} datatset.
-%We compare our implementations with two implementations form~\cite{Kuijpers:2019:ESC:3335783.3335791} which evaluate queries under relatonal semantics: \textit{Neo4j\_AnnGram${_\textit{rel}}$} and \textit{Neo4j\_Matrix}. The results are presented in table~\ref{tbl:tableFreeScale}.
-%The evaluation shows that sparsity of graphs (value of parameter \texttt{p}) is important both for implementations which use sparse matrices and for implementations which use dense matrices.
-%Note that the results for implementations for Neo4j are restored from graphics provided in~\cite{Kuijpers:2019:ESC:3335783.3335791}.
-%So, values are not precise, but it is possible to compare implementations.
-
-%Evaluation shows that our CPU version is comparable with \textit{Neo4j\_AnnGram$_{\textit{rel}}$} and for relatively dense graphs (each vertex has 10 connections) our implementation is faster. Moreover, while \textit{Neo4j\_Matrix} exceeded limits on the biggest graph, our implementation works fine.
-This demonstrantes the importance of using of appropriate libraries for matrix-based algorithm implementation.
-Also, we can see, that GPGPU version which utilizes sparse matrices is significantly faster than the other implementations.
+Also, we can see, that the GPGPU version which utilizes sparse matrices is significantly faster than the other implementations especially on big graphs. For example, for Geospacies it more than 7 times faster in both relational and single-path scenarios.
 Note, that for GPGPU versions we include time required for data transferring and formats convertion.
 
-Finally, we conclude that the matrix-based algorithm paired with a suitable database and employing appropriate libraries for linear algebra is a promising way to make CFPQ applicable for real-world data analysis.
+We can conclude, that the cost of computing matrices with PathIndexes for single-path query semantics is not high. On average, it is about 2 times slower than the reachability matrix calculation. The additional running time of the path extraction is presented in figure~\ref{fig:extractTime}. As we can see, this time is small and linear in length of the path.
+
+Finally, we conclude that the matrix-based algorithm paired with a suitable database and employing appropriate libraries for linear algebra is a promising way to make CFPQ with relational and single-path query semantics applicable for real-world data analysis.
 We show that SuiteSparse-based CPU implementation is performant enough to be comparable with GPGPU-based implementations on real-world data.
-It means that we can handle more complex data.
-We can also see, that more complex queries should be added to the dataset to make it more representable.
+
 
 
 {\setlength{\tabcolsep}{0.4em}
@@ -79,45 +73,9 @@ wine                        & 0.017 & 3.5  & 0.032 & 6   & 0.009 & 0.1      & 0.
 \end{table*}
 }
 
-{\setlength{\tabcolsep}{0.4em}
-\begin{table*}[h]
-\caption{RDFs query $G_2$}
-\label{tbl:tableRDFQ2}
-\rowcolors{3}{}{lightgray}
-\begin{tabular}{| l | c  c | c  c | c  c | c  c | c  c |}
-    \hline
 
-    \multirow{3}{*}{Name}   &   \multicolumn{6}{|c|}{Relational semantics index}	&	\multicolumn{4}{|c|}{Single path semantics index} \\
-    \cline{2-11}
-    &	\multicolumn{2}{|c|}{RG\_CPU\textsubscript{rel}}	&	\multicolumn{2}{|c|}{RG\_CUSP\textsubscript{rel}}	&	\multicolumn{2}{|c|}{RG\_SPARSE\textsubscript{rel}} &	\multicolumn{2}{|c|}{RG\_CPU\textsubscript{path}}	&	\multicolumn{2}{|c|}{RG\_SPARSE\textsubscript{path}}	 \\
-    \cline{2-11}
-    &   Time & Mem &  Time     & Mem & Time     & Mem  &  Time     & Mem & Time     & Mem \\
-    \hline
-    \hline
-    atom-primitive          & 0.001 & 0.3  & 0.001 & 0.1 & 0.002 & 0.1   & 0.001 & 0.3  & 0.002 & 0.1   \\
-biomedical-mesure-primitive & 0.002 & 0.1  & 0.022 & 2   & 0.009 & 0.1   & 0.006 & 0.1  & 0.012 & 0.1   \\
-core                        & 0.001 & 0.3  & 0.006 & 0.1 & 0.004 & 0.1   & 0.003 & 0.3  & 0.005 & 0.1   \\
-eclass\_514en               & 0.035 & 6.5  & 0.339 & 16  & 0.1   & 12    & 0.123 & 17.7 & 0.127 & 18    \\
-enzyme                      & 0.006 & 3.9  & 0.076 & 0.6 & 0.01  & 0.1   & 0.012 & 5.3  & 0.008 & 0.4   \\
-foaf                        & 0.001 & 0.1  & 0.004 & 0.1 & 0.002 & 0.1   & 0.001 & 0.1  & 0.003 & 0.1   \\
-funding                     & 0.002 & 0.1  & 0.015 & 0.4 & 0.007 & 0.1   & 0.009 & 0.1  & 0.008 & 0.1   \\
-generations                 & 0.001 & 0.1  & 0.001 & 0.1 & 0.001 & 0.1   & 0.001 & 0.1  & 0.001 & 0.1   \\
-go-hierarchy                & 0.095 & 17.8 & 2.025 & 528 & 0.175 & 130.4 & 0.884 & 88.8 & 0.306 & 138.8 \\
-go                          & 0.306 & 25.8 & 0.633 & 84  & 0.181 & 25.4  & 0.918 & 78.1 & 0.219 & 34.2  \\
-pathways                    & 0.005 & 0.2  & 0.016 & 0.4 & 0.004 & 0.1   & 0.017 & 0.5  & 0.003 & 0.1   \\
-people\_pets                & 0.001 & 0.1  & 0.007 & 0.1 & 0.004 & 0.1   & 0.001 & 0.1  & 0.005 & 0.1   \\
-pizza                       & 0.002 & 0.3  & 0.012 & 0.2 & 0.008 & 0.1   & 0.01  & 0.3  & 0.009 & 0.1   \\
-skos                        & 0.001 & 0.1  & 0.001 & 0.1 & 0.001 & 0.1   & 0.001 & 0.1  & 0.002 & 0.1   \\
-travel                      & 0.001 & 0.1  & 0.007 & 0.1 & 0.005 & 0.1   & 0.001 & 0.1  & 0.005 & 0.1   \\
-univ-bench                  & 0.001 & 0.1  & 0.007 & 0.1 & 0.005 & 0.1   & 0.001 & 0.1  & 0.005 & 0.1   \\
-wine                        & 0.001 & 0.3  & 0.006 & 0.1 & 0.004 & 0.1   & 0.002 & 0.3  & 0.004 & 0.1  \\
-    \hline
-  \end{tabular}
-\end{table*}
-}
-
-{\setlength{\tabcolsep}{0.4em}
-\begin{table*}[h]
+{\setlength{\tabcolsep}{2pt}
+\begin{table}[h]
 \caption{Geospecies querying results}
 \label{tbl:tableGeospeciesResults}
 \rowcolors{3}{}{lightgray}
@@ -137,55 +95,26 @@ wine                        & 0.001 & 0.3  & 0.006 & 0.1 & 0.004 & 0.1   & 0.002
     7.146 & 16934.2 & 0.856 & 5274 & 15.134 & 35803.6 & 1.935 & 5282   \\
     \hline
   \end{tabular}
-\end{table*}
-}
-
-{\setlength{\tabcolsep}{0.4em}
-\begin{table*}[h]
-\caption{RDFs properties}
-\label{tbl:propRDF}
-\rowcolors{2}{}{lightgray}
-\begin{tabular}{| l | c | c | c | c |}
-    \hline
-    Name                  & \#V    & \#E     & \#type &\#subClassOf \\
-    \hline
-    \hline
-    atom-primitive				& 291		& 685		& 138	& 122	\\
-    univ-bench					& 179		& 413		& 84		& 36		\\
-    travel						& 131		& 397		& 90		& 30		\\
-    skos							& 144		& 323		& 70		& 1		\\
-    people\_pets					& 337		& 834		& 161	& 33		\\
-    generations					& 129		& 351		& 78		& 0		\\
-    foaf							& 256		& 815		& 174	& 10		\\
-    biomedical-mesure-primitive	& 341		& 711		& 130	& 122	\\
-    funding						& 778		& 1480		& 304	& 90               \\
-    pizza						& 671		& 2604		& 365	& 259              \\
-    wine							& 733		& 2450		& 485	& 126              \\
-    core							& 1323		& 8684		& 1412	& 178              \\
-    pathways						& 6238		& 37196		& 3118 	& 3117             \\
-    go-hierarchy					& 45007		& 1960436	& 0		& 490109           \\
-    enzyme						& 48815		& 219390		& 14989	& 8163             \\
-    eclass\_514en				& 239111		& 1047454	& 72517	& 90962            \\
-    go							& 272770		& 1068622	& 58483	& 90512            \\
-    \hline
-  \end{tabular}
-\end{table*}
+\end{table}
 }
 
 
-{\setlength{\tabcolsep}{0.4em}
-\begin{table*}[h]
-\caption{Geospecies properties}
-\label{tbl:propGeo}
-\rowcolors{1}{}{lightgray}
-\begin{tabular}{| c | c | c |}
-    \hline
-    \#V    & \#E     & \#broaderTransitive \\
-    \hline
-    \hline
-	450609 & 2311461 & 20867 \\
-    \hline
-  \end{tabular}
-\end{table*}
-}
+\begin{figure*}
+\begin{subfigure}{0.32\textwidth}
+\includegraphics[width=\linewidth,trim=0 0 -1.5cm 0]{plots/G1_go.pdf}
+\caption{$go$ and $G_1$} \label{fig:extractTimeGoG1}
+\end{subfigure}
+\hspace*{\fill} % separation between the subfigures
+\begin{subfigure}{0.32\textwidth}
+\includegraphics[width=\linewidth,trim=0 0 -1.5cm 0]{plots/G2_go.pdf}
+\caption{$go$ and $G_2$} \label{fig:extractTimeGoG2}
+\end{subfigure}
+\hspace*{\fill} % separation between the subfigures
+\begin{subfigure}{0.32\textwidth}
+\includegraphics[width=\linewidth,trim=0 0 -1.5cm 0]{plots/Geo_geospicies.pdf}
+\caption{$geospicies$ and $geo$} \label{fig:extractTimeGeo}
+\end{subfigure}
+\caption{Execution time of the path extraction algorithm depending on the path length}
+\label{fig:extractTime}
+\end{figure*}
 
