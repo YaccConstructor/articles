@@ -1,0 +1,128 @@
+\section{Практика 8}
+
+\subsection{Григорьев С.В.}
+
+Абстрактный и конкретный синтаксис языка запросов к графам.
+
+Абстрактный синтаксис.
+
+\begin{verbatim}
+script: List<stmt>
+
+nt_name: String
+
+stmt:
+  | connect of String
+  | list
+  | select of obj_expr * from_expr * where_expr
+  | named_pattern of nt_name * regexp
+
+from_expr: String
+
+obj_expr:
+  | vertices of vs_info  
+  | conut of vs_info
+  | exists of vs_info
+
+vs_info:
+  | pair of v_info * v_info
+  | single of v_info
+
+v_info:
+  | name of String
+  | any
+  
+where_expr:
+  | path of v_expr * pattern * v_expr
+
+v_expr: 
+  | name of String
+  | any 
+  | v_pattern
+
+v_pattern:
+  | id_pattern of Int   
+
+ident: 
+  | nt_name of String 
+  | t_name of String
+
+pattern: 
+  | smb of ident
+  | star of regexp
+  | plus of regexp
+  | alt of regexp * regexp
+  | seq of regexp * regexp
+  | option of regexp
+
+\end{verbatim}
+
+Пример конкретного синтаксиса.
+
+\begin{align*}
+\textit{script} \to & \varepsilon  \\
+                    & \mid \textit{stmt \ SEMI \ script} \\
+\textit{stmt} \to & \textit{KW\_CONNECT \ KW\_TO \ STRING} \\
+                  & \mid KW\_LIST \ KW\_ALL \ KW\_GRAPHS \\
+                  & \mid select\_stmt \\
+                  & \mid named\_pattern\_stmt \\
+named\_pattern \to & NT\_NAME \ OP\_EQ  \ pattern \\
+select\_stmt \to & \textit{KW\_SELECT} \ obj\_expr \ \textit{KW\_FROM} \ STRING \ \textit{KW\_WHERE} \ where\_expr \\
+obj\_expr \to & vs\_info \\
+              & \mid \textit{KW\_COUNT} \ vs\_info \\
+              & \mid \textit{KW\_EXISTS} \ vs\_info \\
+vs\_info \to & LBR \ IDENT \ COMMA \ IDENT \ RBR \\
+             & \mid IDENT \\
+where\_expr \to & LBR \ v\_expr RBR \ \\
+                & OP\_MINUS \ pattern \ OP\_MINUS \ OP\_GR \\
+                & LBR \ v\_expr \ RBR \\
+v\_expr \to & IDENT \mid UNDERSCORE \mid IDENT \ OP\_EQ \ INT \\
+pattern \to & alt\_elem \\
+            & \mid alt\_elem \ MID \ pattern \\
+alt\_elem \to & seq \\
+             & \mid LBR \ RBR \\
+seq \to & seq\_elem \\
+        & \mid seq\_elem \ seq \\
+seq\_elem \to & prim\_pattern \\
+              & \mid prim\_pattern \ OP\_STAR \\
+              & \mid prim\_pattern \ OP\_PLUS \\
+              & \mid prim\_pattern \ OP\_Q \\
+prim\_pattern \to & IDENT \\
+                 & \mid NT\_NAME \\
+                 & \mid LBR \ pattern \ RBR \\
+\end{align*}
+
+Токены (терминальный алфавит).
+\begin{align*}
+LBR = & '(' \\
+RBR = & ')' \\
+COMMA = & ',' \\
+SEMI = & ';' \\
+MID = & '|' \\
+OP\_STAR = & '*' \\ 
+OP\_PLUS = & '+' \\
+OP\_Q = & '?' \\
+OP\_MINUS = & '-' \\
+OP\_GR = & '>' \\
+OP\_EQ = & '=' \\
+KW\_COUNT = & 'COUNT' \\
+KW\_EXISTS = & 'EXISTS' \\
+KW\_FROM = & 'FROM' \\
+KW\_WHERE = & 'WHERE' \\
+KW\_LIST = & 'LIST' \\
+KW\_ALL = & 'ALL' \\
+KW\_GRAPHS = & 'GRAPHS' \\
+KW\_CONNECT = & 'CONNECT' \\
+KW\_TO = & 'TO' \\
+IDENT = & [a-z][a-z]^* \\
+INT = & 0 \mid [1-9][0-9]^* \\
+NT\_NAME = & [A-Z][a-z]^* \\
+STRING = & {'['} ([aA-zZ] \mid [0-9] \mid ({'-'} \mid {' \ '} \mid {'\_'} \mid {'/'} ))^* {']'}
+\end{align*}
+
+Пример скрипта:
+\begin{verbatim}
+CONNECT TO [\home\user\graph_db];
+S = a S b S | () ;
+SELECT COUNT(u) FROM [g1.txt] where (v.id = 10) - S -> (u);
+\end{verbatim}
