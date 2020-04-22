@@ -1,5 +1,121 @@
 \subsection{The algorithm}
 
+In this section, we introduce the algorithm for the computation of 
+context-free reachability in a graph $\mathcal{G}$. The algorithm determines 
+the existence of a path, which forms a sentence of the language defined by 
+the input RSM $R$, between each pair of vertices in the graph $\mathcal{G}$.
+The algorithm is based on the generalization of the FSM intersection for an RSM, 
+and an input graph. Since a graph can be interpreted as a FSM, in which 
+transitions correspond to the labeled edges between vertices of the graph, 
+and an RSM is composed of a set of FSMs, the intersection of such machines
+can be computed using the classical algorithm for FSM intersection, presented 
+in~\cite{automata:theory:10.5555/1177300}.
+
+The intersection can be computed as a Kronecker product of the corresponding 
+adjacency matrices for an RSM and a graph. Since we are only determining the
+reachability of vertices, it is enough to represent intersection result as 
+a Boolean matrix. It simplifies the algorithm implementation and allows 
+one to express it in terms of basic matrix operations.
+
+Listing~\ref{tensor:cfpq} shows main steps of the algorithm.
+The algorithm accepts context-free grammar $G=(\Sigma,N,P$) and graph $\mathcal{G}=(V,E,L)$ as an input.
+An RSM $R$ is created from the grammar $G$.
+Note, that $R$ must have no $\varepsilon$-transitions.
+$M_1$ and $M_2$ are the adjacency matrices for the machine $R$ and the graph $\mathcal{G}$ correspondingly.
+
+Then for each vertex $i$ of the graph $\mathcal{G}$, the algorithm adds loops 
+with non-terminals, which allows deriving $\varepsilon$-word.
+Here the following rule is implied: each vertex of the graph is reachable 
+by itself through an $\varepsilon$-transition. Since the machine $R$ does 
+not have any $\varepsilon$-transitions, the $\varepsilon$-word could be 
+derived only if a state $s$ in the box $B$ of the $R$ is both initial and final.
+This data is queried by the $getNonterminals()$ function for each state $s$.
+
+The algorithm terminates when the matrix $M_2$ stops changing.
+Kronecker product of matrices $M_1$ and $M_2$ is evaluated for each iteration.
+The result is stored in $M_3$ as a Boolean matrix.
+For the given $M_3$ a $C_3$ matrix is evaluated by the $transitiveClosure()$ 
+function call. The $M_3$ could be interpreted as an adjacency matrix for an 
+directed graph with no labels, used to evaluate transitive closure in terms of 
+classical graph definition of this operation.
+Then the algorithm iterates over cells of the $C_3$.
+For the pair of indices $(i,j)$, it computes $s$ and $f$ --- 
+the initial and final states in the recursive automata $R$ which relate 
+to the concrete $C_3[i,j]$ of the closure matrix.
+If the given $s$ and $f$ belong to the same box $B$ of $R$, $s = q_B^0$, 
+and $f \in F_B$, then $getNonterminals()$ returns the respective non-terminal.
+If the the condition holds then the algorithm  adds the computed non-terminals 
+to the respective cell of the adjacency matrix $M_2$ of the graph.
+
+The functions $getStates$ and $getCoordinates$ (see listing~\ref{tensor:cfpq:help})
+are used to map indices between Kronecker product arguments and the result matrix.
+The Implementation appeals to the blocked structure of the matrix $C_3$, 
+where each block corresponds to some automata and graph edge.
+
+The algorithm returns the updated matrix $M_2$ which contains the initial 
+graph $\mathcal{G}$ data as well as non-terminals from $N$.
+If a cell $M_2[i,j]$ for any valid indices $i$ and $j$ contains symbol 
+$S \in N$, then vertex $j$ is reachable from vertex $i$ in grammar $G$ for 
+non-terminal $S$.
+
+\begin{algorithm}[h]
+\floatname{algorithm}{Listing}
+\begin{algorithmic}[1]
+\tiny
+\caption{Kronecker product based CFPQ}
+\label{tensor:cfpq}
+\Function{contextFreePathQuerying}{G, $\mathcal{G}$}
+    % Input data preparation
+    \State{$R \gets$ Recursive automata for $G$}
+    \State{$M_1 \gets$ Adjacency matrix for $R$}
+    \State{$M_2 \gets$ Adjacency matrix for $\mathcal{G}$}
+    % Eps-transition handling for graph
+    \For{$s \in 0..dim(M_1)-1$}
+        \For{$i \in 0..dim(M_2)-1$}
+            \State{$M_2[i,i] \gets M_2[i,i] \cup \textit{getNonterminals}(R,s,s)$}
+        \EndFor
+    \EndFor
+    \While{Matrix $M_2$ is changing}
+        \State{$M_3 \gets M_1 \otimes M_2$}
+        \Comment{Evaluate Kroncker product}
+        \State{$C_3 \gets \textit{transitiveClosure}(M_3)$}
+        \State{$n \gets$ dim($M_3)$}
+        \Comment{Matrix $M_3$ size = $n \times n$}
+        % Add non-terminals (possibly new)
+        \For{$(i,j) \in [0..n-1] \times [0..n-1]$}
+            \If{$C_3[i,j]$}
+                \State{$s, f \gets \textit{getStates}(C_3,i,j)$}
+                \If{$\textit{getNonterminals}(R,s,f) \neq \emptyset$}
+                    \State{$x, y \gets \textit{getCoordinates}(C_3,i,j)$}
+                    \State{$M_2[x,y] \gets M_2[x,y] \cup \textit{getNonterminals}(R,s,f)$}
+                \EndIf
+            \EndIf
+        \EndFor
+    \EndWhile
+\State \Return $M_2$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[h]
+\floatname{algorithm}{Listing}
+\begin{algorithmic}[1]
+\tiny
+\caption{Help functions for Kronecker product based CFPQ}
+\label{tensor:cfpq:help}
+\Function{getStates}{$C, i, j$}
+    \State{$r \gets dim(M_1)$}
+    \Comment{$M_1$ is adjacency matrix for automata $R$}
+    \State \Return{$\left\lfloor{i / r}\right\rfloor, \left\lfloor{j / r}\right\rfloor$}
+\EndFunction
+\Function{getCoordinates}{$C, i, j$}
+    \State{$n \gets dim(M_2)$}
+    \Comment{$M_2$ is adjacency matrix for graph $\mathcal{G}$}
+    \State \Return{$i \bmod n, j \bmod n$}
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
 \begin{lemma}
     \label{lemma:algo:correctness}
     Let $\mathcal{G} = (V,E,L)$ be a graph and $G = (\Sigma, N, P)$ be a grammar.
@@ -12,27 +128,28 @@
 \begin{proof}{(Proof by induction)}
 
     \textbf{Basis:} For $k = 0$ and the statement of the lemma holds, since
-    $M_0 = M$, $M$ where is adjacency matrix of the graph $G$ , $L \cap N$
-    is empty. Non-terminals, which allow to derive $\varepsilon$-word, are 
-    also added at algorithm preprocessing step, since each vertex of the graph is
-    reachable by itself through an $\varepsilon$-transition.
+    $M_0 = M$, $M$ where is adjacency matrix of the graph $G$. Non-terminals,
+    which allow to derive $\varepsilon$-word, are also added at algorithm
+    preprocessing step, since each vertex of the graph is reachable by itself 
+    through an $\varepsilon$-transition.
     
-    \textbf{Inductive step:} Assume that the statement of the lemma hold for any
-    $k \geq (p - 1)$ and show that it also holds for $k = p$, where $p \geq 1$.
+    \textbf{Inductive step:} Assume that the statement of the lemma holds for any
+    $k \leq (p - 1)$ and show that it also holds for $k = p$, where $p \geq 1$.
     
     For the algorithm iteration $p$ the Kronecker product $K_p$ and transitive
     closure $C_p$ are evaluated as described in the algorithm. By the properties
-    of this operations, some edge $e = ((s,x),(f,y))$ exists in the oriented
+    of this operations, some edge $e = ((s,m),(f,n))$ exists in the directed
     graph, represented by adjacency matrix $C_p$, if and only if $\exists s
-    \pi_1 f$ in the RSM graph, represented by matrix $M_r$, and $\exists x \pi y$
-    in graph, represented by $M_{p-1}$. Concatenated symbols along the path
-    $\pi_1$ form some derivation string, composed from terminals and
-    non-terminals, included in the graph by inductive assumption. 
+    \pi ^{'} f$ in the RSM graph, represented by matrix $M_r$, and 
+    $\exists m \pi n$ in graph, represented by $M_{p-1}$. Concatenated symbols 
+    along the path $\pi^{'}$ form some derivation string v, composed from terminals
+    and non-terminals, where $v \to_G l(\pi)$  by the inductive assumption.
     
-    Therefore, if $s$ an $f$ are initial and final states of some box $B$ of the
-    RSM, new edge between vertices $x$ and $y$ with the respective non-terminal
-    $S_B$ will be added to the matrix $M_p$ and this completes the proof of the
-    lemma.
+    The new edge $e = (m,S,n)$ will be added to the $E_p$ only if $s$ and $f$ 
+    are initial and final states of some box $B$ of the RSM corresponding to 
+    the non-terminal $S_B$. In this case, the grammar $G$ has the derivation rule
+    $S_B \to_G v$, by the inductive assumption $v \to_G l(\pi)$. Therefore, 
+    $S_B \to_G l(\pi)$ and this completes the proof of the lemma.
     
 \end{proof}
 
@@ -41,9 +158,10 @@
     Let $\mathcal{G} = (V,E,L)$ be a graph and  $G = (\Sigma, N, P)$ be a grammar. 
     Let $\mathcal{G}_k = (V,E_k,L \cup N)$ be graph and $M_k$ its adjacency
     matrix of the execution some iteration $k \geq 1$ of the algorithm \ref{?}. 
-    For any path $m \pi n$ in graph $\mathcal{G}$ with word
-    $l = l(\pi): $ $S \to_G l$, if $h \leq k$, where $h$ is a derivation 
-    tree height, the following statement holds: $\exists e = (m,S,n): e \in E_k$.
+    For any path $m \pi n$ in graph $\mathcal{G}$ with word $l = l(\pi)$ if 
+    exists the derivation tree of $l$ for the grammar $G$ and starting non-terminal
+    $S$ with the height $h \leq k$, then $\exists e = (m,S,n): e \in E_k$.
+
 \end{lemma}
 
 \begin{proof}{(Proof by induction)}
@@ -51,35 +169,38 @@
     \textbf{Basis:} Show that statement of the lemma holds for the $k = 1$. Matrix
     $M$ and edges of the graph $\mathcal{G}$ contains only labels from $L$. 
     Since the derivation tree of height $h = 1$ contains only one non-terminal 
-    $S$ as a top node and only symbols from $\Sigma$ as leafs, for all paths, 
-    which form a word with derivation tree of the height $h = 1$, 
-    the corresponding top nonterminals will be added to the $M_1$ via algorithm 
-    first iteration. Non-terminals, which allow to derive $\varepsilon$-word, 
-    are also added via algorithm preprocessing step. 
-    Thus, the lemma statement holds for the $k = 1$.
+    $S$ as a root and only symbols from $\Sigma \cup {\varepsilon}$ as leafs, 
+    for all paths, which form a word with derivation tree of the height $h = 1$, 
+    the corresponding nonterminals will be added to the $M_1$ via preprocessing step
+    and first iteration of the algorithm. Thus, the lemma statement holds 
+    for the $k = 1$.
 
     \textbf{Inductive step:} Assume that the statement of the lemma hold for any
-    $k \geq (p - 1)$ and show that it also holds for $k = p$, where $p \geq 2$.
+    $k \leq (p - 1)$ and show that it also holds for $k = p$, where $p \geq 2$.
     
     For the algorithm iteration $p$ the Kronecker product $K_p$ and transitive
     closure $C_p$ are evaluated as described in the algorithm. By the properties
-    of this operations, some edge $e = ((s,x),(f,y))$ exists in the oriented
+    of this operations, some edge $e = ((s,m),(f,n))$ exists in the directed
     graph, represented by adjacency matrix $C_p$, if and only if $\exists s
-    \pi_1 f$ in the RSM graph, represented by matrix $M_r$, and $\exists x \pi y$
-    in graph, represented by $M_{p-1}$. 
+    \pi_1 f$ in the RSM graph, represented by matrix $M_{RSM}$, and 
+    $\exists m \pi n$ in graph, represented by $M_{p-1}$. 
     
-    Suppose, that exists derivation tree $T$ of height $h = p$ with the top non-terminal
-    $S$ for the path $x \pi y$. The tree $T$ is formed as
+    For any path $m \pi n$, such that exist derivation tree of height $h < k$ 
+    for the word $l(\pi)$ with root non-terminal $S$, there exists edge 
+    $e = (m,S,n): e \in E_k$ by inductive assumption.
+    
+    Suppose, that exists derivation tree $T$ of height $h = p$ with the root 
+    non-terminal $S$ for the path $m \pi n$. The tree $T$ is formed as
     $S \to a_1 .. a_d, d \geq 1$ where $\forall i \in [1..d]$ $a_i$ is sub-tree of
-    height $h_i \leq p - 1$ for the sub-path $x_i \pi_i y_i$. By inductive hypothesis,
-    there exists path $\pi_i$ for each derivation sub-tree, that  
-    $x = x_1 \pi_1 x_2 .. x_{d} \pi_{d} x_{d+1} = y$ and concatenation 
-    of these paths forms $x \pi y$, and the top non-terminals of 
+    height $h_i \leq p - 1$ for the sub-path $m_i \pi_i n_i$. 
+    By inductive hypothesis, there exists path $\pi_i$ for each derivation sub-tree, 
+    such that $m = m_1 \pi_1 m_2 .. m_{d} \pi_{d} m_{d+1} = n$ and concatenation 
+    of these paths forms $m \pi n$, and the root non-terminals of 
     this sub-trees are included in the matrix $M_{p - 1}$. 
     
-    Therefore, vertices $ x_i ~\forall i \in [1..d]$ form path in the graph, 
+    Therefore, vertices $m_i ~\forall i \in [1..d]$ form path in the graph, 
     represented by matrix $M_{p-1}$, with complete set of labels.
-    Thus, new edge between vertices $x$ and $y$ with the respective 
+    Thus, new edge between vertices $m$ and $n$ with the respective 
     non-terminal $S$ will be added to the matrix $M_p$ and this completes 
     the proof of the lemma.
 
@@ -95,27 +216,9 @@
     
 \begin{proof}
     
-    The algorithm execution takes some positive integer number $R$ of iterations. 
-    The result graph $\mathcal{G}_R$ is represented as an adjacency matrix $M_R$.
-    Thus, holds the statement of lemma~\ref{lemma:algo:correctness} and for  
-    $\forall e = (m, S, n) \in E_R$, where $S \in N$, 
-    $\exists m \pi n: S \to_G l(\pi)$.  
-    
-    The algorithm terminates when the adjacency matrix $M_R$ stops changing for 
-    some $R \geq 1$. Therefore, by lemma~\ref{lemma:algo:completeness} the max 
-    possible height of the derivation three for some path is less or equals $R$.
-    Without loss of generality suppose, that exists path $m \pi n$ in graph
-    $\mathcal{G}$, with derivation tree $T$ of height $h = R + 1$ 
-    for the word $l(\pi)$ with some start non-terminal $S$. 
-    
-    Since algorithm terminated, it follows that $M_R = M_{R+1}$, 
-    because algorithm requires another iteration to determine,
-    that data stops changing. But lemma~\ref{lemma:algo:completeness} states, 
-    that $M_{R+1}$ contains edge $e = (m, S, n)$, therefore $M_R$ also contains
-    the same edge. By that fact and lemma~\ref{lemma:algo:completeness} the 
-    following statement holds: for $\forall m \pi n$ in graph $\mathcal{G}$ 
-    with word $l = l(\pi): $ $S \to_G l$, $\exists e = (m,S,n): e \in E_R$. 
-    This completes the proof of the theorem.
+    This theorem is a consequence of the  
+    Lemma~\ref{lemma:algo:correctness} and 
+    Lemma~\ref{lemma:algo:completeness}.
     
 \end{proof}{}
 
@@ -125,5 +228,13 @@
 \end{theorem}
 
 \begin{proof}
-    Todo.
+    
+    The main algorithm \textit{while-loop} is executed while graph adjacency 
+    matrix $M$ is changing. Since the algorithm only adds the edges with 
+    non-terminals from $N$, the maximum required number of iterations 
+    is $|N| \times |V| \times |V|$, where each component has finite size. 
+    This completes the proof of the theorem.
+    
 \end{proof}{}
+
+% TODO: more accurate upper bound for the algorithm complexity 
