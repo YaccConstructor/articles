@@ -15,7 +15,7 @@ This is enough to evaluate querying algorithms and we plan to improve integratio
 
 Below we show an index building algorithm for extracting paths using both the GPU and the CPU. The \textbf{path extraction} algorithm currently has only the CPU version. This is a conscious choice because the current path extraction algorithm does not adapt well to the GPGPU architecture (it is difficult to create coalesced access to global memory during the executing of the algorithm for multiple vertices).
 
-Both \textbf{CPU-based implementation} use SuiteSparse implementation of GraphBLAS, which is also used in RedisGraph and provides a set of sparse matrix operations.
+Both \textbf{CPU-based implementations} use SuiteSparse implementation of GraphBLAS, which is also used in RedisGraph and provides a set of sparse matrix operations.
 
 The first one ($\textbf{RG\_CPU}_{\textit{rel}}$) implements relational path semantics problem. It utilizes RedisGraph relationship adjacency matrices, so we avoid data format issues. For the addition and multiplication of matrices, we use the standard Boolean semiring provided by SuiteSparse.
 
@@ -27,7 +27,7 @@ The first implementation requires matrix format conversion but the last two do n
 
 We choose the CUSP library as a base solution that uses sparse matrices because dense matrices cannot be applied to huge graphs. CUSP is a C++ templated library which allows us to multiply Boolean matrices (that solves relational path semantics problem). But in fact, performing CFPQ with relational paths semantics on the largest graph (geospecies from the paper~\cite{Kuijpers:2019:ESC:3335783.3335791}) using CUSP does not fit in GPU memory and this fact led us to develop an algorithm that would be more memory efficient.
 
-The second ($\textbf{RG\_SPARSE}_{\textit{rel}}$) implementation utilizes low-latency on-chip shared memory for the hash table of each row of the result matrix. For more details of the algorithm see the original paper~\cite{NsparsePaper}. An original solution designed for single and double precision SpGEMM. Since we have a Boolean matrix in CSR format, we can discard the array of values and optimize the usage of shared memory. But Boolean matrix multiplication is only one part of the algorithm since we must effectively combine two Boolean sparse matrices. We use the merge path~\cite{GpuMergePathPaper} algorithm to merge corresponding rows of the result matrix.
+The second ($\textbf{RG\_SPARSE}_{\textit{rel}}$) implementation utilizes low-latency on-chip shared memory for the hash table of each row of the result matrix. For more details of the algorithm see the original paper~\cite{NsparsePaper}. This solution designed for single and double precision SpGEMM. Since we have a Boolean matrix in CSR format, we can discard the array of values and optimize the usage of shared memory. But Boolean matrix multiplication is only one part of the algorithm since we must effectively combine two Boolean sparse matrices. We use the merge path~\cite{GpuMergePathPaper} algorithm to merge corresponding rows of the result matrix.
 
 The third ($\textbf{RG\_SPARSE}_{\textit{path}}$) algorithm must perform matrix multiplication and addition over \textit{PathIndex} semiring. To solve this problem, we must answer the following three questions. 
 
