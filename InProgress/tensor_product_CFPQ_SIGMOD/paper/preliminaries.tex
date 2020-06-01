@@ -2,10 +2,10 @@
 
 In this section we introduce basic notation and definitions from graph theory and formal language theory which are used in our work.
 
-\subsection{Context-Free Path Querying Problem}
+\subsection{Language-Constrained Path Querying Problem}
 
 We use a directed edge-labeled graph as a data model. 
-To introduce \textit{Context-Free Path Querying Problem (CFPQ)} over directed edge-labeled graphs we should introduce both graph and grammar definition.
+To introduce \textit{Language-Constarint Path Querying Problem}~\cite{!!!} over directed edge-labeled graphs we should introduce both language and grammar definition.
 
 First of all, we introduce edge-labelled diraph $\mathcal{G} = \langle V,E,L \rangle$, where $V$ is a finite set of vertices, $E \in V \times L \times V$ is a finite set of edges, $L$ is a finite set of edge labels. 
 Note that one can always introduce bijection between $V$ and $Q = \{0, \ldots, |V|-1\}$, thus in our work we gues that $V = \{0, \ldots, |V|-1\}$.
@@ -80,6 +80,100 @@ The word formed by a path $$\pi = (v_0,l_0,v_1),(v_1,l_1,v_2),\ldots,(v_{n-1},l_
 \end{definition}
 
 The next part is a definitions from formal language theory.
+\begin{definition}
+A language $\mathcal{L}$ over finite alphabet $\Sigma$ is a subset of all possible sequences formed by symbols from the alphabet: $\mathcal{L}_{\Sigma} = \{\omega \mid \omega \in \Sigma^*\}$.
+\end{definition}
+
+Now we are ready to introduce CFPQ problem for the given graph  $\mathcal{G} = \langle V,E,L \rangle$ and the given language $\mathcal{L}$ with reachability and all paths semantics.
+
+\begin{definition}
+To evaluate context-free path query with reachability semantics is to construct a set of pairs of vertices $(v_i,v_j)$ such that there exists a path $v_i \pi v_j$ in $\mathcal{G}$ which forms the word from the given language:
+$$
+R = \{(v_i,v_j) \mid \exists \pi: v_i \pi v_j, \omega(\pi) \in \mathcal{L} \}
+$$
+\end{definition}
+
+\begin{definition}
+To evaluate context-free path query with all paths semantics is to construct a set of path $\pi$ in $\mathcal{G}$ which forms the word from the given language:
+$$
+\Pi = \{ \pi \mid \omega(\pi) \in \mathcal{L}\}
+$$
+\end{definition}
+
+Note that $\Pi$ can be infinite, thus in practice, we should provide a way with reasonable complexity to enumerate such paths, instead of explicit construction of the $\Pi$.
+
+\subsection{Regular Path Queries and Finite State Machine}
+
+The first case of language-constrained path qurying is \textit{Regular Path Querying} (RPQ): the language $L$ is a regular language. This case is widely spread in ractice~\cite{!!!}. 
+
+Usual way to spesify regular languages is \textit{regular expressions}. 
+We use the naxt definition of regular expressions.
+\begin{definition}
+Regular expression (and regular language) over alphabet $\Sigma$ can be inductively defined as follows.
+\begin{itemize}
+	\item $\varnothing$ (empty language) is regular expression
+	\item $\varepsilon$ (empty string) is regular expression
+	\item $a_i \in \Sigma$ is regular expression
+	\item if $R_1$ and $R_2$ are regular expressions, then $R_1 \mid R_2$ (alternation), $R_1 \cdot R_2$ (concatenation), $R_1^*$ (Kleene star) are also regular expressions. 
+\end{itemize}
+\end{definition} 
+
+For example, one can specify regular expression $R_1 = ab^*$ to find paths in the graph $\mathcal{G}$ (fig.~\ref{fig:example_input_graph}). Expected result is set of paths which start with $a$-labeled edge and contain zero o more $b$-laneled edges ather that.
+
+In this work we use notion of \textit{Finite-State Machine} (FSM) or \textit{Finite-State Automaton} (FSA) for RPQs. 
+
+\begin{definition}
+Deterministic Finite-State Machine $T$ is a tuple $\langle \Sigma, Q, Q_s, Q_f, \delta \rangle$ where
+\begin{itemize}
+	\item $\Sigma$ is an input alphabet,
+	\item $Q$ is a finite set of states,
+	\item $Q_s \subseteq Q$ is a set of start (or initial) states,
+	\item $Q_f \subseteq Q$ is a set of final states,
+    \item $\delta: Q \times \Sigma \to Q$ is a transition function.
+\end{itemize}
+\end{definition}
+
+It is well known, that every regular expression can be converted to to deterministic FSM without $\varepsilon$-transitions.
+To do it one can use~\cite{}.
+In our work we use FSM as a representation of RPQ. 
+FSM can be naturally representaed by directed edge-labeled graph: $V = Q$, $L = \Sigma$, $E = \{(q_i,l,q_j) \mid \delta(q_i,l) = q_j\}$, some vertices have special markers to specify strat and final staes. Example of graph-style representattion of FSM $T_1$ for the regular expression is presented in firure~\ref{fig:example_fsm}.
+
+\begin{figure}[h]
+    \centering        
+    \begin{tikzpicture}[shorten >=1pt,auto]
+       \node[state, initial] (q_0)                      {$0$};
+       \node[state, accepting] (q_1) [right=of q_0] {$1$};
+       \path[->]
+        (q_0) edge  node {a} (q_1)
+        (q_1) edge[loop above]  node {b} (q_1)
+        ;
+    \end{tikzpicture}
+    \caption{The example of graph represenation of FSM for the regular expression $ab^*$}
+    \label{fig:example_fsm}
+\end{figure}
+
+As a result, FSM also can be representad as a set of Boolean ajencancy matrices $\mathcal{M}$ with additional information about start and final vertices. Such representation of $T_1$ is
+$$
+M^a =
+\begin{pmatrix}
+0&1 \\
+0&0
+\end{pmatrix},~
+M^b =
+\begin{pmatrix}
+0&0 \\
+0&1
+\end{pmatrix}.
+$$  
+
+Note, that the graph is an FSM: edges are transitions, all vertices should be both start and final at the same time.
+Thus RPQ evaluation is an intersection of two FSMs, and the result also can be represented as FSM, because regular languages are closed under intersection.
+
+\subsection{Context-Free Path Querying and Recursive State Machines}
+
+More general case, than RPQ, is a \textit{Context-Free Path Querying Problem (CFPQ)}, where one can use context-free languages as constraints. These constraints are more expressive than regular ones, for example, one can express classical same-generation query using context-free language, but not a regular one.
+
+
 \begin{definition} 
 Context-free grammar $G = \langle\Sigma, N, S, P\rangle$ where $\Sigma$ is a finite set of terminals (or terminal alphabet), $N$ is a finite set of nonterminals (or nonterminal alphabet), $S \in N$ is a start nonterminal, and $P$ is a finite set of productions (grammar rules) of form $N_i \to \alpha$ where  $N_i \in N$, $\alpha \in (\Sigma \cup N)^*$.
 \end{definition}
@@ -92,52 +186,23 @@ The sequence $\omega_2 \in (\Sigma \cup N)^*$ is dervable from $\omega_1 \in (\S
 Context-free grammar $G=\langle\Sigma, N, S, P\rangle$ specifies a \textit{contex-free languege}: $\mathcal{L}(G) = \{\omega \mid S \xrightarrow{*} \omega \}$, where $(\xrightarrow{*})$ denotes zero or more derivation steps $(\to)$.    
 \end{definition}
 
-Now we are ready to introduce CFPQ problem for the given graph  $\mathcal{G} = \langle V,E,L \rangle$ and the given grammar $G=\langle\Sigma, N, S, P\rangle$ with reachability and all paths semantics (according Hellings~\cite{!!!}).
+Thus, one can use the grammar $G_1 = \langle \{a,b\}, \{S\}, S, \{S \to a \ b; \ S \to a \ S \ b\} \rangle$ to find paths which form words in the language $\mathcal{L}(G_1) = \{a^n b^n \mid n > 0\}$ in the graph $\mathcal{G}$ (fig.~\ref{fig:example_input_graph}).
 
+Regular expressions can be transormet to FSM, the similar way, context free grammar can be transformer to \textit{Recursive State Machime} (RSM) also known as recursive networks~\cite{!!!}, recursive automata~\cite{!!!}, !!!. 
+In our work we use the following definition of RSM.
 \begin{definition}
-To evaluate context-free path query with reachability semantics is to construct a set of pairs of vertices $(v_i,v_j)$ such that there exists a path $v_i \pi v_j$ in $\mathcal{G}$ which forms the word from the given language:
-$$
-R = \{(v_i,v_j) \mid \exists \pi: v_i \pi v_j, \omega(\pi) \in L(G) \}
-$$
+RSM $R$ is a tuple !!! where
 \end{definition}
 
-\begin{definition}
-To evaluate context-free path query with all paths semantics is to construct a set of path $\pi$ in $\mathcal{G}$ which forms the word from the given language:
-$$
-\Pi = \{ \pi \mid \omega(\pi) \in L(G)\}
-$$
-\end{definition}
-
-Note that $\Pi$ can be infinite, thus in practice, we should provide a way with reasonable complexity to enumerate such paths, instead of explicit construction of the $\Pi$.
-
-\subsection{Finite state machine}
-
-\begin{definition}
-FSM
-\end{definition}
-
-Regular expression to deterministic FSM.
-
-Intersection of FSM is an RPQ.
-Regualr languages are clusude under intersection.
-
-\subsection{Recursive State Machines}
-
-
-
-Also known as recursive networks~\cite{!!!}, recursive automata~\cite{!!!}, !!!  
-
-\begin{definition}
-RSM
-\end{definition}
-
-Properties.
-
+To convert grammar to RSM one !!!!
 Grammar to RSM convertion algorithm.
+
 Eaxmple of convertion.
 
 
-Adjacency matrices $M_1$ and $M_2$ for automata $R$ and graph $\mathcal{G}$ respectively are initialized as follows:
+
+Similarly to FSM, RSM can be representaed as s graph and, hance, as a set of Boolean adjacency matrices/
+For our example, $M_1$ is:
     $$
     M_1 =
     \begin{pmatrix}
@@ -149,6 +214,7 @@ Adjacency matrices $M_1$ and $M_2$ for automata $R$ and graph $\mathcal{G}$ resp
     $$
 
 Matrix $M_1$ can be represented as a set of Boolean matrices as follows:
+{\small
 \begin{align*}
 M_1^S =
 \begin{pmatrix}      
@@ -162,7 +228,7 @@ M_1^S =
    . & . & . & .   \\
    . & . & . & .   \\
    . & . & . & .   \\
-\end{pmatrix}, \\ M_1^b =
+\end{pmatrix},~M_1^b =
 \begin{pmatrix}      
     . & . & . & .   \\
     . & . & . & 1   \\
@@ -170,11 +236,16 @@ M_1^S =
     . & . & . & .   \\
 \end{pmatrix}
 \end{align*}
-
-
-Boolean decomposition of adjacency matrix
+}
+Similarly to RPQ, CFPQ is an intersection of the given context-free language and FSM specified by the given graph.
+As far as context-free is closed under intersection with regular languages, result can be represented as an RSM.
+Also, one can look at the RSM as at FSM over $\Sigma \cup N$.
+In this work we use this point of view to propose unified algorifm for evaluation both regular and contex-free path queryes with zero overhead for regular ones. 
+ 
 
 \subsection{Graph Kronecker Product}
+
+
 
 \begin{definition}
 Given two edge-labelled directed graphs $\mathcal{G}_1=\langle V_1, E_1, L_1 \rangle$ and $\mathcal{G}_2=\langle V_2, E_2, L_2 \rangle$ the Kronecker product of these two graphs is a edge-labeles directed graph $\mathcal{G}=\langle V, E, L \rangle$ where 
@@ -186,19 +257,22 @@ Given two edge-labelled directed graphs $\mathcal{G}_1=\langle V_1, E_1, L_1 \ra
  $\mathcal{G}_1 \otimes \mathcal{G}_2$ 
 \end{definition}
 
+Adjacency matrix is a tensot ptoduct of adjacency matrices
 
 \begin{definition}
 Matrix tensor product definition.
 !!!!!
 \end{definition}
 
-Tensot ptoduct of adjacency matrices. $M(G) = M(G_1) \otimes M(G_2)$
+Thus, $M(G) = M(G_1) \otimes M(G_2) = !!!!$
 
 
 FSM intersection can be calcualeted as tensor product of FSM adjacency matrix.
 
 Example!!!
 
-Tensor product for FSM intersection over Boolean semiring using given definitions.
+Using adjacency matrix decompposition we can reduce Tensor product for FSM intersection over Boolean semiring using given definitions.
 
-RSM and FSM intersection classical theorem proof? 
+$$ M_1 \otimes M_2 = a \cdot (M_1^a \otimes M_2^a) + b \cdot (M_1^b \otimes M_2^b) $$
+
+In this work we show how to express RSM and FSM intersection in terms of tensor product and transitive closure over Boolean semiring.
