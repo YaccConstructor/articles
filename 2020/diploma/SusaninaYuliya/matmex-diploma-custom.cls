@@ -175,7 +175,7 @@
     \vskip 1em
     {\large 
     \ifthenelse{\equal{\my@title@type@ru}{coursework}}
-    {Отчёт по научно-исследовательской практике}
+    {Отчёт по научно-исследовательской работе}
     {\ifthenelse{\equal{\my@title@type@ru}{diploma}}
     {Дипломная работа}
     {\ifthenelse{\equal{\my@title@type@ru}{master}}
