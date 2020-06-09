@@ -1,0 +1,461 @@
+\documentclass{beamer}
+\usepackage{beamerthemesplit}
+\usepackage{wrapfig}
+\usetheme{SPbGU}
+\usepackage{pdfpages}
+\usepackage{amsmath}
+\usepackage{cmap} 
+\usepackage[T2A]{fontenc} 
+\usepackage[utf8]{inputenc}
+\usepackage[english,russian]{babel}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{multirow}
+\usepackage[noend]{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usetikzlibrary{shapes,arrows}
+\usepackage{fancyvrb}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usetikzlibrary{calc}
+\usetikzlibrary{shapes,arrows}
+\usetikzlibrary{arrows,automata}
+\usetikzlibrary{positioning}
+\usepackage[labelformat=empty]{caption}
+\usepackage[labelformat=empty]{subcaption}
+\beamertemplatenavigationsymbolsempty
+\usepackage{multirow}
+\usepackage{array}
+\newcolumntype{P}[1]{>{\centering\arraybackslash}p{#1}}
+
+
+\newcommand{\tikzmark}[1]{\tikz[overlay,remember picture] \node (#1) {};}
+\def\Put(#1,#2)#3{\leavevmode\makebox(0,0){\put(#1,#2){#3}}}
+
+\newcommand{\ltz}{$< 1$}
+\tikzset{
+    state/.style={
+           rectangle,
+           rounded corners,
+           draw=black, very thick,
+           minimum height=2em,
+           inner sep=4pt,
+           text centered,
+           },
+}
+
+\title[СА + НС]{Комбинирование нейронных сетей и синтаксического анализа для предсказания вторичных структур генетических цепочек}
+\institute[СПбГУ]{
+Санкт-Петербургский государственный университет \\
+Кафедра системного программирования }
+
+\author[Лунина Полина]{Лунина Полина Сергеевна, 571 группа \\
+  \and  
+    {\bfseries Научный руководитель:} доцент, к.ф-м.н. Григорьев С.В.}
+
+
+\date{10 июня 2020г.}
+\begin{document}
+{
+\begin{frame}[fragile]
+  \begin{tabular}{p{2.0cm} p{7.5cm} p{1cm}}
+   \begin{center}
+      \includegraphics[height=1.5cm]{pics/jetbrainsResearch.pdf}
+    \end{center}
+    &
+    \begin{center}
+      \includegraphics[height=1.5cm]{pics/YC_logo.pdf}
+    \end{center}
+    &
+    \begin{center}
+      \includegraphics[height=1.5cm]{pics/SPbGU_Logo.png}
+    \end{center}
+  \end{tabular}
+  \titlepage
+\end{frame}
+}
+
+\begin{frame} \frametitle{Биоинформатика}
+\begin{tabular}{cl}  
+    \parbox{0.44\linewidth}{
+        \begin{itemize}
+            \item Задачи
+            \begin{itemize}
+                \item Распознавание
+                \item Классификация
+                \item Предсказание вторичных структур
+                \item ...
+            \end{itemize}
+  \onslide<2,3> {\item Формальное задание вторичной структуры}
+  \onslide<3>  {\item Вероятностная оценка}
+        \end{itemize}
+    }
+    & \begin{tabular}{l}
+        \vspace{-0.8cm}
+        \hspace{-0.8cm}
+        \includegraphics[width=5.0cm]{pics/16s.pdf}
+    \end{tabular}  \\
+\end{tabular}
+\end{frame}
+
+\begin{frame}{Наш подход}
+\begin{itemize}
+    \item Задать основные элементы вторичной структуры (стемы) с помощью грамматики 
+    \item Для вероятностной оценки использовать нейронные сети
+\end{itemize}
+
+\vspace{1.0cm}
+\begin{center}
+    \includegraphics[width=8.5cm]{pics/molekula.pdf} 
+\end{center}
+    
+\end{frame}
+
+\begin{frame} \frametitle{Наш подход}
+\vspace{0.5cm}
+\scriptsize
+  \begin{tikzpicture}[->,>=stealth']
+  \node[state,
+        align=left,
+        text width = 3.2cm] (grm)
+   {
+   \textbf{Грамматика}\\
+   Описывает стемы вторичной структуры.
+   };
+
+  \node[state,
+        below of=grm,
+        node distance=1.6cm,
+        align = left,
+        text width = 3.2cm] (sqs)
+   {
+   \textbf{Цепочки РНК}\\
+   Строки над алфавитом $\{A, C, G, U\}$.
+   };
+
+  \node[state,
+        below right = -0.4cm and 0.4cm of grm,
+        align = left,
+        text width = 3.0cm](parser)
+  {
+  \textbf{Парсер}\\
+  Извлекает стемы вторичной структуры из входных данных.
+  };
+
+  \node[state,
+        right of=parser,
+        node distance=4.3cm,
+        align = left,
+        text width = 4.4cm] (mtrx)
+  {
+\textbf{Матрицы}\\
+{\tiny
+\[ \left( \begin{array}{cccc}
+0 & 1 & 0 & 1\\
+0 & 0 & 1 & 0\\
+0 & 0 & 0 & 1\\
+0 & 0 & 0 & 0
+\end{array} \right)\]}
+\vspace{-0.2cm}
+
+  Результат работы парсера для входной строки $\omega$ --- булева матрица $M$, где $ M[i,j] = 1 $ $\iff$  \linebreak  $\text{\ttfamily{s}} \xrightarrow{*}{} \omega[i,j]$.
+  };
+
+
+  \node[state,
+        below = 1.2cm of mtrx,
+        node distance=3cm,
+        align = left,
+        text width = 4.4cm](vector)
+  {
+  \textbf{Входные данные для НС}\\
+  Изображения, вектора или другой формат, удобный для конкретной задачи.
+  };
+
+  \node[state,
+        left = 0.5cm of vector,
+        align = left,
+        text width = 4.4cm](DNN)
+  {
+  \textbf{Нейронная сеть}\\
+
+  Решает поставленную задачу распознавания, классификации, генерации и т.д.
+
+  };
+  
+    \node[state,
+        left of = DNN,
+        node distance=3.7cm,
+        align = left,
+        text width = 1.4cm](result)
+  {
+  \textbf{Результат}
+  };
+
+  \path (grm.east) edge (parser.-200)
+   (sqs.east) edge (parser.-160)
+   (parser) edge (mtrx)
+   (mtrx) edge (vector)
+   (vector) edge (DNN)
+   (DNN) edge (result)
+   ;
+
+  \end{tikzpicture}
+
+  \tikzmark{zzz}{
+  }
+  \pause
+  \onslide<2>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2, rounded corners] ($ (zzz) + (0.0,6.4)$) rectangle ($ (zzz) + (3.52,3.56)$);}}
+
+  \onslide<3>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2, rounded corners] ($ (zzz) + (3.95,5.55)$) rectangle ($ (zzz) + (7.22,4.0)$);}}
+
+  \onslide<4>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2, rounded corners] ($ (zzz) + (7.55,6.45)$) rectangle ($ (zzz) + (12.22,3.15)$);}}
+
+  \onslide<5>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2, rounded corners] ($ (zzz) + (7.55,1.86)$) rectangle ($ (zzz) + (12.22,0.35)$);}}
+
+  \onslide<6>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2, rounded corners] ($ (zzz) + (2.3,1.86)$) rectangle ($ (zzz) + (7.0,0.35)$);}}
+
+  \onslide<7>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2, rounded corners] ($ (zzz) + (0.1,1.4)$) rectangle ($ (zzz) + (1.8,0.8)$);}}
+
+\end{frame}
+
+\begin{frame}{Идея текущего исследования} 
+\begin{itemize}
+    \item Парсер находит в цепочке все возможные стемы, однако не все они действительно будут входить в состав вторичной структуры
+    \item Хотим сконструировать нейронную сеть, которая отфильтрует лишние контакты между нуклеотидами и предскажет вторичную структуру цепочки
+\end{itemize}
+\vspace{0.5cm}
+\onslide<2>{
+\begin{figure}
+\centering
+\begin{subfigure}{.3\textwidth}
+  \centering
+  \fbox{\includegraphics[width=.6\linewidth]{pics/structure.png}}
+  \caption{Вторичная структура}
+\end{subfigure}%
+\begin{subfigure}{.3\textwidth}
+  \centering
+  \fbox{\includegraphics[width=.6\linewidth]{pics/etalon.png}}
+  \caption{Матрица контактов}
+\end{subfigure}
+\begin{subfigure}{.3\textwidth}
+  \centering
+  \fbox{\includegraphics[width=.6\linewidth]{pics/parsed.png}}
+  \caption{Матрица разбора}
+\end{subfigure}%
+\end{figure}
+}
+\end{frame}
+
+\begin{frame}\frametitle{Постановка задачи}
+\textbf{Цель} --- исследование возможности применения предложенного подхода к задаче предсказания вторичных структур геномных последовательностей
+
+\vspace{5mm\onelineskip}
+
+\textbf{Задачи}
+\begin{itemize}
+    \item Разработка общей архитектуры решения
+    \item Проведение экспериментальных исследований
+    \begin{itemize}
+        \item Предсказание вторичных структур транспортных РНК с различной длиной цепочки
+        \item Исследование возможности предсказания псевдоузлов, невыразимых средствами используемой грамматики
+    \end{itemize}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Архитектура решения}
+\scriptsize
+\centering
+  \begin{tikzpicture}[->,>=stealth']
+  \node[state,
+        align=center,
+        text width = 2.0cm] (grm)
+   {
+   \textbf{Грамматика}
+   };
+
+  \node[state,
+        below of=grm,
+        node distance=2.0cm,
+        align = center,
+        text width = 2.0cm] (sqs)
+   {
+   \textbf{Цепочки РНК}
+   };
+
+  \node[state,
+        right = 0.5cm of grm,
+        align = center,
+        double,
+        text width = 1.5cm](parser)
+  {
+  \textbf{Парсер}
+  };
+  
+  \node[state,
+        right = 0.5cm of sqs,
+        align = center,
+        double,
+        text width = 1.5cm](pred)
+  {
+  \textbf{Генератор в.с.}
+  };
+
+  \node[state,
+        right = 0.5cm of parser,
+        align = center,
+        text width = 1.5cm] (mtrx1)
+  {
+\textbf{Матрицы разбора}\\
+
+};
+
+  \node[state,
+        right = 0.5cm of pred,
+        align = center,
+        text width = 1.5cm](mtrx2)
+  {
+  \textbf{Матрицы контактов}\\
+ };
+
+  \node[state,
+        right = 0.5cm of mtrx1,
+        align = center,
+        text width = 1.5cm](img1)
+  {
+  \textbf{Входные \\данные}\\
+};
+  
+  \node[state,
+        right = 0.5cm of mtrx2,
+        align = center,
+        text width = 1.5cm](img2)
+  {
+  \textbf{Эталонные \\данные}
+ };
+ 
+   \node[state,
+        below right = 0.2cm and 0.5cm of img1,
+        align = center,
+        double,
+        text width = 1.5cm](nn)
+  {
+  \textbf{Нейронная \\сеть}
+ };
+
+
+  \path (grm) edge (parser)
+  (sqs.north) edge (parser.west)
+  (sqs) edge (pred)
+  (parser) edge (mtrx1)
+  (mtrx1) edge (img1)
+  (pred) edge (mtrx2)
+  (mtrx2) edge (img2)
+  (img1.east) edge [bend left=20] (nn.north)
+  (img2.east) edge [bend right=20] (nn.south)
+   ;
+  \end{tikzpicture}
+  
+ \pause
+  \onslide<2>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2, rounded corners] ($ (zzz) + (0.0,5.5)$) -- ($ (zzz) + (9.7,5.5)$) -- ($ (zzz) + (9.7,4.2)$) -- ($ (zzz) + (2.8,4.2)$) -- ($ (zzz) + (2.8,2.3)$) -- ($ (zzz) + (0.0,2.3)$) -- ($ (zzz) + (0.0,5.5)$);}}
+
+  \onslide<3>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2, rounded corners] ($ (zzz) + (0.0,3.5)$) rectangle ($ (zzz) + (9.7,2.2)$);}}
+
+  \onslide<4>{\tikz[overlay,remember picture]{\draw[draw=red,thick,double,fill opacity=0.2, rounded corners] ($ (zzz) + (7.5,5.5)$) rectangle ($ (zzz) + (12.0,2.2)$);}}
+\end{frame}
+
+\begin{frame}{Нейронная сеть}
+
+\begin{tabular}{cl}  
+    \parbox{0.75\linewidth}{
+        \begin{itemize}
+            \item Fully convolutional residual neural network
+            \item Loss --- взвешенная попиксельная разница
+            \item Алгоритм локального выравнивания последовательностей
+            \item train/valid/test = 70\%/10\%/20\%
+            %\vspace{5mm\onelineskip}
+             \onslide<2> {\item Метрики
+            \begin{itemize}
+                \item $Precision$ --- сколько из предсказанных контактов действительно являются контактами в эталоне
+                \item $Recall$ --- сколько из требуемых контактов было найдено
+                \item $F1$ $score$ --- объединяющая метрика
+            \end{itemize}}
+        \end{itemize}
+    }
+    & \begin{tabular}{l}
+        \includegraphics[width=2.0cm]{pics/res_unit.pdf}
+    \end{tabular}  \\
+\end{tabular}
+    
+\end{frame}
+
+\begin{frame}{Эксперименты}
+\textbf{Задачи}  
+\begin{itemize}
+    \item Предсказание вторичных структур цепочек тРНК с различными интервалами длин
+    \item Предсказание вторичных структур цепочек тРНК с псевдоузлами
+\end{itemize} 
+
+\vspace{6mm}
+\textbf{Данные}
+\begin{itemize}
+    \item RNAcentral (последовательности тРНК)
+    \item CentroidFold (эталонные структуры)
+    \item Pseudobase (цепочки и эталонные структуры с псевдоузлами)
+\end{itemize}
+
+\vspace{6mm}
+
+\textbf{Технологии}
+\begin{itemize}
+    \item Платформа YaccConstructor
+    \item Библиотека Keras и фреймворк Tensorflow
+\end{itemize}
+\vspace{6mm}
+
+\end{frame}
+
+\begin{frame}{Предсказание вторичных структур для цепочек с разными интервалами длин}
+\input{pics/table1.tex}
+
+\end{frame}
+
+\begin{frame}{Расширение обученных моделей на данные с псевдоузлами}
+\begin{tabular}{cl}  
+    \parbox{0.45\linewidth}{
+Псевдоузел состоит из двух шпилек, где половина стебля одной шпильки располагается между двумя половинами стебля другой шпильки (невыразим средствами КС грамматики)
+    }
+    & \begin{tabular}{l}
+        \includegraphics[width=5.5cm]{pics/pseudoknot.png}
+    \end{tabular}  \\
+\end{tabular}
+\vspace{6mm}
+
+\input{pics/table2.tex}
+
+\end{frame}
+
+\begin{frame}\frametitle{Результаты}
+\begin{itemize}
+    \item Разработана общая архитектура решения
+    \item Проведены экспериментальные исследования на различных наборах данных
+    \item Подана статья на конференцию Biata-2020
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Планы}
+\begin{itemize}
+    \item Предсказание вторичных структур для цепочек различных РНК любой длины
+    \item Выбор оптимального источника эталонных данных
+    \item Более тщательная разработка модели, применяющей адаптивное выравнивание.
+    \item Реализация более развернутой системы тестирования результатов работы нейронных сетей
+    \item Поиск новых средств, а также более тонкая настройка параметров всех моделей для улучшения результатов.
+\end{itemize}
+
+\end{frame}
+
+
+
+\end{document}
