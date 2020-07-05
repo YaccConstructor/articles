@@ -261,15 +261,23 @@ The fast computation of transitive closure can be obtained by using incremental 
 \label{tensor:cfpq:dynamicTC}
 \Function{add}{$C_3, i, j$}
        \State{$n \gets$ Number of rows in $C_3$}
-        \State{$C_3' \gets$ Empty matrix}
-        \For{$u \in 0...n \mid  u \neq j \ \& \  C_3[u,i]=1 \ \& \  C_3[u,j]=0$}
-             \For{$v \in 0...n$}
-                \If {$C_3[u,v]=0 \ \& \ C_3[j,v]=1$}
-                       \State{$C_3'[u,v] \gets 1$}
-                \EndIf        
-              \EndFor
+        \State{$C_3' \gets$ Empty matrix of size $n \times n$}
+        \For{$u \neq 0 \in$ checkCondition($C_3, i, j$)}
+        \State{newReachablePairs($C_3, C_3', u, j$)}
         \EndFor
-\State \Return $C_3'$
+        \State \Return $C_3'$
+\EndFunction
+ \Function{checkCondition}{$C_3, i, j$}
+        \State{$A \gets$ Empty array of size $n$}
+        \For{$u \in 0...n \mid  u \neq j $}
+    \Comment{$1 \wedge 1 = 0 \wedge 0 = 1 \wedge 0 = 0$; $0 \wedge 1 = 1$}
+       \State{ $A[u] = C_3[u,j] \wedge C_3[u,i]$}
+        \EndFor
+\State \Return $A$
+\EndFunction
+ \Function{newReachablePairs}{$C_3, C_3', u, j$}
+      \State{$C_3'[u,v] = C_3[u, v] \wedge C_3[j, v]$}
+ \Comment{$1 \wedge 1 = 0 \wedge 0 = 1 \wedge 0 = 0$; $0 \wedge 1 = 1$}
 \EndFunction
 \end{algorithmic}
 \end{algorithm}
@@ -326,15 +334,13 @@ Final version of the modified Algorithm~\ref{tensor:cfpq} is shown in Listing~\r
         \State{$n \gets$ dim($M_3)$}
         %\Comment{Matrix $M_3$ size = $n \times n$}
         % Add non-terminals (possibly new)
-        \For{$(i,j) \in [0..n-1] \times [0..n-1]$}
-            \If{$C_3'[i,j]$}
+        \For{$(i,j)\ |\ C_3'[i,j] \neq 0$}
                 \State{$s, f \gets \textit{getStates}(C_3',i,j)$}
                 \If{$\textit{getNonterminals}(R,s,f) \neq \emptyset$}
                     \State{$x, y \gets \textit{getCoordinates}(C_3',i,j)$}
                     \State{$M_2[x,y] \gets M_2[x,y] \cup \textit{getNonterminals}(R,s,f)$}
                      \State{$A_2[x,y] \gets A_2[x,y] \cup \textit{getNonterminals}(R,s,f)$}
                 \EndIf
-            \EndIf
         \EndFor
     \EndWhile
 \State \Return $M_2$
@@ -350,12 +356,30 @@ Final version of the modified Algorithm~\ref{tensor:cfpq} is shown in Listing~\r
  Let $|A|$ be a number of non-zero elements in a matrix $A$. Consider the total time which is needed for computing the Kronecker products. The elements of the matrices $A_2^{(i)}$ are pairwise distinct on every $i$-th iteration of the Algorithm therefore we have $\sum\limits_i{T(M_1 \otimes A_2^{(i)})} = |M_1| \otimes \sum\limits_i {|A_2^{(i)}|} = |M_1|O(n^2)$ operations in total. 
 
 
-Now we derive the time complexity of maintainig the dynamic transitive closure. Notice that $C_3$ has size of $O(n^2)$ so no more than $O(n^2)$ edges will be added during all iterations of the Algorithm. The condition in the line 4 in Listing~\ref{tensor:cfpq:dynamicTC} is calculated $O(n)$ times for every inserted edge $(i, j)$. Thus we have $O(n^2n) = O(n^3)$ operations in total. The operation from line 6 requires $O(n)$ time for a given vertex $u$. This operation is performed for every pair $(j, v)$ of vertices such that a vertex $j$ became reachable from the vertex $u$. There are no more than $O(n^2)$ such pairs, so line 6 will be executed at most $O(n^2n)= O(n^3)$ times during the entire computation. Therefore $O(n^3)$ operations are performed to maintain dynamic transitive closure during all iteration of the Algorithm~\ref{tensor:cfpq:cubic}.
+Now we derive the time complexity of maintainig the dynamic transitive closure. Notice that $C_3$ has size of $O(n^2)$ so no more than $O(n^2)$ edges will be added during all iterations of the Algorithm. The function $checkCondition$ from the Listing~\ref{tensor:cfpq:dynamicTC} takes $O(n)$ time for every inserted edge $(i, j)$. Thus we have $O(n^2n) = O(n^3)$ operations in total. The function $newReachablePairs$ requires $O(n)$ time for a given vertex $u$. This operation is performed for every pair $(j, v)$ of vertices such that a vertex $j$ became reachable from the vertex $u$. The vertex $j$ become reachable from the vertex $u$ only once during the entire computation, so the function $newReachablePairs$ will be executed at most $O(n^2)$ times for every $u$ and hence $O(n^3)$ times in total for all vertices. Therefore $O(n^3)$ operations are performed to maintain dynamic transitive closure during all iteration of the Algorithm~\ref{tensor:cfpq:cubic}.
 
 
 Notice that the matrix $C_3'$ contains only new elements, therefore $C_3$ can be updated derectly using only $|C_3'|$ operations and hence $O(n^2)$ operations in total. The same holds for cycle in line 18 of the Algorithm~\ref{tensor:cfpq:cubic}, because operations are performed only for non-zero elements of the matrix $|C_3'|$. Finally, we have that the time complexity of the Algorithm~\ref{tensor:cfpq:cubic} is $O(n^2) + O(n^3) + O(n^2) + O(n^2) = O(n^3)$.
 \end{proof}{}
-Notice that the obtained cubic time bound is close to the currently best known upper bound for the CFPQ evaluation (the asymptotically fastest known method has a complexity of $O(n^3/\log n$)) \cite{Chaudhuri2008SubcubicAF}. However it is open problem whether a truly sub-cubic algorithm exists for the CFL-reachability problem (and hence, for CFPQ evaluation)  \cite{10.1145/3158118}.
+
+\subsubsection{Speeding up by a factor of $\log n$}
+
+In this subsection we use the Four Russians' trick to speed up the dynamic transitive closure algorithm from the Listing~\ref{tensor:cfpq:dynamicTC}.
+\begin{theorem}{}
+    The computation of transitive closure matrices can be done in $O(n^3/\log n)$ time when $n^2$ edges are added to the graph.
+\end{theorem}
+\begin{proof}
+Consider the function $checkCondition$ from the Listing~\ref{tensor:cfpq:dynamicTC}. Its operations are equivalent to the element-wise (Hadamard) product of two vectors of size $n$, where multipication operation is denoted as $\wedge$ and has the following properties: $1 \wedge 1 = 0 \wedge 0 = 1 \wedge 0 = 0$ and $0 \wedge 1 = 1$. The first vector represents reachability of a given vertex $i$ from other vertices $\{u_1, u_2, ..., u_n\}$ of the graph and the second vector represents the same for a given vertex $j$. The function $newReachablePairs$ also can be reduced to the computation of the Hadamard product of two vectors of size $n$ for a given $u_k$. The first vector contains the information whether vertices  $\{v_1, v_2, ..., v_n\}$ of the graph are reachable from a given vertex $u_k$ and the second vector represents the same for a given vertex $j$. The element-wise product of two vectors can be calculated naively in time $O(n)$ which gives the $O(n^3)$ time for maintaining the transitive closure. Thus, the time complexity of the transitive closure can be reduced by speeding up element-wise product of two vectors of size $n$. 
+
+
+To achive this goal, we use the Four Russians' trick. Split each vector into $n/\log n$ parts of size $\log n$. Create a table $S$ such that $S(a, b)$ = $a \wedge b$ where $a, b \ \in {\{0,1\}}^{\log n}$. This takes a time $O(n^2 \log n)$, since there are $2^{\log n} = n$ variants of boolean vectors of size $\log n$ and hence $n^2$ pairs of vectors $(a, b)$ in total, and each component takes $O(\log n)$ time. With table $S$, we can calculate product of two parts of size $\log n$ in constant time. There are $n/\log n$ such parts, so the element-wise product of two vectors of size $n$ can be calculated in time $O(n/\log n)$ with $O(n^2 \log n)$ preprocessing. This gives us a dynamic transitive closure algorithm running in time $O(n^3/\log n)$: both of the functions $checkCondition$ and  $newReachablePairs$ are evaluated no more than $O(n^2)$ times during the whole computation, and each function calculates Hadamard product of two vectors in $O(n/\log n)$ time.
+\end{proof} 
+Notice that the maintaining of the dynamic transitive closure dominates the cost of the Algorithm~\ref{tensor:cfpq:cubic}, therefore we immediatly deduce the following.
+\begin{corollary}{}
+    Let $\mathcal{G} = (V,E,L)$ be a graph and $G = (\Sigma, N, P)$ be a grammar.
+    The result graph $\mathcal{G}_R = (V, E_R, L)$ can be calculated in $O(n^3/\log n)$ time.
+\end{corollary}
+
 
 
 Subcubic for planar graphs using~\cite{10.1007/3-540-57273-2_72}.
