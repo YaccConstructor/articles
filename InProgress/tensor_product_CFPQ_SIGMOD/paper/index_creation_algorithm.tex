@@ -1,28 +1,51 @@
 \subsection{Index Creation Algorithm}
 
-In this section, we introduce the algorithm for context-free path querying.
-The algorithm determines the existence of a path, which forms a sentence of the language defined by 
-the input RSM $R$, between each pair of vertices in the directed edge-labeled graph $\mathcal{G}$.
+The \textit{index creation} algorithm outputs the final adjacency matrix $\mathcal{M}_2$
+for the input graph with all vertices pairs, which are reachable through some nonterminal 
+in the input grammar $G$, and the index matrix $\mathcal{C}_3$, which allows to extract
+later paths in the \textit{path extraction} algorithm.
+
 The algorithm is based on the generalization of the FSM intersection for an RSM, 
-and an input graph. Since a graph can be interpreted as a FSM, in which 
-transitions correspond to the labeled edges between vertices of the graph, 
-and an RSM is composed of a set of FSMs, the intersection of such machines
-can be computed using the classical algorithm for FSM intersection, presented 
-in~\cite{automata:theory:10.5555/1177300}. 
-Such a way of generalization leads to zero-overhead algorithm for RPQ, contrary to other algorithms which require regular expression to context-free grammar transformation.
+and the edge-labeled directed input graph. Since the RSM is composed as set of FSMs, 
+it could be easily presented as adjacency matrix for some graph over labels set 
+$\Sigma \cup S$. As shown in the Def.~\ref{def:bool:product} we can apply 
+Kronecker product from Boolean matrices to \textit{intersect} the RSM and the 
+input graph at some extent. But the RSM contains the  nonterminal symbols from $N$ 
+with additional \textit{recursive calls} logic, what requires \textit{transitive closure} 
+step for such symbols extraction.
 
-The intersection can be computed as a Kronecker product of the corresponding 
-adjacency matrices for an RSM and a graph. Since we are only determining the
-reachability of vertices, it is enough to represent intersection result as 
-a Boolean matrix. It simplifies the algorithm implementation and allows 
-one to express it in terms of basic matrix operations.
+Applying the Kronecker product and transitive closure theory together, we get the idea 
+of the algorithm: iterative Kronecker product evaluation for the RSM and the input 
+graph, followed by transitive closure, nonterminal extraction and the update 
+of the graph adjacency matrix.
 
-\subsubsection{Na{\"i}ve Version}
+% In this section, we introduce the algorithm for context-free path querying.
+%The algorithm determines the existence of a path, which forms a sentence of the language defined by 
+%the input RSM $R$, between each pair of vertices in the directed edge-labeled graph $\mathcal{G}$.
+%The algorithm is based on the generalization of the FSM intersection for an RSM, 
+%and an input graph. Since a graph can be interpreted as a FSM, in which 
+%transitions correspond to the labeled edges between vertices of the graph, 
+%and an RSM is composed of a set of FSMs, the intersection of such machines
+%can be computed using the classical algorithm for FSM intersection, presented 
+%in~\cite{automata:theory:10.5555/1177300}. 
+%Such a way of generalization leads to zero-overhead algorithm for RPQ, contrary to other algorithms which require regular expression to context-free grammar transformation.
+
+%The intersection can be computed as a Kronecker product of the corresponding 
+%adjacency matrices for an RSM and a graph. Since we are only determining the
+%reachability of vertices, it is enough to represent intersection result as 
+%a Boolean matrix. It simplifies the algorithm implementation and allows 
+%one to express it in terms of basic matrix operations.
+
+%\subsubsection{Na{\"i}ve Version}
+% Todo: reference to the algoritm description in the ADBIS paper 
+
+\subsubsection{Over Boolean Matrices Version}
 Listing~\ref{tensor:cfpq} shows main steps of the algorithm.
 The algorithm accepts context-free grammar $G=(\Sigma,N,P$) and graph $\mathcal{G}=(V,E,L)$ as an input.
 An RSM $R$ is created from the grammar $G$.
 Note, that $R$ must have no $\varepsilon$-transitions.
-$M_1$ and $M_2$ are the adjacency matrices for the machine $R$ and the graph $\mathcal{G}$ correspondingly.
+$\mathcal{M}_1$ and $\mathcal{M}_2$ are the Boolean adjacency matrices for the machine 
+$R$ and the graph $\mathcal{G}$ correspondingly.
 
 Then for each vertex $i$ of the graph $\mathcal{G}$, the algorithm adds loops 
 with non-terminals, which allows deriving $\varepsilon$-word.
@@ -32,32 +55,42 @@ not have any $\varepsilon$-transitions, the $\varepsilon$-word could be
 derived only if a state $s$ in the box $B$ of the $R$ is both initial and final.
 This data is queried by the $getNonterminals()$ function for each state $s$.
 
-The algorithm terminates when the matrix $M_2$ stops changing.
-Kronecker product of matrices $M_1$ and $M_2$ is evaluated for each iteration.
-The result is stored in $M_3$ as a Boolean matrix.
-For the given $M_3$ a $C_3$ matrix is evaluated by the $transitiveClosure()$ 
-function call. The $M_3$ could be interpreted as an adjacency matrix for an 
-directed graph with no labels, used to evaluate transitive closure in terms of 
-classical graph definition of this operation.
-Then the algorithm iterates over cells of the $C_3$.
+The algorithm terminates when the matrix $\mathcal{M}_2$ stops changing.
+Kronecker product of matrices $\mathcal{M}_1$ and $\mathcal{M}_2$ is evaluated
+for each iteration.
+The result is stored in $\mathcal{M}_3$ as a Boolean matrix. Since we are interested
+only in the reachability of some vertices, there is no need to store a separate
+Boolean matrix for each label from $\Sigma \cup N$. Therefore, we can 
+collapse it into one Boolean matrix $\mathcal{M}'_3$, what is done in the next step.
+This matrix has the following property from its definition: if some vertices 
+connected by some path in the matrix $\mathcal{M}'_3$ then these vertices are
+connected by one or many paths in the matrix $\mathcal{M}'_3$. The matrix 
+$\mathcal{M}'_3$ could be interpreted as an adjacency matrix for some directed graph
+without labels with the same set of the vertices, as in the graph formed by $\mathcal{M}_3$.
+
+For the given $\mathcal{M}'_3$ a $\mathcal{C}_3$ transitive closure matrix
+is evaluated by the corresponding function call. 
+Then the algorithm iterates over cells of the $\mathcal{C}_3$.
 For the pair of indices $(i,j)$, it computes $s$ and $f$ --- 
 the initial and final states in the recursive automata $R$ which relate 
-to the concrete $C_3[i,j]$ of the closure matrix.
+to the concrete $\mathcal{C}_3[i,j]$ of the closure matrix.
 If the given $s$ and $f$ belong to the same box $B$ of $R$, $s = q_B^0$, 
-and $f \in F_B$, then $getNonterminals()$ returns the respective non-terminal.
-If the the condition holds then the algorithm  adds the computed non-terminals 
-to the respective cell of the adjacency matrix $M_2$ of the graph.
+and $f \in F_B$, then $getNonterminals()$ returns the respective nonterminal.
+Then for each such nonterminal the respective matrix of the graph adjacency 
+matrix $\mathcal{M}_2$ is updated and a new edge as a Boolean value in the 
+appropriate cell is added.
 
 The functions $getStates$ and $getCoordinates$ (see listing~\ref{tensor:cfpq:help})
 are used to map indices between Kronecker product arguments and the result matrix.
-The Implementation appeals to the blocked structure of the matrix $C_3$, 
+The Implementation appeals to the blocked structure of the matrix $\mathcal{C}_3$, 
 where each block corresponds to some automata and graph edge.
 
-The algorithm returns the updated matrix $M_2$ which contains the initial 
-graph $\mathcal{G}$ data as well as non-terminals from $N$.
-If a cell $M_2[i,j]$ for any valid indices $i$ and $j$ contains symbol 
-$S \in N$, then vertex $j$ is reachable from vertex $i$ in grammar $G$ for 
-non-terminal $S$.
+The algorithm returns the computed path extraction index $\mathcal{C}_3$ and 
+the updated matrix $\mathcal{M}_2$, which contains the initial 
+graph $\mathcal{G}$ data as well as data for nonterminals from $N$.
+If a cell $M_2^S[i,j]$ for any valid indices $i$ and $j$ and $S \in N$ 
+contains $\{1\}$, then vertex $j$ is reachable from vertex $i$ in grammar $G$ for 
+nonterminal $S$.
 
 \begin{algorithm}[h]
 \floatname{algorithm}{Listing}
@@ -68,28 +101,36 @@ non-terminal $S$.
 \Function{contextFreePathQuerying}{G, $\mathcal{G}$}
     % Input data preparation
     \State{$R \gets$ Recursive automata for $G$}
-    \State{$M_1 \gets$ Adjacency matrix for $R$}
-    \State{$M_2 \gets$ Adjacency matrix for $\mathcal{G}$}
+    \State{$\mathcal{M}_1 \gets$ Boolean adjacency matrix for $R$}
+    \State{$\mathcal{M}_2 \gets$ Boolean adjacency matrix for $\mathcal{G}$}
     % Eps-transition handling for graph
-    \For{$s \in 0..dim(M_1)-1$}
-        \For{$i \in 0..dim(M_2)-1$}
-            \State{$M_2[i,i] \gets M_2[i,i] \cup \textit{getNonterminals}(R,s,s)$}
+    \For{$s \in 0..dim(\mathcal{M}_1)-1$}
+        \For{$S \in \textit{getNonterminals}(R,s,s)$}
+            \For{$i \in 0..dim(\mathcal{M}_2)-1$}
+                % Or just $M_2^n[i,i] \gets M_2^n[i,i] \vee \{1\}$ ??? 
+                \State{$M_2^S[i,i] \gets \{1\}$}
+            \EndFor
         \EndFor
     \EndFor
     \While{Matrix $M_2$ is changing}
-        \State{$M_3 \gets M_1 \otimes M_2$}
-        \Comment{Evaluate Kroncker product}
-        \State{$C_3 \gets \textit{transitiveClosure}(M_3)$}
+        % Kronecker product (i.e. partial intersection)
+        \State{$\mathcal{M}_3 \gets \mathcal{M}_1 \otimes \mathcal{M}_2$}
+        \Comment{Evaluate Kronecker product}
+        % Collapse to single Boolean matrix
+        \State{$\mathcal{M}'_3 \gets \bigvee_{M_3^a \in \mathcal{M}_3} M_3^a $}
+        \Comment{Collapse to Boolean matrix}
+        % Closure over boolean matrix only
+        \State{$\mathcal{C}_3 \gets \textit{transitiveClosure}(\mathcal{M}'_3)$}
         \State{$n \gets$ dim($M_3)$}
-        \Comment{Matrix $M_3$ size = $n \times n$}
+        \Comment{Matrix $\mathcal{M}_3$ size = $n \times n$}
         % Add non-terminals (possibly new)
         \For{$(i,j) \in [0..n-1] \times [0..n-1]$}
-            \If{$C_3[i,j]$}
+            \If{$\mathcal{C}_3[i,j]$}
                 \State{$s, f \gets \textit{getStates}(C_3,i,j)$}
-                \If{$\textit{getNonterminals}(R,s,f) \neq \emptyset$}
-                    \State{$x, y \gets \textit{getCoordinates}(C_3,i,j)$}
-                    \State{$M_2[x,y] \gets M_2[x,y] \cup \textit{getNonterminals}(R,s,f)$}
-                \EndIf
+                \State{$x, y \gets \textit{getCoordinates}(C_3,i,j)$}
+                \For{$S \in \textit{getNonterminals}(R,s,f)$}
+                    \State{$M_2^S[x,y] \gets \{1\}$}
+                \EndFor
             \EndIf
         \EndFor
     \EndWhile
