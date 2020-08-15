@@ -2,7 +2,7 @@
 
 The \textit{index creation} algorithm outputs the final adjacency matrix $\mathcal{M}_2$
 for the input graph with all vertices pairs, which are reachable through some nonterminal 
-in the input grammar $G$, and the index matrix $\mathcal{C}_3$, which allows to extract
+in the input grammar $G$, and the index matrix $C_3$, which allows to extract
 paths in the \textit{path extraction} algorithm.
 
 The algorithm is based on the generalization of the FSM intersection for an RSM, 
@@ -61,19 +61,19 @@ for each iteration.
 The result is stored in $\mathcal{M}_3$ as a Boolean matrix. Since we are interested
 only in the reachability of some vertices, there is no need to store a separate
 Boolean matrix for each label from $\Sigma \cup N$. Therefore, we can 
-collapse it into one Boolean matrix $\mathcal{M}'_3$, what is done in the next step.
+collapse it into one Boolean matrix $M'_3$, what is done in the next step.
 These Boolean matrix could be interpreted as an adjacency matrix for some directed graph
 without labels with the same set of the vertices, as in the graph formed by $\mathcal{M}_3$.
-From that point of view the matrix $\mathcal{M}'_3$ has the following property 
-from its definition: if some vertices connected by some path in the graph $\mathcal{G}(\mathcal{M}'_3)$ then these vertices are
+From that point of view the matrix $M'_3$ has the following property 
+from its definition: if some vertices connected by some path in the graph $\mathcal{G}(M'_3)$ then these vertices are
 connected by one or many paths in the graph $\mathcal{G}(\mathcal{M}_3)$.
 
-For the given $\mathcal{M}'_3$ a $\mathcal{C}_3$ transitive closure matrix
+For the given $M'_3$ a $C_3$ transitive closure matrix
 is evaluated by the corresponding function call. 
-Then the algorithm iterates over cells of the $\mathcal{C}_3$.
+Then the algorithm iterates over cells of the $C_3$.
 For the pair of indices $(i,j)$, it computes $s$ and $f$ --- 
 the initial and final states in the recursive automata $R$ which relate 
-to the concrete $\mathcal{C}_3[i,j]$ of the closure matrix.
+to the concrete $C_3[i,j]$ of the closure matrix.
 If the given $s$ and $f$ belong to the same box $B$ of $R$, $s = q_B^0$, 
 and $f \in F_B$, then $getNonterminals$ returns the respective nonterminal.
 Then for each such nonterminal the respective matrix of the graph adjacency 
@@ -82,15 +82,26 @@ appropriate cell is added.
 
 The functions $getStates$ and $getCoordinates$ (see Listing~\ref{tensor:cfpq:help})
 are used to map indices between Kronecker product arguments and the result matrix.
-The Implementation appeals to the blocked structure of the matrix $\mathcal{C}_3$, 
+The Implementation appeals to the blocked structure of the matrix $C_3$, 
 where each block corresponds to some automata and graph edge.
 
-The algorithm returns the computed path extraction index $\mathcal{C}_3$ and 
+The algorithm returns the computed path extraction index $C_3$ and 
 the updated matrix $\mathcal{M}_2$, which contains the initial 
 graph $\mathcal{G}$ data as well as data for nonterminals from $N$.
 If a cell $M_2^S[i,j]$ for any valid indices $i$ and $j$ and $S \in N$ 
 contains $\{1\}$, then vertex $j$ is reachable from vertex $i$ in grammar $G$ for 
 nonterminal $S$.
+
+\subsubsection{Index creation for RPQ}
+In case of the RPQ, the main \textbf{while} loop takes only one iteration to actually
+append data. Since the input query is provided in form of the regex, one
+can construct the corresponding RSM, which consists of the single 
+\textit{component state machine}. This CSM is built from the regex and labeled as 
+the $S$ for example, which has no \textit{recursive calls}. The adjacency 
+matrix of the machine is build over $\Sigma$ only. Therefore, calculating the 
+Kronecker product, all relevant information is taken into account at the first 
+iteration of the loop.
+
 
 \begin{algorithm}[h]
 \floatname{algorithm}{Listing}
@@ -103,7 +114,7 @@ nonterminal $S$.
     \State{$R \gets$ Recursive automata for $G$}
     \State{$\mathcal{M}_1 \gets$ Boolean adjacency matrix for $R$}
     \State{$\mathcal{M}_2 \gets$ Boolean adjacency matrix for $\mathcal{G}$}
-    \State{$\mathcal{C}_3 \gets$ The empty matrix}
+    \State{$C_3 \gets$ The empty matrix}
     % Eps-transition handling for graph
     \For{$s \in 0..dim(\mathcal{M}_1)-1$}
         \For{$S \in \textit{getNonterminals}(R,s,s)$}
@@ -113,20 +124,20 @@ nonterminal $S$.
             \EndFor
         \EndFor
     \EndFor
-    \While{Matrix $M_2$ is changing}
+    \While{Matrix $\mathcal{M}_2$ is changing}
         % Kronecker product (i.e. partial intersection)
         \State{$\mathcal{M}_3 \gets \mathcal{M}_1 \otimes \mathcal{M}_2$}
         \Comment{Evaluate Kronecker product}
         % Collapse to single Boolean matrix
-        \State{$\mathcal{M}'_3 \gets \bigvee_{M_3^a \in \mathcal{M}_3} M_3^a $}
+        \State{$M'_3 \gets \bigvee_{M_3^a \in \mathcal{M}_3} M_3^a $}
         \Comment{Collapse to Boolean matrix}
         % Closure over Boolean matrix only
-        \State{$\mathcal{C}_3 \gets \textit{transitiveClosure}(\mathcal{M}'_3)$}
+        \State{$C_3 \gets \textit{transitiveClosure}(M'_3)$}
         \State{$n \gets$ dim($M_3)$}
         \Comment{Matrix $\mathcal{M}_3$ size = $n \times n$}
         % Add non-terminals (possibly new)
         \For{$(i,j) \in [0..n-1] \times [0..n-1]$}
-            \If{$\mathcal{C}_3[i,j]$}
+            \If{$C_3[i,j]$}
                 \State{$s, f \gets \textit{getStates}(C_3,i,j)$}
                 \State{$x, y \gets \textit{getCoordinates}(C_3,i,j)$}
                 \For{$S \in \textit{getNonterminals}(R,s,f)$}
@@ -135,7 +146,7 @@ nonterminal $S$.
             \EndIf
         \EndFor
     \EndWhile
-\State \Return $\mathcal{M}_2,\mathcal{C}_3$
+\State \Return $\mathcal{M}_2,C_3$
 \EndFunction
 \end{algorithmic}
 \end{algorithm}
@@ -177,10 +188,10 @@ nonterminal $S$.
     \textbf{Inductive step:} Assume that the statement of the lemma holds for any
     $k \leq (p - 1)$ and show that it also holds for $k = p$, where $p \geq 1$.
     
-    For the algorithm iteration $p$ the Kronecker product $\mathcal{M}_3, \mathcal{M}'_3$ and transitive
-    closure $\mathcal{C}_3$ are evaluated as described in the algorithm. By the properties
+    For the algorithm iteration $p$ the Kronecker product $\mathcal{M}_3, M'_3$ and transitive
+    closure $C_3$ are evaluated as described in the algorithm. By the properties
     of this operations, some edge $e = ((s,i),(f,j))$ exists in the directed
-    graph, represented by adjacency matrix $\mathcal{C}_3$, if and only if $\exists s
+    graph, represented by adjacency matrix $C_3$, if and only if $\exists s
     \pi ^{'} f$ in the RSM graph, represented by matrix $\mathcal{M}_1$, and 
     $\exists i \pi j$ in graph, represented by $\mathcal{M}_{2,(p-1)}$. Concatenated symbols 
     along the path $\pi^{'}$ form some derivation string v, composed from terminals
@@ -215,10 +226,10 @@ nonterminal $S$.
     \textbf{Inductive step:} Assume that the statement of the lemma hold for any
     $k \leq (p - 1)$ and show that it also holds for $k = p$, where $p \geq 2$.
     
-    For the algorithm iteration $p$ the Kronecker product $\mathcal{M}_3, \mathcal{M}'_3$ and transitive
-    closure $\mathcal{C}_3$ are evaluated as described in the algorithm. By the properties
+    For the algorithm iteration $p$ the Kronecker product $\mathcal{M}_3, M'_3$ and transitive
+    closure $C_3$ are evaluated as described in the algorithm. By the properties
     of this operations, some edge $e = ((s,i),(f,j))$ exists in the directed
-    graph, represented by adjacency matrix $\mathcal{C}_3$, if and only if $\exists s
+    graph, represented by adjacency matrix $C_3$, if and only if $\exists s
     \pi^{'} f$ in the RSM graph, represented by matrix $\mathcal{M}_1$, and 
     $\exists i \pi j$ in graph, represented by $\mathcal{M}_{2,(p-1)}$. 
     
@@ -278,10 +289,10 @@ In this subsection we show how to reduce the time complexity of the algorithm in
 It is easy to see that the most time-consuming steps in this algorithm are the Kronecker product and transitive closure computations. Recall that the matrix $\mathcal{M}_2$ is always changed in incremental manner i. e. elements (edges) are added to $\mathcal{M}_2$ (and are never deleted from it) on each iteration of the algorithm in Listing~\ref{tensor:cfpq}. So one does not need to recompute the whole product or transitive closure if an appropriate date structure is maintained.
 
 
-To deal with the Kronecker product computation, we use the left-distributivity of the Kronecker product. Let $\mathcal{A}_2$ be a matrix with newly added elements and $\mathcal{B}_2$ be a matrix with the all previously found elements, such that $\mathcal{M}_2 = \mathcal{A}_2 + \mathcal{B}_2$. Then by the left-distributivity of the Kronecker product we have $\mathcal{M}_1 \otimes \mathcal{M}_2 = \mathcal{M}_1 \otimes (\mathcal{A}_2 + \mathcal{B}_2) = \mathcal{M}_1\otimes \mathcal{A}_2 + \mathcal{M}_1 \otimes \mathcal{B}_2$. Notice that $\mathcal{M}_1 \otimes \mathcal{B}_2$ is known and is already in the matrix $\mathcal{M}_3$ and its transitive closure also is already in the matrix $\mathcal{C}_3$, because it was calculated on the previous iterations, so it is left to update some elements of $\mathcal{M}_3$ by computing $\mathcal{M}_1\otimes \mathcal{A}_2$, which can be done in $O(|\mathcal{A}_2||\mathcal{M}_1|)$ time, where $|\mathcal{A}|$ denotes the number of non-zero elements in a matrix $\mathcal{A}$.
+To deal with the Kronecker product computation, we use the left-distributivity of the Kronecker product. Let $\mathcal{A}_2$ be a matrix with newly added elements and $\mathcal{B}_2$ be a matrix with the all previously found elements, such that $\mathcal{M}_2 = \mathcal{A}_2 + \mathcal{B}_2$. Then by the left-distributivity of the Kronecker product we have $\mathcal{M}_1 \otimes \mathcal{M}_2 = \mathcal{M}_1 \otimes (\mathcal{A}_2 + \mathcal{B}_2) = \mathcal{M}_1\otimes \mathcal{A}_2 + \mathcal{M}_1 \otimes \mathcal{B}_2$. Notice that $\mathcal{M}_1 \otimes \mathcal{B}_2$ is known and is already in the matrix $\mathcal{M}_3$ and its transitive closure also is already in the matrix $C_3$, because it was calculated on the previous iterations, so it is left to update some elements of $\mathcal{M}_3$ by computing $\mathcal{M}_1\otimes \mathcal{A}_2$, which can be done in $O(|\mathcal{A}_2||\mathcal{M}_1|)$ time, where $|\mathcal{A}|$ denotes the number of non-zero elements in a matrix $\mathcal{A}$.
 
 
-The fast computation of transitive closure can be obtained by using incremental dynamic transitive closure technique. We use an approach by Ibaraki and Katoh~\cite{IBARAKI198395} to maintain dynamic transitive closure. The key idea of their algorithm is to recalculate reachability information only for those vertices, which become reachable after insertion of the certain edge (see Figure~\ref{edgeAdd} for details). The algorithm is presented in Listing~\ref{tensor:cfpq:dynamicTC} (we have slightly modified it to efficiently track new elements of the matrix $\mathcal{C}_3$). 
+The fast computation of transitive closure can be obtained by using incremental dynamic transitive closure technique. We use an approach by Ibaraki and Katoh~\cite{IBARAKI198395} to maintain dynamic transitive closure. The key idea of their algorithm is to recalculate reachability information only for those vertices, which become reachable after insertion of the certain edge (see Figure~\ref{edgeAdd} for details). The algorithm is presented in Listing~\ref{tensor:cfpq:dynamicTC} (we have slightly modified it to efficiently track new elements of the matrix $C_3$). 
 
 \begin{algorithm}[h]
 \floatname{algorithm}{Listing}
@@ -373,13 +384,13 @@ Final version of the modified algorithm from Listing~\ref{tensor:cfpq} is shown 
                 \EndIf
         \EndFor
     \EndWhile
-\State \Return $\mathcal{M}_2, \mathcal{C}_3$
+\State \Return $\mathcal{M}_2, C_3$
 \EndFunction
 \end{algorithmic}
 \end{algorithm}
 \begin{theorem}{}
     Let $\mathcal{G} = (V,E,L)$ be a graph and $G = \langle\Sigma, N, S, P\rangle$ be a grammar.
-    The algorithm from Listing~\ref{tensor:cfpq:cubic} calculates a result matrices $\mathcal{M}_2$ and $\mathcal{C}_3$ in $O(n^3)$ time where $n = |V|$.
+    The algorithm from Listing~\ref{tensor:cfpq:cubic} calculates a result matrices $\mathcal{M}_2$ and $C_3$ in $O(n^3)$ time where $n = |V|$.
 \end{theorem}
 
 \begin{proof}
@@ -391,7 +402,7 @@ Final version of the modified algorithm from Listing~\ref{tensor:cfpq} is shown 
 Now we derive the time complexity of maintainig the dynamic transitive closure. Notice that $C_3$ has size of $O(n^2)$ so no more than $O(n^2)$ edges will be added during all iterations of the Algorithm. The function $checkCondition$ from the Listing~\ref{tensor:cfpq:dynamicTC} takes $O(n)$ time for every inserted edge $(i, j)$. Thus we have $O(n^2n) = O(n^3)$ operations in total. The function $newReachablePairs$ requires $O(n)$ time for a given vertex $u$. This operation is performed for every pair $(j, v)$ of vertices such that a vertex $j$ became reachable from the vertex $u$. The vertex $j$ become reachable from the vertex $u$ (and accordingly the value of the matrix cell $C_3[u, j]$ becomes $1$ from $0$) only once during the entire computation, so the function $newReachablePairs$ will be executed at most $O(n^2)$ times for every $u$ and hence $O(n^3)$ times in total for all vertices. Therefore $O(n^3)$ operations are performed to maintain dynamic transitive closure during all iteration of the algorithm from Listing~\ref{tensor:cfpq:cubic}.
 
 
-Notice that the matrix $\mathcal{C}_3'$ contains only new elements, therefore $\mathcal{C}_3$ can be updated directly using only $|\mathcal{C}_3'|$ operations and hence $O(n^2)$ operations in total. The same holds for cycle in line 18 of the algorithm from Listing~\ref{tensor:cfpq:cubic}, because operations are performed only for non-zero elements of the matrix $|\mathcal{C}_3'|$. Finally, we have that the time complexity of the algorithm is $O(n^2) + O(n^3) + O(n^2) + O(n^2) = O(n^3)$.
+Notice that the matrix $C_3'$ contains only new elements, therefore $C_3$ can be updated directly using only $|C_3'|$ operations and hence $O(n^2)$ operations in total. The same holds for cycle in line 18 of the algorithm from Listing~\ref{tensor:cfpq:cubic}, because operations are performed only for non-zero elements of the matrix $|C_3'|$. Finally, we have that the time complexity of the algorithm is $O(n^2) + O(n^3) + O(n^2) + O(n^2) = O(n^3)$.
 \end{proof}{}
 
 \subsubsection{Speeding up by a factor of $\log n$}
@@ -409,7 +420,7 @@ To achive this goal, we use the Four Russians' trick. Split each vector into $n/
 Notice that the maintaining of the dynamic transitive closure dominates the cost of the algorithm from Listing~\ref{tensor:cfpq:cubic}, therefore we immediately deduce the following.
 \begin{corollary}{}
     Let $\mathcal{G} = (V,E,L)$ be a graph and $G = \langle\Sigma, N, S, P\rangle$ be a grammar.
-    The result result matrices $\mathcal{M}_2$ and $\mathcal{C}_3$ can be calculated in $O(n^3/\log n)$ time.
+    The result result matrices $\mathcal{M}_2$ and $C_3$ can be calculated in $O(n^3/\log n)$ time.
 \end{corollary}
 
 
