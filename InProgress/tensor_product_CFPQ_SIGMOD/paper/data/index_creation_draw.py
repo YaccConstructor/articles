@@ -18,6 +18,14 @@ q_order=['q_1','q_2','q_3',
          'q_11_2','q_11_3','q_11_4','q_11_5',
          'q_12','q_13','q_14','q_15','q_16']
 
+q_labels=['$Q_1$','$Q_2$','$Q_3$',
+         '$Q_4^2$','$Q_4^3$','$Q_4^4$','$Q_4^5$',
+         '$Q_5$','$Q_6$','$Q_7$','$Q_8$',
+         '$Q_9^2$','$Q_9^3$','$Q_9^4$','$Q_9^5$',
+         r'$Q_{10}^2$',r'$Q_{10}^3$',r'$Q_{10}^4$',r'$Q_{10}^5$',
+         r'$Q_{11}^2$',r'$Q_{11}^3$',r'$Q_{11}^4$',r'$Q_{11}^5$',
+         r'$Q_{12}$',r'$Q_{13}$',r'$Q_{14}$',r'$Q_{15}$',r'$Q_{16}$']
+
 
 def draw (graphs, out_file):
 	dfs = [[g[:-9],pd.read_csv(g)[['grammar','mean']]] for g in graphs]
@@ -42,7 +50,7 @@ def draw (graphs, out_file):
 
 	# adding horizontal grid lines
 	axs.yaxis.grid(True)
-	plt.xticks(rotation=60, fontsize=8)
+	plt.xticks(q_order, q_labels, rotation=60, fontsize=8)
 	#axs.set_xticks([y + 1 for y in range(len(d[1]))])
 	axs.set_xlabel('Query')
 	axs.set_ylabel('Time in seconds')
@@ -50,4 +58,4 @@ def draw (graphs, out_file):
 	plt.savefig(out_file)
 	plt.show()
 
-draw(other_graphs, "other_all.pdf")
+draw(lubm_graphs, "LUBM_all.pdf")
