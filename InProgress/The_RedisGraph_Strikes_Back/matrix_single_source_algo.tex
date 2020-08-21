@@ -1,10 +1,9 @@
 \section{Matrix-based multiple-source CFPQ algorithm}
 
-New algo description.
-
-Code, its description.
-
-Versions, differences between them.
+ In this section we introduce two versions of multiple-source matrix-based CFPQ algorithm. This algorithm is a modification of Azimov's matrix-based algorithm for CFPQ and the idea is that we cut off those vertices from which we are not interested in paths.
+ 
+ Let $D = (V, E)$ be the input graph, $G = (N, \sigma, P, S)$ be the input grammar and $Src$ be the input set of vertices. We want to find all $(i, j) : \exists i\pi j$ and $ i \in Src$.
+ 
 \begin{algorithm}
 \floatname{algorithm}{Listing}
 \begin{algorithmic}[1]
@@ -12,19 +11,22 @@ Versions, differences between them.
 \label{lst:algo1}
 \Function{MultiSrcCFPQ}{$D=(V,E), G=(N,\Sigma,P,S), Src$}
     \State{$T \gets \{T^A \mid  A \in N, T^A \gets \emptyset\}$}
+    \Comment{Matrix in which every element is $\emptyset$}
+    
     \State{$TSrc \gets \{TSrc^A \mid  A \in N \setminus S, TSrc^A \gets \emptyset\}$}
+    \Comment{Matrix for input vertices in which every element is $\emptyset$}
 
-    \ForAll{$ v \in Src$}
-        \State{$TSrc^S_{v,v} \gets true$}
+    \ForAll{$ v \in Src$} \Comment{Input matrix initialization}
+        \State{$TSrc^S_{v,v} \gets true$} 
     \EndFor
 
-    \ForAll{$A \to x \in P$}
+    \ForAll{$A \to x \in P$} \Comment{Simple rules initialization}
         \ForAll{$(v, x, to) \in E$}
             \State{$T^A_{v,to} \gets true$}
         \EndFor
     \EndFor
 
-    \While{$T\ or\ TSrc\ is\ changing$}
+    \While{$T\ or\ TSrc\ is\ changing$} \Comment{Algorithm's body}
         \ForAll{$A \to B C \in P$}
             \State{$M \gets TSrc^A*T^B$}
             \State{$T^A \gets T^A + M*T^C$}
@@ -32,6 +34,7 @@ Versions, differences between them.
             \State{$TSrc^C \gets TSrc^C + $ \Call{getDst}{M}}
         \EndFor
     \EndWhile
+    \State \Return T
 \EndFunction
 
 \\
@@ -46,6 +49,9 @@ Versions, differences between them.
 \end{algorithmic}
 \end{algorithm}
 
+The operation of transitive closure calculation from Azimov's algorithm is supplemented with one more matrix multiplication which saves only vertices we are interested in.
+
+We also provide one more version of algorithm which has memory optimization. It is noticed that every time we want to find all paths from the certain set of vertices, the first version of algorithm calculates everything from scratch. Since recalculating might take the significant amount of time, the second version is specified for such scenarios. This version stores all the vertices, the paths from which have already been calculated. 
 \begin{algorithm}
 \floatname{algorithm}{Listing}
 \begin{algorithmic}[1]
@@ -74,10 +80,7 @@ Versions, differences between them.
 \end{algorithm}
 
 \subsection{Implementation Details}
-
-Algo implementation details: python, graphBLAS, SuiteSparse, smthng else? Two versions.
-
-Link to the repo (should be migrated to JB Research first)
+ Both versions of algorithm $\footnote{\url{https://github.com/JetBrains-Research/CFPQ_PyAlgo}}$ are based on the GraphBLAS framework that allows you to represent graphs as matrices and work with them in terms of linear algebra. For convenience, all the code is written in Python using pygraphblas, which is Python wrapper around GraphBLAS API and based on SuiteSparse:GraphBLAS --- the full implementation of GraphBLAS standart.
 
 \subsection{Algorithm Evaluation}
 
