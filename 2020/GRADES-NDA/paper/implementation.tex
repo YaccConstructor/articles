@@ -1,0 +1,44 @@
+\section{Implementation Details}
+
+We showed that CFPQ can be naturally reduced to linear algebra.
+Linear algebra for graph problems is an actively developed area.
+One of the most important results is the GraphBLAS API which provides a way to operate over matrices and vectors over user-defined semirings.
+
+The works~\cite{Mishin:2019:ECP:3327964.3328503, Azimov:2018:CPQ:3210259.3210264} show that utilization of the existing linear algebra libraries is the right way to achieve high-performance CFPQ implementation with minimal effort.
+But neither of these works provide an evaluation with data storage: algorithm execution time has been measured in isolation.
+
+We provide several implementations of the matrix-based CFPQ algorithm.
+We use RedisGraph as storage and implement CFPQ as an extension by using the mechanism provided.
+Note that, we do not provide complete integration with the querying mechanism: currently, there is no support for CFPQ in Cypher~--- a query language used in RedisGraph.
+Instead, a query should be provided explicitly as a file with grammar in Chomsky normal form.
+This is enough to evaluate querying algorithms and we plan to improve integration in the future to make our solution easier to use. 
+
+Below we show an index building algorithm for extracting paths using both the GPU and the CPU. The \textbf{path extraction} algorithm currently has only the CPU version. This is a conscious choice because the current path extraction algorithm does not adapt well to the GPGPU architecture (it is difficult to create coalesced access to global memory during the executing of the algorithm for multiple vertices).
+
+Both \textbf{CPU-based implementations} use SuiteSparse implementation of GraphBLAS, which is also used in RedisGraph and provides a set of sparse matrix operations.
+
+The first one ($\textbf{RG\_CPU}_{\textit{rel}}$) implements relational path semantics problem. It utilizes RedisGraph relationship adjacency matrices, so we avoid data format issues. For the addition and multiplication of matrices, we use the standard Boolean semiring provided by SuiteSparse.
+
+The second ($\textbf{RG\_CPU}_{\textit{path}}$) solves the problem for the single-path query semantics. SuiteSparse supports the creation of custom semiring, so we implemented all the operations over \textit{PathIndex} in a simple way thanks to GraphBLAS API.
+
+\textbf{GPGPU-based implementation} has three versions.
+The first one ($\textbf{RG\_CUSP}_{\textit{rel}}$) utilizes a CUSP~\cite{Cusp} library for matrix operations, the second one ($\textbf{RG\_SPARSE}_{\textit{rel}}$) is our implementation based on the idea from paper~\cite{NsparsePaper} and the third one ($\textbf{RG\_SPARSE}_{\textit{path}}$) is our implementation for the single-path query semantics.
+The first implementation requires matrix format conversion but the last two do not.
+
+We choose the CUSP library as a base solution that uses sparse matrices because dense matrices cannot be applied to huge graphs. CUSP is a C++ templated library which allows us to multiply Boolean matrices (that solves relational path semantics problem). But in fact, performing CFPQ with relational paths semantics on the largest graph (geospecies from the paper~\cite{Kuijpers:2019:ESC:3335783.3335791}) using CUSP does not fit in GPU memory and this fact led us to develop an algorithm that would be more memory efficient.
+
+The second ($\textbf{RG\_SPARSE}_{\textit{rel}}$) implementation uses low-latency on-chip shared memory for the hash table of each row of the result matrix. For more details of the algorithm see the original paper~\cite{NsparsePaper}. This solution designed for single and double precision SpGEMM. Since we have a Boolean matrix in CSR format, we can discard the array of values and optimize the usage of shared memory. But Boolean matrix multiplication is only one part of the algorithm since we must effectively combine two Boolean sparse matrices. We use the merge path~\cite{GpuMergePathPaper} algorithm to merge corresponding rows of the result matrix.
+
+The third ($\textbf{RG\_SPARSE}_{\textit{path}}$) algorithm must perform matrix multiplication and addition over \textit{PathIndex} semiring. To solve this problem, we must answer the following three questions. 
+
+\begin{itemize}
+  \item How to determine the size and structure of the final sparse matrices?
+  \item How to map tasks with variable complexity to the GPU?
+  \item How to accumulate intermediate result of multiplication?
+\end{itemize}
+
+The first problem is how to determine the size and structure of the final sparse matrices. Using the $\textbf{RG\_SPARSE}_{\textit{rel}}$ algorithm we naturally know the final size and structure of all sparse matrices. Therefore we run the $\textbf{RG\_SPARSE}_{\textit{rel}}$ algorithm on first step.
+
+The second problem is how to map tasks with variable complexity to the GPU. Assume that we must to calculate $C = C + (A * B)$ multiple times. The final structure of the matrix $C$ already known, so we can fill it with the $\bot$ values before starting. We assign each row of the matrix $C$ to one CUDA block. Since we know how many values exist in each row, our algorithm divides the rows into groups and applies the same configuration parameters (shared memory size, block size) for each row from one group.
+ 
+The third problem is how to accumulate the intermediate result of the multiplication. Since we already know the final structure of matrices we can accumulate results without additional memory allocations. But for making it possible we must learn how to perform atomically $\oplus$ operation defined for \textit{PathIndex}. For every element of the matrix with indexes $i,j$ it either $PathIndex = (i,j,\_,\_,\_)$ or $\bot$. Also note that \textit{length} information is redundant in the algorithm and can be restored later, so only two elements are really important: \textit{middle} and \textit{height}. We can store two 4 bytes value into one 8 byte value and perform an atomic operation. In high four bytes we store the \textit{height} and in the low four bytes we store the \textit{middle}. For the value of $\bot$ we use the maximum unsigned integer value of 8 bytes in size. Now we can use \textit{atomicMin} as $\oplus$. Note that \textit{length} information can be used instead of \textit{height} if we need to return exactly the shortest path.

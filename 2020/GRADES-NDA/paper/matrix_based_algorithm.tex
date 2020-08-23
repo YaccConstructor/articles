@@ -1,0 +1,44 @@
+\section{Matrix-based Algorithm for CFPQ}
+
+The matrix-based algorithm for CFPQ w.r.t. the relational query semantics was proposed by Rustam Azimov~\cite{Azimov:2018:CPQ:3210259.3210264}.
+This algorithm can be expressed in terms of operations over Boolean matrices (see listing~\ref{lst:algo1}) which is an advantage for implementation.
+{\footnotesize
+\begin{algorithm}
+  \floatname{algorithm}{Listing}
+\begin{algorithmic}[1]
+\caption{Context-free path querying algorithm}
+\label{lst:algo1}
+\Function{evalCFPQ}{$D=(V,E), G=(N,\Sigma,P)$}
+    \State{$n \gets$ |V|}
+    \State{$T \gets \{T^{A_i} \mid A_i \in N, T^{A_i}$ is a matrix $n \times n$, $T^{A_i}_{k,l} \gets$ \texttt{false}\} }
+    \ForAll{$(i,x,j) \in E$, $A_k \mid A_k \to x \in P$}
+        %\Comment{Matrices initialization}
+        %\For{$A_k \mid A_k \to x \in P$}
+          {$T^{A_k}_{i,j} \gets \texttt{true}$}
+        %\EndFor
+    \EndFor
+    \ForAll{$A_k \mid A_k \to \varepsilon \in P$}
+        \ForAll{$i \in \{0,\ldots ,n-1\}$}
+            {$T^{A_k}_{i,i} \gets \texttt{true}$}
+        \EndFor
+    \EndFor
+
+    \While{any matrix in $T$ is changing}
+        %\Comment{Transitive c	losure calculation}
+        \For{$A_i \to A_j A_k \in P$}
+          { $T^{A_i} \gets T^{A_i} + (T^{A_j} \times T^{A_k})$ } 
+        \EndFor
+    \EndWhile
+\State \Return $T$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+}
+
+Here $D = (V, E)$ is the input graph and $G = (N,\Sigma,P)$ is the input grammar.
+For each matrix $T^{A_k}$ indexed with a non-terminal $A_k \in N$, a cell holds a true value ($T^{A_k}_{i,j} = \texttt{true}$) if and only if there exists $i \pi j$~--- a path in $D$ such that $A_k \xRightarrow[G]{*} l(\pi) $, where $l(\pi)$ is a word formed by the labels along the path $\pi$.
+Thus, this algorithm solves the reachability problem, or, according to Hellings~\cite{hellingsRelational}, implements relational query semantics.
+
+The performance-critical part of the algorithm is Boolean matrix multiplication $\times$ in line 7, thus one can achieve better performance by using libraries that efficiently multiply Boolean matrices. 
+There is also the following optimization: if the matrices $T^{A_j}$ and $T^{A_k}$ have not changed at the previous iteration, then we can skip the update operation in line 7.
+Data in real-world problems is often sparse, thus employing libraries that manipulate sparse matrices improves running time even more. 

@@ -1,0 +1,548 @@
+\section{Kronecker Product Based CFPQ Algorithm}
+
+In this section, we introduce the algorithm for the computation of context-free reachability in a graph $\mathcal{G}$.
+The algorithm determines the existence of a path, which forms a sentence of the language defined by the input RSM $R$, between each pair of vertices in the graph $\mathcal{G}$.
+The algorithm is based on the generalization of the FSM intersection for an RSM, and an input graph. The idea of using the Kronecker product for the intersection of an RSM and a directed input graph is presented in the section~\ref{kronecker:section}.
+
+% Since a graph can be interpreted as a FSM, in which transitions correspond to the labeled edges between vertices of the graph, and an RSM is composed of a set of FSMs, the intersection of such machines can be computed using the classical algorithm for FSM intersection, presented in~\cite{automata:theory:10.5555/1177300}.
+
+% The intersection can be computed as a Kronecker product of the corresponding adjacency matrices for an RSM and a graph.
+% Since we are only determining the reachability of vertices, it is enough to represent intersection result as a Boolean matrix.
+% It simplifies the algorithm implementation and allows one to express it in terms of basic matrix operations.
+
+Listing~\ref{tensor:cfpq} shows the main steps of the algorithm.
+The algorithm accepts context-free grammar $G=(\Sigma,N,P$) and graph $\mathcal{G}=(V,E,L)$ as an input.
+An RSM $R$ is created from the grammar $G$.
+Note, that $R$ must have no $\varepsilon$-transitions.
+$M_1$ and $M_2$ are the adjacency matrices for the machine $R$ and the graph $\mathcal{G}$ correspondingly.
+
+Then for each vertex $i$ of the graph $\mathcal{G}$, the algorithm adds loops with non-terminals, which allows deriving $\varepsilon$-word.
+Here the following rule is implied: each vertex of the graph is reachable by itself through an $\varepsilon$-transition.
+Since the machine $R$ does not have any $\varepsilon$-transitions, the $\varepsilon$-word could be derived only if a state $s$ in the box $B$ of the $R$ is both initial and final.
+This data is queried by the $getNonterminals()$ function for each state $s$.
+
+The algorithm terminates when the matrix $M_2$ stops changing.
+Kronecker product of matrices $M_1$ and $M_2$ is evaluated for each iteration.
+The result is stored in $M_3$ as a Boolean matrix.
+For the given $M_3$ a $C_3$ matrix is evaluated by the $transitiveClosure()$ function call.
+The $M_3$ could be interpreted as an adjacency matrix for a directed graph with no labels, used to evaluate transitive closure in terms of classical graph definition of this operation.
+Then the algorithm iterates over cells of the $C_3$.
+For the pair of indices $(i,j)$, it computes $s$ and $f$ --- the initial and final states in the recursive automata $R$ which relate to the concrete $C_3[i,j]$ of the closure matrix.
+If the given $s$ and $f$ belong to the same box $B$ of $R$, $s = q_B^0$, and $f \in F_B$, then $getNonterminals()$ returns the respective non-terminal.
+If the condition holds then the algorithm adds the computed non-terminals to the respective cell of the adjacency matrix $M_2$ of the graph.
+
+The functions $getStates$ and $getCoordinates$ (see listing~\ref{tensor:cfpq:help}) are used to map indices between Kronecker product arguments and the result matrix.
+The Implementation appeals to the blocked structure of the matrix $C_3$, where each block corresponds to some automata and graph edge.
+
+The algorithm returns the updated matrix $M_2$ which contains the initial graph $\mathcal{G}$ data as well as non-terminals from $N$.
+If a cell $M_2[i,j]$ for any valid indices $i$ and $j$ contains symbol $S \in N$, then vertex $j$ is reachable from vertex $i$ in grammar $G$ for non-terminal $S$.
+
+
+\begin{algorithm}[h]
+\floatname{algorithm}{Listing}
+\begin{algorithmic}[1]
+\caption{Kronecker product based CFPQ}
+\label{tensor:cfpq}
+\Function{contextFreePathQuerying}{G, $\mathcal{G}$}
+    % Input data preparation
+    \State{$R \gets$ Recursive automata for $G$}
+    \State{$M_1 \gets$ Adjacency matrix for $R$}
+    \State{$M_2 \gets$ Adjacency matrix for $\mathcal{G}$}
+    % Eps-transition handling for graph
+    \For{$s \in 0..dim(M_1)-1$}
+        \For{$i \in 0..dim(M_2)-1$}
+            \State{$M_2[i,i] \gets M_2[i,i] \cup \textit{getNonterminals}(R,s,s)$}
+        \EndFor
+    \EndFor
+    \While{Matrix $M_2$ is changing}
+        \State{$M_3 \gets M_1 \otimes M_2$}
+        \Comment{Evaluate Kronecker product}
+        \State{$C_3 \gets \textit{transitiveClosure}(M_3)$}
+        \State{$n \gets$ dim($M_3)$}
+        \Comment{Matrix $M_3$ size = $n \times n$}
+        % Add non-terminals (possibly new)
+        \For{$i \in 0..n-1$}
+           \For{$j \in 0..n-1$}
+                \If{$C_3[i,j]$}
+                    \State{$s, f \gets \textit{getStates}(C_3,i,j)$}
+                    \If{$\textit{getNonterminals}(R,s,f) \neq \emptyset$}
+                        \State{$x, y \gets \textit{getCoordinates}(C_3,i,j)$}
+                        \State{$M_2[x,y] \gets M_2[x,y] \cup \textit{getNonterminals}(R,s,f)$}
+                    \EndIf
+                \EndIf
+           \EndFor
+        \EndFor
+    \EndWhile
+\State \Return $M_2$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[h]
+\floatname{algorithm}{Listing}
+\begin{algorithmic}[1]
+\caption{Help functions for Kronecker product based CFPQ}
+\label{tensor:cfpq:help}
+\Function{getStates}{$C, i, j$}
+    \State{$r \gets dim(M_1)$}
+    \Comment{$M_1$ is adjacency matrix for automata $R$}
+    \State \Return{$\left\lfloor{i / r}\right\rfloor, \left\lfloor{j / r}\right\rfloor$}
+\EndFunction
+\Function{getCoordinates}{$C, i, j$}
+    \State{$n \gets dim(M_2)$}
+    \Comment{$M_2$ is adjacency matrix for graph $\mathcal{G}$}
+    \State \Return{$i \bmod n, j \bmod n$}
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Example}
+\label{example:section}
+
+This section provides a step-by-step demonstration of the presented algorithm.
+We consider the theoretical worst case for CFPQ time complexity, proposed by J.Hellings~\cite{hellings2015querying} as an example: the graph $\mathcal{G}$ is presented in Figure~\ref{input:graph} and the context-free grammar $G$ for a language $\{a^n b^n~|~n \geq 1\}$ is $ S \to a S b \mid a b$.
+
+Since the proposed algorithm processes grammar in the form of a recursive machine, we first provide RSM $R$ in Figure~\ref{example:automata}.
+The initial box of the $R$ is $S$, the initial state $q_S^0$ is $(0)$, the set of final states $F_S = \{ (3) \}$.
+
+\begin{figure}[h]
+        \centering
+        \begin{subfigure}{.48\textwidth}
+        \begin{center}
+        \begin{tikzpicture}[shorten >=1pt,auto]
+           \node[state] (q_0)                      {$0$};
+           \node[state] (q_1) [above right=of q_0] {$1$};
+           \node[state] (q_2) [right=of q_0]       {$2$};
+           \node[state] (q_3) [right=of q_2]       {$3$};
+            \path[->]
+            (q_0) edge  node {a} (q_1)
+            (q_1) edge  node {a} (q_2)
+            (q_2) edge  node {a} (q_0)
+            (q_2) edge[bend left, above]  node {b} (q_3)
+            (q_3) edge[bend left, below]  node {b} (q_2);
+        \end{tikzpicture}
+        \caption{The input graph $\mathcal{G}$}
+        \label{input:graph}
+        \end{center}
+        \end{subfigure}
+        \begin{subfigure}{.48\textwidth}
+        \begin{center}
+        \begin{tikzpicture}[shorten >=1pt,auto]
+        \node[state] (q_0)                      {$0$};
+        \node[state] (q_1) [above right=of q_0] {$1$};
+        \node[state] (q_2) [right=of q_0]       {$2$};
+        \node[state] (q_3) [right=of q_2]       {$3$};
+          \path[->]
+            (q_0) edge  node {a} (q_1)
+            (q_1) edge  node {a,\textbf{S}} (q_2)
+            (q_2) edge[bend right, above]  node {a} (q_0)
+            (q_2) edge[loop right]  node {\textbf{S}} (q_2)
+            (q_1) edge[bend left, above]  node {\textbf{S}} (q_3)
+            (q_0) edge[bend right, above]  node {\textbf{S}} (q_2)
+            (q_2) edge[bend left, above]  node {b,\textbf{S}} (q_3)
+            (q_0) edge[bend right, below]  node {\textbf{S}} (q_3)
+            (q_3) edge[bend left, below]  node {b} (q_2);
+    \end{tikzpicture}
+    \caption{The result graph $\mathcal{G}$}
+    \label{example:result}
+    \end{center}
+    \end{subfigure}
+    \caption{The input and result graphs for example}
+    \label{example:input_and_result}
+
+\end{figure}
+
+Adjacency matrices $M_1$ and $M_2$ for automata $R$ and graph $\mathcal{G}$ respectively are initialized as follows:
+    $$
+    M_1 =
+    \begin{pmatrix}
+    . & \{a\} & . & .     \\
+    . & . & \{S\} & \{b\} \\
+    . & . & . & \{b\}     \\
+    . & . & . & .
+    \end{pmatrix}
+    ,~~~~~
+    M_2^0 =
+    \begin{pmatrix}
+    . & \{a\} & . & .     \\
+    . & . & \{a\} & .     \\
+    \{a\} & . & . & \{b\} \\
+    . & . & \{b\} & .
+    \end{pmatrix}.
+    $$
+
+After the initialization in lines \textbf{2--4}, the algorithm handles $\varepsilon$-case.
+Because the machine $R$ does not have $\varepsilon$-transitions and $\varepsilon$-word is not included in the language, lines \textbf{5--7} of the algorithm do not affect the input data.
+
+Then the algorithm enters the while loop and iterates while matrix $M_2$ is changing.
+We provide both the values of the matrices $M_3$, $C_3$ at each algorithm step as well as how the matrix $M_2$ is updated.
+The current loop iteration number is provided in the superscript for each matrix.
+The first iteration is indexed as 1.
+
+During the first iteration the Kronecker product $M_3^1 = M_1 \otimes M_2^0$ and transitive closure $C_3^1$ are the following:
+
+%\begin{figure}
+    {\tiny
+    \renewcommand{\arraystretch}{0.6}
+    %\centering
+    $$
+    M_3^1 =
+    \left(
+    \begin{array}{c c c c | c c c c | c c c c | c c c c }
+    . & . & . & .  &  . & 1 & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & 1 & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  1 & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & 1   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & .   \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & 1   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .
+    \end{array}
+    \right)
+    ,~~~~~~
+    C_3^1 =
+    \left(
+    \begin{array}{c c c c | c c c c | c c c c | c c c c }
+    . & . & . & .  &  . & 1 & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & 1 & .  &  . & . & . & .  &  . & . & . & \cellcolor{lightgray}\textbf{1} \\
+    . & . & . & .  &  1 & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .
+    \end{array}
+    \right).
+    $$
+    }
+    %\caption{The first iteration tensor product and transitive closure evaluation for example query}
+    %\label{example:iteration1eval}
+%\end{figure}
+
+%Note here that the dimension $n$ of the matrix $M_3$ equals 16, and this value is constant in time of the algorithm execution.
+
+After the transitive closure evaluation $C_3^1[1,15]$ contains a non-zero value.
+It means that the vertex with index $15$ is accessible from the vertex with index $1$ in the graph, represented by the adjacency matrix $M_3^1$.
+
+Then the lines \textbf{14--18} are executed: the algorithm adds non-terminals to the graph matrix $M_2^1$.
+Because this step is additive we are only interested in the newly appeared values in the matrix $C_3^1$, such as value $C_3^1[1,15]$, for which we get the following:
+\begin{itemize}
+    \item Indices of the automata vertices $s = 0$ and $f = 3$, because value $C_3^1[1,15]$ is located in the upper right matrix block $(0,3)$.
+    \item Indices of the graph vertices $x = 1$ and $y = 3$ are evaluated as the
+    value $C_3^1[1,15]$ indices relatively to its block $(0,3)$.
+    \item The function $getNonterminals()$ returns $\{S\}$ since this is the only non-terminal which could be derived in path from vertex $0$ to $3$ in the box $S$.
+\end{itemize}
+
+Thus we can conclude that the vertex with $id = 3$ is reachable from the vertex with $id = 1$ by the path derivable from $S$.
+As a result, $S$ is added to the $M_2^1[1,3]$.
+The updated matrix and graph after the first iteration are presented in figure~\ref{example:iteration1res}.
+
+\begin{figure}[h]
+    \begin{subfigure}[]{0.5\textwidth}
+    \centering
+    $$
+    M_2^1 =
+    \begin{pmatrix}
+    . & \{a\} & . & .     \\
+    . & . & \{a\} & \{\textbf{S}\} \\
+    \{a\} & . & . & \{b\} \\
+    . & . & \{b\} & .
+    \end{pmatrix}
+    $$
+    \end{subfigure}
+    \begin{subfigure}[]{0.4\textwidth}
+    \centering
+    \begin{tikzpicture}[shorten >=1pt,auto]
+           \node[state] (q_0)                      {$0$};
+           \node[state] (q_1) [above right=of q_0] {$1$};
+           \node[state] (q_2) [right=of q_0]       {$2$};
+           \node[state] (q_3) [right=of q_2]       {$3$};
+            \path[->]
+            (q_0) edge  node {a} (q_1)
+            (q_1) edge  node {a} (q_2)
+            (q_1) edge[bend left, above]  node {\textbf{S}} (q_3)
+            (q_2) edge  node {a} (q_0)
+            (q_2) edge[bend left, above]  node {b} (q_3)
+            (q_3) edge[bend left, below]  node {b} (q_2);
+    \end{tikzpicture}
+    \end{subfigure}
+    \caption{Example: the updated matrix $M_2^1$ and graph $\mathcal{G}$ after first loop iteration}
+    \label{example:iteration1res}
+\end{figure}
+
+
+For the second iteration matrices $M_3^2$ and $C_3^2$ are evaluated as follows:
+{
+\tiny
+    \renewcommand{\arraystretch}{0.6}
+    \centering
+    $$
+    M_3^2 =
+    \left(
+    \begin{array}{c c c c | c c c c | c c c c | c c c c }
+    . & . & . & .  &  . & 1 & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & 1 & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  1 & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .           &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & \cellcolor{lightgray}\textbf{1}  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .           &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .           &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .
+    \end{array}
+    \right),
+    C_3^2 =
+    \left(
+    \begin{array}{c c c c | c c c c | c c c c | c c c c }
+    . & . & . & .  &  . & 1 & . & .  &  . & . & . & \cellcolor{lightgray}\textbf{1}  &  . & . & \cellcolor{lightgray}\textbf{1} & . \\
+    . & . & . & .  &  . & . & 1 & .  &  . & . & . & .  &  . & . & . & 1 \\
+    . & . & . & .  &  1 & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & 1  &  . & . & \cellcolor{lightgray}\textbf{1} & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .
+    \end{array}
+    \right).
+    $$
+}
+%listed in Figure~\ref{example:iteration2eval}.
+New non-zero values in the matrix $C_3^2$ have appeared during this iteration in cells with indices $[0,11]$, $[0,14]$ and $[5,14]$.
+Because only the cell value with index $[0,14]$ corresponds to the automata path with not empty non-terminal set $\{S\}$ its data affects the adjacency matrix $M_2$.
+The updated matrix and graph $\mathcal{G}$ are shown in Figure~\ref{example:iteration2res}.
+
+%\begin{figure}
+%    \caption{The second iteration tensor product and transitive closure evaluation for example query}
+%    \label{example:iteration2eval}
+%\end{figure}
+
+\begin{figure}
+    \begin{subfigure}[]{0.5\textwidth}
+    \centering
+    $$
+    M_2^2 =
+    \begin{pmatrix}
+    .     & \{a\} & \{\textbf{S}\} & .     \\
+    .     & .     & \{a\} & \{S\} \\
+    \{a\} & .     & .     & \{b\} \\
+    .     & .     & \{b\} & .
+    \end{pmatrix}
+    $$
+    \end{subfigure}
+    \begin{subfigure}[]{0.4\textwidth}
+    \centering
+    \begin{tikzpicture}[shorten >=1pt,auto]
+           \node[state] (q_0)                      {$0$};
+           \node[state] (q_1) [above right=of q_0] {$1$};
+           \node[state] (q_2) [right=of q_0]       {$2$};
+           \node[state] (q_3) [right=of q_2]       {$3$};
+            \path[->]
+            (q_0) edge  node {a} (q_1)
+            (q_1) edge  node {a} (q_2)
+            (q_1) edge[bend left, above]  node {S} (q_3)
+            (q_2) edge  node {a} (q_0)
+            (q_0) edge[bend right, below]  node {\textbf{S}} (q_2)
+            (q_2) edge[bend left, above]  node {b} (q_3)
+            (q_3) edge[bend left, below]  node {b} (q_2);
+    \end{tikzpicture}
+    \end{subfigure}
+    \caption{Example: the updated matrix $M_2^2$ and graph $\mathcal{G}$ after second loop iteration}
+    \label{example:iteration2res}
+\end{figure}
+
+The remaining matrices $C_3$ and $M_2$ for the algorithm's main loop execution are listed in the Figure~\ref{example:iteration3to6eval} and Figure~\ref{example:iteration3to6res} correspondingly.
+The evaluated matrices $M_3$ are not included because its computation is straightforward.
+The last loop iteration is $7$.
+Although the matrix $M_2^6$ is updated with the new non-terminal $S$ for the cell $[2,2]$ after the transitive closure evaluation, the new values are not added to the matrix $M_2$.
+Therefore matrix $M_2$ has stopped changing and the algorithm has finished.
+The graph $\mathcal{G}$ with the new edges is presented in the Figure~\ref{example:result}.
+
+\begin{figure}[ht]
+    \tiny
+    \renewcommand{\arraystretch}{0.6}
+    \centering
+    $$
+    C_3^3 =
+    \left(
+    \begin{array}{c c c c | c c c c | c c c c | c c c c }
+    . & . & . & .  &  . & 1 & . & .  &  . & . & . & 1  &  . & . & 1 & . \\
+    . & . & . & .  &  . & . & 1 & .  &  . & . & . & .  &  . & . & . & 1 \\
+    . & . & . & .  &  1 & . & . & .  &  . & . & \cellcolor{lightgray}\textbf{1} & .  &  . & . & . & \cellcolor{lightgray}\textbf{1} \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & 1 & .  &  . & . & . & \cellcolor{lightgray}\textbf{1} \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & 1  &  . & . & 1 & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .
+    \end{array}
+    \right)
+    C_3^4 =
+    \left(
+    \begin{array}{c c c c | c c c c | c c c c | c c c c }
+    . & . & . & .  &  . & 1 & . & .  &  . & . & . & 1  &  . & . & 1 & . \\
+    . & . & . & .  &  . & . & 1 & .  &  . & . & . & \cellcolor{lightgray}\textbf{1}  &  . & . & \cellcolor{lightgray}\textbf{1} & 1 \\
+    . & . & . & .  &  1 & . & . & .  &  . & . & 1 & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & 1 & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & 1  &  . & . & 1 & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & 1  &  . & . & \cellcolor{lightgray}\textbf{1} & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .
+    \end{array}
+    \right)
+    $$
+    $$
+    C_3^5 =
+    \left(
+    \begin{array}{c c c c | c c c c | c c c c | c c c c }
+    . & . & . & .  &  . & 1 & . & .  &  . & . & \cellcolor{lightgray}\textbf{1} & 1  &  . & . & 1 & \cellcolor{lightgray}\textbf{1} \\
+    . & . & . & .  &  . & . & 1 & .  &  . & . & . & 1  &  . & . & 1 & 1 \\
+    . & . & . & .  &  1 & . & . & .  &  . & . & 1 & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & 1 & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & 1 & 1  &  . & . & 1 & \cellcolor{lightgray}\textbf{1} \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & 1  &  . & . & 1 & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .
+    \end{array}
+    \right)
+    C_3^6 =
+    \left(
+    \begin{array}{c c c c | c c c c | c c c c | c c c c }
+    . & . & . & .  &  . & 1 & . & .  &  . & . & 1 & 1  &  . & . & 1 & 1 \\
+    . & . & . & .  &  . & . & 1 & .  &  . & . & . & 1  &  . & . & 1 & 1 \\
+    . & . & . & .  &  1 & . & . & .  &  . & . & 1 & \cellcolor{lightgray}\textbf{1}  &  . & . & \cellcolor{lightgray}\textbf{1} & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & 1 & 1  &  . & . & \cellcolor{lightgray}\textbf{1} & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & 1 & 1  &  . & . & 1 & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & 1  &  . & . & 1 & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .
+    \end{array}
+    \right)
+    $$
+    \caption{Transitive closure for loop iterations $3-6$ for example query}
+    \label{example:iteration3to6eval}
+\end{figure}
+
+\begin{figure}[ht]
+\tiny
+    \centering
+    $$
+    M_2^3 =
+    \begin{pmatrix}
+    .     & \{a\} & \{S\} & .       \\
+    .     & .     & \{a\} & \{S\}   \\
+    \{a\} & .     & .     & \{b,\textbf{S}\} \\
+    .     & .     & \{b\} & .
+    \end{pmatrix}
+    M_2^4 =
+    \begin{pmatrix}
+    .     & \{a\} & \{S\}   & .       \\
+    .     & .     & \{a,\textbf{S}\} & \{S\}   \\
+    \{a\} & .     & .       & \{b,S\} \\
+    .     & .     & \{b\}   & .
+    \end{pmatrix}
+    $$
+    $$
+    M_2^5 =
+    \begin{pmatrix}
+    .     & \{a\} & \{S\}   & \{\textbf{S}\}   \\
+    .     & .     & \{a,S\} & \{S\}   \\
+    \{a\} & .     & .       & \{b,S\} \\
+    .     & .     & \{b\}   & .
+    \end{pmatrix}
+    M_2^6 =
+    \begin{pmatrix}
+    .     & \{a\} & \{S\}   & \{S\}   \\
+    .     & .     & \{a,S\} & \{S\}   \\
+    \{a\} & .     & \{\textbf{S}\}   & \{b,S\} \\
+    .     & .     & \{b\}   & .
+    \end{pmatrix}
+    $$
+    \caption{The updated matrix $M_2$ for loop iterations $3-6$ for example query}
+    \label{example:iteration3to6res}
+\end{figure}

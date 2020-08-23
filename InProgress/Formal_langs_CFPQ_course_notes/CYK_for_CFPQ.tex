@@ -4,33 +4,37 @@
 
 Наш главный интерес заключается в возможности применения данного алгоритма для решения описанной в предыдущей главе задачи --- поиска путей с ограничениями в терминах формальных языков. Как уже было указано выше, будем рассматривать случай контекстно-свободных языков.
 
-\section{Алгоритм CYK}
+\section{Алгоритм CYK}\label{sect:lin_CYK}
 
-Алгоритм CYK (Cocke-Younger-Kasami) --- один из классических алгоритмов синтаксического анализа. Его асимптотическая сложность в худшем случае --- $O(n^3 * |G|)$ ($n$ --- размер входной строки, $G$ --- входная грамматика), что выгодно выделяет его среди других алгоритмов парсинга.~\cite{Hopcroft+Ullman/79/Introduction}
+Алгоритм CYK (Cocke-Younger-Kasami) --- один из классических алгоритмов синтаксического анализа. Его асимптотическая сложность в худшем случае --- $O(n^3 * |N|)$, где $n$ --- длина входной строки, а $N$ --- количество нетерминалов во входной граммтике~\cite{Hopcroft+Ullman/79/Introduction}. 
 
-Для его применения необходимо, чтобы подаваемая на вход грамматика находилась в Нормальной Форме Хомского (НФХ)~\ref{section:CNF}.
+Для его применения необходимо, чтобы подаваемая на вход грамматика находилась в Нормальной Форме Хомского (НФХ)~\ref{section:CNF}. Других ограничений нет и, следовательно,данный алгоритм применим для работы с произвольными контекстно-своболными языками.
 
-В основе алгоритма лежит принцип динамического программирования. Используются два соображения (здесь $\omega$ --- слово, $A$, $B$, $C$ --- нетерминалы грамматики, $a$ --- терминал грамматики):
+В основе алгоритма лежит принцип динамического программирования. Используются два соображения:
 
 \begin{enumerate}
 \item Для правила вида $A \to a$ очевидно, что из $A$ выводится $\omega$ (с применением этого правила) тогда и только тогда, когда $a = \omega$:
 
 \[
-  A \derives[] a \derives \omega \iff \omega = a\]
+  A \derives \omega \iff \omega = a
+\]
 
 \item Для правила вида $A \to B C$ понятно, что из $A$ выводится $\omega$ (с применением этого правила) тогда и только тогда, когда существуют две цепочки $\omega_1$ и $\omega_2$ такие, что $\omega_1$ выводима из $B$, $\omega_2$ выводима из $C$ и при этом $\omega = \omega_1 \omega_2$:
 
-\[A \derives[] B C \derives \omega \iff \exists \omega_1, \omega_2 : \omega = \omega_1 \omega_2, B \derives \omega_1, C \derives \omega_2\]
+\[
+A \derives[] B C \derives \omega \iff \exists \omega_1, \omega_2 : \omega = \omega_1 \omega_2, B \derives \omega_1, C \derives \omega_2
+\]
 
 Или в терминах позиций в строке:
 
-\[A \derives[] B C \derives \omega \iff \exists k \in [1 \dots |\omega|] : B \derives \omega[1 \dots k], C \derives \omega[k+1 \dots |\omega|]\]
+\[
+A \derives[] B C \derives \omega \iff \exists k \in [1 \dots |\omega|] : B \derives \omega[1 \dots k], C \derives \omega[k+1 \dots |\omega|]
+\]
 \end{enumerate}
 
-В процессе работы алгоритма заполняется булева трехмерная матрица размера $|N| \times n \times n$, где $n$~---  размер входной цепочки, $N$~--- множество нетерминалов в нормализованной грамматике.
-$M[i, j, A] = true \iff A \derives \omega[i \dots j]$
+В процессе работы алгоритма заполняется булева трехмерная матрица $M$ размера $n \times n \times  |N|$ таким образом, что $$M[i, j, A] = true \iff A \derives \omega[i \dots j]$$.
 
-Первым шагом инициализируем матрицу, заполнив значения $M[i, j, A] \text{, где }i = j$:
+Первым шагом инициализируем матрицу, заполнив значения $M[i, i, A]$:
 
 \begin{itemize}
   \item $M[i, i, A] = true \text{, если в грамматике есть правило } A \to \omega[i]$.
@@ -38,22 +42,19 @@ $M[i, j, A] = true \iff A \derives \omega[i \dots j]$
 \end{itemize}
 
 Далее используем динамику: на шаге $m > 1$ предполагаем, что ячейки матрицы $M[i', j', A]$ заполнены для всех нетерминалов $A$ и пар $i', j': j' - i' < m$.
-Тогда можно заполнить ячейки матрицы $M[i, j, A] \text{, где } j - i = m$
+Тогда можно заполнить ячейки матрицы $M[i, j, A] \text{, где } j - i = m$ следующим образом:
 
 \[ M[i, j, A] = \bigvee_{A \to B C}^{}{\bigvee_{k=i}^{j-1}{M[i, k, B] \wedge M[k, j, C]}} \]
 
 По итогу работы алгоритма значение в ячейке $M[0, |\omega|, S]$, где $S$ --- стартовый нетерминал грамматики, отвечает на вопрос о выводимости цепочки $\omega$ в грамматике.
 
-\begin{example}
+\begin{example}\label{exampl:CYK}
   Рассмотрим пример работы алгоритма CYK на грамматике правильных скобочных последовательностей в Нормальной Форме Хомского.
 
+
 \begin{align*}
-S &\to A S_2 \mid \varepsilon \\
-S_1   &\to A S_2 \\
-S_2  &\to b \mid B S_1 \mid S S_3 \\
-S_3 &\to b \mid B S_1 \\
-A   &\to a \\
-B   &\to b
+S &\to A S_2 \mid \varepsilon & S_2  &\to b \mid B S_1 \mid S_1 S_3   & A   &\to a \\
+S_1   &\to A S_2              & S_3  &\to b \mid B S_1              & B   &\to b\\      
 \end{align*}
 
 Проверим выводимость цепочки $\omega = a a b b a b$.
@@ -77,23 +78,25 @@ B   &\to b
 
 \[
 \begin{pmatrix}
-\{A\}       & \varnothing & \varnothing    & \varnothing      & \varnothing & \varnothing    \\
-\varnothing & \{A\}       & \{S_1\}            & \varnothing      & \varnothing & \varnothing    \\
+\{A\}       & \varnothing & \varnothing                             & \varnothing      & \varnothing & \varnothing    \\
+\varnothing & \{A\}       & \cellcolor{lightgray}\{S_1\}            & \varnothing      & \varnothing & \varnothing    \\
 \varnothing & \varnothing & \{B, S_2, S_3\} & \varnothing     & \varnothing & \varnothing    \\
 \varnothing & \varnothing & \varnothing    & \{B, S_2, S_3\}   & \varnothing & \varnothing   \\
-\varnothing & \varnothing & \varnothing    & \varnothing      & \{A\}       & \{S_1\}            \\
+\varnothing & \varnothing & \varnothing    & \varnothing      & \{A\}       & \cellcolor{lightgray}\{S_1\}            \\
 \varnothing & \varnothing & \varnothing    & \varnothing      & \varnothing & \{B, S_2, S_3\} \\
 \end{pmatrix}
 \]
+
+В двух ячейках появилисб нетерминалы $S_1$ благодяря присутствиб в грамматике правила $S_1 \to A S_2$.
 
 Шаг 3. Заполняем следующую диагональ:
 
 \[
 \begin{pmatrix}
 \{A\}       & \varnothing & \varnothing    & \varnothing      & \varnothing & \varnothing    \\
-\varnothing & \{A\}       & \{S_1\}            & \{S_2\}          & \varnothing & \varnothing    \\
+\varnothing & \{A\}       & \{S_1\}        & \cellcolor{lightgray}\{S_2\}          & \varnothing & \varnothing    \\
 \varnothing & \varnothing & \{B, S_2, S_3\} & \varnothing     & \varnothing & \varnothing    \\
-\varnothing & \varnothing & \varnothing    & \{B, S_2, S_3\}   & \varnothing & \{S_2, S_3\}  \\
+\varnothing & \varnothing & \varnothing    & \{B, S_2, S_3\}   & \varnothing & \cellcolor{lightgray}\{S_2, S_3\}  \\
 \varnothing & \varnothing & \varnothing    & \varnothing      & \{A\}       & \{S_1\}            \\
 \varnothing & \varnothing & \varnothing    & \varnothing      & \varnothing & \{B, S_2, S_3\} \\
 \end{pmatrix}
@@ -103,7 +106,7 @@ B   &\to b
 
 \[
 \begin{pmatrix}
-\{A\}       & \varnothing & \varnothing    & \{S_1, S\}       & \varnothing & \varnothing    \\
+\{A\}       & \varnothing & \varnothing    & \cellcolor{lightgray}\{S_1, S\}       & \varnothing & \varnothing    \\
 \varnothing & \{A\}       & \{S_1\}            & \{S_2\}          & \varnothing & \varnothing    \\
 \varnothing & \varnothing & \{B, S_2, S_3\} & \varnothing     & \varnothing & \varnothing    \\
 \varnothing & \varnothing & \varnothing    & \{B, S_2, S_3\}   & \varnothing & \{S_2, S_3\}  \\
@@ -117,7 +120,7 @@ B   &\to b
 \[
 \begin{pmatrix}
 \{A\}       & \varnothing & \varnothing    & \{S_1, S\}       & \varnothing & \varnothing    \\
-\varnothing & \{A\}       & \{S_1\}            & \{S_2\}          & \varnothing & \{S_2\}        \\
+\varnothing & \{A\}       & \{S_1\}            & \{S_2\}          & \varnothing & \cellcolor{lightgray}\{S_2\}        \\
 \varnothing & \varnothing & \{B, S_2, S_3\} & \varnothing     & \varnothing & \varnothing    \\
 \varnothing & \varnothing & \varnothing    & \{B, S_2, S_3\}   & \varnothing & \{S_2, S_3\}  \\
 \varnothing & \varnothing & \varnothing    & \varnothing      & \{A\}       & \{S_1\}            \\
@@ -130,7 +133,7 @@ B   &\to b
 
 \[
 \begin{pmatrix}
-\{A\}       & \varnothing & \varnothing    & \{S_1, S\}       & \varnothing & \{S_1, S\}     \\
+\{A\}       & \varnothing & \varnothing    & \{S_1, S\}       & \varnothing & \cellcolor{lightgray}\{S_1, S\}     \\
 \varnothing & \{A\}       & \{S_1\}            & \{S_2\}          & \varnothing & \{S_2\}        \\
 \varnothing & \varnothing & \{B, S_2, S_3\} & \varnothing     & \varnothing & \varnothing    \\
 \varnothing & \varnothing & \varnothing    & \{B, S_2, S_3\}   & \varnothing & \{S_2, S_3\}  \\
@@ -144,7 +147,7 @@ B   &\to b
 \end{example}
 
 \begin{example}
-Теперь выполним алгоритм на невыводимой цепочке $abaa$.
+Теперь выполним алгоритм на цепочке $\omega=abaa$.
 
 Шаг 1. Инициализируем таблицу:
 
@@ -161,20 +164,20 @@ B   &\to b
 
 \[
 \begin{pmatrix}
-\{A\}       & \{S_1, S\}     & \varnothing & \varnothing    \\
+\{A\}       & \cellcolor{lightgray}\{S_1, S\}     & \varnothing & \varnothing    \\
 \varnothing & \{B, S_2, S_3\} & \varnothing & \varnothing       \\
 \varnothing & \varnothing    & \{A\}       & \varnothing    \\
 \varnothing & \varnothing    & \varnothing & \{A\}          \\
 \end{pmatrix}
 \]
 
-Больше ни одну ячейку в таблице заполнить нельзя, а значит эта строка не выводится в грамматике правильных скобочных последовательностей.
+Больше ни одну ячейку в таблице заполнить нельзя и при этом стартовый нетерминал отсутствует в правой верхней ячейке, а значит эта строка не выводится в грамматике правильных скобочных последовательностей.
 
 \end{example}
 
 \section{Алгоритм для графов на основе CYK}
 \label{graph:CYK}
-Теперь изменим вид входного слова и немного модифицируем алгоритм. Прежде мы сопоставляли каждому символу слова номер его позиции в цепочке, поэтому при инициализации заполняли главную диагональ матрицы. Вместо этого обозначим числами позиции между буквами таким образом (в качестве примера рассмотрим слово $a a b b a b$ из предыдущего пункта):
+Первым шагом на пути к решению задачи достижимости с использованием CYK является модификация представления входа. Прежде мы сопоставляли каждому символу слова его позицию во входной цепочке, поэтому при инициализации заполняли главную диагональ матрицы. Теперь вместо этого обозначим числами позиции между символами. В результате слово можно представить в виде линейного графа следующим образом(в качестве примера рассмотрим слово $a a b b a b$ из предыдущей главы~\ref{sect:lin_CYK}):
 
 \begin{center}
     \begin{tikzpicture}[shorten >=1pt,on grid,auto]
@@ -195,11 +198,11 @@ B   &\to b
     \end{tikzpicture}
 \end{center}
 
-Что нужно изменить в описании алгоритма, чтобы он продолжал работать при подобной нумерации? Каждая буква теперь идентифицируется не одним числом, а парой – номера слева и справа от нее. При этом чисел стало на одно больше, чем при прежнем способе нумерации.
+Что нужно изменить в описании алгоритма, чтобы он продолжал работать при подобной нумерации? Каждая буква теперь идентифицируется не одним числом, а парой --- номера слева и справа от нее. При этом чисел стало на одно больше, чем при прежнем способе нумерации.
 
-Возьмем матрицу  $|N| \times (n + 1) \times (n + 1)$ и при инициализации будем заполнять не главную диагональ, а диагональ прямо над ней. Таким образом, мы начинаем наш алгоритм с определения значений $M[i, j, A] \text{, где } j = i + 1$. При этом наши дальнейшие действия в рамках алгоритма не изменятся.
+Возьмем матрицу  $(n + 1) \times (n + 1) \times  |N|$ и при инициализации будем заполнять не главную диагональ, а диагональ прямо над ней. Таким образом, мы начинаем наш алгоритм с определения значений $M[i, j, A] \text{, где } j = i + 1$. При этом наши дальнейшие действия в рамках алгоритма не изменятся.
 
-На шаге инициализации матрица выглядит следующим образом:
+Для примера~\ref{exampl:CYK} на шаге инициализации матрица выглядит следующим образом:
 
 \[
 \begin{pmatrix}
@@ -228,25 +231,23 @@ B   &\to b
 \end{pmatrix}
 \]
 
-Мы представили входную строку в виде линейного графа, а на шаге инициализации получили его матрицу смежности. Шаги алгоритма очень напоминают построение транзитивного замыкания графа. Различие заключается в том, что мы ``добавляем ребра`` только для тех пар нетерминалов, для которых существует правило в грамматике, их выводящее.
+Мы представили входную строку в виде линейного графа, а на шаге инициализации получили его матрицу смежности. Добавление нового нетерминала в язейку матрицы можно рассматривать как нахождение нового пути между соответствующими вершинами, выводимого из добавленного нетерминала. Таким образом, шаги алгоритма напоминают построение транзитивного замыкания графа. Различие заключается в том, что мы добавляем новые ребра только для тех пар нетерминалов, для которых существует соответстующее правило в грамматике.
 
-Алгоритм можно обобщить и на произвольные графы с метками, рассматриваемые в этом курсе. При этом накладывается ограничение на форму входной грамматики: она должна находиться в ослабленной Нормальной Форме Хомского~\ref{section:CNF}. То есть будем требовать выполнение только следующих   правил:
+Алгоритм можно обобщить и на произвольные графы с метками, рассматриваемые в этом курсе. При этом можно ослабить ограничение на форму входной грамматики: она должна находиться в ослабленной Нормальной Форме Хомского~(\ref{defn:wCNF}).
 
+Шаг инициализации в алгоритме теперь состоит из двух пунктов.
 \begin{itemize}
-    \item $A \to B C \text{, где } A, B, C \in N $
-    \item $A \to a \text{, где } A \in N, a \in \Sigma$
+\item Как и раньше, с помощью продукций вида \[A \to a \text{, где } A \in N, a \in \Sigma\]
+заменяем терминалы на ребрах входного графа на множества нетерминалов, из которых они выводятся.
+\item  Добавляем в каждую вершину петлю, помеченную множеством нетерминалов для которых в данной граммтике есть правила вида $$A \to \varepsilon\text{, где } A \in N.$$ 
 \end{itemize}
 
-Шаг инициализации в алгоритме заключается в том, что мы с помощью продукций вида
-
-\[A \to a \text{, где } A \in N, a \in \Sigma\]
-
-заменяем терминалы на ребрах входного графа на нетерминалы, из которых они выводятся. Затем используем матрицу смежности получившегося графа (обозначим ее $M$) в качестве начального значения. Дальнейший ход алгоритма можно описать псевдокодом:
+ Затем используем матрицу смежности получившегося графа (обозначим ее $M$) в качестве начального значения. Дальнейший ход алгоритма можно описать псевдокодом, представленным в листинге~\ref{alg:graphParseCYK}.
 
 \begin{algorithm}[H]
     \begin{algorithmic}[1]
-        \caption{Context-free recognizer for graphs}
-        \label{alg:graphParse}
+        \caption{Алгоритм КС достижимости на основе CYK}
+        \label{alg:graphParseCYK}
         \Function{contextFreePathQuerying}{G, $\mathcal{G}$}
 
         \State{$n \gets$ the number of nodes in $\mathcal{G}$}
@@ -270,14 +271,14 @@ B   &\to b
     \end{algorithmic}
 \end{algorithm}
 
-Если в некоторой ячейке результируюшей матрицы с номером $(i, j)$ находятся стартовый нетерминал, то это означает, что существует путь из вершины $i$ в вершину $j$, удовлетворяющий данной грамматике.
+После завершения алгоритма, если в некоторой ячейке результируюшей матрицы с номером $(i, j)$ находятся стартовый нетерминал, то это означает, что существует путь из вершины $i$ в вершину $j$, удовлетворяющий данной грамматике. Таким образом, полученная матрица является ответом для задачи достижимости для заданных графа и граммтики.
 
 \begin{example}
 \label{CYK_algorithm_ex}
 Рассмотрим работу алгоритма на графе
 
 \begin{center}
-    \begin{tikzpicture}[shorten >=1pt,on grid,auto]
+    \begin{tikzpicture}[node distance=3cm,shorten >=1pt,on grid,auto]
     \node[state] (q_0)   {$0$};
     \node[state] (q_1) [above right=of q_0] {$1$};
     \node[state] (q_2) [right=of q_0] {$2$};
@@ -294,11 +295,9 @@ B   &\to b
 и грамматике:
 
 \begin{align*}
-S   & \to A B   \\
-S   & \to A S_1 \\
-S_1 & \to S B   \\
-A   & \to a     \\
-B   & \to b     \\
+S   & \to A B    & A   & \to a     \\
+S   & \to A S_1  & B   & \to b\\
+S_1 & \to S B   &&\\
 \end{align*}
 
 Данный пример является классическим и еще не раз будет использоваться в рамках данного курса. \\
@@ -307,17 +306,17 @@ B   & \to b     \\
 Заменяем терминалы на ребрах графа на нетерминалы, из которых они выводятся, и строим матрицу смежности получившегося графа:
 
 \begin{center}
-    \begin{tikzpicture}[shorten >=1pt,on grid,auto]
+    \begin{tikzpicture}[node distance=3cm,shorten >=1pt,on grid,auto]
     \node[state] (q_0)   {$0$};
     \node[state] (q_1) [above right=of q_0] {$1$};
     \node[state] (q_2) [right=of q_0] {$2$};
     \node[state] (q_3) [right=of q_2] {$3$};
     \path[->]
-    (q_0) edge  node {$A$} (q_1)
-    (q_1) edge  node {$A$} (q_2)
-    (q_2) edge  node {$A$} (q_0)
-    (q_2) edge[bend left, above]  node {$B$} (q_3)
-    (q_3) edge[bend left, below]  node {$B$} (q_2);
+    (q_0) edge  node {$\{A\}$} (q_1)
+    (q_1) edge  node {$\{A\}$} (q_2)
+    (q_2) edge  node {$\{A\}$} (q_0)
+    (q_2) edge[bend left, above]  node {$\{B\}$} (q_3)
+    (q_3) edge[bend left, below]  node {$\{B\}$} (q_2);
     \end{tikzpicture}
 \end{center}
 
@@ -345,7 +344,7 @@ B   & \to b     \\
 \[
 \begin{pmatrix}
 \varnothing & \{A\}       & \varnothing & \varnothing \\
-\varnothing & \varnothing & \{A, S_1\}  & \{S\}       \\
+\varnothing & \varnothing & \cellcolor{lightgray}\{A, \boldsymbol{S_1}\}  & \cellcolor{lightgray}\{S\}       \\
 \{A\}       & \varnothing & \varnothing & \{B\}       \\
 \varnothing & \varnothing & \{B\}       & \varnothing \\
 \end{pmatrix}
@@ -364,7 +363,7 @@ B   & \to b     \\
 
 \[
 \begin{pmatrix}
-\varnothing & \{A\}       & \{S\}       & \{S_1\}     \\
+\varnothing & \{A\}       & \cellcolor{lightgray}\{S\}       & \cellcolor{lightgray}\{S_1\}     \\
 \varnothing & \varnothing & \{A, S_1\}  & \{S\}       \\
 \{A\}       & \varnothing & \varnothing & \{B\}       \\
 \varnothing & \varnothing & \{B\}       & \varnothing \\
@@ -386,7 +385,7 @@ B   & \to b     \\
 \begin{pmatrix}
 \varnothing & \{A\}       & \{S\}      & \{S_1\}     \\
 \varnothing & \varnothing & \{A, S_1\} & \{S\}       \\
-\{A\}       & \varnothing & \{S_1\}    & \{B, S\}    \\
+\{A\}       & \varnothing & \cellcolor{lightgray}\{S_1\}    & \cellcolor{lightgray}\{B, \boldsymbol{S}\}    \\
 \varnothing & \varnothing & \{B\}      & \varnothing \\
 \end{pmatrix}
 \]
@@ -405,7 +404,7 @@ B   & \to b     \\
 \[
 \begin{pmatrix}
 \varnothing & \{A\}       & \{S\}         & \{S_1\}     \\
-\varnothing & \varnothing & \{A, S, S_1\} & \{S, S_1\}  \\
+\varnothing & \varnothing & \cellcolor{lightgray}\{A, \boldsymbol{S}, S_1\} & \cellcolor{lightgray}\{S, \boldsymbol{S_1}\}  \\
 \{A\}       & \varnothing & \{S_1\}       & \{B, S\}    \\
 \varnothing & \varnothing & \{B\}         & \varnothing \\
 \end{pmatrix}
@@ -423,7 +422,7 @@ B   & \to b     \\
 Матрица на этой итерации:
 \[
 \begin{pmatrix}
-\varnothing & \{A\}       & \{S, S_1\}    & \{S, S_1\}  \\
+\varnothing & \{A\}       & \cellcolor{lightgray}\{S, \boldsymbol{S_1}\}    & \cellcolor{lightgray}\{\boldsymbol{S}, S_1\}  \\
 \varnothing & \varnothing & \{A, S, S_1\} & \{S, S_1\}  \\
 \{A\}       & \varnothing & \{S_1\}       & \{B, S\}    \\
 \varnothing & \varnothing & \{B\}         & \varnothing \\
@@ -445,7 +444,7 @@ B   & \to b     \\
 \begin{pmatrix}
 \varnothing & \{A\}       & \{S, S_1\}    & \{S, S_1\}    \\
 \varnothing & \varnothing & \{A, S, S_1\} & \{S, S_1\}    \\
-\{A\}       & \varnothing & \{S, S_1\}    & \{B, S, S_1\} \\
+\{A\}       & \varnothing & \cellcolor{lightgray}\{\boldsymbol{S}, S_1\}    & \cellcolor{lightgray}\{B, S, \boldsymbol{S_1}\} \\
 \varnothing & \varnothing & \{B\}         & \varnothing   \\
 \end{pmatrix}
 \]
@@ -455,13 +454,13 @@ B   & \to b     \\
 
 Можно заметить, что мы делаем много лишних итераций.
 Можно переписать алгоритм так, чтобы он не просматривал заведомо пустые ячейки.
-Данную модификацию предложил Хеллингс~\cite{hellingsRelational}, также она реализована в работе~\cite{10.1007/978-3-319-46523-4_38}.
+Данную модификацию предложил Й.Хеллингс в работе~\cite{hellingsRelational}, также она реализована в работе~\cite{10.1007/978-3-319-46523-4_38}.
 
-Псевдокод алгоритма Хеллингса.
+Псевдокод алгоритма Хеллингса представлен в листинге~\ref{alg:graphParseHellings}.
 
 \begin{algorithm}[H]
     \begin{algorithmic}[1]
-        \caption{Context-free recognizer for graphs. Hellings.}
+        \caption{Алгоритм Хеллингса}
         \label{alg:graphParseHellings}
         \Function{contextFreePathQuerying}{$G= \langle \Sigma, N, P, S \rangle$, $\mathcal{G} = \langle V,E,L \rangle$}
 
@@ -582,9 +581,10 @@ B   & \to b     \\
      $$
      m = \{(S_1, 0, 3)\},
      $$ 
-     $$
-     r= \{(A,0,1),(A,1,2),(A,2,0),(B,2,3),(B,3,2),(S,1,3),(S_1, 1, 2),(S, 0, 2),(S_1, 0, 3)\}.
-     $$
+     \begin{align*}
+     r= \{&(A,0,1),(A,1,2),(A,2,0),(B,2,3),(B,3,2),(S,1,3),(S_1, 1, 2),(S, 0, 2),\\
+          &(S_1, 0, 3)\}.
+     \end{align*}
      Обрабатываем $(S_1, 0, 3)$. 
      Найдено: $(A,2,0)$ и соответствующее правило $S \to A \ S_1$. 
      B $m$ и в $r$ добавится тройка $(S, 2, 3)$. 
@@ -594,9 +594,11 @@ B   & \to b     \\
      $$
      m = \{(S, 2, 3)\},
      $$ 
-     $$
-     r= \{(A,0,1),(A,1,2),(A,2,0),(B,2,3),(B,3,2),(S,1,3),(S_1, 1, 2),(S, 0, 2),(S_1, 0, 3),(S, 2, 3)\}.
-     $$
+     \begin{align*}
+     r= \{&(A,0,1),(A,1,2),(A,2,0),(B,2,3),(B,3,2),(S,1,3),(S_1, 1, 2),(S, 0, 2),\\
+          &(S_1, 0, 3),(S, 2, 3)\}.
+     \end{align*}
+
      Обрабатываем $(S, 2, 3)$. 
      Найдено: $(B,3,2)$ и соответствующее правило $S_1 \to S \ B$. 
      B $m$ и в $r$ добавится тройка $(S_1, 2, 2)$. 
@@ -606,9 +608,10 @@ B   & \to b     \\
      $$
      m = \{(S_1, 2, 2)\},
      $$ 
-     $$
-     r= \{(A,0,1),(A,1,2),(A,2,0),(B,2,3),(B,3,2),(S,1,3),(S_1, 1, 2),(S, 0, 2),(S_1, 0, 3),(S, 2, 3),(S_1, 2, 2)\}.
-     $$
+     \begin{align*}
+     r= \{&(A,0,1),(A,1,2),(A,2,0),(B,2,3),(B,3,2),(S,1,3),(S_1, 1, 2),(S, 0, 2),\\
+          &(S_1, 0, 3),(S, 2, 3),(S_1, 2, 2)\}.
+     \end{align*}
      Обрабатываем $(S_1, 2, 2)$. 
      Найдено: $(A,1,2)$ и соответствующее правило $S \to A \ S_1$. 
      B $m$ и в $r$ добавится тройка $(S, 1, 2)$. 
@@ -618,9 +621,10 @@ B   & \to b     \\
      $$
      m = \{(S, 1, 2)\},
      $$ 
-     $$
-     r= \{(A,0,1),(A,1,2),(A,2,0),(B,2,3),(B,3,2),(S,1,3),(S_1, 1, 2),(S, 0, 2),(S_1, 0, 3),(S, 2, 3),(S_1, 2, 2),(S, 1, 2)\}.
-     $$
+     \begin{align*}
+     r= \{&(A,0,1),(A,1,2),(A,2,0),(B,2,3),(B,3,2),(S,1,3),(S_1, 1, 2),(S, 0, 2),\\
+          &(S_1, 0, 3),(S, 2, 3),(S_1, 2, 2),(S, 1, 2)\}.
+     \end{align*}
      Обрабатываем $(S, 1, 2)$. 
      Найдено: $(B,2,3)$ и соответствующее правило $S_1 \to S \ B$. 
      B $m$ и в $r$ добавится тройка $(S_1, 1, 3)$. 
@@ -630,9 +634,10 @@ B   & \to b     \\
      $$
      m = \{(S_1, 1, 3)\},
      $$ 
-     $$
-     r= \{(A,0,1),(A,1,2),(A,2,0),(B,2,3),(B,3,2),(S,1,3),(S_1, 1, 2),(S, 0, 2),(S_1, 0, 3),(S, 2, 3),(S_1, 2, 2),(S, 1, 2),(S_1, 1, 3)\}.
-     $$
+     \begin{align*}
+     r= \{&(A,0,1),(A,1,2),(A,2,0),(B,2,3),(B,3,2),(S,1,3),(S_1, 1, 2),(S, 0, 2),\\
+          &(S_1, 0, 3),(S, 2, 3),(S_1, 2, 2),(S, 1, 2),(S_1, 1, 3)\}.
+     \end{align*}
      Обрабатываем $(S_1, 1, 3)$. 
      Найдено: $(A,0,1)$ и соответствующее правило $S \to A \ S_1$. 
      B $m$ и в $r$ добавится тройка $(S, 0, 3)$. 
@@ -642,9 +647,10 @@ B   & \to b     \\
      $$
      m = \{(S, 0, 3)\},
      $$ 
-     $$
-     r= \{(A,0,1),(A,1,2),(A,2,0),(B,2,3),(B,3,2),(S,1,3),(S_1, 1, 2),(S, 0, 2),(S_1, 0, 3),(S, 2, 3),(S_1, 2, 2),(S, 1, 2),(S_1, 1, 3),(S, 0, 3)\}.
-     $$
+     \begin{align*}
+     r= \{&(A,0,1),(A,1,2),(A,2,0),(B,2,3),(B,3,2),(S,1,3),(S_1, 1, 2),(S, 0, 2),\\
+          &(S_1, 0, 3),(S, 2, 3),(S_1, 2, 2),(S, 1, 2),(S_1, 1, 3),(S, 0, 3)\}.
+     \end{align*}
      Обрабатываем $(S, 0, 3)$. 
      Найдено: $(B,3,2)$ и соответствующее правило $S_1 \to S \ B$. 
      B $m$ и в $r$ добавится тройка $(S_1, 0, 2)$. 
@@ -654,9 +660,10 @@ B   & \to b     \\
      $$
      m = \{(S_1, 0, 2)\},
      $$ 
-     $$
-     r= \{(A,0,1),(A,1,2),(A,2,0),(B,2,3),(B,3,2),(S,1,3),(S_1, 1, 2),(S, 0, 2),(S_1, 0, 3),(S, 2, 3),(S_1, 2, 2),(S, 1, 2),(S_1, 1, 3),(S, 0, 3),(S_1, 0, 2)\}.
-     $$
+     \begin{align*}
+     r= \{&(A,0,1),(A,1,2),(A,2,0),(B,2,3),(B,3,2),(S,1,3),(S_1, 1, 2),(S, 0, 2),\\
+          &(S_1, 0, 3),(S, 2, 3),(S_1, 2, 2),(S, 1, 2),(S_1, 1, 3),(S, 0, 3),(S_1, 0, 2)\}.
+     \end{align*}
      Обрабатываем $(S_1, 0, 2)$. 
      Найдено: $(A,2,0)$ и соответствующее правило $S \to A \ S_1$. 
      B $m$ и в $r$ добавится тройка $(S, 2, 2)$. 
@@ -666,9 +673,11 @@ B   & \to b     \\
      $$
      m = \{(S, 2, 2)\},
      $$ 
-     $$
-     r= \{(A,0,1),(A,1,2),(A,2,0),(B,2,3),(B,3,2),(S,1,3),(S_1, 1, 2),(S, 0, 2),(S_1, 0, 3),(S, 2, 3),(S_1, 2, 2),(S, 1, 2),(S_1, 1, 3),(S, 0, 3),(S_1, 0, 2),(S, 2, 2)\}.
-     $$
+     \begin{align*}
+     r= \{&(A,0,1),(A,1,2),(A,2,0),(B,2,3),(B,3,2),(S,1,3),(S_1, 1, 2),(S, 0, 2),\\
+          &(S_1, 0, 3),(S, 2, 3),(S_1, 2, 2),(S, 1, 2),(S_1, 1, 3),(S, 0, 3),(S_1, 0, 2),\\
+          &(S, 2, 2)\}.
+     \end{align*}
      Обрабатываем $(S, 2, 2)$. 
      Найдено: $(B,2,3)$ и соответствующее правило $S_1 \to S \ B$. 
      B $m$ и в $r$ добавится тройка $(S_1, 2, 3)$. 
@@ -678,9 +687,11 @@ B   & \to b     \\
      $$
      m = \{(S_1, 2, 3)\},
      $$ 
-     $$
-     r= \{(A,0,1),(A,1,2),(A,2,0),(B,2,3),(B,3,2),(S,1,3),(S_1, 1, 2),(S, 0, 2),(S_1, 0, 3),(S, 2, 3),(S_1, 2, 2),(S, 1, 2),(S_1, 1, 3),(S, 0, 3),(S_1, 0, 2),(S, 2, 2),(S_1, 2, 3)\}.
-     $$
+     \begin{align*}
+     r= \{&(A,0,1),(A,1,2),(A,2,0),(B,2,3),(B,3,2),(S,1,3),(S_1, 1, 2),(S, 0, 2),\\
+          &(S_1, 0, 3),(S, 2, 3),(S_1, 2, 2),(S, 1, 2),(S_1, 1, 3),(S, 0, 3),(S_1, 0, 2),\\
+          &(S, 2, 2),(S_1, 2, 3)\}.
+     \end{align*}
      Обрабатываем $(S_1, 2, 3)$. 
      Могло бы быть найдено: $(A,1,2)$ и соответствующее правило $S \to A \ S_1$, однако тройка $(S, 1, 3)$ уже есть в $r$. 
      А значит никаких новых троек найдено не будет и $m$ становится пустым.
@@ -711,12 +722,12 @@ B   & \to b     \\
     $n + (n * n) + n$ \\
     \end{flushleft}
 
-    \item Посчитать вычислительную сложность алгоритма CYK для матриц в зависимости от размера входного графа (размер грамматики считать фиксированным)
+    \item Изучить вычислительную сложность алгоритма CYK для матриц в зависимости от размера входного графа (размер грамматики считать фиксированным).
 
     \item Проверить работу алгоритма CYK для графов на графе
 
     \begin{center}
-        \begin{tikzpicture}[shorten >=1pt,on grid,auto]
+        \begin{tikzpicture}[node distance=3cm,shorten >=1pt,on grid,auto]
         \node[state] (q_0)  {$0$};
         \node[state] (q_1) [right=of q_0]  {$1$};
         \node[state] (q_2) [right=of q_1]  {$2$};
