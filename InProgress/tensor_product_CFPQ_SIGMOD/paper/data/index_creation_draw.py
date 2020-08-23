@@ -5,7 +5,7 @@ import scipy.stats
 
 
 lubm_graphs = ["LUBM100_stat.csv","LUBM300_stat.csv","LUBM500_stat.csv","LUBM1M_stat.csv","LUBM1.5M_stat.csv","LUBM1.9M_stat.csv"]
-other_graphs = ["proteomes_stat.csv","uniprotkb_archea_asgard_group_1935183_0_stat.csv","geospecies_stat.csv"]
+other_graphs = ["proteomes_stat.csv","uniprotkb_stat.csv","geospecies_stat.csv","mappingbased_properties_stat.csv", "taxonomy_stat.csv"]
 
 
 styles = [['o','r'],['v','g'],['X','b'],['s','y'],['^','k'],['d','m']]
@@ -58,4 +58,4 @@ def draw (graphs, out_file):
 	plt.savefig(out_file)
 	plt.show()
 
-draw(lubm_graphs, "LUBM_all.pdf")
+draw(other_graphs, "other_all.pdf")
