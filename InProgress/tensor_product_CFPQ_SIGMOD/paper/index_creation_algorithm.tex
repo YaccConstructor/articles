@@ -36,12 +36,11 @@ of the graph adjacency matrix.
 %a Boolean matrix. It simplifies the algorithm implementation and allows 
 %one to express it in terms of basic matrix operations.
 
-%\subsubsection{Na{\"i}ve Version}
-% Todo: reference to the algoritm description in the ADBIS paper 
-
-\subsubsection{Boolean Matrices Based Version}
+\subsubsection{Na{\"i}ve Version}
 Listing~\ref{tensor:cfpq} shows main steps of the algorithm.
 The algorithm accepts context-free grammar $G=(\Sigma,N,P$) and graph $\mathcal{G}=(V,E,L)$ as an input.
+Start nonterminal is not required here, since the algorithm allows to query paths, which are
+reachable via some nonterminal from $N$.
 An RSM $R$ is created from the grammar $G$.
 Note, that $R$ must have no $\varepsilon$-transitions.
 $\mathcal{M}_1$ and $\mathcal{M}_2$ are the Boolean adjacency matrices for the machine 
@@ -61,12 +60,12 @@ for each iteration.
 The result is stored in $\mathcal{M}_3$ as a Boolean matrix. Since we are interested
 only in the reachability of some vertices, there is no need to store a separate
 Boolean matrix for each label from $\Sigma \cup N$. Therefore, we can 
-collapse it into one Boolean matrix $M'_3$, what is done in the next step.
-These Boolean matrix could be interpreted as an adjacency matrix for some directed graph
+collapse it into single Boolean matrix $M'_3$, what is done in the next step.
+This Boolean matrix could be interpreted as an adjacency matrix for some directed graph
 without labels with the same set of the vertices, as in the graph formed by $\mathcal{M}_3$.
 From that point of view the matrix $M'_3$ has the following property 
-from its definition: if some vertices connected by some path in the graph $\mathcal{G}(M'_3)$ then these vertices are
-connected by one or many paths in the graph $\mathcal{G}(\mathcal{M}_3)$.
+from its definition: if some vertices connected by some path in the graph $\mathcal{G}(M'_3)$ 
+then these vertices are connected by one or many paths in the graph $\mathcal{G}(\mathcal{M}_3)$.
 
 For the given $M'_3$ a $C_3$ transitive closure matrix
 is evaluated by the corresponding function call. 
@@ -94,14 +93,13 @@ nonterminal $S$.
 
 \subsubsection{Index creation for RPQ}
 In case of the RPQ, the main \textbf{while} loop takes only one iteration to actually
-append data. Since the input query is provided in form of the regex, one
+append data. Since the input query is provided in form of the regular expression, one
 can construct the corresponding RSM, which consists of the single 
-\textit{component state machine}. This CSM is built from the regex and labeled as 
+\textit{component state machine}. This CSM is built from the regular expression and labeled as 
 the $S$ for example, which has no \textit{recursive calls}. The adjacency 
 matrix of the machine is build over $\Sigma$ only. Therefore, calculating the 
 Kronecker product, all relevant information is taken into account at the first 
 iteration of the loop.
-
 
 \begin{algorithm}[h]
 \floatname{algorithm}{Listing}
@@ -159,12 +157,12 @@ iteration of the loop.
 \label{tensor:cfpq:help}
 \Function{getStates}{$C, i, j$}
     \State{$r \gets dim(\mathcal{M}_1)$}
-    \Comment{$mathcal{M}_1$ is Boolean adjacency matrix for $R$}
+    \Comment{$\mathcal{M}_1$ is adjacency matrices for $R$}
     \State \Return{$\left\lfloor{i / r}\right\rfloor, \left\lfloor{j / r}\right\rfloor$}
 \EndFunction
 \Function{getCoordinates}{$C, i, j$}
     \State{$n \gets dim(\mathcal{M}_2)$}
-    \Comment{$\mathcal{M}_2$ is Boolean adjacency matrix for $\mathcal{G}$}
+    \Comment{$\mathcal{M}_2$ is adjacency matrices for $\mathcal{G}$}
     \State \Return{$i \bmod n, j \bmod n$}
 \EndFunction
 \end{algorithmic}
@@ -412,10 +410,10 @@ In this subsection we use the Four Russians' trick to speed up the dynamic trans
     The computation of transitive closure matrices can be done in $O(n^3/\log n)$ time when $n^2$ edges are added to the graph.
 \end{theorem}
 \begin{proof}
-Consider the function $checkCondition$ from the Listing~\ref{tensor:cfpq:dynamicTC}. Its operations are equivalent to the element-wise (Hadamard) product of two vectors of size $n$, where multipication operation is denoted as $\wedge$ and has the following properties: $1 \wedge 1 = 0 \wedge 0 = 1 \wedge 0 = 0$ and $0 \wedge 1 = 1$. The first vector represents reachability of a given vertex $i$ from other vertices $\{u_1, u_2, ..., u_n\}$ of the graph and the second vector represents the same for a given vertex $j$. The function $newReachablePairs$ also can be reduced to the computation of the Hadamard product of two vectors of size $n$ for a given $u_k$. The first vector contains the information whether vertices  $\{v_1, v_2, ..., v_n\}$ of the graph are reachable from a given vertex $u_k$ and the second vector represents the same for a given vertex $j$. The element-wise product of two vectors can be calculated naively in time $O(n)$ which gives the $O(n^3)$ time for maintaining the transitive closure. Thus, the time complexity of the transitive closure can be reduced by speeding up element-wise product of two vectors of size $n$. 
+Consider the function $checkCondition$ from the Listing~\ref{tensor:cfpq:dynamicTC}. Its operations are equivalent to the element-wise (Hadamard) product of two vectors of size $n$, where multiplication operation is denoted as $\wedge$ and has the following properties: $1 \wedge 1 = 0 \wedge 0 = 1 \wedge 0 = 0$ and $0 \wedge 1 = 1$. The first vector represents reachability of a given vertex $i$ from other vertices $\{u_1, u_2, ..., u_n\}$ of the graph and the second vector represents the same for a given vertex $j$. The function $newReachablePairs$ also can be reduced to the computation of the Hadamard product of two vectors of size $n$ for a given $u_k$. The first vector contains the information whether vertices  $\{v_1, v_2, ..., v_n\}$ of the graph are reachable from a given vertex $u_k$ and the second vector represents the same for a given vertex $j$. The element-wise product of two vectors can be calculated naively in time $O(n)$ which gives the $O(n^3)$ time for maintaining the transitive closure. Thus, the time complexity of the transitive closure can be reduced by speeding up element-wise product of two vectors of size $n$. 
 
 
-To achive this goal, we use the Four Russians' trick. Split each vector into $n/\log n$ parts of size $\log n$. Create a table $S$ such that $S(a, b)$ = $a \wedge b$ where $a, b \ \in {\{0,1\}}^{\log n}$. This takes a time $O(n^2 \log n)$, since there are $2^{\log n} = n$ variants of Boolean vectors of size $\log n$ and hence $n^2$ pairs of vectors $(a, b)$ in total, and each component takes $O(\log n)$ time. With table $S$, we can calculate product of two parts of size $\log n$ in constant time. There are $n/\log n$ such parts, so the element-wise product of two vectors of size $n$ can be calculated in time $O(n/\log n)$ with $O(n^2 \log n)$ preprocessing. This gives us a dynamic transitive closure algorithm running in time $O(n^3/\log n)$: both of the functions $checkCondition$ and  $newReachablePairs$ are evaluated no more than $O(n^2)$ times during the whole computation, and each function calculates Hadamard product of two vectors in $O(n/\log n)$ time.
+To achieve this goal, we use the Four Russians' trick. Split each vector into $n/\log n$ parts of size $\log n$. Create a table $S$ such that $S(a, b)$ = $a \wedge b$ where $a, b \ \in {\{0,1\}}^{\log n}$. This takes a time $O(n^2 \log n)$, since there are $2^{\log n} = n$ variants of Boolean vectors of size $\log n$ and hence $n^2$ pairs of vectors $(a, b)$ in total, and each component takes $O(\log n)$ time. With table $S$, we can calculate product of two parts of size $\log n$ in constant time. There are $n/\log n$ such parts, so the element-wise product of two vectors of size $n$ can be calculated in time $O(n/\log n)$ with $O(n^2 \log n)$ preprocessing. This gives us a dynamic transitive closure algorithm running in time $O(n^3/\log n)$: both of the functions $checkCondition$ and  $newReachablePairs$ are evaluated no more than $O(n^2)$ times during the whole computation, and each function calculates Hadamard product of two vectors in $O(n/\log n)$ time.
 \end{proof} 
 Notice that the maintaining of the dynamic transitive closure dominates the cost of the algorithm from Listing~\ref{tensor:cfpq:cubic}, therefore we immediately deduce the following.
 \begin{corollary}{}
