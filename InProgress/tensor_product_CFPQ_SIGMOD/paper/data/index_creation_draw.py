@@ -4,8 +4,8 @@ import pandas as pd
 import scipy.stats 
 
 
-lubm_graphs = ["LUBM100_stat.csv","LUBM300_stat.csv","LUBM500_stat.csv","LUBM1M_stat.csv","LUBM1.5M_stat.csv","LUBM1.9M_stat.csv"]
-other_graphs = ["proteomes_stat.csv","uniprotkb_archea_asgard_group_1935183_0_stat.csv","geospecies_stat.csv"]
+lubm_graphs = ["LUBM1k_stat.csv","LUBM3.5k_stat.csv","LUBM5.9k_stat.csv","LUBM1M_stat.csv","LUBM1.7M_stat.csv","LUBM2.3M_stat.csv"]
+other_graphs = ["proteomes_stat.csv","uniprotkb_stat.csv","geospecies_stat.csv","mappingbased_properties_stat.csv", "taxonomy_stat.csv"]
 
 
 styles = [['o','r'],['v','g'],['X','b'],['s','y'],['^','k'],['d','m']]
