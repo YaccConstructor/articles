@@ -1,27 +1,60 @@
 \section{CFPQ Full-Stack Support}
 
 In order to provide full-stack support of CFPQ it is necessatry to choose an appropriatr graph database.
-It was shown by Arseniy Terekhov et al. in~\cite{10.1145/3398682.3399163} that matrix-based algorithm can be naturelly integrated into RedisGraph graph database because both, the algorithm and the database, operates over matrix representation of graphs.
-Moreover, RedisGraph supports Cypher as a query language and there is a proposal which describes Cypher expetsion which allows one to specify context-free constraints.
+It was shown by Arseniy Terekhov et al. in~\cite{10.1145/3398682.3399163} that matrix-based algorithm can be naturally integrated into RedisGraph graph database because both, the algorithm and the database, operates over matrix representation of graphs.
+Moreover, RedisGraph supports Cypher as a query language and there is a proposal which describes Cypher extension which allows one to specify context-free constraints.
 Thus we choose RedisGraph as a base for our solution.  
 
 
 \subsection{Cypher Extending}
 
 The first what we should do is to extend Cypher to be able to express context-free constraints.
-There is a description of the respective Cypher syntax extension\footnote{Formal syntax specification: \url{https://github.com/thobe/openCypher/blob/rpq/cip/1.accepted/CIP2017-02-06-Path-Patterns.adoc\#11-syntax}. Access date: 19.07.2020.}, proposed by Tobias Lindaaker, but this syntax does not implement yet in Cypher parsers.
+There is a description of the respective Cypher syntax extension\footnote{\label{cypher-proposal}Formal syntax specification: \url{https://github.com/thobe/openCypher/blob/rpq/cip/1.accepted/CIP2017-02-06-Path-Patterns.adoc\#11-syntax}. Access date: 19.07.2020.}, proposed by Tobias Lindaaker, but this syntax does not implement yet in Cypher parsers.
 
-RedisGraph database supports subset of Cypher language and useses \texttt{libcypher-parser}\footnote{The \texttt{libcypher-parser} is an open-source parser library for Cypher query language. GitHub repository of the project: \url{https://github.com/cleishm/libcypher-parser}. Access date: 19.07.2020.} library to parse queries.
-We extend this library by intoducing new syntax proposed !!! 
-We implement\footnote{The modified libsypher-pareser library with support of syntax for path patterns: \url{https://github.com/YaccConstructor/libcypher-parser}. Access date: 19.07.2020.} full extension, not only part which is necessary for simple CFPQ. 
+This extension introduces path patterns, which are a more powerful alternative to relationship patterns. Path patterns allow you to express regular constrains over basic patterns such as relationship and node patterns. Just like relationship patterns they can be specified in the MATCH clause between the node patterns.
 
+\begin{algorithm}
+\floatname{algorithm}{Listing}
+\begin{algorithmic}[1]
+\caption{Example of using a simple path pattern}
+\label{lst:cypher-example-1}
+\State MATCH (v)-/ [:A (:X) :B] | [:C (:Y) :D] /->(to)
+\State RETURN v, to
+\end{algorithmic}
+\end{algorithm}
 
-Main feature which allows one to specify cintext-free constraints is a \textit{named path patterns}: one can specify a name for pattern and after that use it in other patterns, or in the same pattern.
-Using this feature, structure of query is pretty similar to context-free grammar.
-For exmaple !!!
+The listing~\ref{lst:cypher-example-1} provides an example of query in extended syntax with a simple path pattern. In this example there are relationship patterns :A, :B, :C :D and node patterns (:X), (:Y). The square brackets are used for grouping parts of the pattern. The $|$ symbol denotes alternative between corresponding paths and the whitespace denotes sequence of paths. So the result of executing the query on the graph $D$ will be the following set of vertex pairs:
+\begin{align*}
+\{(v, to): \exists \pi = (v,r_1,u,r_2,to) \in Paths(D):& \\
+\begin{sqcases}
+    t(r_1) = A, l(u) = X, t(r_2) = B  \\
+    t(r_1) = C, l(u) = Y, l(r_2) = D
+\end{sqcases}&\}
+\end{align*}
 
+Main feature which allows one to specify context-free constraints is a \textit{named path patterns}: one can specify a name for path pattern and after that use it in other patterns, or in the same pattern. Using this feature, structure of query is pretty similar to context-free grammar in the Extended Backus–Naur Form.
 
-Examples of quries. Description o examples.
+\begin{algorithm}
+\floatname{algorithm}{Listing}
+\begin{algorithmic}[1]
+\caption{Example of using a named path pattern}
+\label{lst:cypher-example-2}
+\State PATH PATTERN S = ()-/ [:A ~S :B] | [:A :B] /->()
+\State MATCH (v)-/ ~S /->(to)
+\State RETURN v, to
+\end{algorithmic}
+\end{algorithm}
+
+The listing~\ref{lst:cypher-example-2} shows an example of using named path patterns. They can be defined in the PATH PATTERN clause and referenced within any other path pattern. In order to explain the semantics of the query let`s consider contest-free grammar $G=(N, \Sigma, P, S)$ with $N=\{S\}$, $\Sigma=\{A,B\}$ and $P=\{S \xrightarrow{} A B, S \xrightarrow{} ASB \}$. Then $L(G)=\{A^nB^n: n \in \mathbb{N}\}$ specifies restrictions on the path labels and query result on the graph $D$ will be as follows:
+
+\begin{align*}
+\{ (v, to): &~\exists \pi=(v,r_1,u_1,...,r_n,to) \in Paths(D): \\
+            &t(r_1)t(r_2)...t(r_n) \in L(G) \}
+\end{align*}
+
+Thus this Cypher extension allows one express more complex queries including context-free path queries.
+RedisGraph database supports subset of Cypher language and uses \texttt{libcypher-parser}\footnote{The \texttt{libcypher-parser} is an open-source parser library for Cypher query language. GitHub repository of the project: \url{https://github.com/cleishm/libcypher-parser}. Access date: 19.07.2020.} library to parse queries.
+We extend this library by intoducing new syntax proposed \footnoteref{cypher-proposal}. We implement\footnote{The modified libsypher-pareser library with support of syntax for path patterns: \url{https://github.com/YaccConstructor/libcypher-parser}. Access date: 19.07.2020.} full extension, not only part which is necessary for simple CFPQ. 
 
 \subsection{RedisGraph Extending}
 
