@@ -57,7 +57,7 @@ Thus this Cypher extension allows one express more complex queries including con
 RedisGraph database supports subset of Cypher language and uses \texttt{libcypher-parser}\footnote{The \texttt{libcypher-parser} is an open-source parser library for Cypher query language. GitHub repository of the project: \url{https://github.com/cleishm/libcypher-parser}. Access date: 19.07.2020.} library to parse queries.
 We extend this library by intoducing new syntax proposed \footnoteref{cypher-proposal}. We implement\footnote{The modified libsypher-pareser library with support of syntax for path patterns: \url{https://github.com/YaccConstructor/libcypher-parser}. Access date: 19.07.2020.} full extension, not only part which is necessary for simple CFPQ. 
 
-\subsection{RedisGraph Extending}
+\subsection{RedisGraph Intro (TODO: move to introduction)}
 
 Named path patterns described in \autoref{subsec:cypher-extension} allows one to specify context-free constrains on the paths. In order to support the execution of these types of queries we need to extend backend of the RedisGraph database and integrate a suitable CFPQ algorithm into it. 
 
@@ -79,7 +79,28 @@ Using the Rustam Azimov algorithm one can only find paths between all pairs of v
 
 The Multi-Source algorithm described in~\autoref{sec:multi-source-algo} is sensitive to the initial set of vertices and is therefore well suited for graph database query scenarios. In addition, it is based on matrix operations and works with graphs as sparse matrices, so it is suitable for integration in RedisGraph.
 
+\subsection{RedisGraph extension}
+This section describes the implementation of support for executing queries with the extended syntax in the RedisGraph. 
 
+\subsubsection{Execution plan building}
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\linewidth]{execution-plan-building.png}
+  \caption{Extension diagram for building a query execution plan}
+\end{figure}
+
+In the RedisGraph the main part of processing a query is building its execution plan. Execution plan consists of operations that perform basic processing such as filtering, pattern matching, aggregation and result construction. Operations have parent-child relationships, so they are formed into a tree. Each operation can consume a record from a child operation, process it and produce another one for the parent. Records contain information necessary for the parent operation, as well as everything to restore the response, such as identifiers of accumulated vertices and edges.
+
+Path patterns relates to the pattern matching operations and is very similar to relationship patterns from the original Cypher. All pattern matching operations are derived from the MATCH clause that consists of relationship patterns and node patterns. In the first stage of processing, these patterns turn into an intermediate representation -- the \textit{query graph}. The nodes and edges of the \textit{query graph} corresponds to node and relationship patterns. We extended query graph to be able to contain path patterns. Thus the query graph edges can be either relationship or path patterns, which are stored in a more convenient intermediate representation other than AST.
+
+At the second stage, the query graph is translated into algebraic expressions over matrices. To do this, RedisGraph first linearizes the query graph, and then splits it into small paths. After that, each path is translated into a single algebraic expression. Its operands are a matrices specifying the type of edges and labels of vertices. To support path patterns we first extended the split processing so that each path template corresponds to exactly one path after query graph splitting. After that we implemented translation of the path patterns into an algebraic expressions. To do this we needed to extend the matrix operands to support references to named paths patterns in algebraic expressions. Finally we have developed the semantics of path patterns in terms of algebraic expressions over matrices.
+
+In the last stage execution plan operations are built and appended to execution plan. Each operation derived from single algebraic expression. The extension of the execution plan operation related to path patterns is described in \autoref{subsubsec:execution-plan-evaluating}.
+
+Other processing that occurs during the execution plan construction and was supported by us is related to named path patterns. They are processed independently of the unnamed path patterns found in MATCH clause and don't produce execution plan operations. All named path patterns are collected from \lstinline{PATH PATTERN} clauses. Then they translated into algebraic expressions and stored in the corresponding global context of the query -- \textit{path pattern context}. It is used in initializing the operations of the execution plan, which is described in~\autoref{subsubsec:execution-plan-evaluating}.
+
+\subsubsection{Execution plan evaluating}
+\label{subsubsec:execution-plan-evaluating}
 % CFPQ to matrix expressions, etc. General schema of integration. Limits, restrictions, examples, etc.
 
 \subsection{Evaluation}
