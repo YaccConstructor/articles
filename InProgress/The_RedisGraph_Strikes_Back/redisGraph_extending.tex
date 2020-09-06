@@ -90,7 +90,7 @@ This section describes the implementation of support for executing queries with 
   \label{fig:execution-plan-construction}
 \end{figure}
 
-In the RedisGraph the main part of processing a query is building its execution plan. Execution plan consists of operations that perform basic processing such as filtering, pattern matching, aggregation and result construction. The diagram of its construction is shown in~\autoref{fig:execution-plan-construction}. It can be divided into two parts -- processing named and unnamed path patterns, which are described below.
+In the RedisGraph the main part of processing a query is building its execution plan. Execution plan consists of operations that perform basic processing such as filtering, pattern matching, aggregation and result construction. The diagram of its construction !!! is shown in~\autoref{fig:execution-plan-construction}. It can be divided into two parts -- processing named and unnamed path patterns, which are described below.
 
 Let`s consider the part that associated with unnamed path patterns. Unnamed path patterns relates to the pattern matching operations and is very similar to relationship patterns from the original Cypher. All pattern matching operations are derived from the MATCH clause that consists of relationship patterns and node patterns. In the first stage of processing, these patterns turn into an intermediate representation -- the \textit{query graph}. The nodes and edges of the \textit{query graph} corresponds to node and relationship patterns. We extended query graph to be able to contain path patterns. Thus the query graph edges can be either relationship or path patterns, which are stored in a more convenient intermediate representation other than AST.
 
@@ -104,14 +104,24 @@ Another processing that occurs during the execution plan construction and was su
 
 All named path patterns are collected from \lstinline{PATH PATTERN} clauses. Then they translated into algebraic expressions and stored in the corresponding global context of the query -- \textit{path pattern context}. This storage provides mapping of the path pattern name to its algebraic expression and can be used both when building an execution plan and during its execution.
 
-Thus after execution plan building we receive \textit{CFPQTraverse} operations that correspond to unnamed path patterns in MATCH clause and \textit{path pattern context} that stores all named path patterns in \lstinline{PATH PATTERN} clause. Therefore we can proceed to the stage of execution plan evaluation.
+Thus after execution plan building we receive \textit{CFPQTraverse} operations that correspond to unnamed path patterns in MATCH clause and \textit{path pattern context} that stores all named path patterns from \lstinline{PATH PATTERN} clauses. Therefore we can proceed to the stage of execution plan evaluation.
 % It is used in initializing the operations of the execution plan, which is described in~\autoref{subsubsec:execution-plan-evaluating}.
 
 \subsubsection{Execution plan evaluating}
-
-% Operations have parent-child relationships, so they are formed into a tree. Each operation can consume a record from a child operation, process it and produce another one for the parent. Records contain information necessary for the parent operation, as well as everything to restore the response, such as identifiers of accumulated vertices and edges.
-
 \label{subsubsec:execution-plan-evaluating}
+
+The remaining part of query processing is evaluation its execution plan. This section describes how the \lstinline{CFPQTraverse} operation is performed.
+
+Let`s first consider the structure of the execution plan operations. Operations have parent-child relationships, so they are formed into a tree. Each operation can consume a record from a child operation, process it and produce another one for the parent. Records contain information necessary for the parent operation, as well as everything to restore the response, such as identifiers of accumulated vertices and edges.
+
+The \lstinline{CFPQTraverse} is based on \lstinline{CondTraverse} operation that already exists in the RedisGraph and performs a patterns matching. The \lstinline{CondTraverse} works as follows. At first it consumes several records from the child operation and accumulates them in the buffer. Here each record corresponds to the path that built by the child operation and contains information about the destination vertex of the path. The task of the \lstinline{CondTraverse} is to continue the path from this vertex in such way that the resulting path satisfies pattern corresponding to this operation. To do this \lstinline{CondTraverse} uses the algebraic expression obtained in the previous step. The resulting matrix of this expression represents all pairs of vertices between which there is a path satisfying the pattern. In order to find paths that start from given sources vertices \lstinline{CondTraverse} uses a filter matrix. This matrix is constructed from the destination vertices retrieved from the record buffer and multiplied to the right by algebraic expression of operation. Then the resulting expression is estimated to get the desired paths and to pass them to the parent operation by producing new records.
+
+The \lstinline{CFPQTraverse} operation is arranged in the same way as \lstinline{CondTraverse} but performs some additional work. Since each \lstinline{CFPQTraverse} corresponds to path pattern, its algebraic expression may contain references to named path patterns. Therefore all named path patterns that the algebraic expression depends on must be processed. For this they are extracted from \textit{path pattern context} and stored in the \textit{set of operation dependencies} during its initialization. In this case, dependencies are extracted recursively, so that references inside named path patterns are also extracted.
+
+The \lstinline{CFPQTraverse} execution stage starts the same way as \lstinline{CondTraverse}. First filter matrix is constructed from record buffer and embedded in the algebraic expression. Then for each reference we need to determinate the set of source vertices. This can be done during algebraic expression evaluation which we extended for this purpose. After that we have everything to run \textit{multiple-source} CFPQ algorithm to resolve all dependencies. This algorithm is slightly different from the one described in~\autoref{sec:multiple-source-algo} and is a generalization of it. It receives the \textit{set of operation dependencies} and sets of source vertices. After running this algorithm a matrix is obtained for each named path pattern. This matrices represent a set of pairs of vertices between which there is a path that satisfies the pattern. Then all references in the algebraic expression are replaced with the resulting matrices and the algebraic expression is evaluated. Finally as well as \lstinline{CondTraverse}, \lstinline{CFPQTraverse} extracts desired paths from resulting matrix and passes them to parent operation.
+
+% the \lstinline{CFPQTraverse} executes \textit{multiple-source} algorithm to resolve context-free reachability problem.
+
 % CFPQ to matrix expressions, etc. General schema of integration. Limits, restrictions, examples, etc.
 
 \subsection{Evaluation}
@@ -120,5 +130,4 @@ Small basic evalustion on real-world graph (geo?).
 In order to show, that performance is reasonable.
 
 Regular quries. Comparison with other DB?
-
 
