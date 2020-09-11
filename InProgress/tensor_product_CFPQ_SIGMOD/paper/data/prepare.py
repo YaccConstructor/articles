@@ -4,14 +4,17 @@ import pandas as pd
 import scipy.stats 
 
 
-def reject_outliers(data, m=1.5):
+def reject_outliers(data, m=1.0):
     return data[abs(data - np.mean(data)) < m * np.std(data)]
 
-full_data = pd.read_csv("single_path.csv")[['grammar','mean','length_path']].reindex(columns=['grammar','length_path','mean'])
+file_to_read = "CF/enzyme_path.csv"
+#file_to_read = "single_path.csv"
+
+full_data = pd.read_csv(file_to_read)[['grammar','mean','length_path']].reindex(columns=['grammar','length_path','mean'])
 
 grouped_by_grammar = full_data.groupby(['grammar'])
 
-ready_to_draw = [[g[0],[reject_outliers(x[1]['mean'].values) for x in g[1].groupby(['length_path'])]] for g in grouped_by_grammar]
+ready_to_draw = [[g[0],[(x[0], reject_outliers(x[1]['mean'].values)) for x in g[1].groupby(['length_path'])]] for g in grouped_by_grammar]
 	
 def draw_file_per_query (ready_to_draw):
     # Turn interactive plotting off
@@ -20,7 +23,10 @@ def draw_file_per_query (ready_to_draw):
     for d in important_data :
         fig = plt.figure()
         axs = plt.axes()
-        axs.violinplot(d[1],
+        res = list(zip(*d[1]))
+        print(res[1])
+        axs.violinplot(res[1],
+        	   positions=res[0],
                showmeans=False,
                showmedians=True)
         axs.set_title(d[0])
@@ -28,10 +34,11 @@ def draw_file_per_query (ready_to_draw):
 
 	    # adding horizontal grid lines
         axs.yaxis.grid(True)
-        axs.set_xticks([y + 1 for y in range(len(d[1]))])
+        #print(d)
+        axs.set_xticks(res[0])
         axs.set_xlabel('Length of path (nuber of edges)')
         axs.set_ylabel('Time in seconds')
-        plt.savefig("res_graphics/" + d[0].replace('/','_') + ".pdf")
+        plt.savefig("cfpq_res/" + d[0].replace('/','_') + ".pdf")
         plt.close(fig)
 
 def draw_all (ready_to_draw):
