@@ -7,8 +7,8 @@ import scipy.stats
 def reject_outliers(data, m=1.0):
     return data[abs(data - np.mean(data)) < m * np.std(data)]
 
-file_to_read = "CF/enzyme_path.csv"
-#file_to_read = "single_path.csv"
+#file_to_read = "CF/enzyme_path.csv"
+file_to_read = "single_path.csv"
 
 full_data = pd.read_csv(file_to_read)[['grammar','mean','length_path']].reindex(columns=['grammar','length_path','mean'])
 
@@ -29,7 +29,7 @@ def draw_file_per_query (ready_to_draw):
         	   positions=res[0],
                showmeans=False,
                showmedians=True)
-        axs.set_title(d[0])
+        #axs.set_title(d[0])
 
 
 	    # adding horizontal grid lines
@@ -38,7 +38,7 @@ def draw_file_per_query (ready_to_draw):
         axs.set_xticks(res[0])
         axs.set_xlabel('Length of path (nuber of edges)')
         axs.set_ylabel('Time in seconds')
-        plt.savefig("cfpq_res/" + d[0].replace('/','_') + ".pdf")
+        plt.savefig("geo_rpq_single_path/" + d[0].replace('/','_') + ".pdf")
         plt.close(fig)
 
 def draw_all (ready_to_draw):
