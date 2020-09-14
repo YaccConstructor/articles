@@ -19,49 +19,59 @@ Listing~\ref{tensor:cfpq:cubic} shows main steps of the algorithm.
 \Function{contextFreePathQuerying}{G, $\mathcal{G}$}
     % Input data preparation
     \State{$R \gets$ Recursive automata for $G$}
-    \State{$M_1 \gets$ Adjacency matrix for $R$}
-    \State{$M_2 \gets$ Adjacency matrix for $\mathcal{G}$}
-    \State{$A_2 \gets$ Adjacency matrix for $\mathcal{G}$}
+    \State{$\mathcal{M}_1 \gets$ Boolean adjacency matrix for $R$}
+    \State{$\mathcal{M}_2, \mathcal{A}_2 \gets$ Boolean adjacency matrix for $\mathcal{G}$}
     %\State{$M_3 \gets$ The empty matrix}
     \State{$C_3 \gets$ The empty matrix}
     % Eps-transition handling for graph
-    \For{$s \in 0..dim(M_1)-1$}
-        \For{$i \in 0..dim(M_2)-1$}
-            \State{$M_2[i,i] \gets M_2[i,i] \cup \textit{getNonterminals}(R,s,s)$}
+    \For{$s \in 0..dim(\mathcal{M}_1)-1$}
+        \For{$S \in \textit{getNonterminals}(R,s,s)$}
+            \For{$i \in 0..dim(\mathcal{M}_2)-1$}
+                \State{$M^S_2[i,i] \gets 1 $}
+            \EndFor
         \EndFor
     \EndFor
-    \While{Matrix $M_2$ is changing}
-       \State{$M_3' \gets  M_1 \otimes A_2$}
-        \State{$A_2 \gets$ The empty matrix of size $n \times n$}
+    \While{$\mathcal{M}_2$ is changing}
+        \State{$M_3' \gets \bigvee_{M^S \in \mathcal{M}_1 \otimes \mathcal{A}_2} M^S$}
+        %\State{$\mathcal{A}_2 \gets$ The empty matrix of size $n \times n$}
+        \State{$\mathcal{A}_2 \gets$ The empty matrix}
+        \State{$C_3' \gets$ The empty matrix}
         %\Comment{Evaluate Kroncker product}
-       \For{$M_3'[i,j] \mid M_3'[i,j] = 1$}
-            \State{$C_3[i,j] \gets 1$}
-             \State{$C_3' \gets  \bigcup_{(i,j)} \textit{add}(C_3, i, j)$}
-             \Comment{Updating the transitive closure}
-             \State{$C_3 \gets C_3 + C_3'$}
+        \For{$(i,j) \mid M_3'[i,j] \neq 0$}
+            %\State{$C_3'[i,j] \gets 1$}
+            \State{$C_3' \gets \textit{add}(C_3, C_3', i, j)$}
+            \Comment{Updating the transitive closure}
+            \State{$C_3 \gets C_3 + C_3'$}
         \EndFor
-        \State{$n \gets$ dim($M_3)$}
+        %\State{$n \gets$ dim($M_3)$}
         %\Comment{Matrix $M_3$ size = $n \times n$}
         % Add non-terminals (possibly new)
         \For{$(i,j)\ |\ C_3'[i,j] \neq 0$}
                 \State{$s, f \gets \textit{getStates}(C_3',i,j)$}
-                \If{$\textit{getNonterminals}(R,s,f) \neq \emptyset$}
-                    \State{$x, y \gets \textit{getCoordinates}(C_3',i,j)$}
-                    \State{$M_2[x,y] \gets M_2[x,y] \cup \textit{getNonterminals}(R,s,f)$}
-                     \State{$A_2[x,y] \gets A_2[x,y] \cup \textit{getNonterminals}(R,s,f)$}
-                \EndIf
+                \State{$x, y \gets \textit{getCoordinates}(C_3',i,j)$}
+                \For{$S \in \textit{getNonterminals}(R,s,f)$}
+                    \State{$M^S_2[x,y] \gets 1$}
+                    \State{$A^S_2[x,y] \gets 1$}
+                \EndFor
         \EndFor
     \EndWhile
 \State \Return $\mathcal{M}_2, C_3$
 \EndFunction
+% \Function{add}{$C, C', i, j$}
+%     \State{$C'[i,j] \gets {1}$}
+%     \For{$(u,v) \mid C[u,i] = C[j,v] = 1, C[u,j] = C[u,v] = 0$}
+%         \State{$C'[u,v] \gets {1}$}
+%     \EndFor
+%     \State \Return{$C'$}
+% \EndFunction
 \Function{getStates}{$C, i, j$}
     \State{$r \gets dim(\mathcal{M}_1)$}
-    \Comment{$\mathcal{M}_1$ is adjacency matrices for $R$}
+    \Comment{$\mathcal{M}_1$ is adjacency matrix for $R$}
     \State \Return{$\left\lfloor{i / r}\right\rfloor, \left\lfloor{j / r}\right\rfloor$}
 \EndFunction
 \Function{getCoordinates}{$C, i, j$}
     \State{$n \gets dim(\mathcal{M}_2)$}
-    \Comment{$\mathcal{M}_2$ is adjacency matrices for $\mathcal{G}$}
+    \Comment{$\mathcal{M}_2$ is adjacency matrix for $\mathcal{G}$}
     \State \Return{$i \bmod n, j \bmod n$}
 \EndFunction
 \end{algorithmic}
@@ -77,7 +87,7 @@ Then by the left-distributivity of the Kronecker product we have $\mathcal{M}_1 
 Note that $\mathcal{M}_1 \otimes \mathcal{B}_2$ is known and is already in the matrix $\mathcal{M}_3$ and its transitive closure also is already in the matrix $C_3$, because it has been calculated at the previous iterations, so it is left to update some elements of $\mathcal{M}_3$ by computing $\mathcal{M}_1\otimes \mathcal{A}_2$.
 
 
-The fast computation of transitive closure can be obtained by using incremental dynamic transitive closure technique. Now we describe the function $add$ from Listing \ref{tensor:cfpq:cubic}. Let $C_3$ be a transitive closure matrix of the graph $G$ with $n$ vertices. We use an approach by Ibaraki and Katoh~\cite{IBARAKI198395} to maintain dynamic transitive closure. The key idea of their algorithm is to recalculate reachability information only for those vertices, which become reachable after insertion of the certain edge. We have modified it to achive a logarithmic speed-up.
+The fast computation of transitive closure can be obtained by using incremental dynamic transitive closure technique. Now we describe the function $add$ from Listing \ref{tensor:cfpq:cubic}. Let $C_3$ be a transitive closure matrix of the graph $G$ with $n$ vertices. We use an approach by Ibaraki and Katoh~\cite{IBARAKI198395} to maintain dynamic transitive closure. The key idea of their algorithm is to recalculate reachability information only for those vertices, which become reachable after insertion of the certain edge. We have modified it to achieve a logarithmic speed-up.
 
 
 For each newly inserted edge $(i, j)$ and every node $u \neq j$ of $G$ such that $C_3[u, i] = 1$ and $C_3[u, j]=0$, one needs to perform operation $C_3[u,v] = C_3[u, v] \wedge C_3[j, v]$ for every node $v$, where $1 \wedge 1 = 0 \wedge 0 = 1 \wedge 0 = 0$ and $0 \wedge 1 = 1$.
@@ -110,7 +120,7 @@ There are $n/\log n$ such parts, so the element-wise product of two vectors of s
  $$\sum\limits_i{T(\mathcal{M}_1 \otimes \mathcal{A}_2^{(i)})} = |\mathcal{M}_1| \otimes \sum\limits_i {|\mathcal{A}_2^{(i)}|} = |\mathcal{M}_1|O(n^2).$$
 
 
-Now we derive the time complexity of maintainig the dynamic transitive closure.
+Now we derive the time complexity of maintaining the dynamic transitive closure.
 Since $C_3$ has size of $O(n^2)$, no more than $O(n^2)$ edges will be added during all iterations of the algorithm.
 Checking condition whether $C_3[u, i] = 1$ and $C_3[u, j]=0$ for every node $u \in V$ for each newly inserted edge $(i, j)$ requires one multiplication of vectors per insertion, thus total time is $O(n^3/\log n)$.
 Note that after checking the condition, at least one element $C[u', j]$ changes value from 0 to 1 and then never becomes 0 for some $u'$ and $j$.
@@ -118,7 +128,7 @@ Therefore the operation $C_3[u',v] = C_3[u', v] \wedge C_3[j, v]$ for all $v \in
 
 
 The matrix $C_3'$ contains only new elements, therefore $C_3$ can be updated directly using only $|C_3'|$ operations and hence $O(n^2)$ operations in total.
-The same holds for cycle in line 18 of the algorithm from Listing~\ref{tensor:cfpq:cubic}, because operations are performed only for non-zero elements of the matrix $|C_3'|$.
+The same holds for cycle in line 17 of the algorithm from Listing~\ref{tensor:cfpq:cubic}, because operations are performed only for non-zero elements of the matrix $|C_3'|$.
 Finally, the time complexity of the algorithm is $O(n^2) + O(n^2 \log n) + O(n^3/\log n) + O(n^2) + O(n^2) = O(n^3/\log n)$.
 \end{proof}{}
 
