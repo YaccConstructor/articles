@@ -5,148 +5,162 @@ Also, we provide brief description of Azimov's algorithm which is used as a base
 
 \subsection{basic Definitions of Graph Theory}
 
-In this work we use labeled digraph as a data model and define it as follows.
-
-\begin{definition} \emph{Labeled directed graph} is a triple $D = (V, E, \lambda)$, where
+In this work we use labeled directed graph as a data model and define it as follows.
+\begin{definition} \emph{Labeled directed graph} is a tuple of six elements $D = (V, E, \Sigma_V, \Sigma_E, \lambda_V, \lambda_E)$, where
 \begin{itemize}
-    \item $V$ is a set of vertices. For simplicity, we assume that the vertices are natural numbers.
-    \item $E \subseteq V \times V$ is a set of edges
-    \item $\lambda : (E\cup V) \xrightarrow{} 2^\Sigma$ is a function that maps edges and vertices to their labels from the label set $\Sigma$.
+    \item $\Sigma_V$ and $\Sigma_E$ is a set of labels of vertices and edges respectively, such that $\Sigma_V \cap \Sigma_E = \varnothing$.
+    \item $V$ is a set of vertices. For simplicity, we assume that the vertices are natural numbers from $1$ to $|V|$.
+    \item $E \subseteq V \times V$ is a set of edges.
+    \item $\lambda_V : V \xrightarrow{} 2^{\Sigma_V}$ is a function that maps a vertex to a set of its labels, which can be empty.
+    \item $\lambda_E : E \xrightarrow{} 2^{\Sigma_E} \setminus \{\varnothing\}$ is a function that maps a edge to a not empty set of its labels, so each edge must have at least one label.
 \end{itemize}
 \end{definition}
 
-An example of the graph is presented in figure~\ref{fig:example_input_graph}. Here the set of labels $\Sigma = \{A, B, C, D, X\}$.
+An example of the labeled directed graph $\mathcal{D}$ is presented in figure~\ref{fig:example_input_graph}. Here the set of labels $\Sigma_V = \{x, y\}$ and $\Sigma_E = \{a, b, c, d\}$.
 
 \begin{figure}[h]
     \centering        
     \begin{tikzpicture}[shorten >=1pt,auto]
-       \node[state] (q_0)                        {$0: X$};
-       \node[state] (q_1) [right=of q_0]         {$1$};
-       \node[state] (q_2) [below left=of q_1]    {$2: X$};
-       \node[state] (q_3) [below left=of q_2]    {$3$};
-       \node[state] (q_4) [below right=of q_2]   {$4$};
-       \node[state] (q_5) [below right=of q_1]   {$5$};
+       \node[state] (q_0)                        {$1:\{x, y\}$};
+       \node[state] (q_1) [right=of q_0]         {$2$};
+       \node[state] (q_2) [below left=of q_1]    {$3: \{x\}$};
+       \node[state] (q_3) [below left=of q_2]    {$4$};
+       \node[state] (q_4) [below right=of q_2]   {$5: \{y\}$};
+       \node[state] (q_5) [below right=of q_1]   {$6$};
        \path[->]
-        (q_0) edge  node {$A$} (q_1)
-        (q_1) edge  node {$B$} (q_5)
-        (q_1) edge  node {$B$} (q_2)
-        (q_3) edge[above]  node {$C$} (q_2)
-        (q_4) edge  node {$C$} (q_3)
-        (q_2) edge[above]  node {$C$} (q_4)
-        (q_5) edge[bend left, below]  node {$D$} (q_4)
-        (q_4) edge[bend left, above]  node {$D$} (q_5);
+        (q_0) edge  node {$\{a\}$} (q_1)
+        (q_1) edge  node {$\{b\}$} (q_5)
+        (q_1) edge  node {$\{a, b\}$} (q_2)
+        (q_3) edge[above]  node {$\{c\}$} (q_2)
+        (q_4) edge  node {$\{c\}$} (q_3)
+        (q_2) edge[above]  node {$\{c\}$} (q_4)
+        (q_5) edge[bend left, below]  node {$\{d\}$} (q_4)
+        (q_4) edge[bend left, above]  node {$\{d\}$} (q_5);
     \end{tikzpicture}
-    \caption{The example of input graph $\mathcal{G}$}
+    \caption{The example of input graph $\mathcal{D}$}
     \label{fig:example_input_graph}
 \end{figure}
 
-We use adjacency matrix decomposed to a set of a boolean matrix as a representation of the graph.
+% We use adjacency matrix decomposed to a set of a boolean matrix as a representation of the graph. 
+
+Let's denote $D$ as a labeled directed graph $(V, E, \Sigma_V, \sigma_E, \lambda_E, \lambda_V)$ for the following definitions. Also we identify a Boolean $|V| \times |V|$ matrix $A$ and binary relation $R \in V \times V$ in the following way:
+$$A \equiv R \iff R = \{(i, j) \mid A[i, j] = 1\}$$.
+
 \begin{definition}
-An adjacency matrix $M$ of the labeled graph $\mathcal{G}=(V, E, \lambda)$ is a square $|V|\times|V|$ matrix, such that $M[i,j] = \lambda((i, j))$.
+Path $\pi$ in the graph $D$ is a tuple of arbitrary $2n +1$ length $(v_1, e_1, v_2, e_2, ..., e_n, v_{n+1})$, where $\forall i \mid 1 \leq n+1 ~ v_i \in V$, $\forall j \mid 1 \leq j \leq n ~ e_j=(v_j, v_{j+1}) \in E$.
+
+We denote the set of all possible paths in the graph $D$ as $\pi(D)$. 
 \end{definition}
 
-Adjacency matrix $M$ of the graph $\mathcal{G}$ is
+\begin{definition}
+An \emph{adjacency matrix} $M$ of the graph $D$ is a square $|V|\times|V|$ matrix, such that 
+\begin{equation*}
+M[i,j] =
+ \begin{cases}
+   \lambda_E((i, j)), & (i, j) \in E\\
+   \varnothing, & else
+ \end{cases}
+\end{equation*}
+\end{definition}
+
+For example adjacency matrix $M$ of the example graph $\mathcal{D}$ is
 
 $$
     M =
     \begin{pmatrix}
-    .     & \{A\} &   .   &   .   &   .   &   .   \\
-    .     &   .   & \{B\} &   .   &       & \{B\} \\
-    .     &   .   &   .   &   .   & \{C\} &   .   \\
-    .     &   .   & \{C\} &   .   &   .   &   .   \\
-    .     &   .   &   .   & \{C\} &   .   & \{D\} \\
-    .     & .     &   .   &   .   & \{D\} &   .
+    \varnothing     & \{a\} &   \varnothing      &   \varnothing   &   \varnothing   &   \varnothing   \\
+    \varnothing     &   \varnothing   & \{a, b\} &   \varnothing   &       & \{b\} \\
+    \varnothing     &   \varnothing   &   \varnothing      &   \varnothing   & \{d\} &   \varnothing   \\
+    \varnothing     &   \varnothing   & \{c\}    &   \varnothing   &   \varnothing   &   \varnothing   \\
+    \varnothing     &   \varnothing   &   \varnothing      & \{c\} &   \varnothing   & \{d\} \\
+    \varnothing     & \varnothing     &   \varnothing      &   \varnothing   & \{d\} &   \varnothing
     \end{pmatrix}.
 $$
 
 \begin{definition}
-
-Boolean decomposition of adjacency matrix $M$ of graph $\mathcal{G}=(V, E, \lambda)$ is set of Boolean matrix $$\mathcal{M} = \{M^l \mid l \in \Sigma, M^l[i,j]=1 \iff l \in M[i,j]\}.$$
-
+Let M be an adjacency matrix of the graph $D$. Then the \emph{adjacency matrix of label} $l \in \Sigma_E$ of graph $D$ is a $|V| \times |V|$ matrix $\mathcal{E}^l$, such that
+\begin{equation*}
+\mathcal{E}^l[i,j] =
+ \begin{cases}
+   1, & l \in M[i,j]\\
+   0, & else
+ \end{cases}
+\end{equation*}
 \end{definition}
 
-Matrix $M$ can be represented as a set of four Boolean matrices $M^A$, $M^B$, $M^C$ and $M^D$ where
+\begin{definition}
+\emph{Boolean decomposition of adjacency matrix} $M$ of the graph $D$ is a set of Boolean matrices $$\mathcal{E} = \{\mathcal{E}^l \mid l \in \Sigma\},$$
+where $\mathcal{E}^l$ is the adjacency matrix of label $l$.
+\end{definition}
+
+For example, adjacency matrix $M$ of the example graph $\mathcal{D}$ can be represented as a set of four Boolean matrices $\mathcal{E}^a$, $\mathcal{E}^b$, $\mathcal{E}^c$ and $\mathcal{E}^d$ such that 
 \begin{align*}
-& M^{A} =    
-\begin{pmatrix}
-    .     &   1   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .
-\end{pmatrix}, 
-M^{B} =
-\begin{pmatrix}
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   1   &   .   &   .   &   1   \\
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .
-\end{pmatrix} \\
-& M^{C} =
-\begin{pmatrix}
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   1   &   .   \\
-    .     &   .   &   1   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   1   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .
-\end{pmatrix},
-M^{D} =
-\begin{pmatrix}
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   1   \\
-    .     &   .   &   .   &   .   &   1   &   .
-\end{pmatrix}.
+&\mathcal{E}^a = \{(1, 2), (2, 3)\}, &&\mathcal{E}^b = \{(2, 3), (2, 6)\},  \\
+&\mathcal{E}^c = \{(3, 5), (5, 4), (4, 3)\}, &&\mathcal{E}^d = \{(5, 6), (6, 5)\}.
 \label{eq:boolean_decomposition_of_graph}
 \end{align*}
 
 \begin{definition}
 
-An vertex label matrix $N$ of the labeled graph $\mathcal(G)=(V, E, \lambda)$ is a square $|V|\times|V|$ matrix, such that $N[i,i] = \lambda (i)$ and $N[i,j] = \emptyset$ for $i \neq j$.
+An \emph{vertex label matrix} $H$ of the graph $D$ is a square $|V|\times|V|$ matrix, such that 
+\begin{equation*}
+H[i,j] = 
+  \begin{cases}
+    \lambda_V (i), & i = j \\
+    \varnothing,     & else
+  \end{cases}
+\end{equation*}
 
+For example, the vertex label matrix $H$ of the example graph $\mathcal{D}$ is the following:
+$$
+    H =
+    \begin{pmatrix}
+    \{x, y\}        & \varnothing     &   \varnothing      &   \varnothing   &   \varnothing   &    \varnothing  \\
+    \varnothing     &   \varnothing   & \varnothing        &   \varnothing   & \varnothing     & \varnothing     \\
+    \varnothing     &   \varnothing   &   \{x\}            &   \varnothing   & \varnothing     &   \varnothing   \\
+    \varnothing     &   \varnothing   & \varnothing        &   \varnothing   &   \varnothing   &   \varnothing   \\
+    \varnothing     &   \varnothing   &   \varnothing      &    \varnothing  &   \{y\}         & \varnothing     \\
+    \varnothing     & \varnothing     &   \varnothing      &   \varnothing   & \varnothing     &   \varnothing
+    \end{pmatrix}.
+$$
 \end{definition}
-
-The matrix $N$ for graph $\mathcal{G}$:
-$$
-N = 
-\begin{pmatrix}
-    \{X\}     &   .   &   .       &   .   &   .   &   .   \\
-    .         &   .   &   .       &   .   &   .   &   .   \\
-    .         &   .   &   \{X\}   &   .   &   .   &   .   \\
-    .         &   .   &   .       &   .   &   .   &   .   \\
-    .         &   .   &   .       &   .   &   .   &   .   \\
-    .         &   .   &   .       &   .   &   .   &   .
-\end{pmatrix}.
-$$
 
 \begin{definition}
-
-Boolean decomposition of vertex label matrix $N$ of graph $\mathcal{G}=(V, E, \lambda)$ is set of Boolean matrix $$\mathcal{N} = \{N^l \mid l \in \Sigma, N^l[i,j]=1 \iff l \in N[i,j]\}.$$
-
+Let $H$ be a vertex label matrix of graph $D$. Then the \emph{vertex matrix of label} $l$ is a square $|V|\times|V|$ matrix $\mathcal{V}^l$, such that
+\begin{equation*}
+\mathcal{V}^l[i,j] = 
+  \begin{cases}
+    1,  & l \in H[i, j] \\
+    0,  & else
+  \end{cases}
+\end{equation*}
 \end{definition}
 
-The decomposition $\mathcal{N}$ for the graph $\mathcal{G}$ contains only one boolean matrix $N^X$:
-$$
-N^X = 
-\begin{pmatrix}
-    1     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   1   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .
-\end{pmatrix}.
-$$
+\begin{definition}
+Boolean decomposition of vertex label matrix $H$ of the graph $D$ is the set of Boolean matrices
+$$\mathcal{V} = \{V^l \mid l \in \Sigma\},$$
+where $\mathcal{V}^l$ is a vertex matrix of label $l$.
+\end{definition}
 
+For example, vertex label matrix $H$ of the example graph $\mathcal{D}$ can be decomposed into a set of the following boolean matrices:
+
+\begin{align*}
+&\mathcal{V}^x = \{(1,1), (3, 3)\}, &&\mathcal{V}^y = \{(5, 5)\}.
+\label{eq:boolean_decomposition_of_graph}
+\end{align*}
 
 \subsection{Basic Definitions of Formal Languages}
 We formulate constraints in terms of context-free languages, for this reason there are following definitions.
+
+\begin{definition}
+Let $\Sigma$ be a alphabet, $A, B$ $\subset \Sigma^*$. Then concatenation of $A$ and $B$ is the following:
+
+$$A \cdot B = \{a b \mid a \in A, b \in B\} \in \Sigma^*$$
+
+In other worlds concatenation of two sets contains all concatenations of elements from the first set with all elements from the second one.
+
+\end{definition}
+
 \begin{definition}\emph{Context-free grammar} is a 4-tuple $G=(N, \Sigma, P, S)$, where 
 \begin{itemize}
     \item $N$ is a finite set of nonterminals
@@ -166,7 +180,7 @@ Where $S \xLongrightarrow[G]{*} w$  denotes that a string $w$ can be generated f
     \begin{itemize}
         \item $A \rightarrow BC,~A \in N,~B,~C \in N \setminus S$
         \item  $A \rightarrow a,~A \in N,~a \in \Sigma$
-        \item $S \rightarrow \varepsilon,~\varepsilon$ is an empty string
+        \item $S \rightarrow \varepsilon,~\varepsilon$ is an identity element of $\Sigma^*$ that correspondes to empty string
     \end{itemize}
 \end{definition}
  Since matrix-based CFPQ algorithms processes grammars only in Chomsky normal form, it should be noted that every context-free grammar can be transformed into an equivalent one in this form. 
@@ -201,11 +215,21 @@ We use a context-free grammar in the weak Chomsky normal form without a starting
 
 \subsection{Context-Free Path Querying}
 
-\begin{definition}\emph{Context-free relation} is a relation $R_A \subseteq V \times V$ for edge-labeled graph $D = (V, E)$, context-free grammar $G = (N,~\Sigma,~P)$ and fixed non-terminal $A$:
-\begin{align*}
-     R_A = \{(n, m) \mid \exists n \pi m~(l(\pi) \in L(G_A))\}
-\end{align*}
-Where $l(\pi)$ is a word obtained by concatenating the labels along the path $\pi$.
+
+\begin{definition}
+Let $D = (V, E, \Sigma_V, \Sigma_E, \lambda_V, \lambda_E)$ be a labeled graph, $G = (N, \Sigma_V \cup \Sigma_E, P, S)$ be a context free grammar. Then a \emph{context free relation} with grammar $G$ on the labeled graph $D$ is the following relation $R_A \subseteq V \times V$:
+
+\begin{equation*} \label{eq1}
+\begin{split}
+R_A = \{&(v, to) \in V \times V \mid \exists \pi = (v_1, e_1, v_2, e_2, ..., e_n, v_n) \in \pi(D): \\
+      &v_1 = v, v_n = to,~l(\pi) \cap L(G) \neq \varnothing \},
+\end{split}
+\end{equation*}
+where $l(\pi) \in (\Sigma_V \cup \Sigma_E)^*$ is the set of possible labels along the path $\pi$:
+$$l(\pi) = \lambda_V(v_1)^* \cdot \lambda_E(e_1) \cdot \lambda_V(v_2)^* \cdot \lambda_E(e_2) \cdot ... \cdot \lambda_E(e_n) \cdot \lambda_V(v_n)^*$$
+
+\textbf{TODO}: Example of $l(\pi)$ and context free relation.
+
 \end{definition}
 
 Finally, in these notations context-free path querying problem is the problem of finding context-free relations in which the language is specified by a context-free grammar.
