@@ -37,7 +37,7 @@
 %%   Right brace   \}     Tilde         \~}
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesClass{acmart}
-[2020/02/22 v1.70 Typesetting articles for the Association for Computing Machinery]
+[2020/04/30 v1.71 Typesetting articles for the Association for Computing Machinery]
 \def\@classname{acmart}
 \InputIfFileExists{acmart-preload-hook.tex}{%
   \ClassWarning{\@classname}{%
@@ -45,6 +45,7 @@
     for any problems from now on.}}{}
 \RequirePackage{xkeyval}
 \RequirePackage{xstring}
+\RequirePackage{iftex}
 \define@choicekey*+{acmart.cls}{format}[\ACM@format\ACM@format@nr]{%
   manuscript, acmsmall, acmlarge, acmtog, sigconf, siggraph,
   sigplan, sigchi, sigchi-a}[manuscript]{}{%
@@ -167,9 +168,29 @@
 \newif\if@ACM@journal@bibstrip
 \newif\if@ACM@sigchiamode
 \ifnum\ACM@format@nr=5\relax % siggraph
-  \ClassWarning{\@classname}{The format siggraph is now obsolete.
-    I am switching to sigconf.}
+\ClassWarning{\@classname}{%
+  The format siggraph is now obsolete.\MessageBreak
+  I am switching to sigconf.}
   \setkeys{acmart.cls}{format=sigconf}
+\fi
+\ifnum\ACM@format@nr=7\relax % sigchi
+\ClassWarning{\@classname}{%
+  The format sigchi is now obsolete.\MessageBreak
+  I am switching to sigconf.}
+  \setkeys{acmart.cls}{format=sigconf}
+\fi
+\ifnum\ACM@format@nr=8\relax % sigchi
+\ClassWarning{\@classname}{%
+  ACM SIGCHI has retired the SIGCHI-A template\MessageBreak
+  effective immediately. ACM is keeping this template\MessageBreak
+  option available to authors who are working on legacy\MessageBreak
+  documents only. ACM will not, under any circumstances,\MessageBreak
+  accept documents in this format for publication and\MessageBreak
+  will not offer technical support to the authors who use\MessageBreak
+  this template.\MessageBreak
+  ACM SIGCHI is directing Conference leaders and\MessageBreak
+  authors to publish their articles using the SIGCONF\MessageBreak
+  template call.}
 \fi
 \ifnum\ACM@format@nr=0\relax
   \@ACM@manuscripttrue
@@ -220,7 +241,7 @@
    \or % sigplan
     \def\ACM@fontsize{10pt}%
    \or % sigchi
-    \def\ACM@fontsize{10pt}%
+    \def\ACM@fontsize{9pt}%
   \or % sigchi-a
     \def\ACM@fontsize{10pt}%
   \fi
@@ -439,7 +460,7 @@
 }
 \def\l@section{\@tocline{1}{0pt}{1pc}{2pc}{}}
 \def\l@subsection{\@tocline{2}{0pt}{1pc}{3pc}{}}
-\def\l@subsubsection{\@tocline{2}{0pt}{1pc}{5pc}{}}
+\def\l@subsubsection{\@tocline{3}{0pt}{1pc}{5pc}{}}
 \def\@makefntext{\noindent\@makefnmark}
 \if@ACM@sigchiamode
 \long\def\@footnotetext#1{\marginpar{%
@@ -547,6 +568,17 @@
   \SetWatermarkText{\parbox{12em}{\centering
       Unpublished working draft.\\
       Not for distribution.}}
+\else
+  \if@ACM@sigchiamode
+    \if@ACM@nonacm\else
+      \RequirePackage{draftwatermark}
+      \SetWatermarkFontSize{0.5in}
+      \SetWatermarkColor[gray]{.9}
+      \SetWatermarkText{\parbox{12em}{\centering
+          Legacy document. \\
+          Not for publication in an ACM venue}}
+    \fi
+  \fi
 \fi
 \RequirePackage{geometry}
 \ifcase\ACM@format@nr
@@ -692,14 +724,19 @@
     TeX}\@ACM@newfontsfalse}
 \if@ACM@newfonts
   \RequirePackage[T1]{fontenc}
-\ifxetex
-  \RequirePackage[tt=false]{libertine}
-  \setmonofont{inconsolata}
-\else
-  \RequirePackage[tt=false, type1=true]{libertine}
-\fi
-\RequirePackage[varqu]{zi4}
-\RequirePackage[libertine]{newtxmath}
+  \ifxetex
+    \RequirePackage[tt=false]{libertine}
+    \setmonofont[StylisticSet=3]{inconsolata}
+  \else
+    \ifluatex
+      \RequirePackage[tt=false]{libertine}
+      \setmonofont[StylisticSet=3]{inconsolata}
+    \else
+       \RequirePackage[tt=false, type1=true]{libertine}
+       \RequirePackage[varqu]{zi4}
+    \fi
+  \fi
+  \RequirePackage[libertine]{newtxmath}
 \fi
 \let\liningnums\@undefined
 \AtEndPreamble{%
