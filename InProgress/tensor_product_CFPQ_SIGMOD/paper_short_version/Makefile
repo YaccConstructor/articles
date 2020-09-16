@@ -8,22 +8,10 @@
 
 PACKAGE=acmart
 
-SAMPLES = \
-	samples/sample-manuscript.tex \
-	samples/sample-acmsmall.tex \
-	samples/sample-acmlarge.tex \
-	samples/sample-acmtog.tex \
-	samples/sample-sigconf.tex \
-	samples/sample-authordraft.tex \
-	samples/sample-xelatex.tex \
-	samples/sample-sigplan.tex \
-	samples/sample-sigchi.tex \
-	samples/sample-sigchi-a.tex
 
+PDF = $(PACKAGE).pdf acmguide.pdf
 
-PDF = $(PACKAGE).pdf ${SAMPLES:%.tex=%.pdf} acmguide.pdf
-
-all:  ${PDF}
+all:  ${PDF} ALLSAMPLES
 
 
 %.pdf:  %.dtx   $(PACKAGE).cls
@@ -47,77 +35,67 @@ acmguide.pdf: $(PACKAGE).dtx $(PACKAGE).cls
 %.cls:   %.ins %.dtx
 	pdflatex $<
 
+
+ALLSAMPLES:
+	cd samples; pdflatex samples.ins; cd ..
+	for texfile in samples/*.tex; do \
+		pdffile=$${texfile%.tex}.pdf; \
+		${MAKE} $$pdffile; \
+	done
+
 samples/%: %
 	cp $^ samples
-
-samples/sample-acmsmall.tex: samples/sample-manuscript.tex
-	sed 's/documentclass\[manuscript,screen\]{acmart}/documentclass[acmsmall]{acmart}/' $< > $@
-
-samples/sample-acmlarge.tex: samples/sample-manuscript.tex
-	sed 's/documentclass\[manuscript,screen\]{acmart}/documentclass[acmlarge,screen]{acmart}/' $< > $@
-
-samples/sample-acmtog.tex: samples/sample-manuscript.tex
-	sed 's/documentclass\[manuscript,screen\]{acmart}/documentclass[acmtog]{acmart}/' $<   > $@
-
-samples/sample-sigconf.tex: samples/sample-manuscript.tex
-	sed 's/documentclass\[manuscript,screen\]{acmart}/documentclass[sigconf]{acmart}/' $< | sed 's/^%%//'  > $@
-
-samples/sample-authordraft.tex: samples/sample-manuscript.tex
-	sed 's/documentclass\[manuscript,screen\]{acmart}/documentclass[sigconf,authordraft]{acmart}/' $< | sed 's/^%%//'  > $@
-
-samples/sample-xelatex.tex: samples/sample-sigconf.tex
-	cp $< $@
-
-samples/sample-sigplan.tex: samples/sample-manuscript.tex
-	sed 's/documentclass\[manuscript,screen\]{acmart}/documentclass[sigplan,screen]{acmart}/' $< | sed 's/^%%//'  > $@
-
-samples/sample-sigchi.tex: samples/sample-manuscript.tex
-	sed 's/documentclass\[manuscript,screen\]{acmart}/documentclass[sigchi]{acmart}/' $< | sed 's/^%%//'  > $@
-
-samples/sample-sigchi-a.tex: samples/sample-manuscript.tex
-	sed 's/documentclass\[manuscript,screen\]{acmart}/documentclass[sigchi-a]{acmart}/' $< | \
-	sed 's/begin{figure}\[h\]/begin{marginfigure}/' | \
-	sed 's/end{figure}/end{marginfigure}/' | \
-	sed 's/begin{table}/begin{margintable}/' | \
-	sed 's/end{table}/end{margintable}/'   > $@
 
 
 samples/$(PACKAGE).cls: $(PACKAGE).cls
 samples/ACM-Reference-Format.bst: ACM-Reference-Format.bst
 
 samples/%.pdf:  samples/%.tex   samples/$(PACKAGE).cls samples/ACM-Reference-Format.bst
-	cd $(dir $@) && pdflatex $(notdir $<)
+	cd $(dir $@) && pdflatex-dev $(notdir $<)
 	- cd $(dir $@) && bibtex $(notdir $(basename $<))
-	cd $(dir $@) && pdflatex $(notdir $<)
-	cd $(dir $@) && pdflatex $(notdir $<)
+	cd $(dir $@) && pdflatex-dev $(notdir $<)
+	cd $(dir $@) && pdflatex-dev $(notdir $<)
 	while ( grep -q '^LaTeX Warning: Label(s) may have changed' $(basename $<).log) \
-	  do cd $(dir $@) && pdflatex $(notdir $<); done
+	  do cd $(dir $@) && pdflatex-dev $(notdir $<); done
 
 samples/sample-xelatex.pdf:  samples/sample-xelatex.tex   samples/$(PACKAGE).cls samples/ACM-Reference-Format.bst
-	cd $(dir $@) && xelatex $(notdir $<)
+	cd $(dir $@) && xelatex-dev $(notdir $<)
 	- cd $(dir $@) && bibtex $(notdir $(basename $<))
-	cd $(dir $@) && xelatex $(notdir $<)
-	cd $(dir $@) && xelatex $(notdir $<)
+	cd $(dir $@) && xelatex-dev $(notdir $<)
+	cd $(dir $@) && xelatex-dev $(notdir $<)
 	while ( grep -q '^LaTeX Warning: Label(s) may have changed' $(basename $<).log) \
-	  do cd $(dir $@) && xelatex $(notdir $<); done
+	  do cd $(dir $@) && xelatex-dev $(notdir $<); done
+
+samples/sample-lualatex.pdf:  samples/sample-lualatex.tex   samples/$(PACKAGE).cls samples/ACM-Reference-Format.bst
+	cd $(dir $@) && lualatex-dev $(notdir $<)
+	- cd $(dir $@) && bibtex $(notdir $(basename $<))
+	cd $(dir $@) && lualatex-dev $(notdir $<)
+	cd $(dir $@) && lualatex-dev $(notdir $<)
+	while ( grep -q '^LaTeX Warning: Label(s) may have changed' $(basename $<).log) \
+	  do cd $(dir $@) && lualatex-dev $(notdir $<); done
 
 
 
 .PRECIOUS:  $(PACKAGE).cfg $(PACKAGE).cls
 
-
-clean:
-	$(RM)  $(PACKAGE).cls *.log *.aux \
+docclean:
+	$(RM)  *.log *.aux \
 	*.cfg *.glo *.idx *.toc \
 	*.ilg *.ind *.out *.lof \
 	*.lot *.bbl *.blg *.gls *.cut *.hd \
 	*.dvi *.ps *.thm *.tgz *.zip *.rpi \
 	samples/$(PACKAGE).cls samples/ACM-Reference-Format.bst \
 	samples/*.log samples/*.aux samples/*.out \
-	samples/*.bbl samples/*.blg samples/*.cut
+	samples/*.bbl samples/*.blg samples/*.cut 
+
+
+
+clean: docclean
+	$(RM)  $(PACKAGE).cls \
+	samples/*.tex
 
 distclean: clean
-
+	$(RM)  *.pdf samples/sample-*.pdf
 
 #
 # Archive for the distribution. Includes typeset documentation
@@ -128,5 +106,7 @@ archive:  all clean
 zip:  all clean
 	zip -r  $(PACKAGE).zip * -x '*~' -x '*.tgz' -x '*.zip' -x CVS -x 'CVS/*'
 
-documents.zip: all
-	zip $@ acmart.pdf acmguide.pdf samples/sample-*.pdf *.cls *.bst
+documents.zip: all docclean
+	zip -r $@ acmart.pdf acmguide.pdf samples *.cls ACM-Reference-Format.*
+
+.PHONY: all ALLSAMPLES docclean clean distclean archive zip
