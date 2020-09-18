@@ -19,17 +19,17 @@ This extension introduces path patterns, which are a more powerful alternative t
 \begin{algorithmic}[1]
 \caption{Example of using a simple path pattern}
 \label{lst:cypher-example-1}
-\State MATCH (v)-/ [:A (:X) :B] | [:C (:Y) :D] /->(to)
+\State MATCH (v)-/ [:a (:x) :b] | [:c (:y) :d] /->(to)
 \State RETURN v, to
 \end{algorithmic}
 \end{algorithm}
 
-The listing~\ref{lst:cypher-example-1} provides an example of query in extended syntax with a simple path pattern. In this example there are relationship patterns :A, :B, :C :D and node patterns (:X), (:Y). The square brackets are used for grouping parts of the pattern. The $|$ symbol denotes alternative between corresponding paths and the whitespace denotes sequence of paths. So the result of executing the query on the graph $D$ will be the following set of vertex pairs:
+The listing~\ref{lst:cypher-example-1} provides an example of query in extended syntax with a simple path pattern. In this example there are relationship patterns \lstinline{:a}, \lstinline{:b}, \lstinline{:c} \lstinline{:d} and node patterns \lstinline{(:x)}, \lstinline{(:y)}. The square brackets are used for grouping parts of the pattern. The $|$ symbol denotes alternative between corresponding paths and the blank denotes sequence of paths. So the result of executing the query on the labeled graph $D$ will be the following set of vertex pairs:
 \begin{align*}
-\{(v, to): \exists \pi = (v,r_1,u,r_2,to) \in Paths(D):& \\
+\{(v, to): \exists \pi = (v,r_1,u,r_2,to) \in \pi(D):& \\
 \begin{sqcases}
-    t(r_1) = A, l(u) = X, t(r_2) = B  \\
-    t(r_1) = C, l(u) = Y, l(r_2) = D
+    a \in \lambda_E(r_1), x \in \lambda_V(u), b \in \lambda_E(r_2)  \\
+    c \in \lambda_E(r_1), y \in \lambda_V(u), d \in \lambda_E(r_2)
 \end{sqcases}&\}
 \end{align*}
 
@@ -40,18 +40,13 @@ Main feature which allows one to specify context-free constraints is a \textit{n
 \begin{algorithmic}[1]
 \caption{Example of using a named path pattern}
 \label{lst:cypher-example-2}
-\State PATH PATTERN S = ()-/ [:A $\sim$S :B] | [:A :B] /->()
+\State PATH PATTERN S = ()-/ [:a $\sim$S :b] | [:a :b] /->()
 \State MATCH (v)-/ $\sim$S /->(to)
 \State RETURN v, to
 \end{algorithmic}
 \end{algorithm}
 
-The listing~\ref{lst:cypher-example-2} shows an example of using named path patterns. They can be defined in the PATH PATTERN clause and referenced within any other path pattern. In order to explain the semantics of the query let`s consider contest-free grammar $G=(N, \Sigma, P, S)$ with $N=\{S\}$, $\Sigma=\{A,B\}$ and $P=\{S \xrightarrow{} A B, S \xrightarrow{} ASB \}$. Then $L(G)=\{A^nB^n: n \in \mathbb{N}\}$ specifies restrictions on the path labels and query result on the graph $D$ will be as follows:
-
-\begin{align*}
-\{ (v, to): &~\exists \pi=(v,r_1,u_1,...,r_n,to) \in Paths(D): \\
-            &t(r_1)t(r_2)...t(r_n) \in L(G) \}
-\end{align*}
+The listing~\ref{lst:cypher-example-2} shows an example of using named path patterns. They can be defined in the PATH PATTERN clause and referenced within any other path pattern. In order to explain the semantics of the query let`s consider contest-free grammar $G=(N, \Sigma, P, S)$ with $N=\{S\}$, $\Sigma=\{a,b\}$ and $P=\{S \xrightarrow{} a b, S \xrightarrow{} aSb \}$. Then $L(G)=\{a^nb^n: n \in \mathbb{N}\}$ specifies restrictions on the path labels and query result on the graph $D$ will be the context free relation $R_{G, D}$. 
 
 Thus this Cypher extension allows one express more complex queries including context-free path queries.
 RedisGraph database supports subset of Cypher language and uses \texttt{libcypher-parser}\footnote{The \texttt{libcypher-parser} is an open-source parser library for Cypher query language. GitHub repository of the project: \url{https://github.com/cleishm/libcypher-parser}. Access date: 19.07.2020.} library to parse queries.
@@ -80,15 +75,15 @@ Using the Rustam Azimov algorithm one can only find paths between all pairs of v
 The Multi-Source algorithm described in~\autoref{sec:multi-source-algo} is sensitive to the initial set of vertices and is therefore well suited for graph database query scenarios. In addition, it is based on matrix operations and works with graphs as sparse matrices, so it is suitable for integration in RedisGraph.
 
 \subsection{RedisGraph extension}
-This section describes the implementation of support for executing queries with the extended syntax in the RedisGraph. Throughout this section, we consider executing the example query from listing~\autoref{lst:cypher-example-3} for the graph from~\autoref{fig:example_input_graph}. $\mathcal{M}$ and $\mathcal{N}$ denotes adjacency and vertex label matrices of $G$ respectively. 
+This section describes the implementation of support for executing queries with the extended syntax in the RedisGraph. Throughout this section, we consider executing the example query from listing~\autoref{lst:cypher-example-3} for the graph $\mathcal{D}$ from~\autoref{fig:example_input_graph}. $\mathcal{E}$ and $\mathcal{V}$ denotes boolean decompositions of adjacency and vertex label matrices of $\mathcal{D}$ respectively. 
 
 \begin{algorithm}
 \floatname{algorithm}{Listing}
 \begin{algorithmic}[1]
 \caption{Query with path patterns example}
 \label{lst:cypher-example-3}
-\State PATH PATTERN S = ()-/ [:C $\sim$S :D] | [:C (:Y) :D] /->()
-\State MATCH (v:X)-[:A]->()-/ :B $\sim$S /->(to)
+\State PATH PATTERN S = ()-/ [:c $\sim$S :d] | [:c (:y) :d] /->()
+\State MATCH (v:x)-[:a]->()-/ :b $\sim$S /->(to)
 \State RETURN v, to
 \end{algorithmic}
 \end{algorithm}
@@ -101,9 +96,9 @@ This section describes the implementation of support for executing queries with 
   \label{fig:execution-plan-construction}
 \end{figure}
 
-In the RedisGraph the main part of processing a query is building its execution plan. Execution plan consists of operations that perform basic processing such as filtering, pattern matching, aggregation and result construction. The diagram of its construction !!! is shown in~\autoref{fig:execution-plan-construction}. It can be divided into two parts --- processing named and unnamed path patterns, which are described below.
+In the RedisGraph the main part of processing a query is building its execution plan. Execution plan consists of operations that perform basic processing such as filtering, pattern matching, aggregation and result construction. The diagram of its construction is shown in~\autoref{fig:execution-plan-construction}. It can be divided into two parts --- processing named and unnamed path patterns, which are described below.
 
-Let`s consider the part that associated with unnamed path patterns. Unnamed path patterns relates to the pattern matching operations and is very similar to relationship patterns from the original Cypher. All pattern matching operations are derived from the MATCH clause that consists of relationship patterns and node patterns. In the example query there is a relationship pattern $r = $\textit{-[:A]->}, path pattern $p$ = \textit{-/ :B ~S /->} and node pattern $n = $\textit{(:X)}. In the first stage of processing, these patterns turn into an intermediate representation --- the \textit{query graph}. The nodes and edges of the query graph corresponds to node and relationship patterns. We extended query graph to be able to contain path patterns. Thus the query graph edges can be either relationship or path patterns, which are stored in a more convenient intermediate representation other than AST. The query graph for patterns $p, r$ and $n$ is shown in~\autoref{fig:query_graph}.
+Let`s consider the part that associated with unnamed path patterns. Unnamed path patterns relates to the pattern matching operations and is very similar to relationship patterns from the original Cypher. All pattern matching operations are derived from the MATCH clause that consists of relationship patterns and node patterns. In the example query there is a relationship pattern $r = $\lstinline{-[:a]->}, path pattern $p$ = \lstinline{-/ :b ~S /->} and node pattern $n = $\lstinline{(:x)}. In the first stage of processing, these patterns turn into an intermediate representation --- the \textit{query graph}. The nodes and edges of the query graph corresponds to node and relationship patterns. We extended query graph to be able to contain path patterns. Thus the query graph edges can be either relationship or path patterns, which are stored in a more convenient intermediate representation other than AST. The query graph for patterns $p, r$ and $n$ is shown in~\autoref{fig:query_graph}.
 
 \begin{figure}[h]
     \centering        
@@ -119,7 +114,7 @@ Let`s consider the part that associated with unnamed path patterns. Unnamed path
     \label{fig:query_graph}
 \end{figure}
 
-At the second stage, the query graph is translated into algebraic expressions over matrices. The abstract syntax of an algebraic expression is provided in~\autoref{fig:alg-expr}. Thus the algebraic expression is an expression with addition, multiplication and transposition operations whose operands are matrices. To support references to named paths patterns in algebraic expressions we added a matrix operand \lstinline{Ref(ref)} that stores a reference. In order to translate the query graph RedisGraph first linearizes it and then splits it into small paths. To support path patterns we extended the split processing so that each path pattern corresponds to exactly one path after query graph splitting. For example the query graph in~\autoref{fig:query_graph} is very simple and is divided into three patterns $n, r$ and $p$. After that, each path is translated into a single algebraic expression. We developed the semantics of path patterns in terms of algebraic expressions and implemented translation. For example node pattern $n$ translates to $AlgExp(n) = \mathcal{N}^X$, relationship pattern $r$ to $AlgExp(r) = \mathcal{M}^A$ and path pattern $p$ to $AlgExp(p) = \mathcal{M}^B * Ref(S)$.
+At the second stage, the query graph is translated into algebraic expressions over matrices. The abstract syntax of an algebraic expression is provided in~\autoref{fig:alg-expr}. Thus the algebraic expression is an expression with addition, multiplication and transposition operations whose operands are matrices. To support references to named paths patterns in algebraic expressions we added a matrix operand \textit{Ref(ref)} that stores a reference. In order to translate the query graph RedisGraph first linearizes it and then splits it into small paths. To support path patterns we extended the split processing so that each path pattern corresponds to exactly one path after query graph splitting. For example the query graph in~\autoref{fig:query_graph} is very simple and is divided into three patterns $n, r$ and $p$. After that, each path is translated into a single algebraic expression. We developed the semantics of path patterns in terms of algebraic expressions and implemented translation. For example, node pattern $n$ translates to $AlgExp(n) = \mathcal{V}^x$, relationship pattern $r$ to $AlgExp(r) = \mathcal{E}^a$ and path pattern $p$ to $AlgExp(p) = \mathcal{E}^b * Ref(S)$.
 
 % For example the query graph in .
 
@@ -137,13 +132,16 @@ AlgExpr= ~ &(AlgExpr + AlgExpr)~| \\
 \end{align*}
 \end{figure}
 
-After obtaining algebraic expressions they are used to construct execution plan operations. Each operation is derived from a single algebraic expression that is involved in the further execution of the corresponding operation. For example for the $AlgExp(r)$ and $AlgExp(n)$ will be created \textit{CondTraverse(AlgExp(r))} and \textit{LabelScan(AlgExp(n))} operations respectively which already existed in RedisGraph. For expressions that correspond to path patterns we created a new \textit{CFPQTraverse} operation. Thus algebraic expression of pattern $p$ will be stored in the new \textit{CFPQTraverse}(AlgExp(p)) operation. During the query execution this operation performs path pattern matching and solves context-free path reachability problem if necessary. This completes the part of the query execution plan building which concerns unnamed path patterns.
+After obtaining algebraic expressions they are used to construct execution plan operations. Each operation is derived from a single algebraic expression that is involved in the further execution of the corresponding operation. For example for the $AlgExp(r)$ and $AlgExp(n)$ will be created \textit{CondTraverse(AlgExp(r))} and \textit{LabelScan(AlgExp(n))} operations respectively which already existed in RedisGraph. For expressions that correspond to path patterns we created a new \textit{CFPQTraverse} operation. Thus algebraic expression of pattern $p$ will be stored in the new \textit{CFPQTraverse(AlgExp(p))} operation. During the query execution this operation performs path pattern matching and solves context-free path reachability problem if necessary. This completes the part of the query execution plan building which concerns unnamed path patterns.
 
 Another processing that occurs during the execution plan construction and was supported by us is related to named path patterns. They are processed independently of the unnamed path patterns found in MATCH clause and don't produce execution plan operations. 
 
-All named path patterns are collected from \lstinline{PATH PATTERN} clauses. In the example query there is a path pattern \textit{S = ()-/ [:C $\sim$S :D] | [:C (:Y) :D] /->()}. Then this named path patterns translated into algebraic expressions and stored in the corresponding global context of the query --- \textit{path pattern context}. This storage provides mapping between the path pattern name and its algebraic expression and can be used both when building an execution plan and during its execution. For the example query it will be as follows:
-
-$$\{ S \xrightarrow{} \mathcal{M}^C * Ref(S) * \mathcal{M}^D + \mathcal{M}^C * \mathcal{N}^Y * \mathcal{M}^D \}$$
+All named path patterns are collected from \lstinline{PATH PATTERN} clauses. In the example query there is a path pattern \textit{S = ()-/ [:C $\sim$S :D] | [:C (:Y) :D] /->()}. Then this named path patterns translated into algebraic expressions and stored in the corresponding global context of the query --- \textit{path pattern context}. This storage provides mapping between the path pattern name and its algebraic expression and its relation and source matrices. Initially these matrices are empty and populated later in the execution stage. For the example query this storage will be as follows:
+\begin{align*}
+   \{ S  \xrightarrow{} \{ & expr \xrightarrow{} \mathcal{E}^c * Ref(S) * \mathcal{E}^d + \mathcal{E}^c * \mathcal{V}^y * \mathcal{E}^d, \\
+                           & m_{rel} \xrightarrow{} \varnothing, \\
+                           & m_{src} \xrightarrow{} \varnothing \} \}
+\end{align*}
 
 Thus after execution plan building we receive \textit{CFPQTraverse} operations that correspond to unnamed path patterns in MATCH clause and \textit{path pattern context} that stores all named path patterns from \lstinline{PATH PATTERN} clauses. Therefore we can proceed to the stage of execution plan evaluation.
 
@@ -158,7 +156,7 @@ Thus after execution plan building we receive \textit{CFPQTraverse} operations t
   \label{fig:execution-plan-evaluation}
 \end{figure}
 
-The remaining part of query processing is evaluation its execution plan. This section describes how the \lstinline{CFPQTraverse} operation is performed. For explanation, we use example graph $G$ from~\autoref{fig:example_input_graph} and execution plan operations $LabelScan(n)$, $CondTraverse(r)$ and $CfpqTraverse(p)$ that were obtained in the chapter for example query.
+The remaining part of query processing is evaluation its execution plan. This section describes how the \lstinline{CFPQTraverse} operation is performed. For explanation, we use example graph $\mathcal{D}$ from~\autoref{fig:example_input_graph} and execution plan operations $LabelScan(n)$, $CondTraverse(r)$ and $CfpqTraverse(p)$ that were obtained in the previous section for example query from listing~\autoref{lst:cypher-example-3}.
 
 Let`s first consider the structure of the execution plan operations. Operations have parent-child relationships, so they are formed into a tree. For example, the part of execution plan that derived from example query is shown in~\autoref{fig:execution-plan-operations}. Each operation can consume a record from a child operation, process it and produce another one for the parent. Records contain information necessary for the parent operation, as well as everything to restore the response, such as identifiers of accumulated vertices and edges.
 
@@ -180,11 +178,33 @@ Let`s first consider the structure of the execution plan operations. Operations 
 
 The \lstinline{CFPQTraverse} operation is based on \lstinline{CondTraverse} operation that already exists in the RedisGraph and performs a patterns matching. The activity diagram of this operations is shown in~\autoref{fig:execution-plan-evaluation} and described below. Actions that corresponds to \lstinline{CondTraverse} operation are highlighted in green, actions of the \lstinline{CFPQTraverse} operation that extend \lstinline{CondTraverse} are highlighted in blue.
 
-The \lstinline{CondTraverse} works as follows. At first it consumes several records from the child operation and accumulates them in the buffer. Here each record corresponds to the path that built by the child operation. For simplicity we can presume that each record is the destination vertex of the path. For example for the graph $G$ the \textit{CondTraverse} from~\autoref{fig:execution-plan-operations} make \textit{LabelScan} operation to produce vertices with the label $X$ and then store the resulting set of vertices $\{1, 3\}$ in the buffer. The task of the \lstinline{CondTraverse} is to continue the path from this vertices in such way that the resulting path satisfies pattern corresponding to this operation. To do this \lstinline{CondTraverse} uses the algebraic expression obtained in the previous step. The resulting matrix of this expression represents all pairs of vertices between which there is a path satisfying the pattern. In order to find paths that start from given sources vertices \lstinline{CondTraverse} uses a filter matrix. This matrix is constructed from the destination vertices retrieved from the record buffer and resembles matrix from boolean decomposition of label vertex matrix. For example filter matrix of set $\{1, 3\}$ is $ r_{f}=\{(1, 1), (3, 3)\}$. Then this matrix is multiplied to the right by \textit{AlgExp(r) = A} and we get algebraic expression $r_{f} * A$. Only after that this expression is evaluated and we get the matrix $\{(1, 2)\}$. This matrix exactly corresponds to all paths of length one where the source vertex is labelled by X and the edge is labeled by A. Then this paths are passed to the parent operation, in our case to $CFPQTraverse$, by producing new records.
+The \lstinline{CondTraverse} works as follows. At first it consumes several records from the child operation and accumulates them in the buffer. Here each record corresponds to the path that built by the child operation. For simplicity we can presume that each record is the destination vertex of the path. For example for the graph $\mathcal{D}$ the \textit{CondTraverse} from~\autoref{fig:execution-plan-operations} make \textit{LabelScan} operation to produce vertices with the label $X$ and then store the resulting set of vertices $\{1, 3\}$ in the buffer. The task of the \lstinline{CondTraverse} is to continue the path from this vertices in such way that the resulting path satisfies pattern corresponding to this operation. To do this \lstinline{CondTraverse} uses the algebraic expression obtained in the previous step. The resulting matrix of this expression represents all pairs of vertices between which there is a path satisfying the pattern. In order to find paths that start from given sources vertices \lstinline{CondTraverse} uses a filter matrix. This matrix is constructed from the destination vertices retrieved from the record buffer and resembles matrix from boolean decomposition of label vertex matrix. For example filter matrix of set $\{1, 3\}$ is $ r_{f}=\{(1, 1), (3, 3)\}$. Then this matrix is multiplied to the right by \textit{AlgExp(r)}$= \mathcal{E}^a$ and we get algebraic expression $r_{f} * \mathcal{E}^a$. Only after that this expression is evaluated and we get the matrix $\{(1, 2)\}$. This matrix exactly corresponds to all paths of length one where the source vertex is labelled by $x$ and the edge is labeled by $a$. Then this paths are passed to the parent operation, in our case to $CFPQTraverse$, by producing new records.
 
-The \lstinline{CFPQTraverse} operation is arranged in the same way as \lstinline{CondTraverse} but performs some additional work. Since each \lstinline{CFPQTraverse} corresponds to path pattern, its algebraic expression may contain references to named path patterns. Therefore all named path patterns that the algebraic expression depends on must be processed. For this they are extracted from \textit{path pattern context} and stored in the \textit{set of operation dependencies} during its initialization. In this case, dependencies are extracted recursively, so that references inside named path patterns are also extracted.
+The \lstinline{CFPQTraverse} operation is arranged in the same way as \lstinline{CondTraverse} but performs some additional work. Since each \lstinline{CFPQTraverse} corresponds to path pattern, its algebraic expression may contain references to named path patterns. Therefore all named path patterns that the algebraic expression depends on must be processed. For this they are extracted from \textit{path pattern context} and stored in the \textit{set of operation dependencies} during its initialization. In this case, dependencies are extracted recursively, so that references inside named path patterns are also extracted. For example, path pattern $p$ depends only on named path pattern $S$, so the dependency set of $CFPQTraverse(p)$ operation is $\{S\}$.
 
-The \lstinline{CFPQTraverse} execution stage starts the same way as \lstinline{CondTraverse}. First filter matrix is constructed from record buffer and embedded in the algebraic expression. Then for each reference we need to determinate the set of source vertices. This can be done during algebraic expression evaluation which we extended for this purpose. After that we have everything to run \textit{multiple-source} CFPQ algorithm to resolve all dependencies. This algorithm is slightly different from the one described in~\autoref{sec:multiple-source-algo} and is a generalization of it. It receives the \textit{set of operation dependencies} and sets of source vertices. After running this algorithm a matrix is obtained for each named path pattern. This matrices represent a set of pairs of vertices between which there is a path that satisfies the pattern. Then all references in the algebraic expression are replaced with the resulting matrices and the algebraic expression is evaluated. Finally as well as \lstinline{CondTraverse}, \lstinline{CFPQTraverse} extracts desired paths from resulting matrix and passes them to parent operation.
+The \lstinline{CFPQTraverse} execution stage starts the same way as \lstinline{CondTraverse}. First filter matrix is constructed from record buffer. For example, $CFPQTraverse(p)$ consumes several records from $CondTraverse(r)$, extracts from them the set of destination vertices $\{2\}$ and builds filter matrix $p_f = \{(2, 2)\}$. Then this matrix is embedded in the algebraic expression of operation in the same way as in \lstinline{CondTraverse} and we get new algebraic expression $p_f * AlgExp(p) = p_f * \mathcal{E}^b * Ref(S)$. After that for each reference in the algebraic expression we need to determinate the set of source vertices. This can be done during algebraic expression evaluation which we extended for this purpose.
+
+\begin{algorithm}
+\begin{algorithmic}[1]
+\caption{Extension of multiplication evaluation}
+\label{alg:multiplication-extension}
+\Function{EvalMul}{$e_l:AlgExp, e_r:AlgExp$}
+\State $M_l =$ \Call{Eval}{$e_l$}
+\If {$r~is~Ref(ref)$}
+    \State $ctx[ref].src \gets ctx[ref].src~+$ \Call{getDst}{$M_l$}
+\EndIf
+\State $...$ \Comment{Remaining original part of the EvalMul}
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+Specifically, we extended the multiplication operation as shown in the listing~\autoref{alg:multiplication-extension}. Here, if the right operand of the expression is a reference, we need to populate source matrix of corresponding named path pattern. The resulting matrix $M_l$ of the left operand $e_l$ specifies some set of destination vertices $\{j \mid M_l[i,j] = 1\}$ from which the path should continue. So we add this set to source matrix of named path pattern. For example, lets consider evaluation of $p_f * \mathcal{E}^b * Ref(S)$. First, $p_f * \mathcal{E}^b$ is evaluated into matrix $M_l = \{(2, 3), (2, 6)\}$. It corresponds to edges starting from vertex $2$ and labeled by $b$. Then destination vertices $\{3, 6\}$ of $M_l$ are extracted and added to source matrix of named path pattern $S$. So after this evaluation the path pattern context becomes the following:
+\begin{align*}
+   \{ S  \xrightarrow{} \{ & expr \xrightarrow{} \mathcal{E}^c * Ref(S) * \mathcal{E}^d + \mathcal{E}^c * \mathcal{V}^y * \mathcal{E}^d, \\
+                           & m_{rel} \xrightarrow{} \varnothing, \\
+                           & m_{src} \xrightarrow{} \{(3, 3), (6, 6)\} \} \}
+\end{align*}
+After that we have everything to run \textit{multiple-source} CFPQ algorithm to resolve all dependencies. This algorithm is slightly different from the one described in~\autoref{sec:multiple-source-algo} and is a generalization of it. It receives the \textit{set of operation dependencies} and sets of source vertices. After running this algorithm a matrix is obtained for each named path pattern. This matrices represent a set of pairs of vertices between which there is a path that satisfies the pattern. Then all references in the algebraic expression are replaced with the resulting matrices and the algebraic expression is evaluated. Finally as well as \lstinline{CondTraverse}, \lstinline{CFPQTraverse} extracts desired paths from resulting matrix and passes them to parent operation.
 
 % the \lstinline{CFPQTraverse} executes \textit{multiple-source} algorithm to resolve context-free reachability problem.
 
