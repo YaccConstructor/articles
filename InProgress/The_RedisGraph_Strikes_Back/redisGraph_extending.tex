@@ -9,10 +9,12 @@ Thus we choose RedisGraph as a base for our solution.
 \subsection{Cypher Extending}
 \label{subsec:cypher-extension}
 
-The first what we should do is to extend Cypher to be able to express context-free constraints.
+The first what we should do is to extend Cypher parser to be able to express context-free constraints.
 There is a description of the respective Cypher syntax extension\footnote{\label{cypher-proposal}Formal syntax specification: \url{https://github.com/thobe/openCypher/blob/rpq/cip/1.accepted/CIP2017-02-06-Path-Patterns.adoc\#11-syntax}. Access date: 19.07.2020.}, proposed by Tobias Lindaaker, but this syntax does not implement yet in Cypher parsers.
 
-This extension introduces path patterns, which are a more powerful alternative to relationship patterns. Path patterns allow you to express regular constrains over basic patterns such as relationship and node patterns. Just like relationship patterns they can be specified in the MATCH clause between the node patterns.
+This extension introduces path patterns, which are powerful alternative to the original Cypher relationship patterns.
+Path patterns allow one to express regular constrains over basic patterns such as relationship and node patterns.
+Just like relationship patterns they can be specified in the \texttt{MATCH} clause between the node patterns.
 
 \begin{algorithm}
 \floatname{algorithm}{Listing}
@@ -24,7 +26,11 @@ This extension introduces path patterns, which are a more powerful alternative t
 \end{algorithmic}
 \end{algorithm}
 
-The listing~\ref{lst:cypher-example-1} provides an example of query in extended syntax with a simple path pattern. In this example there are relationship patterns \lstinline{:a}, \lstinline{:b}, \lstinline{:c} \lstinline{:d} and node patterns \lstinline{(:x)}, \lstinline{(:y)}. The square brackets are used for grouping parts of the pattern. The $|$ symbol denotes alternative between corresponding paths and the blank denotes sequence of paths. So the result of executing the query on the labeled graph $D$ will be the following set of vertex pairs:
+An example of query in extended syntax with a simple path pattern is provided in listing~\ref{lst:cypher-example-1}.
+In this example there are relationship patterns \lstinline{:a}, \lstinline{:b}, \lstinline{:c} \lstinline{:d} and node patterns \lstinline{(:x)}, \lstinline{(:y)}.
+The square brackets are used for grouping parts of the pattern.
+The $|$ symbol denotes alternative between corresponding paths and the blank denotes sequence of paths. So the result of executing the query on the labeled graph $D$ will be the following set of vertex pairs:
+
 \begin{align*}
 \{(v, to): \exists \pi = (v,r_1,u,r_2,to) \in \pi(D):& \\
 \begin{sqcases}
@@ -33,12 +39,13 @@ The listing~\ref{lst:cypher-example-1} provides an example of query in extended 
 \end{sqcases}&\}
 \end{align*}
 
-Main feature which allows one to specify context-free constraints is a \textit{named path patterns}: one can specify a name for path pattern and after that use it in other patterns, or in the same pattern. Using this feature, structure of query is pretty similar to context-free grammar in the Extended Backus–Naur Form.
+Main feature which allows one to specify context-free constraints is a \textit{named path patterns}: one can specify a name for path pattern and after that use this name in other patterns, or in the same pattern.
+Using this feature, structure of query is pretty similar to context-free grammar in the Extended Backus-Naur Form (EBNF)~\cite{!!!}.
 
 \begin{algorithm}
 \floatname{algorithm}{Listing}
 \begin{algorithmic}[1]
-\caption{Example of using a named path pattern}
+\caption{Example of named path pattern}
 \label{lst:cypher-example-2}
 \State PATH PATTERN S = ()-/ [:a $\sim$S :b] | [:a :b] /->()
 \State MATCH (v)-/ $\sim$S /->(to)
@@ -46,17 +53,20 @@ Main feature which allows one to specify context-free constraints is a \textit{n
 \end{algorithmic}
 \end{algorithm}
 
-The listing~\ref{lst:cypher-example-2} shows an example of using named path patterns. They can be defined in the PATH PATTERN clause and referenced within any other path pattern. In order to explain the semantics of the query let`s consider contest-free grammar $G=(N, \Sigma, P, S)$ with $N=\{S\}$, $\Sigma=\{a,b\}$ and $P=\{S \xrightarrow{} a b, S \xrightarrow{} aSb \}$. Then $L(G)=\{a^nb^n: n \in \mathbb{N}\}$ specifies restrictions on the path labels and query result on the graph $D$ will be the context free relation $R_{G, D}$. 
+An example of named path patterns is presented in listing~\ref{lst:cypher-example-2}.
+Named patterns can be defined in the \texttt{PATH PATTERN} clause and referenced within any other path pattern.
+In order to explain the semantics of the query, consider contest-free grammar $G=(N, \Sigma, P, S)$ with $N=\{S\}$, $\Sigma=\{a,b\}$ and $P=\{S \xrightarrow{} a b, S \xrightarrow{} aSb \}$.
+\gsv{Then $L(G)=\{a^nb^n: n \in \mathbb{N}\}$ specifies restrictions on the path labels and query result on the graph $D$ will be the context free relation $R_{G, D}$}{What you want to say? In Russian.}. 
 
 Thus this Cypher extension allows one express more complex queries including context-free path queries.
 RedisGraph database supports subset of Cypher language and uses \texttt{libcypher-parser}\footnote{The \texttt{libcypher-parser} is an open-source parser library for Cypher query language. GitHub repository of the project: \url{https://github.com/cleishm/libcypher-parser}. Access date: 19.07.2020.} library to parse queries.
-We extend this library by intoducing new syntax proposed \footnoteref{cypher-proposal}. We implement\footnote{The modified libsypher-pareser library with support of syntax for path patterns: \url{https://github.com/YaccConstructor/libcypher-parser}. Access date: 19.07.2020.} full extension, not only part which is necessary for simple CFPQ. 
+We extend this library by introducing new syntax proposed \footnoteref{cypher-proposal}. We implement\footnote{The modified libsypher-pareser library with support of syntax for path patterns: \url{https://github.com/YaccConstructor/libcypher-parser}. Access date: 19.07.2020.} full extension, not only part which is necessary for simple CFPQ. 
 
 \subsection{RedisGraph Intro (TODO: move to introduction)}
 
-Named path patterns described in \autoref{subsec:cypher-extension} allows one to specify context-free constrains on the paths. In order to support the execution of these types of queries we need to extend backend of the RedisGraph database and integrate a suitable CFPQ algorithm into it. 
+Named path patterns described in~\autoref{subsec:cypher-extension} allows one to specify context-free constrains on the paths. In order to support the execution of these types of queries we need to extend backend of the RedisGraph database and integrate a suitable CFPQ algorithm into it. 
 
-There are quite a few algorithms that solve CFPQ problem~\ref{...,...,...}, but their running time makes them unsuitable for practical use~\ref{Neo4J-fail}. Recent studies~\ref{NikitaMishin, simpleton} have shown that one can achieve high performance through the use of matrix-based algorithms. These studies were conducted to analyze the performance of the Rustam Azimov algorithm described in \autoref{subsec:rustam-algo} and have shown that it is acceptable for practical application.
+There are quite a few algorithms that solve CFPQ problem~\ref{!!!}, but their running time makes them unsuitable for practical use~\ref{Neo4J-fail}. Recent studies~\ref{NikitaMishin, simpleton} have shown that one can achieve high performance through the use of matrix-based algorithms. These studies were conducted to analyze the performance of the Rustam Azimov algorithm described in \autoref{subsec:rustam-algo} and have shown that it is acceptable for practical application.
 
 Using the Rustam Azimov algorithm one can only find paths between all pairs of vertexes at once and in some cases it is quite wasteful. Queries to graph databases can be specified so that when they are executed, it is required to find paths from a given set of initial vertices. This set can be quite small due to the different filtering specified in the query. For example in the listing~\ref{lst:cypher-example-3} path pattern \colorbox{blue!10}{-/ $\sim$S /->} follows pattern \colorbox{blue!10}{(v)-[r]->(u)}. The WHERE clause specifies some arbitrary predicate \colorbox{blue!10}{p(v, r, u)} which also fixes a set of initial vertexes for a paths that must satisfy path pattern \colorbox{blue!10}{S}. Depending on this predicate, this set of vertexes can have different sizes and for proper practical use the running time of the CFPQ algorithm should be sensitive to this.
 
@@ -96,7 +106,7 @@ This section describes the implementation of support for executing queries with 
   \label{fig:execution-plan-construction}
 \end{figure}
 
-In the RedisGraph the main part of processing a query is building its execution plan. Execution plan consists of operations that perform basic processing such as filtering, pattern matching, aggregation and result construction. The diagram of its construction is shown in~\autoref{fig:execution-plan-construction}. It can be divided into two parts --- processing named and unnamed path patterns, which are described below.
+In the RedisGraph the main part of processing a query is building its execution plan. Execution plan consists of operations that perform basic processing such as filtering, pattern matching, aggregation and result construction. The diagram of its construction is shown in~\autoref{fig:execution-plan-construction}. It can be divided into two parts ---\gsv{processing named and unnamed path patterns, which are described below}{Improve it!}.
 
 Let`s consider the part that associated with unnamed path patterns. Unnamed path patterns relates to the pattern matching operations and is very similar to relationship patterns from the original Cypher. All pattern matching operations are derived from the MATCH clause that consists of relationship patterns and node patterns. In the example query there is a relationship pattern $r = $\lstinline{-[:a]->}, path pattern $p$ = \lstinline{-/ :b ~S /->} and node pattern $n = $\lstinline{(:x)}. In the first stage of processing, these patterns turn into an intermediate representation --- the \textit{query graph}. The nodes and edges of the query graph corresponds to node and relationship patterns. We extended query graph to be able to contain path patterns. Thus the query graph edges can be either relationship or path patterns, which are stored in a more convenient intermediate representation other than AST. The query graph for patterns $p, r$ and $n$ is shown in~\autoref{fig:query_graph}.
 
@@ -198,7 +208,7 @@ The \lstinline{CFPQTraverse} execution stage starts the same way as \lstinline{C
 \end{algorithmic}
 \end{algorithm}
 
-Specifically, we extended the multiplication operation as shown in the listing~\autoref{alg:multiplication-extension}. Here, if the right operand of the expression is a reference, we need to populate source matrix of corresponding named path pattern. The resulting matrix $M_l$ of the left operand $e_l$ specifies some set of destination vertices $\{j \mid M_l[i,j] = 1\}$ from which the path should continue. So we add this set to source matrix of named path pattern. For example, lets consider evaluation of $p_f * \mathcal{E}^b * Ref(S)$. First, $p_f * \mathcal{E}^b$ is evaluated into matrix $M_l = \{(2, 3), (2, 6)\}$. It corresponds to edges starting from vertex $2$ and labeled by $b$. Then destination vertices $\{3, 6\}$ of $M_l$ are extracted and added to source matrix of named path pattern $S$. So after this evaluation the path pattern context becomes the following:
+Specifically, we extended the multiplication operation as shown in the listing~\autoref{alg:multiplication-extension}. Here, if the right operand of the expression is a reference, we need to \gsv{populate}{WTF?} source matrix of corresponding named path pattern. The resulting matrix $M_l$ of the left operand $e_l$ specifies some set of destination vertices $\{j \mid M_l[i,j] = 1\}$ from which the path should continue. So we add this set to source matrix of named path pattern. For example, lets consider evaluation of $p_f * \mathcal{E}^b * Ref(S)$. First, $p_f * \mathcal{E}^b$ is evaluated into matrix $M_l = \{(2, 3), (2, 6)\}$. It corresponds to edges starting from vertex $2$ and labeled by $b$. Then destination vertices $\{3, 6\}$ of $M_l$ are extracted and added to source matrix of named path pattern $S$. So after this evaluation the path pattern context becomes the following:
 \begin{align*}
    \{ S  \xrightarrow{} \{ & expr \xrightarrow{} \mathcal{E}^c * Ref(S) * \mathcal{E}^d + \mathcal{E}^c * \mathcal{V}^y * \mathcal{E}^d, \\
                            & m_{rel} \xrightarrow{} \varnothing, \\
