@@ -247,18 +247,63 @@ Therefore if we put together the results of all operations of execution plan the
 
 \subsection{Evaluation}
 
-In order to ....
+In order to demonstrate applicability of the provided extension for RedisGraph we evaluate the proposed solution on the subset of cases provided in the section~\ref{sect:py_algo_evaluation}.
 
-Hardware
+For RedisGraph evaluation, we used a PC with Ubuntu 18.04 installed.
+It has Intel Core i7-6700 CPU, 3.4GHz, and DDR4 64Gb RAM. 
+RedisGraph with our extensions is installed form our GitHub repository\footnote{Sources of RedisGraph database with full-stack CFPQ support:\url{https://github.com/YaccConstructor/RedisGraph/tree/path_patterns_dev}. Access data: 19.07.2020.}. 
 
-We use the same graphs which are presented in table !!!
-Graphs were loaded into RedisGraph database.
+\subsubsection{Data preparing}
 
+We use the same graphs which are presented in table~\ref{tbl:graphs_for_cfpq} to evaluate RedisGraph-based solution.
+
+Graphs are loaded into RedisGraph database such that each vertex has a field \verb|id| which value is unique and is in $[0 \ldots |V|-1]$, where $|V|$ is a number of vertices in the graph to load.
+This allows us to generate queries for specific chunk size using templates.
+The template for the $g_1$ query is provided in listing~\ref{lst:query_pattern_g1}.
+Here \texttt{\{id\_from\}} and \texttt{\{id\_to\}} are placeholders for lower and upper bounds for \verb|id|. The example of the exact query for chunk of size 16 is presented in listing~\ref{lst:query_g1}.
+
+\begin{algorithm}
+\floatname{algorithm}{Listing}
+\begin{algorithmic}[1]
+\caption{Cypher query pattern for $g_1$}
+\label{lst:query_pattern_g1}
+\State PATH PATTERN S =  \par
+ \hskip\algorithmicindent ()-/ [<:SubClassOf [$\sim$S | ()] :SubClassOf] \par
+ \hskip\algorithmicindent | [<:Type [$\sim$S | ()] :Type] /->()
+\State MATCH (src)-/ $\sim$S /->() 
+\State WHERE \{id\_from\} <= src.id and src.id <= \{id\_to\}
+\State RETURN count(*)
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+\floatname{algorithm}{Listing}
+\begin{algorithmic}[1]
+\caption{Query $g_1$ in Cypher using the template from listing~\ref{lst:query_pattern_g1}}
+\label{lst:query_g1}
+\State PATH PATTERN S =  \par
+ \hskip\algorithmicindent ()-/ [<:SubClassOf [$\sim$S | ()] :SubClassOf] \par
+ \hskip\algorithmicindent | [<:Type [$\sim$S | ()] :Type] /->()
+\State MATCH (src)-/ $\sim$S /->() 
+\State WHERE 15 <= src.id and src.id <= 31
+\State RETURN count(*)
+\end{algorithmic}
+\end{algorithm}
+
+Queries generator for all three queries ($g_1$, $g_2$, and $geo$) was implemented and used to create queries for all chunks which are used in the previous experiment. 
+
+
+\subsubsection{Evaluation results}
+
+For evaluation we select $geo$ query for \textit{geospecies} graph as one of the hardest queries, and $g_1$ query for other graphs.
+Time and memory consumption are measured for each chunk processing.
+Results of time measurement are presented in figures~\ref{fig:redis_core_all}--\ref{fig:redis_gohierarchy_all}.
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.5\textwidth]{data/raw_redis/core.pdf}
 \caption{RedisGraph performance of \textit{core} graph}
+\label{fig:redis_core_all}
 \end{figure}
 
 
@@ -266,12 +311,14 @@ Graphs were loaded into RedisGraph database.
 \centering
 \includegraphics[width=0.5\textwidth]{data/raw_redis/pathways.pdf}
 \caption{RedisGraph performance of \textit{pathways} graph}
+\label{fig:redis_pathways_all}
 \end{figure}
 
 \begin{figure}[h]core
 \centering
 \includegraphics[width=0.5\textwidth]{data/raw_redis/enzyme.pdf}
 \caption{RedisGraph performance of \textit{enzyme} graph}
+\label{fig:redis_enzyme_all}
 \end{figure}
 
 
@@ -279,22 +326,67 @@ Graphs were loaded into RedisGraph database.
 \centering
 \includegraphics[width=0.5\textwidth]{data/raw_redis/go.pdf}
 \caption{RedisGraph performance of \textit{go} graph}
+\label{fig:redis_go_all}
 \end{figure}
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.5\textwidth]{data/raw_redis/geospecies.pdf}
 \caption{RedisGraph performance of \textit{geospecies} graph}
+\label{fig:redis_geospecies_all}
 \end{figure}
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.5\textwidth]{data/raw_redis/eclass_514en.pdf}
 \caption{RedisGraph performance of \textit{eclass\_514en} graph}
+\label{fig:redis_eclass_all}
 \end{figure}
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.5\textwidth]{data/raw_redis/gohierarchy.pdf}
 \caption{RedisGraph performance of \textit{gohierarchy} graph}
+\label{fig:redis_gohierarchy_all}
 \end{figure}
+
+We can see, that results is comparable with one given in section~\ref{sect:py_algo_evaluation}. 
+Processing time for all chunks, except chunk of size 10 000 for \textit{geospecies} graph (fig.~\ref{fig:redis_geospecies_all}) is less then 1 second.
+Moreover, for chunks of size 16 processing median time is less then 0.1 second, except \textit{geospecies} graph.
+
+Memory consumption is presented in !!!
+La-la-la!!!!
+
+Additionally, we measure the time required to process full graph (to solve all-pairs reachability problem) by chunks of size  !!!.
+Also, we compare our solution with results of Arseniy Terekhov et al. from~\cite{10.1145/3398682.3399163} which were measured for RedisGraph deployed on the similar hardware and for the same graphs and queries. In~\cite{10.1145/3398682.3399163} Azimov's algorithm was naively integrated with RedisGraph storage without support of query language and other mechanisms such as lazy query evaluation.
+Results are provide in the table~\ref{tbl:redis_full_graph_processing}.
+
+\begin{table}
+{
+\caption{Full graph processing time by RadisGraph with chunks of size !!!, time is measured in seconds (\textbf{Chunks} --- the proposed solution, \textbf{Full} --- results from~\cite{10.1145/3398682.3399163})}
+\label{tbl:redis_full_graph_processing}
+\small
+\rowcolors{2}{black!2}{black!10}
+\begin{tabular}{|l|c|c|c|c|c|}
+\hline
+Graph                       & \#V       & \#E      & Query  & Chunks  &  Full  \\
+\hline
+\hline
+core                        & 1323     & 3636       & $g_1$  & 0.027  &  0.004 \\ 
+pathways                    & 6238     & 18 598     & $g_1$  & 0.028  &  0.011 \\ 
+gohierarchy                 & 45 007   & 980 218    & $g_1$  & 0.205  &  0.091 \\ 
+enzyme                      & 48 815   & 117 851    & $g_1$  & 0.058  &  0.018 \\ 
+eclass\_514en               & 239 111  & 523 727    & $g_1$  & 0.198  &  0.067 \\ 
+geospecies                  & 450 609  & 2 311 461  & $geo$  & 27.824 &  7.146 \\
+go                          & 582 929  & 1 758 432  & $g_1$  & 0.711  &  0.604 \\ 
+\hline
+\end{tabular}
+}
+\end{table}
+
+We can see, that chunk-by-chunk processing is 2--7 times slower, but it is still require reasonable time.
+For example, it requires more than 200 times less time than solution of Jochem Kuijpers et al.~\cite{Kuijpers:2019:ESC:3335783.3335791} which is based on Neo4j and requires more than 6000 seconds.
+Moreover, while solution from~\cite{10.1145/3398682.3399163} requires huge amount of memory (more than 16Gb for \textit{geospecies} graph and $geo$ query), our solution requires only !!! in the same scenario.
+Thus it is more suitable for general-purpose graph databases.
+
+Finally we can conclude that provided 
