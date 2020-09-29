@@ -7,19 +7,20 @@
 
 In order to simplify Azimov's algorithm modification and the final algorithm description, we simplify the input graph to have only edge labels.
 Note, that we always can convert the original graph into such form. 
-To do it we should add loops into vertices in the following way: for the vertex $i$ we add an edge $i \xrightarrow{x} i$ iff $\lambda_V(i) = x$ and $x\neq \varnothing$.  
+To do it we should add loops into vertices in the following way: for the vertex $i$ we add an edge $i \xrightarrow{x} i$ iff $\lambda_V(i) = x$ and $x\neq \varnothing$.
+This way we can switch to edge-labeled graph with the same number of vertices with preserving of the defined semantics of CFPQ.
+
 \begin{figure}[h]
     \centering        
     \begin{tikzpicture}[shorten >=1pt,auto]
-       \node[state] (q_0)                        {$1$};
-       \node[state] (q_1) [right=of q_0]         {$2$};
-       \node[state] (q_2) [below left=of q_1]    {$3$};
-       \node[state] (q_3) [below left=of q_2]    {$4$};
-       \node[state] (q_4) [below right=of q_2]   {$5$};
-       \node[state] (q_5) [below right=of q_1]   {$6$};
+       \node[state] (q_0)                        {$0$};
+       \node[state] (q_1) [right=of q_0]         {$1$};
+       \node[state] (q_2) [below left=of q_1]    {$2$};
+       \node[state] (q_3) [below left=of q_2]    {$3$};
+       \node[state] (q_4) [below right=of q_2]   {$4$};
+       \node[state] (q_5) [below right=of q_1]   {$5$};
        \path[->]
-        (q_0) edge[loop above]  node {$\{x\}$} (q_0)
-        (q_0) edge[loop left]  node {$\{y\}$} (q_0)
+        (q_0) edge[loop left]  node {$\{x, y\}$} (q_0)
         (q_0) edge  node {$\{a\}$} (q_1)
         (q_2) edge[loop left]  node {$\{x\}$} (q_2)
         (q_1) edge  node {$\{b\}$} (q_5)
@@ -27,15 +28,15 @@ To do it we should add loops into vertices in the following way: for the vertex 
         (q_3) edge[above]  node {$\{c\}$} (q_2)
         (q_4) edge  node {$\{c\}$} (q_3)
         (q_2) edge[above]  node {$\{c\}$} (q_4)
-        (q_4) edge[loop above]  node {$\{y\}$} (q_4)
+        (q_4) edge[loop below]  node {$\{y\}$} (q_4)
         (q_5) edge[bend left, below]  node {$\{d\}$} (q_4)
         (q_4) edge[bend left, above]  node {$\{d\}$} (q_5);
     \end{tikzpicture}
-    \caption{The example of modified input graph $D_1$}
+    \caption{The example of $D_1'$: the modified input graph $D_1$}
     \label{fig:example_modified_input_graph}
 \end{figure}
 
-Then, the adjacency matrix M of the graph $D_1$ is modified to
+The adjacency matrix $M$ of the graph $D_1'$ is
 $$
     M =
     \begin{pmatrix}
@@ -47,27 +48,30 @@ $$
     \varnothing     & \varnothing     &   \varnothing      &   \varnothing   & \{d\} &   \varnothing
     \end{pmatrix}.
 $$
-!!!!!!!!!!!!!!!!!
 
+Note that this transformation is impractical for real-world graphs, thus we use it only for algorithm description.
 
- Let \mbox{$\mathcal{G} = (N, \Sigma, P)$} be the input context-free grammar, $\mathcal{D} = (V, E, \Sigma_V, \Sigma_E, \lambda_V, \lambda_E)$ be the input graph and $Src$ be the input set of vertices. For the multiple-source context-free path query evaluation for every $A \in Src$ we need to find all context-free relations $R_A$, i.e. all node pairs \mbox{$(n,m)$} such that \mbox{$\exists n \pi m~(l(\pi) \in L(\mathcal{G}_A))$}.
+The first version of multiple-source algorithm is the Azimov's algorithm equipped with vertices filtering.
+Let $G = (N, \Sigma, P, S)$ be the input context-free grammar, $D = (V, E, \Sigma_V, \Sigma_E, \lambda_V, \lambda_E)$ be the input graph and $Src$ be the input set of start vertices.
+The result of the algorithm is a Boolean matrix which represents relation $R_{S,D}^{Src}$.
+
 \begin{algorithm}
 \begin{algorithmic}[1]
 \caption{Multiple-source context-free path querying algorithm}
 \label{alg:algo1}
-\Function{MultiSrcCFPQ}{$\mathcal{D} = (V, E, \Sigma_V, \Sigma_E, \lambda_V, \lambda_E),~\mathcal{G}=(N,\Sigma,P,S), Src$}
-    \State{$T \gets \{T^A \mid  A \in N, T^A \gets \emptyset\}$}
-    \Comment{Matrix in which every element is $\emptyset$}
+\Function{MultiSrcCFPQ}{$D = (V, E, \Sigma_V, \Sigma_E, \lambda_V, \lambda_E),~G=(N,\Sigma,P,S), Src$}
+    \State{$T \gets \{T^A \mid  A \in N, T^A \gets \varnothing\}$}
+    \Comment{Matrix in which every element is $\varnothing$}
     
-    \State{$TSrc \gets \{TSrc^A \mid  A \in N \setminus S, TSrc^A \gets \emptyset\}$}
-    \Comment{Matrix for input vertices in which every element is $\emptyset$}
+    \State{$TSrc \gets \{TSrc^A \mid  A \in N \setminus S, TSrc^A \gets \varnothing\}$}
+    \Comment{Matrix for input vertices in which every element is $\varnothing$}
 
     \ForAll{$ v \in Src$} \Comment{Input matrix initialization}
         \State{$TSrc^S_{v,v} \gets true$} 
     \EndFor
 
     \ForAll{$A \to x \in P$} \Comment{Simple rules initialization}
-        \ForAll{$(v, x, to) \in E$}
+        \ForAll{$(v, to) \in E, \lambda_E(v,to) = x$}
             \State{$T^A_{v,to} \gets true$}
         \EndFor
     \EndFor
@@ -77,16 +81,16 @@ $$
             \State{$M \gets TSrc^A*T^B$}
             \State{$T^A \gets T^A + M*T^C$}
             \State{$TSrc^B \gets TSrc^B + TSrc^A$}
-            \State{$TSrc^C \gets TSrc^C + $ \Call{getDst}{M}}
+            \State{$TSrc^C \gets TSrc^C + $ \Call{getDst}{$M$}}
         \EndFor
     \EndWhile
-    \State \Return T
+    \State \Return $T^S$
 \EndFunction
 
 \\
 
-\Function{getDst}{M}
-    \State{$A \gets \emptyset$}
+\Function{getDst}{$M$}
+    \State{$A \gets \varnothing$}
     \ForAll{$(v,to) \in V^2 \mid M_{v,to} = true$}
         \State{$A_{to,to} \gets true$}
     \EndFor
@@ -94,8 +98,15 @@ $$
 \EndFunction
 \end{algorithmic}
 \end{algorithm}
-In order to solve the single-source and multiple-source CFPQ problem Azimov's algorithm was modified: operations of Boolean matrix multiplication $T_A = T_A + T_B \cdot T_C$ for each $A \rightarrow BC \in R$ represented in line \textbf{8} of Algorithm~\ref{alg:algo0} was supplemented with one more matrix multiplication $T_A = T_A + (TSrc^A \cdot T_B) \cdot T_C$ for each $A \rightarrow BC \in R$ which saves only vertices we are interested in, where $TSrc^A$ --- matrix of vertices to calculate the paths from. It is represented in lines \textbf{11-13} of the Algorithm~\ref{alg:algo1}. Also, after every iteration of while loop this is nessesary to update the set of vertices paths from which we need to calculate. To do this, the function \textbf{getDst}, represented in lines \textbf{17-21}, is called at line \textbf{14}. Thus, the modified algorithm does not calculate the paths from all vertices in case of query to calculate the paths small set of vertices.
 
+In order to solve the single-source and multiple-source CFPQ problem Azimov's algorithm was modified: each time, when we apply grammar rule (Boolean matrix multiplication $T_A = T_A + T_B \cdot T_C$ for each $A \rightarrow BC \in P$ represented in line \textbf{8} of Algorithm~\ref{alg:algo0}) we should save only vertices of interest. 
+To do it, matrix multiplication was supplemented with one more matrix multiplication $T_A = T_A + (TSrc^A \cdot T_B) \cdot T_C$, where $TSrc^A$ --- matrix of vertices to calculate the paths from (lines \textbf{11-13} of the Algorithm~\ref{alg:algo1}).
+Also, after every iteration of while loop this is necessary to update the set of vertices paths from which we need to calculate. 
+To do this, the function \textbf{getDst}, represented in lines \textbf{17-21}, is called at line \textbf{14}.
+Thus, the modified algorithm supports the frontier of the actual vertices and updates it on each iteration.
+As a result it does not calculate the paths from all vertices in case of query to calculate the paths small set of vertices.
+
+========================
 We proposed the variant of the algorithm that can calculate the paths from a certain set of vertices, however there are such scenarios when queries are partially or completely repeated. In such cases it would be useful to add data caching to improve the performance. The problem is that every time we want to find all paths from the certain set of vertices, the Algorithm~\ref{alg:algo1} calculates everything from scratch. Since recalculating might take the significant amount of time, we modified multiple-source CFPQ algorithm to specify it for such scenarios. This version stores all the vertices the paths from which have already been calculated in cash $index$, which is used to filter such vertices in line \textbf{3} of Algorithm~\ref{alg:algo2}. Thus, modified algorithm calculates paths from the particular vertex only once.
 \begin{algorithm}
 \begin{algorithmic}[1]
