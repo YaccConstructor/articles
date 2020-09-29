@@ -148,8 +148,8 @@ Note, that graph loading time is not included in the result time of evaluation.
 
 For evaluation we use graphs and queries from CFPQ\_Data dataset\footnote{CFPQ\_Data is a dataset for CFPQ evaluation which contains both synthetic and real-world data and queries \url{https://github.com/JetBrains-Research/CFPQ\_Data}, last accessed 28.08.2020.}
 Detailed information, such as number if vertices and edges, and number of edges with specific label, on graphs which we select for evaluation is provided in table~\ref{tbl:graphs_for_cfpq}.
-We use classical same-generation queries $G_1$~(eq.~\ref{eqn:g_1}) and $G_2$~(eq.~\ref{eqn:g_2}) which are used in other works for CFPQ evaluation. 
-Also we use $Geo$~(eq.~\ref{eqn:geo}) query which was provided by J. Kuijpers et. al~\cite{Kuijpers:2019:ESC:3335783.3335791} for \textit{geospecies} RDF.
+We use classical same-generation queries $g_1$~(eq.~\ref{eqn:g_1}) and $g_2$~(eq.~\ref{eqn:g_2}) which are used in other works for CFPQ evaluation. 
+Also we use $geo$~(eq.~\ref{eqn:geo}) query which was provided by J. Kuijpers et. al~\cite{Kuijpers:2019:ESC:3335783.3335791} for \textit{geospecies} RDF.
 Note that in queries we use $\overline{x}$ notation to denote inverse of $x$ relation and respective edge.
 
 \begin{align}
@@ -202,49 +202,50 @@ Namely, for each graph we split all vertices into disjoint subsets of fixed size
 After that, for each subset we evaluate queries using the given subset as a set of start vertices. 
 
 For each graph we evaluate all three queries. 
-Results of evaluation is presented in figures !!!!.
-We use standard violin plot with median to show distribution of results.
+Results of evaluation is presented in figures~\ref{fig:python_core_all}--\ref{fig:python_pathways_all}.
+We use standard violin plot with median to show distribution of results, time is measured in seconds.
+For number of input graphs we provide additional figures for small chunks in order to analyze these cases carefully: figures~\ref{fig:python_eclass_small}--\ref{fig:python_go_small}.
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.5\textwidth]{data/raw/core.pdf}
 \caption{Performance of \textit{core} graph querying}
-\end{figure}
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.5\textwidth]{data/raw/core_4.pdf}
-\caption{Performance of \textit{core} graph querying with small chunks}
+\label{fig:python_core_all}
 \end{figure}
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.5\textwidth]{data/raw/go.pdf}
 \caption{Performance of \textit{go} graph querying}
+\label{fig:python_go_all}
 \end{figure}
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.5\textwidth]{data/raw/eclass_514en.pdf}
 \caption{Performance of \textit{eclass\_514en} graph querying}
+\label{fig:python_eclass_all}
 \end{figure}
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.5\textwidth]{data/raw/geospecies.pdf}
 \caption{Performance of \textit{geospecies} graph querying}
+\label{fig:python_geospecies_all}
 \end{figure}
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.5\textwidth]{data/raw/enzyme.pdf}
 \caption{Performance of \textit{enzyme} graph querying}
+\label{fig:python_enzyme_all}
 \end{figure}
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.5\textwidth]{data/raw/gohierarchy.pdf}
 \caption{Performance of \textit{gohierarchy} graph querying}
+\label{fig:python_gohierarchy_all}
 \end{figure}
 
 
@@ -252,8 +253,46 @@ We use standard violin plot with median to show distribution of results.
 \centering
 \includegraphics[width=0.5\textwidth]{data/raw/pathways.pdf}
 \caption{Performance of \textit{pathways} graph querying}
+\label{fig:python_pathways_all}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.5\textwidth]{data/raw/eclass_514en_4.pdf}
+\caption{Performance of \textit{eclass\_514en} graph querying with small chunks}
+\label{fig:python_eclass_small}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.5\textwidth]{data/raw/geospecies_4.pdf}
+\caption{Performance of \textit{geospecies} graph querying with small chunks}
+\label{fig:python_geospecies_small}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.5\textwidth]{data/raw/go_4.pdf}
+\caption{Performance of \textit{go} graph querying with small chunks}
+\label{fig:python_go_small}
 \end{figure}
 
 
-We can see, that ....
-As a result, we select !!! to integrate into RedisGraph!!!
+First of all, we can see, that even for cases when graph does not contain edges which are used in query, chunk processing time grows with size of chunk. 
+For example, look at the results for \textit{geo} query for all graphs except \textit{geospecies} and \textit{enzyme}.
+Thus, preliminary check of existence of edges of interest may be useful in some cases.
+
+Also, we can see, that chunk processing time significantly depends on graph structure. 
+For example, for chunks of size $10 000$ and query $g_1$, \textit{go} graph querying requires more than 5 seconds (fig.~\ref{fig:python_go_all}), while \textit{geospecies} graph querying requires less than 0.5 seconds (fig.~\ref{fig:python_geospecies_all}).  
+
+Comparison of two version of algorithm shows that algorithm without caching is significantly faster in almost all cases, even when graph does not contain edges of interest. 
+Analysis of results for small chunks (fig.~\ref{fig:python_eclass_small}--\ref{fig:python_go_small}) shows that it is always true. 
+For example, for \textit{eclass\_514en} graph and query $g_2$ (fig.~\ref{fig:python_geospecies_small}) median time for algorithm with caching is slightly better than for the na\"{i}ve version.
+On the other hand, for \textit{geospecies} graph and $geo$ query (fig.\ref{fig:python_geospecies_small}) algorithm with caching is drastically slower that the na\"{i}ve version.
+At the same time, for \textit{go} graph and $g_2$ query median time for both versions are comparable, while time for worst queries is better for the na\"{i}ve version.
+Moreover, caching requires additional memory in comparison with na\"{i}ve version of the algorithm.
+Thus we can conclude, that query results caching introduces significant overhead and does not lead to significant performance improvements.
+Also we can conclude that small chunk processing using the na\"{i}ve version is fast enough: the worst time in our experiments is about 0.2 seconds (fig.~\ref{fig:python_go_small}, query $G_1$). 
+
+
+As a result, we can conclude that caching is not useful for multiple-source CFPQ for evaluated cases and the na\"{i}ve version of the algorithm is better for implementation in real-world graph database. 
