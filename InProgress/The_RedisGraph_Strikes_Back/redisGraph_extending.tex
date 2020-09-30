@@ -14,74 +14,43 @@ There is a description of the respective Cypher syntax extension\footnote{\label
 
 This extension introduces path patterns, which are powerful alternative to the original Cypher relationship patterns.
 Path patterns allow one to express regular constrains over basic patterns such as relationship and node patterns.
-Just like relationship patterns they can be specified in the \texttt{MATCH} clause between the node patterns.
-
-\begin{algorithm}
-\floatname{algorithm}{Listing}
-\begin{algorithmic}[1]
-\caption{Example of using a simple path pattern}
-\label{lst:cypher-example-1}
-\State MATCH (v)-/ [:a (:x) :b] | [:c (:y) :d] /->(to)
-\State RETURN v, to
-\end{algorithmic}
-\end{algorithm}
-
-An example of query in extended syntax with a simple path pattern is provided in listing~\ref{lst:cypher-example-1}.
-In this example there are relationship patterns \lstinline{:a}, \lstinline{:b}, \lstinline{:c} \lstinline{:d} and node patterns \lstinline{(:x)}, \lstinline{(:y)}.
-The square brackets are used for grouping parts of the pattern.
-The $|$ symbol denotes alternative between corresponding paths and the blank denotes sequence of paths. So the result of executing the query on the labeled graph $D$ will be the following set of vertex pairs:
-
-\begin{align*}
-\{(v, to): \exists \pi = (v,r_1,u,r_2,to) \in \pi(D):& \\
-\begin{sqcases}
-    a \in \lambda_E(r_1), x \in \lambda_V(u), b \in \lambda_E(r_2)  \\
-    c \in \lambda_E(r_1), y \in \lambda_V(u), d \in \lambda_E(r_2)
-\end{sqcases}&\}
-\end{align*}
+Like relationship patterns, they can be specified in the \texttt{MATCH} clause.
 
 Main feature which allows one to specify context-free constraints is a \textit{named path patterns}: one can specify a name for path pattern and after that use this name in other patterns, or in the same pattern.
-Using this feature, structure of query is pretty similar to context-free grammar in the Extended Backus-Naur Form (EBNF)~\cite{!!!}.
+Named patterns can be defined in the \texttt{PATH PATTERN} clause.
+Using this feature, structure of query is pretty similar to context-free grammar in the Extended Backus-Naur Form (EBNF)~\cite{EBNF_ISO}.
 
 \begin{algorithm}
 \floatname{algorithm}{Listing}
 \begin{algorithmic}[1]
-\caption{Example of named path pattern}
-\label{lst:cypher-example-2}
-\State PATH PATTERN S = ()-/ [:a $\sim$S :b] | [:a :b] /->()
-\State MATCH (v)-/ $\sim$S /->(to)
-\State RETURN v, to
-\end{algorithmic}
-\end{algorithm}
-
-An example of named path patterns is presented in listing~\ref{lst:cypher-example-2}.
-Named patterns can be defined in the \texttt{PATH PATTERN} clause and referenced within any other path pattern.
-In order to explain the semantics of the query, consider contest-free grammar $G=(N, \Sigma, P, S)$ with $N=\{S\}$, $\Sigma=\{a,b\}$ and $P=\{S \xrightarrow{} a b, S \xrightarrow{} aSb \}$.
-\gsv{Then $L(G)=\{a^nb^n: n \in \mathbb{N}\}$ specifies restrictions on the path labels and query result on the graph $D$ will be the context free relation $R_{G, D}$}{What you want to say? In Russian.}. 
-
-Thus this Cypher extension allows one express more complex queries including context-free path queries.
-RedisGraph database supports subset of Cypher language and uses \texttt{libcypher-parser}\footnote{The \texttt{libcypher-parser} is an open-source parser library for Cypher query language. GitHub repository of the project: \url{https://github.com/cleishm/libcypher-parser}. Access date: 19.07.2020.} library to parse queries.
-We extend this library by introducing new syntax proposed \footnoteref{cypher-proposal}. We implement\footnote{The modified libsypher-pareser library with support of syntax for path patterns: \url{https://github.com/YaccConstructor/libcypher-parser}. Access date: 19.07.2020.} full extension, not only part which is necessary for simple CFPQ. 
-
-
-
-\subsection{RedisGraph Extending}
-
-This section describes the implementation of support for executing queries with the extended syntax in the RedisGraph. Throughout this section, we consider executing the example query from listing~\autoref{lst:cypher-example-3} for the graph $D_1$ from~\autoref{fig:example_input_graph}. $\mathcal{E}$ and $\mathcal{V}$ denotes boolean decompositions of adjacency and vertex label matrices of $D_1$ respectively. 
-
-\begin{algorithm}
-\floatname{algorithm}{Listing}
-\begin{algorithmic}[1]
-\caption{Query with path patterns example}
-\label{lst:cypher-example-3}
+\caption{Query based on example grammar $G_1$ (eq.~\ref{eqn:g1_example}) in Cypher with path patterns}
+\label{lst:cypher_example}
 \State PATH PATTERN S = ()-/ [:c $\sim$S :d] | [:c (:y) :d] /->()
 \State MATCH (v:x)-[:a | :c]->()-/ :b $\sim$S /->(to)
 \State RETURN v, to
 \end{algorithmic}
 \end{algorithm}
 
+
+The example of query which uses named path patters is presented in listing~\ref{lst:cypher_example}. 
+This query is based on context-free grammar $G_1$ (eq.~\ref{eqn:g1_example}). 
+Namely, path patter with name \texttt{S} specifies exactly the same constraint that specified by the grammar $G_1$. 
+The \texttt{MATCH} clause uses pattern \texttt{S} in complex constraint which says that path of interest should starts in the vertex with label \texttt{x}, than in should goes throw edge with label \texttt{a} or \texttt{c}, and the end of path is a sequence of edges which starts from \texttt{b} and tail of this sequence matches with \texttt{S}.  
+
+For the example graph $D_1$ this query returns the next pairs of vertices \texttt{(v, to)}: !!!!
+
+Thus this Cypher extension allows one express more complex queries including context-free path queries.
+RedisGraph database supports subset of Cypher language and uses \texttt{libcypher-parser}\footnote{The \texttt{libcypher-parser} is an open-source parser library for Cypher query language. GitHub repository of the project: \url{https://github.com/cleishm/libcypher-parser}. Access date: 19.07.2020.} library to parse queries.
+We extend this library by introducing new syntax proposed.
+Note that we implement\footnote{The modified libsypher-pareser library with support of syntax for path patterns: \url{https://github.com/YaccConstructor/libcypher-parser}. Access date: 19.07.2020.} full extension, not only part which is necessary for simple CFPQ. 
+
+\subsection{RedisGraph Extending}
+
+This section describes the implementation of support for executing queries with the extended syntax in the RedisGraph. Throughout this section, we consider executing the example query from listing~\autoref{lst:cypher-example-3} for the graph $D_1$ from~\autoref{fig:example_input_graph}. $\mathcal{E}$ and $\mathcal{V}$ denotes boolean decompositions of adjacency and vertex label matrices of $D_1$ respectively. 
+
 In the RedisGraph the main part of processing a query is building its execution plan. Execution plan consists of operations that perform basic processing such as filtering, pattern matching, aggregation and result construction. The diagram of its construction is shown in~\autoref{fig:execution-plan-construction}. It can be divided into two parts ---\gsv{processing named and unnamed path patterns, which are described below}{Improve it!}.
 
-In the first stage of processing, these patterns turn into an intermediate representation --- the \textit{query graph}. The nodes and edges of the query graph corresponds to node and relationship patterns. We extended query graph to be able to contain path patterns. Thus the query graph edges can be either relationship or path patterns, which are stored in a more convenient intermediate representation other than AST.
+ In the first stage of processing, these patterns turn into an intermediate representation --- the \textit{query graph}. The nodes and edges of the query graph corresponds to node and relationship patterns. We extended query graph to be able to contain path patterns. Thus the query graph edges can be either relationship or path patterns, which are stored in a more convenient intermediate representation other than AST.
 
 
 At the second stage, the query graph is translated into algebraic expressions over matrices. The abstract syntax of an algebraic expression is provided in~\autoref{fig:alg-expr}. Thus the algebraic expression is an expression with addition, multiplication and transposition operations whose operands are matrices. To support references to named paths patterns in algebraic expressions we added a matrix operand \textit{Ref(ref)} that stores a reference. 
