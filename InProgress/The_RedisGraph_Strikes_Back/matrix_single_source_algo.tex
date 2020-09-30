@@ -100,14 +100,18 @@ The result of the algorithm is a Boolean matrix which represents relation $R_{S,
 \end{algorithm}
 
 In order to solve the single-source and multiple-source CFPQ problem Azimov's algorithm was modified: each time, when we apply grammar rule (Boolean matrix multiplication $T_A = T_A + T_B \cdot T_C$ for each $A \rightarrow BC \in P$ represented in line \textbf{8} of Algorithm~\ref{alg:algo0}) we should save only vertices of interest. 
-To do it, matrix multiplication was supplemented with one more matrix multiplication $T_A = T_A + (TSrc^A \cdot T_B) \cdot T_C$, where $TSrc^A$ --- matrix of vertices to calculate the paths from (lines \textbf{11-13} of the Algorithm~\ref{alg:algo1}).
+To do it, matrix multiplication was supplemented with one more matrix multiplication $T_A = T_A + (TSrc^A \cdot T_B) \cdot T_C$, where $TSrc^A$ --- matrix of start vertices for the current iteration (lines \textbf{11-13} of the Algorithm~\ref{alg:algo1}).
 Also, after every iteration of while loop this is necessary to update the set of vertices paths from which we need to calculate. 
 To do this, the function \textbf{getDst}, represented in lines \textbf{17-21}, is called at line \textbf{14}.
 Thus, the modified algorithm supports the frontier of the actual vertices and updates it on each iteration.
 As a result it does not calculate the paths from all vertices in case of query to calculate the paths small set of vertices.
 
-========================
-We proposed the variant of the algorithm that can calculate the paths from a certain set of vertices, however there are such scenarios when queries are partially or completely repeated. In such cases it would be useful to add data caching to improve the performance. The problem is that every time we want to find all paths from the certain set of vertices, the Algorithm~\ref{alg:algo1} calculates everything from scratch. Since recalculating might take the significant amount of time, we modified multiple-source CFPQ algorithm to specify it for such scenarios. This version stores all the vertices the paths from which have already been calculated in cash $index$, which is used to filter such vertices in line \textbf{3} of Algorithm~\ref{alg:algo2}. Thus, modified algorithm calculates paths from the particular vertex only once.
+In case when one have a sequence of similar queries to the single graph it may be useful to cache results of query evaluation and share them between queries. 
+This may help to avoid recalculation of already calculated results. 
+To introduce interqueries caching, we modify the previous version of algorithm.
+The modified version stores all the vertices the paths from which have already been calculated in cash \textit{index}, which is used to filter such vertices in line \textbf{11} of Algorithm~\ref{alg:algo2}. Thus, modified algorithm calculates paths from the particular vertex only once.
+Note, that \texttt{CreateIndex} function should be called first, after that the created index can be shared between multiple calls of \texttt{MultiSrcCFPQSmart}.
+
 \begin{algorithm}
 \begin{algorithmic}[1]
 \caption{Optimized multiple-source context-free path querying algorithm}
@@ -143,15 +147,16 @@ We proposed the variant of the algorithm that can calculate the paths from a cer
             \State{$TNewSrc^C \gets TNewSrc^C + $ \Call{getDst}{M}} $\setminus$ $TSrc^C$
         \EndFor
     \EndWhile
+    \Return{$T^S$}
 \EndFunction
 
 
 \end{algorithmic}
 \end{algorithm}
 
-\subsection{Implementation Details}
+\subsection{Implementation Notes}
 
- All of the above versions have been implemented$\footnote{GitHub repository with implemented algorithms: \url{https://github.com/JetBrains-Research/CFPQ_PyAlgo}, last accessed 28.08.2020}$ using GraphBLAS framework that allows you to represent graphs as matrices and work with them in terms of linear algebra. For convenience, all the code is written in Python using pygraphblas\footnote{GitHub repository of PyGraphBLAS library: \url{https://github.com/michelp/pygraphblas}}, which is Python wrapper around GraphBLAS API and based on SuiteSparse:GraphBLAS\footnote{GitHub repository of SuiteSparse:GraphBLAS library: \url{https://github.com/DrTimothyAldenDavis/SuiteSparse}}~\cite{10.1145/3322125} --- the full implementation of GraphBLAS standard. This library is specialized for working with sparse matrices, which most often appear in real graphs. Also, it should be noted that, despite the fact that the function \textbf{getDst} does not seem to be expressed in terms of linear algebra, the implementation used the function \textbf{reduce\_vector} from pygraphblas that reduces matrix to a vector, with which further work takes place.
+ All of the above versions have been implemented$\footnote{GitHub repository with implemented algorithms: \url{https://github.com/JetBrains-Research/CFPQ_PyAlgo}, last accessed 28.08.2020}$ using GraphBLAS framework that allows you to represent graphs as matrices and work with them in terms of linear algebra. For convenience, all the code is written in Python using pygraphblas\footnote{GitHub repository of PyGraphBLAS library: \url{https://github.com/michelp/pygraphblas}}, which is Python wrapper around GraphBLAS API and based on SuiteSparse:GraphBLAS\footnote{GitHub repository of SuiteSparse:GraphBLAS library: \url{https://github.com/DrTimothyAldenDavis/SuiteSparse}}~\cite{10.1145/3322125} --- the full implementation of GraphBLAS standard. This library is specialized for working with sparse matrices, which most often appear in real graphs. Also, it should be noted that, despite the fact that the function \textbf{getDst} does not seem to be expressed in terms of linear algebra, the implementation used the function \textbf{reduce\_vector} from pygraphblas..
 
 \subsection{Algorithm Evaluation}\label{sect:py_algo_evaluation}
 
@@ -215,6 +220,7 @@ Our main goal is to compare behavior of two proposed versions of the algorithm.
 To do it we measure query execution time for both versions for different sizes of star vertex set. 
 Namely, for each graph we split all vertices into disjoint subsets of fixed size.
 After that, for each subset we evaluate queries using the given subset as a set of start vertices. 
+For algorithm with caching we initialize cache once for each chunk size and accumulate results for all chunks for specific size.
 
 For each graph we evaluate all three queries. 
 Results of evaluation is presented in figures~\ref{fig:python_core_all}--\ref{fig:python_pathways_all}.
@@ -298,7 +304,7 @@ For example, look at the results for \textit{geo} query for all graphs except \t
 Thus, preliminary check of existence of edges of interest may be useful in some cases.
 
 Also, we can see, that chunk processing time significantly depends on graph structure. 
-For example, for chunks of size $10 000$ and query $g_1$, \textit{go} graph querying requires more than 5 seconds (fig.~\ref{fig:python_go_all}), while \textit{geospecies} graph querying requires less than 0.5 seconds (fig.~\ref{fig:python_geospecies_all}).  
+For example, for chunks of size 10 000 and query $g_1$, \textit{go} graph querying requires more than 5 seconds (fig.~\ref{fig:python_go_all}), while \textit{geospecies} graph querying requires less than 0.5 seconds (fig.~\ref{fig:python_geospecies_all}).  
 
 Comparison of two version of algorithm shows that algorithm without caching is significantly faster in almost all cases, even when graph does not contain edges of interest. 
 Analysis of results for small chunks (fig.~\ref{fig:python_eclass_small}--\ref{fig:python_go_small}) shows that it is always true. 
