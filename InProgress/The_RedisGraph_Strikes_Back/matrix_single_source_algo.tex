@@ -61,10 +61,10 @@ The result of the algorithm is a Boolean matrix which represents relation $R_{S,
 \label{alg:algo1}
 \Function{MultiSrcCFPQ}{$D = (V, E, \Sigma_V, \Sigma_E, \lambda_V, \lambda_E),~G=(N,\Sigma,P,S), Src$}
     \State{$T \gets \{T^A \mid  A \in N, T^A \gets \varnothing\}$}
-    \Comment{Matrix in which every element is $\varnothing$}
+    \Comment{Set of matrices, in which every maxtrix is $\varnothing$}
     
     \State{$TSrc \gets \{TSrc^A \mid  A \in N, TSrc^A \gets \varnothing\}$}
-    \Comment{Matrix for input vertices in which every element is $\varnothing$}
+    \Comment{Set of matrices for input vertices in which every matrix is $\varnothing$}
 
     \ForAll{$ v \in Src$} \Comment{Input matrix initialization}
         \State{$TSrc^S_{v,v} \gets true$} 
@@ -87,7 +87,7 @@ The result of the algorithm is a Boolean matrix which represents relation $R_{S,
     \State \Return $T^S$
 \EndFunction
 
-\\
+
 
 \Function{getDst}{$M$}
     \State{$A \gets \varnothing$}
@@ -105,6 +105,18 @@ Also, after every iteration of while loop this is necessary to update the set of
 To do this, the function \textbf{getDst}, represented in lines \textbf{17-21}, is called at line \textbf{14}.
 Thus, the modified algorithm supports the frontier of the actual vertices and updates it on each iteration.
 As a result it does not calculate the paths from all vertices in case of query to calculate the paths small set of vertices.
+
+Lets consider the example of running this algorithm on graph $D_1'$ and grammar $G_1$ in weak Chomsky normal form with set of start vertices $Src = \{2\}$. After input matrix initialization $TSrc^S = \{(2, 2)\}$. Then algorithm initializes set $T$ with simple rules $C \xrightarrow{} c, D \xrightarrow{} d, Y \xrightarrow{} y$ and we get the following matrices:
+\begin{align*}
+    T^C &= \mathcal{E}^c = \{(2, 4), (4, 3), (3, 2)\} \\
+    T^D &= \mathcal{E}^d = \{(4, 5), (5, 4)\} \\
+    T^Y &= \mathcal{V}^y = \{(0, 0), (4, 4)\}
+\end{align*}
+
+Lets consider the first iteration of the while loop in line~\textbf{9}. The first grammar rule is $S \xrightarrow{} C E$. Here the matrix $M$ is computed to $TSrc^S*T^C = \{(2, 4)\}$. Since matrix $T^E$ is empty, $T^S$ is not updated in line~\textbf{12}. But the input matrix $TSrc^E$ is populated with new records and becomes equal to $\{(4, 4)\}$. This means that we are interested in paths that start from the 4th vertex and satisfy the constraints specified by nonterminal $E$. The second grammar rule $S \xrightarrow{} C S_1$ is very similar to previous one. After processing it, the matrix $T^{S_1}$ also becomes equal to $\{(4, 4)\}$.
+Now let's look at the processing of the third rule $E \xrightarrow{} Y D$. Here $M$ is computed to $TSrc^E * T^Y = \{(4, 4)\}$. After that algorithm update $T^E$ with matrix $M  * T^D = \{(4, 5)\}$ and now we know that path $(4, (4, 5), 5)$ satisfies the constraints of $E$. It remains to consider the last rule $S_1 \xrightarrow{} S D$. During it processing since $T^S$ is empty only $TSrc^S$ is updated and becomes equal to $\{(2, 2), (4, 4)\}$. This is the end of the first iteration.
+
+In order to consider at least some path satisfying S, lets look at processing of rule $S \xrightarrow{} C E$ in second iteration. Now matrix $M$ is computed to $TSrc^S * T^C = \{(2, 4), (4, 3)\}$. After first operation $T^E$ was populated and became equal to $\{(4, 5)\}$. So $T^S$ is computed to $M * T^C = \{(2, 5)\}$. Thus, we found the first path that satisfies the grammar constraints. 
 
 In case when one have a sequence of similar queries to the single graph it may be useful to cache results of query evaluation and share them between queries. 
 This may help to avoid recalculation of already calculated results. 
@@ -318,5 +330,6 @@ Also we can conclude that small chunk processing using the na\"{i}ve version is 
 
 As a result, we can conclude that caching is not useful for multiple-source CFPQ for evaluated cases even if one want to process several chunks sequentially, or even process full graph chunk-by-chunk.
 Thus, we think that the na\"{i}ve version of the algorithm is better for implementation in real-world graph database. 
+
 
 
