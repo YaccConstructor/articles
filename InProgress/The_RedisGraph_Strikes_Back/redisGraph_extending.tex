@@ -77,13 +77,6 @@ After obtaining algebraic expressions they are used to construct execution plan 
 \subsubsection{Execution plan evaluating}
 \label{subsubsec:execution-plan-evaluating}
 
-\begin{figure}[h!]
-  \centering
-  \includegraphics[width=\linewidth]{pictures/execution-plan-evaluation.png}
-  \caption{CFPQTraverse and CondTraverse evaluation}
-  \label{fig:execution-plan-evaluation}
-\end{figure}
-
 The remaining part of query processing is evaluation its execution plan. This section describes how the \lstinline{CFPQTraverse} operation is performed. For explanation, we use example graph $D_1$ from~\autoref{fig:example_input_graph} and execution plan operations $LabelScan(n)$, $CondTraverse(r)$ and $CfpqTraverse(p)$ that were obtained in the previous section for example query from listing~\autoref{lst:cypher-example-3}.
 
 Let`s first consider the structure of the execution plan operations. Operations have parent-child relationships, so they are formed into a tree. For example, the part of execution plan that derived from example query is shown in~\autoref{fig:execution-plan-operations}. Each operation can consume a record from a child operation, process it and produce another one for the parent. Records contain information necessary for the parent operation, as well as everything to restore the response, such as identifiers of accumulated vertices and edges.
@@ -107,30 +100,6 @@ Let`s first consider the structure of the execution plan operations. Operations 
 
 After that we have everything to run multiple-source CFPQ algorithm provided in listing~\autoref{alg:redisgraph-cfpq} to resolve all operation dependencies. This algorithm is slightly different from \textit{MultiSrcCFPQ} algorithm described in listing~\autoref{alg:algo1} and is a generalization of it. It receives the set of operation dependencies \textit{deps} and path pattern context $context$. The algorithm's task is to populate relation and source matrices of all named path pattern from $deps$. To do this on each iteration for all pattern from $deps$ this matrices are updated. Namely, first of all the algebraic expression is constructed from source matrix and algebraic expression of current pattern and then optimized in line~\textbf{5}. This is followed by substitution references in line~\textbf{6}, after which all references in the expression are replaced by relation matrices from $context$. At the end of iteration the resulting expression is evaluated and stored in relation matrix in line~\textbf{7}. These iterations continue as long as the context changes, i.e. at least one of the pattern matrices $m_{rel}$ or $m_{src}$ changes during iteration.
 
-\begin{algorithm}
-\begin{algorithmic}[1]
-\caption{Multiple-source context-free path querying algorithm in terms of algebraic expressions}
-\label{alg:redisgraph-cfpq}
-\Function{MultiSrcCFPQAlgExp}{$deps,\ context$}
-\While {$context~is~changing$}
-    \ForAll{$p~\in deps$}
-        \State $src \gets context[p].m_{src}$
-        \State $expr \gets$ \Call{Optimize}{$src * context[p].expr$}
-        \State \Call{FetchReferences}{$expr$, $ctx$}
-        \State $context[p].m_{rel} \gets$ \Call{Eval}{$expr$}
-    \EndFor
-\EndWhile
-
-\EndFunction
-\end{algorithmic}
-\end{algorithm}
-
-After running this algorithm on the dependency set of \textit{CFPQTraverse} operation and path pattern context we receive relation matrices of all named path pattern, on which operation depends. For example, after running it on dependency set $\{S\}$, relation and source matrices of pattern $S$ will be as follows:
-
-\begin{align*}
-m_{rel} &= \{(3, 5), (3, 6), (4, 5), (4, 6), (5, 5), (5, 6)\} \\
-m_{src} &= \{(3, 3), (4, 4), (5, 5)\}
-\end{align*}
 
 After that all references in the algebraic expression $p_f *$ \textit{Alg\-Exp(p)} are replaced with the relation matrices and we get algebraic expression $p_f * \mathcal{E}^b * context[S].m_{rel}$. Then this expression is evaluated to matrix $\{(3, 5), (3, 6)\}$ that corresponds to paths from 3rd vertex that satisfy the constraints specified by pattern $S$. Finally as well as \lstinline{CondTraverse}, \lstinline{CFPQTraverse} extracts desired paths from this resulting matrix and passes them to parent operation.
 
@@ -193,7 +162,7 @@ Results of time measurement are presented in figures~\ref{fig:redis_core_all}--\
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.5\textwidth]{data/raw_redis/core.pdf}
-\caption{RedisGraph performance of \textit{core} graph}
+\caption{RedisGraph performance on \textit{core} graph}
 \label{fig:redis_core_all}
 \end{figure}
 
@@ -201,14 +170,14 @@ Results of time measurement are presented in figures~\ref{fig:redis_core_all}--\
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.5\textwidth]{data/raw_redis/pathways.pdf}
-\caption{RedisGraph performance of \textit{pathways} graph}
+\caption{RedisGraph performance on \textit{pathways} graph}
 \label{fig:redis_pathways_all}
 \end{figure}
 
 \begin{figure}[h]core
 \centering
 \includegraphics[width=0.5\textwidth]{data/raw_redis/enzyme.pdf}
-\caption{RedisGraph performance of \textit{enzyme} graph}
+\caption{RedisGraph performance on \textit{enzyme} graph}
 \label{fig:redis_enzyme_all}
 \end{figure}
 
@@ -216,37 +185,54 @@ Results of time measurement are presented in figures~\ref{fig:redis_core_all}--\
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.5\textwidth]{data/raw_redis/go.pdf}
-\caption{RedisGraph performance of \textit{go} graph}
+\caption{RedisGraph performance on \textit{go} graph}
 \label{fig:redis_go_all}
 \end{figure}
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.5\textwidth]{data/raw_redis/geospecies.pdf}
-\caption{RedisGraph performance of \textit{geospecies} graph}
+\caption{RedisGraph performance on \textit{geospecies} graph}
 \label{fig:redis_geospecies_all}
 \end{figure}
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.5\textwidth]{data/raw_redis/eclass_514en.pdf}
-\caption{RedisGraph performance of \textit{eclass\_514en} graph}
+\caption{RedisGraph performance on \textit{eclass\_514en} graph}
 \label{fig:redis_eclass_all}
 \end{figure}
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.5\textwidth]{data/raw_redis/gohierarchy.pdf}
-\caption{RedisGraph performance of \textit{gohierarchy} graph}
+\caption{RedisGraph performance on \textit{gohierarchy} graph}
 \label{fig:redis_gohierarchy_all}
 \end{figure}
 
 We can see, that results is comparable with one given in section~\ref{sect:py_algo_evaluation}. 
-Processing time for all chunks, except chunk of size 10 000 for \textit{geospecies} graph (fig.~\ref{fig:redis_geospecies_all}) is less then 1 second.
+Processing time for all chunks, except chunk of size 10~000 for \textit{geospecies} graph (fig.~\ref{fig:redis_geospecies_all}) is less then 1 second.
 Moreover, for chunks of size 16 processing median time is less then 0.1 second, except \textit{geospecies} graph.
 
-Memory consumption is presented in !!!
-La-la-la!!!!
+Memory consumption for two big graphs \textit{eclass\_514en} and \textit{geospecies} is presented in figures~\ref{fig:redis_memory_eclass} and~\ref{fig:redis_memory_geospecies} respectively.
+We can see, that amount of used memory depends on graph and query, but for relatively small chunks ($\leq 1000$) RedisGraph uses less that 50Mb of RAM to process one chunk.
+Note that RedisGraph includes memory management system, thus in our experiments all allocated memory is measured, not only really used for query evaluation.
+As a result, we can conclude that multiple-source CFPQ is significantly more memory efficient than creation of full reachability index and its filtering: processing the chunk of size 10~000 on \textit{geospecies} graph requires less than 200Mb, while full index creation requires 16Gb~\cite{10.1145/3398682.3399163}.  
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.5\textwidth]{data/raw_memory/eclass_514en.pdf}
+\caption{RedisGraph memory consumption on \textit{eclass\_514en} graph}
+\label{fig:redis_memory_eclass}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.5\textwidth]{data/raw_memory/geospecies.pdf}
+\caption{RedisGraph memory consumption on \textit{geospecies} graph}
+\label{fig:redis_memory_geospecies}
+\end{figure}
+
 
 Additionally, we measure the time required to process full graph (to solve all-pairs reachability problem) by chunks of size  !!!.
 Also, we compare our solution with results of Arseniy Terekhov et al. from~\cite{10.1145/3398682.3399163} which were measured for RedisGraph deployed on the similar hardware and for the same graphs and queries. In~\cite{10.1145/3398682.3399163} Azimov's algorithm was naively integrated with RedisGraph storage without support of query language and other mechanisms such as lazy query evaluation.

@@ -7,12 +7,6 @@ import scipy.stats
 def reject_outliers(data, m=1.2):
     return data[abs(data - np.mean(data)) < m * np.std(data)]
 
-
-
-files_to_draw = [f'raw/{x}.csv' for x in ['core','eclass_514en','enzyme','geospecies','go','gohierarchy','pathways']]
-files_to_draw_redis = [f'raw_redis/{x}.csv' for x in ['core','eclass_514en','enzyme','geospecies','go','gohierarchy','pathways']]
-
-
 def draw(input_file, p=0):
 
 	labels = []
@@ -59,7 +53,7 @@ def draw(input_file, p=0):
 	plt.close(fig)
 
 
-def draw_redis(input_file, p):
+def draw_redis(input_file):
 
 	plt.ioff()
 
@@ -90,4 +84,41 @@ def draw_redis(input_file, p):
 	plt.savefig(f'{input_file[:-4]}.pdf')
 	plt.close(fig)
 
-for f in files_to_draw: draw(f,4)
+
+def draw_redis_memory(input_file, p=0):
+
+	plt.ioff()
+
+	input_data = pd.read_csv(input_file)
+
+	fig, axes = plt.subplots(nrows=1, ncols=1, figsize=(6, 4))
+
+	data = input_data[['chunk_size','chunk_mem_mb']][input_data.apply(lambda x: x['chunk_mem_mb'] > 0, axis=1)].groupby(['chunk_size'])
+	r = [x for x in [[n,reject_outliers(d['chunk_mem_mb'])] for n,d in data] if len(x[1]) > 0 ]
+	d = list(zip(*r))
+	axs = axes
+	axs.violinplot(d[1], showmeans=False, showmedians=True)
+
+	axs.set_xticks(range(1,len(d[0])+1))
+	axs.set_xticklabels(d[0])
+	
+	axs.yaxis.grid(True)
+
+	leg = axs.legend([input_data['grammar'][0]], loc=2);
+
+	axs.set_xlabel('Chunk size')
+	
+	fig.text(0.004, 0.5, 'Memory in Mb', va='center', rotation='vertical')
+
+	fig.tight_layout()
+
+	plt.savefig(f'{input_file[:-4]}.pdf')
+	plt.close(fig)
+
+
+files_to_draw = [f'raw/{x}.csv' for x in ['core','eclass_514en','enzyme','geospecies','go','gohierarchy','pathways']]
+files_to_draw_redis = [f'raw_redis/{x}.csv' for x in ['core','eclass_514en','enzyme','geospecies','go','gohierarchy','pathways']]
+files_to_draw_redis_memory = [f'raw_memory/{x}.csv' for x in ['core','eclass_514en','enzyme','geospecies','go','pathways']]
+
+
+for f in files_to_draw_redis_memory: draw_redis_memory(f)
