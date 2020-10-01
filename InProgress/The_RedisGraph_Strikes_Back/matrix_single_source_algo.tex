@@ -491,21 +491,24 @@ Thus only vertices 4 and 5 are reachable from the vertex 2 by a path which forms
 \subsection{Implementation Notes}
 
 All of the versions presented have been implemented$\footnote{GitHub repository with implemented algorithms: \url{https://github.com/JetBrains-Research/CFPQ_PyAlgo}, last accessed 28.08.2020}$ using GraphBLAS framework that allows one to represent graphs as matrices and to work with them in terms of linear algebra.
-For convenience, the code is written in Python using pygraphblas\footnote{GitHub repository of PyGraphBLAS library: \url{https://github.com/michelp/pygraphblas}}, which is Python wrapper around GraphBLAS API and based on SuiteSparse:GraphBLAS\footnote{GitHub repository of SuiteSparse:GraphBLAS library: \url{https://github.com/DrTimothyAldenDavis/SuiteSparse}}~\cite{10.1145/3322125} --- the full implementation of GraphBLAS standard. This library is specialized for working with sparse matrices, which most often appear in real graphs. Also, it should be noted that, despite the fact that the function \textsc{getDst} does not seem to be expressed in terms of linear algebra, the implementation used the function \textsc{reduce\_vector} from pygraphblas.
+For~convenience, the code is written in Python using pygraphblas\footnote{GitHub repository of PyGraphBLAS library: \url{https://github.com/michelp/pygraphblas}}, which is a Python wrapper for GraphBLAS API and is based on SuiteSparse:GraphBLAS\footnote{GitHub repository of SuiteSparse:GraphBLAS library: \url{https://github.com/DrTimothyAldenDavis/SuiteSparse}}~\cite{10.1145/3322125} --- the complete implementation of the GraphBLAS standard.
+This library is specialized to work with sparse matrices which appear in real graphs most often.
+% Relevance?
+\cho{It should be noted that, despite the fact that the function \textsc{getDst} does not seem to be expressed in terms of linear algebra, the implementation employs the function \textsc{reduce\_vector} from pygraphblas.}
 
 \subsection{Algorithm Evaluation}\label{sect:py_algo_evaluation}
 
-We evaluate both described version of multiple-source algorithm on real-world graphs.
+We evaluate both described versions of the multiple-source algorithm on real-world graphs.
 For evaluation, we use a PC with Ubuntu 20.04 installed.
 It has Intel core i7-4790 CPU, 3.60GHz, and DDR3 32Gb RAM.
-As far as we evaluate only algorithm execution time, we store each graph fully in RAM as its adjacency matrix in sparse format.
+As far as we evaluate only the execution time of the algorithm, we store each graph fully in RAM as its adjacency matrix in sparse format.
 Note, that graph loading time is not included in the result time of evaluation.
 
 For evaluation we use graphs and queries from CFPQ\_Data dataset\footnote{CFPQ\_Data is a dataset for CFPQ evaluation which contains both synthetic and real-world data and queries \url{https://github.com/JetBrains-Research/CFPQ\_Data}, last accessed 28.08.2020.}
-Detailed information, such as number if vertices and edges, and number of edges with specific label, on graphs which we select for evaluation is provided in table~\ref{tbl:graphs_for_cfpq}.
+Detailed information, such as the number of vertices and edges, and the number of edges with the specific label, on graphs used in evaluation is provided in table~\ref{tbl:graphs_for_cfpq}.
 We use classical same-generation queries $g_1$~(eq.~\ref{eqn:g_1}) and $g_2$~(eq.~\ref{eqn:g_2}) which are used in other works for CFPQ evaluation.
-Also we use $geo$~(eq.~\ref{eqn:geo}) query which was provided by J. Kuijpers et. al~\cite{Kuijpers:2019:ESC:3335783.3335791} for \textit{geospecies} RDF.
-Note that in queries we use $\overline{x}$ notation to denote inverse of $x$ relation and respective edge.
+We also use $geo$~(eq.~\ref{eqn:geo}) query provided by \cho{J. Kuijpers} et. al~\cite{Kuijpers:2019:ESC:3335783.3335791} for \textit{geospecies} RDF.
+Note that in queries we use $\overline{x}$ notation to denote the inverse of the $x$ relation and the respective edge.
 
 \begin{align}
 \begin{split}
@@ -551,16 +554,16 @@ go                          & 582 929  & 1 758 432  & 94 514    & 226 481  & 0  
 }
 
 
-Our main goal is to compare behavior of two proposed versions of the algorithm.
-To do it we measure query execution time for both versions for different sizes of star vertex set.
+Our main goal is to compare the behavior of the two proposed versions of the algorithm.
+To do it, we measure query execution time of both versions for different sizes of star vertex set.
 Namely, for each graph we split all vertices into disjoint subsets of fixed size.
-After that, for each subset we evaluate queries using the given subset as a set of start vertices.
-For algorithm with caching we initialize cache once for each chunk size and accumulate results for all chunks for specific size.
+After that, we evaluate queries using each subset as a set of start vertices.
+For algorithm with caching we initialize cache once for each chunk size and accumulate results for all chunks of the specific size.
 
-For each graph we evaluate all three queries.
-Results of evaluation is presented in figures~\ref{fig:python_core_all}--\ref{fig:python_pathways_all}.
-We use standard violin plot with median to show distribution of results, time is measured in seconds.
-For number of input graphs we provide additional figures for small chunks in order to analyze these cases carefully: figures~\ref{fig:python_eclass_small}--\ref{fig:python_go_small}.
+We evaluate all three queries for each graph.
+The results of the evaluation are presented in figures~\ref{fig:python_core_all}--\ref{fig:python_pathways_all}.
+We use standard violin plot with median to show the distribution of results; time is measured in seconds.
+For several input graphs we provide additional figures for smaller chunks in order to analyze these cases carefully: figures~\ref{fig:python_eclass_small}--\ref{fig:python_go_small}.
 
 \begin{figure}[h]
 \centering
@@ -634,25 +637,25 @@ For number of input graphs we provide additional figures for small chunks in ord
 \end{figure}
 
 
-First of all, we can see, that even for cases when graph does not contain edges which are used in query, chunk processing time grows with size of chunk.
-For example, look at the results for \textit{geo} query for all graphs except \textit{geospecies} and \textit{enzyme}.
-Thus, preliminary check of existence of edges of interest may be useful in some cases.
+First of all, we can see that even for the cases when the input graph does not contain edges used in a query, the chunk processing time grows with the size of the chunk.
+For example, consider the results for \textit{geo} query for all graphs except \textit{geospecies} and \textit{enzyme}.
+Thus, the preliminary check of the existence of the edges of interest may improve performance.
 
-Also, we can see, that chunk processing time significantly depends on graph structure.
-For example, for chunks of size 10~000 and query $g_1$, \textit{go} graph querying requires more than 5 seconds (fig.~\ref{fig:python_go_all}), while \textit{geospecies} graph querying requires less than 0.5 seconds (fig.~\ref{fig:python_geospecies_all}).
+We can also see, that the chunk processing time significantly depends on the graph structure.
+For example, \textit{go} graph querying requires more than 5 seconds (fig.~\ref{fig:python_go_all}), while \textit{geospecies} graph querying requires less than 0.5 seconds (fig.~\ref{fig:python_geospecies_all}) for the chunks of size 10~000 and the query $g_1$,.
 
-Comparison of two version of algorithm shows that algorithm without caching is significantly faster in almost all cases, even when graph does not contain edges of interest.
+The comparison of two versions of the algorithm shows that the algorithm without caching is significantly faster in almost all cases, even when the graph does not contain edges of interest.
 Analysis of results for small chunks (fig.~\ref{fig:python_eclass_small}--\ref{fig:python_go_small}) shows that it is always true.
-For example, for \textit{eclass\_514en} graph and query $g_2$ (fig.~\ref{fig:python_geospecies_small}) median time for algorithm with caching is slightly better than for the na\"{i}ve version.
-On the other hand, for \textit{geospecies} graph and $geo$ query (fig.\ref{fig:python_geospecies_small}) algorithm with caching is drastically slower that the na\"{i}ve version.
-At the same time, for \textit{go} graph and $g_2$ query median time for both versions are comparable, while time for worst queries is better for the na\"{i}ve version.
-Moreover, caching requires additional memory in comparison with na\"{i}ve version of the algorithm.
-Thus we can conclude, that query results caching introduces significant overhead and does not lead to significant performance improvements.
-Also we can conclude that small chunk processing using the na\"{i}ve version is fast enough: the worst time in our experiments is about 0.2 seconds (fig.~\ref{fig:python_go_small}, query $G_1$).
+For example, median time for algorithm with caching is slightly better than for the naive version for \textit{eclass\_514en} graph and query $g_2$ (fig.~\ref{fig:python_geospecies_small}).
+On the other hand, algorithm with caching is drastically slower than the naive version for \textit{geospecies} graph and $geo$ query (fig.\ref{fig:python_geospecies_small}).
+At the same time, for \textit{go} graph and $g_2$ query, median time of both versions is comparable, while time for the worst queries is better for the naive version.
+Moreover, caching requires additional memory in comparison with the naive version of the algorithm.
+Thus we conclude, that the query results caching introduces significant overhead and does not lead to significant performance improvements.
+We can also conclude that small chunk processing using the naive version is fast enough: the worst time in our experiments is about 0.2 seconds (fig.~\ref{fig:python_go_small}, query $G_1$).
 
 
-As a result, we can conclude that caching is not useful for multiple-source CFPQ for evaluated cases even if one want to process several chunks sequentially, or even process full graph chunk-by-chunk.
-Thus, we think that the na\"{i}ve version of the algorithm is better for implementation in real-world graph database.
+As a result, we conclude that caching is not useful for multiple-source CFPQ for the evaluated cases even if one wants to process several chunks sequentially, or even process full graph chunk-by-chunk.
+Thus, we believe that the naive version of the algorithm is better for implementation in a real-world graph database.
 
 
 
