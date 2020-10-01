@@ -48,36 +48,12 @@ Note that we implement\footnote{The modified libsypher-pareser library with supp
 
 This section describes the implementation of support for executing queries with the extended syntax in the RedisGraph. Throughout this section, we consider executing the example query from listing~\autoref{lst:cypher-example-3} for the graph $D_1$ from~\autoref{fig:example_input_graph}. $\mathcal{E}$ and $\mathcal{V}$ denotes boolean decompositions of adjacency and vertex label matrices of $D_1$ respectively. 
 
-In the RedisGraph the main part of processing a query is building its execution plan. Execution plan consists of operations that perform basic processing such as filtering, pattern matching, aggregation and result construction. The diagram of its construction is shown in~\autoref{fig:execution-plan-construction}. It can be divided into two parts ---\gsv{processing named and unnamed path patterns, which are described below}{Improve it!}.
+In the RedisGraph the main part of processing a query is building its execution plan. Execution plan consists of operations that perform basic processing such as filtering, pattern matching, aggregation and result construction. The diagram of its construction is shown in~\autoref{fig:execution-plan-construction}
 
- In the first stage of processing, these patterns turn into an intermediate representation --- the \textit{query graph}. The nodes and edges of the query graph corresponds to node and relationship patterns. We extended query graph to be able to contain path patterns. Thus the query graph edges can be either relationship or path patterns, which are stored in a more convenient intermediate representation other than AST.
-
-
-At the second stage, the query graph is translated into algebraic expressions over matrices. The abstract syntax of an algebraic expression is provided in~\autoref{fig:alg-expr}. Thus the algebraic expression is an expression with addition, multiplication and transposition operations whose operands are matrices. To support references to named paths patterns in algebraic expressions we added a matrix operand \textit{Ref(ref)} that stores a reference. 
-
-% For example the query graph in .
-
-\begin{figure}[H]
-\caption{Algebraic expression abstract syntax}
-\label{fig:alg-expr}
-\begin{align*}
-\begin{split}
-AlgExpr= ~ &(AlgExpr + AlgExpr)~| \\
-           &(AlgExpr * AlgExpr)~| \\
-           &Transpose(AlgExpr)~| \\
-           &Matrix~| \\
-           &Ref(ref)        
-\end{split}
-\end{align*}
-\end{figure}
-
-After obtaining algebraic expressions they are used to construct execution plan operations. Each operation is derived from a single algebraic expression that is involved in the further execution of the corresponding operation. For example for the $AlgExp(r)$ and $AlgExp(n)$ will be created \textit{CondTraverse(AlgExp(r))} and \textit{LabelScan(AlgExp(n))} operations respectively which already existed in RedisGraph. For expressions that correspond to path patterns we created a new \textit{CFPQTraverse} operation. Thus algebraic expression of pattern $p$ will be stored in the new \textit{CFPQTraverse(AlgExp(p))} operation. During the query execution this operation performs path pattern matching and solves context-free path reachability problem if necessary. This completes the part of the query execution plan building which concerns unnamed path patterns.
+After obtaining algebraic expressions they are used to construct execution plan operations. Each operation is derived from a single algebraic expression that is involved in the further execution of the corresponding operation.  During the query execution this operation performs path pattern matching and solves context-free path reachability problem if necessary. This completes the part of the query execution plan building which concerns unnamed path patterns.
 
 
-\subsubsection{Execution plan evaluating}
-\label{subsubsec:execution-plan-evaluating}
-
-The remaining part of query processing is evaluation its execution plan. This section describes how the \lstinline{CFPQTraverse} operation is performed. For explanation, we use example graph $D_1$ from~\autoref{fig:example_input_graph} and execution plan operations $LabelScan(n)$, $CondTraverse(r)$ and $CfpqTraverse(p)$ that were obtained in the previous section for example query from listing~\autoref{lst:cypher-example-3}.
+The remaining part of query processing is evaluation its execution plan.
 
 Let`s first consider the structure of the execution plan operations. Operations have parent-child relationships, so they are formed into a tree. For example, the part of execution plan that derived from example query is shown in~\autoref{fig:execution-plan-operations}. Each operation can consume a record from a child operation, process it and produce another one for the parent. Records contain information necessary for the parent operation, as well as everything to restore the response, such as identifiers of accumulated vertices and edges.
 
@@ -97,13 +73,6 @@ Let`s first consider the structure of the execution plan operations. Operations 
     \label{fig:execution-plan-operations}
 \end{figure}
 
-
-After that we have everything to run multiple-source CFPQ algorithm provided in listing~\autoref{alg:redisgraph-cfpq} to resolve all operation dependencies. This algorithm is slightly different from \textit{MultiSrcCFPQ} algorithm described in listing~\autoref{alg:algo1} and is a generalization of it. It receives the set of operation dependencies \textit{deps} and path pattern context $context$. The algorithm's task is to populate relation and source matrices of all named path pattern from $deps$. To do this on each iteration for all pattern from $deps$ this matrices are updated. Namely, first of all the algebraic expression is constructed from source matrix and algebraic expression of current pattern and then optimized in line~\textbf{5}. This is followed by substitution references in line~\textbf{6}, after which all references in the expression are replaced by relation matrices from $context$. At the end of iteration the resulting expression is evaluated and stored in relation matrix in line~\textbf{7}. These iterations continue as long as the context changes, i.e. at least one of the pattern matrices $m_{rel}$ or $m_{src}$ changes during iteration.
-
-
-After that all references in the algebraic expression $p_f *$ \textit{Alg\-Exp(p)} are replaced with the relation matrices and we get algebraic expression $p_f * \mathcal{E}^b * context[S].m_{rel}$. Then this expression is evaluated to matrix $\{(3, 5), (3, 6)\}$ that corresponds to paths from 3rd vertex that satisfy the constraints specified by pattern $S$. Finally as well as \lstinline{CondTraverse}, \lstinline{CFPQTraverse} extracts desired paths from this resulting matrix and passes them to parent operation.
-
-Therefore if we put together the results of all operations of execution plan the query from listing~\ref{lst:cypher-example-3} on graph $D_1$ return the set of vertices $\{(1, 5), (1, 6)\}$.
 
 \subsection{Evaluation}
 
