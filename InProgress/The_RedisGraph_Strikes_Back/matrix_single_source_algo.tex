@@ -95,7 +95,7 @@ $Src$}
 
 
 \Function{getDst}{$M$}
-    \State{$A \gets \varnothing$}
+    \State{$A_{i,j} \gets \textit{false}$}
     \ForAll{$(v,to) \in V^2 \mid M_{v,to} = true$}
         \State{$A_{to,to} \gets true$}
     \EndFor
@@ -107,58 +107,15 @@ $Src$}
 In order to solve the single-source and multiple-source CFPQ problem Azimov's algorithm was modified: each time, when we apply grammar rule (Boolean matrix multiplication $T_A = T_A + T_B \cdot T_C$ for each $A \rightarrow BC \in P$ represented in line \textbf{8} of Algorithm~\ref{alg:algo0}) we should save only vertices of interest. 
 To do it, matrix multiplication was supplemented with one more matrix multiplication $T_A = T_A + (TSrc^A \cdot T_B) \cdot T_C$, where $TSrc^A$ --- matrix of start vertices for the current iteration (lines \textbf{11-13} of the Algorithm~\ref{alg:algo1}).
 Also, after every iteration of while loop this is necessary to update the set of vertices paths from which we need to calculate. 
-To do this, the function \textbf{getDst}, represented in lines \textbf{17-21}, is called at line \textbf{14}.
+To do this, the function \textsc{getDst}, represented in lines \textbf{17-21}, is called at line \textbf{14}.
 Thus, the modified algorithm supports the frontier of the actual vertices and updates it on each iteration.
 As a result it does not calculate the paths from all vertices in case of query to calculate the paths small set of vertices.
-
-First few steps of this algorithm on the graph $D_1'$, grammar $G_1^{\text{wcnf}}$, and set of start vertices $Src = \{2\}$ looks as follows.
-At the first step (lines \textbf{4}--\textbf{5}) $TSrc^S_{2,2}$ sets to \textit{true}, all other cells have value \textit{false}.
-Then the set of matrices $T$ is initialized using rules $C \to c, D \to d, Y \to y$ as follows:
-{
-    \renewcommand{\arraystretch}{0.7}
-    \setlength\arraycolsep{2pt}
-	
-
-\begin{align*}
-    T^C& = \mathcal{E}^c =
-    \begin{pmatrix}
-    . & . & . & . & . & . \\
-    . & . & . & . & . & . \\
-    . & . & . & . & 1 & . \\
-    . & . & 1 & . & . & . \\ 
-    . & . & . & 1 & . & . \\ 
-    . & . & . & . & . & .
-\end{pmatrix},
-    T^D = \mathcal{E}^d = 
-    \begin{pmatrix}
-    . & . & . & . & . & . \\
-    . & . & . & . & . & . \\
-    . & . & . & . & . & . \\
-    . & . & . & . & . & . \\ 
-    . & . & . & . & . & 1 \\ 
-    . & . & . & . & 1 & .
-\end{pmatrix},\\
-    T^Y& = \mathcal{V}^y = 
-    \begin{pmatrix}
-    1 & . & . & . & . & . \\
-    . & . & . & . & . & . \\
-    . & . & . & . & . & . \\
-    . & . & . & . & . & . \\ 
-    . & . & . & . & 1 & . \\ 
-    . & . & . & . & . & .
-\end{pmatrix}
-\end{align*}
-}
-Lets consider the first iteration of the while loop in line~\textbf{9}. The first grammar rule is $S \to C E$. Here the matrix $M$ is computed to $TSrc^S*T^C = \{(2, 4)\}$. Since matrix $T^E$ is empty, $T^S$ is not updated in line~\textbf{12}. But the input matrix $TSrc^E$ is populated with new records and becomes equal to $\{(4, 4)\}$. This means that we are interested in paths that start from the 4th vertex and satisfy the constraints specified by nonterminal $E$. The second grammar rule $S \to C S_1$ is very similar to previous one. After processing it, the matrix $T^{S_1}$ also becomes equal to $\{(4, 4)\}$.
-Now let's look at the processing of the third rule $E \to Y D$. Here $M$ is computed to $TSrc^E * T^Y = \{(4, 4)\}$. After that algorithm update $T^E$ with matrix $M  * T^D = \{(4, 5)\}$ and now we know that path $(4, (4, 5), 5)$ satisfies the constraints of $E$. It remains to consider the last rule $S_1 \to S D$. During it processing since $T^S$ is empty only $TSrc^S$ is updated and becomes equal to $\{(2, 2), (4, 4)\}$. This is the end of the first iteration.
-
-In order to consider at least some path satisfying S, lets look at processing of rule $S \to C E$ in second iteration. Now matrix $M$ is computed to $TSrc^S * T^C = \{(2, 4), (4, 3)\}$. After first operation $T^E$ was populated and became equal to $\{(4, 5)\}$. So $T^S$ is computed to $M * T^C = \{(2, 5)\}$. Thus, we found the first path that satisfies the grammar constraints. 
 
 In case when one have a sequence of similar queries to the single graph it may be useful to cache results of query evaluation and share them between queries. 
 This may help to avoid recalculation of already calculated results. 
 To introduce interqueries caching, we modify the previous version of algorithm.
 The modified version stores all the vertices the paths from which have already been calculated in cash \textit{index}, which is used to filter such vertices in line \textbf{11} of Algorithm~\ref{alg:algo2}. Thus, modified algorithm calculates paths from the particular vertex only once.
-Note, that \texttt{CreateIndex} function should be called first, after that the created index can be shared between multiple calls of \texttt{MultiSrcCFPQSmart}.
+Note, that \textsc{CreateIndex} function should be called first, after that the created index can be shared between multiple calls of \textsc{MultiSrcCFPQSmart}.
 
 \begin{algorithm}
 \begin{algorithmic}[1]
@@ -208,9 +165,227 @@ Note, that \texttt{CreateIndex} function should be called first, after that the 
 \end{algorithmic}
 \end{algorithm}
 
+
+\subsection{An Example}
+
+Consider first few steps of the proposed algorithm (without caching) on the graph $D_1'$, grammar $G_1^{\text{wcnf}}$, and set of start vertices $Src = \{2\}$.
+At the first step (lines \textbf{4}--\textbf{5}) $TSrc^S_{2,2}$ sets to \textit{true}, all other cells have value \textit{false}.
+Then the set of matrices $T$ is initialized using rules $C \to c, D \to d, Y \to y$ as follows:
+{
+    \renewcommand{\arraystretch}{0.7}
+    \setlength\arraycolsep{2pt}
+\begin{align*}
+    T^C& = \mathcal{E}^c =
+    \begin{pmatrix}
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & 1 & . \\
+    . & . & 1 & . & . & . \\ 
+    . & . & . & 1 & . & . \\ 
+    . & . & . & . & . & .
+\end{pmatrix},
+    T^D = \mathcal{E}^d = 
+    \begin{pmatrix}
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\ 
+    . & . & . & . & . & 1 \\ 
+    . & . & . & . & 1 & .
+\end{pmatrix},\\
+    T^Y& = \mathcal{V}^y = 
+    \begin{pmatrix}
+    1 & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\ 
+    . & . & . & . & 1 & . \\ 
+    . & . & . & . & . & .
+\end{pmatrix}
+\end{align*}
+}
+
+At the first iteration of the while loop in line~\textbf{9} for grammar rule $S \to C E$ the following computations take places. 
+First, the matrix $M$ is computed as follows
+{
+    \renewcommand{\arraystretch}{0.7}
+    \setlength\arraycolsep{2pt}
+\begin{align*}
+M=TSrc^S*T^C = 
+\begin{pmatrix}
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & 1 & . & . & . \\
+    . & . & . & . & . & . \\ 
+    . & . & . & . & . & . \\ 
+    . & . & . & . & . & .
+\end{pmatrix}*
+\begin{pmatrix}
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & 1 & . \\
+    . & . & 1 & . & . & . \\ 
+    . & . & . & 1 & . & . \\ 
+    . & . & . & . & . & .
+\end{pmatrix}= 
+\begin{pmatrix}
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & 1 & . \\
+    . & . & . & . & . & . \\ 
+    . & . & . & . & . & . \\ 
+    . & . & . & . & . & .
+\end{pmatrix}
+\end{align*}
+}
+
+Since matrix $T^E$ is empty, $T^S$ is not updated in line~\textbf{12}, and $TSrc^C$ is not updated in line~\textbf{13}.
+But the matrix $TSrc^E$ is should be updated (line~\textbf{14}):
+{
+    \renewcommand{\arraystretch}{0.7}
+    \setlength\arraycolsep{2pt}
+\begin{align*}
+&TSrc^E = TSrc^E + \textsc{getDist}(M) = \\ &=
+\begin{pmatrix}
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\ 
+    . & . & . & . & . & . \\ 
+    . & . & . & . & . & .
+\end{pmatrix} +
+\begin{pmatrix}
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\ 
+    . & . & . & . & 1 & . \\ 
+    . & . & . & . & . & .
+\end{pmatrix}= 
+\begin{pmatrix}
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\ 
+    . & . & . & . & 1 & . \\ 
+    . & . & . & . & . & .
+\end{pmatrix}
+\end{align*}
+}
+
+This means that we are interested in paths that start from the vertex 4 and satisfy the constraints specified by nonterminal $E$.
+
+The second rule is $S \to C S_1$ and its processing is similar to previous one.
+After processing, the matrix 
+{
+    \renewcommand{\arraystretch}{0.7}
+    \setlength\arraycolsep{2pt}
+\begin{align*}
+T^{S_1} =
+\begin{pmatrix}
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\ 
+    . & . & . & . & 1 & . \\ 
+    . & . & . & . & . & .
+\end{pmatrix}
+\end{align*}
+}
+
+Third rule is $E \to Y D$.
+Here $M$ is computed as follows:
+{
+    \renewcommand{\arraystretch}{0.7}
+    \setlength\arraycolsep{2pt}
+\begin{align*}
+M = TSrc^E * T^Y = 
+\begin{pmatrix}
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\ 
+    . & . & . & . & 1 & . \\ 
+    . & . & . & . & . & .
+\end{pmatrix}*
+\begin{pmatrix}
+    1 & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\ 
+    . & . & . & . & 1 & . \\ 
+    . & . & . & . & . & .
+\end{pmatrix}= 
+\begin{pmatrix}
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\ 
+    . & . & . & . & 1 & . \\ 
+    . & . & . & . & . & .
+\end{pmatrix}
+\end{align*}
+}
+
+After that algorithm update $T^E$ as follows:
+
+{
+    \renewcommand{\arraystretch}{0.7}
+    \setlength\arraycolsep{2pt}
+\begin{align*}
+&T^E = T^E + M * T^D = \\ &=
+\begin{pmatrix}
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\ 
+    . & . & . & . & . & . \\ 
+    . & . & . & . & . & .
+\end{pmatrix}+
+\begin{pmatrix}
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\ 
+    . & . & . & . & 1 & . \\ 
+    . & . & . & . & . & .
+\end{pmatrix}* 
+\begin{pmatrix}
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\ 
+    . & . & . & . & . & 1 \\ 
+    . & . & . & . & 1 & .
+\end{pmatrix}=
+\begin{pmatrix}
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\ 
+    . & . & . & . & . & 1 \\ 
+    . & . & . & . & . & .
+\end{pmatrix}
+\end{align*}
+}
+
+Thus we know that there exists a path from vertex 4 to vertex 5 such that it forms a word derivable from $E$.
+
+The last rule is $S_1 \to S D$.
+During it processing since $T^S$ is empty only $TSrc^S$ is updated and becomes equal to $\{(2, 2), (4, 4)\}$.
+This is the end of the first iteration.
+
+At the second iteration, for rule $S \to C E$ matrix $M$ is computed to 
+\begin{align*}
+TSrc^S * T^C = \{(2, 4), (4, 3)\}
+\end{align*} 
+After first operation $T^E$ was populated and became equal to $\{(4, 5)\}$.
+So $T^S$ is computed to $M * T^C = \{(2, 5)\}$. Thus, we found the first path that satisfies the grammar constraints. 
+
+
 \subsection{Implementation Notes}
 
- All of the above versions have been implemented$\footnote{GitHub repository with implemented algorithms: \url{https://github.com/JetBrains-Research/CFPQ_PyAlgo}, last accessed 28.08.2020}$ using GraphBLAS framework that allows you to represent graphs as matrices and work with them in terms of linear algebra. For convenience, all the code is written in Python using pygraphblas\footnote{GitHub repository of PyGraphBLAS library: \url{https://github.com/michelp/pygraphblas}}, which is Python wrapper around GraphBLAS API and based on SuiteSparse:GraphBLAS\footnote{GitHub repository of SuiteSparse:GraphBLAS library: \url{https://github.com/DrTimothyAldenDavis/SuiteSparse}}~\cite{10.1145/3322125} --- the full implementation of GraphBLAS standard. This library is specialized for working with sparse matrices, which most often appear in real graphs. Also, it should be noted that, despite the fact that the function \textbf{getDst} does not seem to be expressed in terms of linear algebra, the implementation used the function \textbf{reduce\_vector} from pygraphblas.
+All of the above versions have been implemented$\footnote{GitHub repository with implemented algorithms: \url{https://github.com/JetBrains-Research/CFPQ_PyAlgo}, last accessed 28.08.2020}$ using GraphBLAS framework that allows you to represent graphs as matrices and work with them in terms of linear algebra. For convenience, all the code is written in Python using pygraphblas\footnote{GitHub repository of PyGraphBLAS library: \url{https://github.com/michelp/pygraphblas}}, which is Python wrapper around GraphBLAS API and based on SuiteSparse:GraphBLAS\footnote{GitHub repository of SuiteSparse:GraphBLAS library: \url{https://github.com/DrTimothyAldenDavis/SuiteSparse}}~\cite{10.1145/3322125} --- the full implementation of GraphBLAS standard. This library is specialized for working with sparse matrices, which most often appear in real graphs. Also, it should be noted that, despite the fact that the function \textsc{getDst} does not seem to be expressed in terms of linear algebra, the implementation used the function \textsc{reduce\_vector} from pygraphblas.
 
 \subsection{Algorithm Evaluation}\label{sect:py_algo_evaluation}
 
