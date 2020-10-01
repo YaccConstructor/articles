@@ -1,17 +1,17 @@
 \section{Matrix-based multiple-source CFPQ algorithm}
 \label{sec:multiple-source-algo}
 
- In this section we introduce two versions of multiple-source matrix-based CFPQ algorithm.
- This algorithm is a modification of Azimov's matrix-based algorithm for CFPQ and its idea is that we cut off those vertices from which we are not interested in paths.
- 
+ In this section we introduce two versions of the multiple-source matrix-based CFPQ algorithm.
+ This algorithm is a modification of Azimov's matrix-based algorithm for CFPQ and its core idea is to cut off those vertices which are not in the selected set of start vertices.
 
-In order to simplify Azimov's algorithm modification and the final algorithm description, we simplify the input graph to have only edge labels.
-Note, that we always can convert the original graph into such form. 
-To do it we should add loops into vertices in the following way: for the vertex $i$ we add an edge $i \xrightarrow{x} i$ iff $\lambda_V(i) = x$ and $x\neq \varnothing$.
-This way we can switch to edge-labeled graph with the same number of vertices with preserving of the defined semantics of CFPQ.
+
+In order to simplify Azimov's algorithm modification and the final algorithm description, we assume the input graph to have only edge labels.
+Note, that we always can convert the original graph into such form.
+To do it, we should add loops into vertices in the following way: for the vertex $i$ we add an edge $i \xrightarrow{x} i$ iff $\lambda_V(i) = x$ and $x\neq \varnothing$.
+This way we can switch to an edge-labeled graph with the same number of vertices while preserving the defined semantics of CFPQ.
 
 \begin{figure}[h]
-    \centering        
+    \centering
     \begin{tikzpicture}[shorten >=1pt,auto]
        \node[state] (q_0)                        {$0$};
        \node[state] (q_1) [right=of q_0]         {$1$};
@@ -63,16 +63,16 @@ The result of the algorithm is a Boolean matrix which represents relation $R_{S,
 \caption{Multiple-source context-free path querying algorithm}
 \label{alg:algo1}
 \Function{MultiSrcCFPQ}{\par
-\hskip\algorithmicindent $D = (V, E, \Sigma_V, \Sigma_E, \lambda_V, \lambda_E)$, \par 
-\hskip\algorithmicindent $G=(N,\Sigma,P,S)$, \par 
-\hskip\algorithmicindent 
+\hskip\algorithmicindent $D = (V, E, \Sigma_V, \Sigma_E, \lambda_V, \lambda_E)$, \par
+\hskip\algorithmicindent $G=(N,\Sigma,P,S)$, \par
+\hskip\algorithmicindent
 $Src$}
     \State{$T \gets \{T^A \mid  A \in N, T^A_{i,j} \gets \textit{false} \text{, for all $i,j$}\} $}
-    
+
     \State{$TSrc \gets \{TSrc^A \mid  A \in N, TSrc^A_{i,j} \gets \textit{false} \text{, for all $i,j$}\}$}
-    
+
     \ForAll{$ v \in Src$} \Comment{Input matrix initialization}
-        \State{$TSrc^S_{v,v} \gets true$} 
+        \State{$TSrc^S_{v,v} \gets true$}
     \EndFor
 
     \ForAll{$A \to x \in P$} \Comment{Simple rules initialization}
@@ -104,45 +104,47 @@ $Src$}
 \end{algorithmic}
 \end{algorithm}
 
-In order to solve the single-source and multiple-source CFPQ problem Azimov's algorithm was modified: each time, when we apply grammar rule (Boolean matrix multiplication $T_A = T_A + T_B \cdot T_C$ for each $A \rightarrow BC \in P$ represented in line \textbf{8} of Algorithm~\ref{alg:algo0}) we should save only vertices of interest. 
-To do it, matrix multiplication was supplemented with one more matrix multiplication $T_A = T_A + (TSrc^A \cdot T_B) \cdot T_C$, where $TSrc^A$ --- matrix of start vertices for the current iteration (lines \textbf{11-13} of the Algorithm~\ref{alg:algo1}).
-Also, after every iteration of while loop this is necessary to update the set of vertices paths from which we need to calculate. 
-To do this, the function \textsc{getDst}, represented in lines \textbf{17-21}, is called at line \textbf{14}.
-Thus, the modified algorithm supports the frontier of the actual vertices and updates it on each iteration.
-As a result it does not calculate the paths from all vertices in case of query to calculate the paths small set of vertices.
+In order to solve the single-source and multiple-source CFPQ problem, we modified the Azimov's algorithm.
+Each time, when a grammar rule is applied (see line \textbf{8} of Algorithm~\ref{alg:algo0}: boolean matrix multiplication $T_A = T_A + T_B \cdot T_C$ for each $A \rightarrow BC \in P$), only vertices of interest should be stored.
+To do it, we added one more matrix multiplication: $T_A = T_A + (TSrc^A \cdot T_B) \cdot T_C$, where $TSrc^A$ --- matrix of start vertices for the current iteration (lines \textbf{11-13} of the Algorithm~\ref{alg:algo1}).
+After every iteration of the while loop, it is necessary to update the set of vertices paths from which we need to calculate.
+To do it, the we call the function \textsc{getDst} (see lines \textbf{17-21}), in line \textbf{14}.
+Thus, the modified algorithm supports the frontier of the vertices of interest and updates it on each iteration.
+As a result, it only computes the paths which starts from the small set of selected vertices.
 
-In case when one have a sequence of similar queries to the single graph it may be useful to cache results of query evaluation and share them between queries. 
-This may help to avoid recalculation of already calculated results. 
-To introduce interqueries caching, we modify the previous version of algorithm.
-The modified version stores all the vertices the paths from which have already been calculated in cash \textit{index}, which is used to filter such vertices in line \textbf{11} of Algorithm~\ref{alg:algo2}. Thus, modified algorithm calculates paths from the particular vertex only once.
-Note, that \textsc{CreateIndex} function should be called first, after that the created index can be shared between multiple calls of \textsc{MultiSrcCFPQSmart}.
+In case when one has a sequence of similar queries to the single graph, it may be useful to cache results of the query evaluation and share them between queries.
+This may help to avoid recalculation of the already computed results.
+To introduce \cho{interqueries} caching, we modify the previous version of the algorithm.
+The modified version stores all the vertices the paths from which have already been calculated in cache \textit{index}, which is used to filter such vertices in line \textbf{11} of Algorithm~\ref{alg:algo2}.
+Thus, the modified algorithm calculates paths from the particular vertex only once.
+Note, that \textsc{CreateIndex} function should be called first, and the created index can be shared between multiple calls of \textsc{MultiSrcCFPQSmart} after that.
 
 \begin{algorithm}
 \begin{algorithmic}[1]
 \caption{Optimized multiple-source context-free path querying algorithm}
 \label{alg:algo2}
-\Function{CreateIndex}{ \par 
-\hskip\algorithmicindent $D = (V, E, \Sigma_V, \Sigma_E, \lambda_V, \lambda_E)$, \par 
+\Function{CreateIndex}{ \par
+\hskip\algorithmicindent $D = (V, E, \Sigma_V, \Sigma_E, \lambda_V, \lambda_E)$, \par
 \hskip\algorithmicindent $G=(N,\Sigma,P,S)$}
     \State{$T \gets \{T^A \mid  A \in N, T^A_{i,j} \gets \textit{false} \text{, for all $i,j$}\}$}
-    
+
     \State{$TSrc \gets \{TSrc^A \mid  A \in N, TSrc^A_{i,j} \textit{false} \text{, for all $i,j$}\}$}
-    
+
     \ForAll{$A \to x \in P$} \Comment{Simple rules initialization}
         \ForAll{$(v, to) \in E, \lambda_E(v,to) = x$}
             \State{$T^A_{v,to} \gets true$}
         \EndFor
     \EndFor
-    
+
     \State \Return $(T, TSrc)$
 \EndFunction
 \State
-\Function{MultiSrcCFPQSmart}{ \par 
-\hskip\algorithmicindent $D = (V, E, \Sigma_V, \Sigma_E, \lambda_V, \lambda_E)$, \par 
-\hskip\algorithmicindent $G=(N,\Sigma,P,S)$, \par 
-\hskip\algorithmicindent $Src$, \par 
+\Function{MultiSrcCFPQSmart}{ \par
+\hskip\algorithmicindent $D = (V, E, \Sigma_V, \Sigma_E, \lambda_V, \lambda_E)$, \par
+\hskip\algorithmicindent $G=(N,\Sigma,P,S)$, \par
+\hskip\algorithmicindent $Src$, \par
 \hskip\algorithmicindent $Index = (T, TSrc)$}
-    
+
     \State{$TNewSrc \gets \{TNewSrc^A \mid  A \in N, TNewSrc^A \gets \varnothing\}$}
 
     \ForAll{$v \in Src \mid TSrc_{v,v} = false$}
@@ -167,9 +169,9 @@ Note, that \textsc{CreateIndex} function should be called first, after that the 
 \end{algorithm}
 
 
-\subsection{An Example}
+\subsection{Example}
 
-Consider first few steps of the proposed algorithm (without caching) on the graph $D_1'$, grammar $G_1^{\text{wcnf}}$, and set of start vertices $Src = \{2\}$.
+Consider the first few steps of the proposed algorithm (without caching) on the graph $D_1'$, grammar $G_1^{\text{wcnf}}$, and the set of start vertices $Src = \{2\}$.
 At the first step (lines \textbf{4}--\textbf{5}) $TSrc^S_{2,2}$ sets to \textit{true}, all other cells have value \textit{false}.
 Then the set of matrices $T$ is initialized using rules $C \to c, D \to d, Y \to y$ as follows:
 {
@@ -181,67 +183,67 @@ Then the set of matrices $T$ is initialized using rules $C \to c, D \to d, Y \to
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
     . & . & . & . & 1 & . \\
-    . & . & 1 & . & . & . \\ 
-    . & . & . & 1 & . & . \\ 
+    . & . & 1 & . & . & . \\
+    . & . & . & 1 & . & . \\
     . & . & . & . & . & .
 \end{pmatrix},
-    T^D = \mathcal{E}^d = 
+    T^D = \mathcal{E}^d =
     \begin{pmatrix}
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
-    . & . & . & . & . & . \\ 
-    . & . & . & . & . & 1 \\ 
+    . & . & . & . & . & . \\
+    . & . & . & . & . & 1 \\
     . & . & . & . & 1 & .
 \end{pmatrix},\\
-    T^Y& = \mathcal{V}^y = 
+    T^Y& = \mathcal{V}^y =
     \begin{pmatrix}
     1 & . & . & . & . & . \\
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
-    . & . & . & . & . & . \\ 
-    . & . & . & . & 1 & . \\ 
+    . & . & . & . & . & . \\
+    . & . & . & . & 1 & . \\
     . & . & . & . & . & .
 \end{pmatrix}
 \end{align*}
 }
 
-At the first iteration of the while loop in line~\textbf{9} for grammar rule $S \to C E$ the following computations take places. 
+The following computations take place at the first iteration of the while loop in line~\textbf{9} for the grammar rule $S \to C E$.
 First, the matrix $M$ is computed as follows
 {
     \renewcommand{\arraystretch}{0.7}
     \setlength\arraycolsep{2pt}
 \begin{align*}
-M=TSrc^S*T^C = 
+M=TSrc^S*T^C =
 \begin{pmatrix}
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
     . & . & 1 & . & . & . \\
-    . & . & . & . & . & . \\ 
-    . & . & . & . & . & . \\ 
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
     . & . & . & . & . & .
 \end{pmatrix}*
 \begin{pmatrix}
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
     . & . & . & . & 1 & . \\
-    . & . & 1 & . & . & . \\ 
-    . & . & . & 1 & . & . \\ 
+    . & . & 1 & . & . & . \\
+    . & . & . & 1 & . & . \\
     . & . & . & . & . & .
-\end{pmatrix}= 
+\end{pmatrix}=
 \begin{pmatrix}
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
     . & . & . & . & 1 & . \\
-    . & . & . & . & . & . \\ 
-    . & . & . & . & . & . \\ 
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
     . & . & . & . & . & .
 \end{pmatrix}
 \end{align*}
 }
 
-Since matrix $T^E$ is empty, $T^S$ is not updated in line~\textbf{12}, and $TSrc^C$ is not updated in line~\textbf{13}.
-But the matrix $TSrc^E$ is should be updated (line~\textbf{14}):
+Since matrix $T^E$ is empty, $T^S$ stays the same in line~\textbf{12}, as well as $TSrc^C$ in line~\textbf{13}.
+But the matrix $TSrc^E$ is updated (line~\textbf{14}):
 {
     \renewcommand{\arraystretch}{0.7}
     \setlength\arraycolsep{2pt}
@@ -251,24 +253,24 @@ But the matrix $TSrc^E$ is should be updated (line~\textbf{14}):
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
-    . & . & . & . & . & . \\ 
-    . & . & . & . & . & . \\ 
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
     . & . & . & . & . & .
 \end{pmatrix} +
 \begin{pmatrix}
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
-    . & . & . & . & . & . \\ 
-    . & . & . & . & 1 & . \\ 
+    . & . & . & . & . & . \\
+    . & . & . & . & 1 & . \\
     . & . & . & . & . & .
-\end{pmatrix}= 
+\end{pmatrix}=
 \begin{pmatrix}
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
-    . & . & . & . & . & . \\ 
-    . & . & . & . & 1 & . \\ 
+    . & . & . & . & . & . \\
+    . & . & . & . & 1 & . \\
     . & . & . & . & . & .
 \end{pmatrix}
 \end{align*}
@@ -287,48 +289,48 @@ TSrc^{S_1} =
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
-    . & . & . & . & . & . \\ 
-    . & . & . & . & 1 & . \\ 
+    . & . & . & . & . & . \\
+    . & . & . & . & 1 & . \\
     . & . & . & . & . & .
 \end{pmatrix},
 \end{align*}
 }
 
-Third rule is $E \to Y D$.
+The third rule is $E \to Y D$.
 Here $M$ is computed as follows:
 {
     \renewcommand{\arraystretch}{0.7}
     \setlength\arraycolsep{2pt}
 \begin{align*}
-M = TSrc^E * T^Y = 
+M = TSrc^E * T^Y =
 \begin{pmatrix}
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
-    . & . & . & . & . & . \\ 
-    . & . & . & . & 1 & . \\ 
+    . & . & . & . & . & . \\
+    . & . & . & . & 1 & . \\
     . & . & . & . & . & .
 \end{pmatrix}*
 \begin{pmatrix}
     1 & . & . & . & . & . \\
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
-    . & . & . & . & . & . \\ 
-    . & . & . & . & 1 & . \\ 
+    . & . & . & . & . & . \\
+    . & . & . & . & 1 & . \\
     . & . & . & . & . & .
-\end{pmatrix}= 
+\end{pmatrix}=
 \begin{pmatrix}
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
-    . & . & . & . & . & . \\ 
-    . & . & . & . & 1 & . \\ 
+    . & . & . & . & . & . \\
+    . & . & . & . & 1 & . \\
     . & . & . & . & . & .
 \end{pmatrix}
 \end{align*}
 }
 
-After that algorithm update $T^E$ as follows:
+Then the algorithm updates $T^E$ as follows:
 
 {
     \renewcommand{\arraystretch}{0.7}
@@ -339,32 +341,32 @@ After that algorithm update $T^E$ as follows:
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
-    . & . & . & . & . & . \\ 
-    . & . & . & . & . & . \\ 
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
     . & . & . & . & . & .
 \end{pmatrix}+
 \begin{pmatrix}
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
-    . & . & . & . & . & . \\ 
-    . & . & . & . & 1 & . \\ 
+    . & . & . & . & . & . \\
+    . & . & . & . & 1 & . \\
     . & . & . & . & . & .
-\end{pmatrix}* 
+\end{pmatrix}*
 \begin{pmatrix}
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
-    . & . & . & . & . & . \\ 
-    . & . & . & . & . & 1 \\ 
+    . & . & . & . & . & . \\
+    . & . & . & . & . & 1 \\
     . & . & . & . & 1 & .
 \end{pmatrix}=
 \begin{pmatrix}
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
-    . & . & . & . & . & . \\ 
-    . & . & . & . & . & 1 \\ 
+    . & . & . & . & . & . \\
+    . & . & . & . & . & 1 \\
     . & . & . & . & . & .
 \end{pmatrix}
 \end{align*}
@@ -373,7 +375,7 @@ After that algorithm update $T^E$ as follows:
 Thus we know that there exists a path from vertex 4 to vertex 5 such that it forms a word derivable from $E$.
 
 The last rule is $S_1 \to S D$.
-During it processing since $T^S$ is empty only $TSrc^S$ is updated: 
+During processing this rule only $TSrc^S$ is updated, since $T^S$ is empty:
 {
     \renewcommand{\arraystretch}{0.7}
     \setlength\arraycolsep{2pt}
@@ -383,24 +385,24 @@ During it processing since $T^S$ is empty only $TSrc^S$ is updated:
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
     . & . & 1 & . & . & . \\
-    . & . & . & . & . & . \\ 
-    . & . & . & . & . & . \\ 
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
     . & . & . & . & . & .
 \end{pmatrix}*
 \begin{pmatrix}
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
-    . & . & . & . & . & . \\ 
-    . & . & . & . & 1 & . \\ 
+    . & . & . & . & . & . \\
+    . & . & . & . & 1 & . \\
     . & . & . & . & . & .
-\end{pmatrix}= 
+\end{pmatrix}=
 \begin{pmatrix}
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
     . & . & 1 & . & . & . \\
-    . & . & . & . & . & . \\ 
-    . & . & . & . & 1 & . \\ 
+    . & . & . & . & . & . \\
+    . & . & . & . & 1 & . \\
     . & . & . & . & . & .
 \end{pmatrix}
 \end{align*}
@@ -408,7 +410,7 @@ During it processing since $T^S$ is empty only $TSrc^S$ is updated:
 
 This is the end of the first iteration.
 
-At the second iteration, for rule $S \to C E$ matrices $M$ and then $T^S$ are computed as follows: 
+At the second iteration, matrices $M$ and then $T^S$ are computed for rule $S \to C E$ as follows:
 {
     \renewcommand{\arraystretch}{0.7}
     \setlength\arraycolsep{2pt}
@@ -418,24 +420,24 @@ At the second iteration, for rule $S \to C E$ matrices $M$ and then $T^S$ are co
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
     . & . & 1 & . & . & . \\
-    . & . & . & . & . & . \\ 
-    . & . & . & . & 1 & . \\ 
+    . & . & . & . & . & . \\
+    . & . & . & . & 1 & . \\
     . & . & . & . & . & .
-\end{pmatrix} * 
+\end{pmatrix} *
 \begin{pmatrix}
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
     . & . & . & . & 1 & . \\
-    . & . & 1 & . & . & . \\ 
-    . & . & . & 1 & . & . \\ 
+    . & . & 1 & . & . & . \\
+    . & . & . & 1 & . & . \\
     . & . & . & . & . & .
 \end{pmatrix}=
 \begin{pmatrix}
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
     . & . & . & . & 1 & . \\
-    . & . & . & . & . & . \\ 
-    . & . & . & 1 & . & . \\ 
+    . & . & . & . & . & . \\
+    . & . & . & 1 & . & . \\
     . & . & . & . & . & .
 \end{pmatrix}
 \\
@@ -444,51 +446,52 @@ At the second iteration, for rule $S \to C E$ matrices $M$ and then $T^S$ are co
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
     . & . & . & . & 1 & . \\
-    . & . & . & . & . & . \\ 
-    . & . & . & 1 & . & . \\ 
+    . & . & . & . & . & . \\
+    . & . & . & 1 & . & . \\
     . & . & . & . & . & .
-\end{pmatrix} * 
+\end{pmatrix} *
 \begin{pmatrix}
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
     . & . & . & . & . & . \\
-    . & . & . & . & . & . \\ 
-    . & . & . & . & . & 1 \\ 
+    . & . & . & . & . & . \\
+    . & . & . & . & . & 1 \\
     . & . & . & . & . & .
 \end{pmatrix} =
 \begin{pmatrix}
     . & . & . & . & . & . \\
     . & . & . & . & . & 1 \\
     . & . & . & . & . & . \\
-    . & . & . & . & . & . \\ 
-    . & . & . & . & . & . \\ 
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
     . & . & . & . & . & .
 \end{pmatrix}
-\end{align*} 
+\end{align*}
 }
 
 Thus, we found the first path that satisfies our query.
-After all iterations finished, we get a final result:
+After all iterations finished, we get the final result:
 {
     \renewcommand{\arraystretch}{0.7}
     \setlength\arraycolsep{2pt}
 \begin{align*}
-T^S = 
+T^S =
 \begin{pmatrix}
     . & . & . & . & . & . \\
     . & . & . & . & 1 & 1 \\
     . & . & . & . & . & . \\
-    . & . & . & . & . & . \\ 
-    . & . & . & . & . & . \\ 
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
     . & . & . & . & . & .
 \end{pmatrix}
-\end{align*} 
-} 
-So, only vertices 4 and 5 are reachable from the vertex 2 by the path which forms word derivable form nonterminal $S$.
+\end{align*}
+}
+Thus only vertices 4 and 5 are reachable from the vertex 2 by a path which forms a word derivable from the start nonterminal $S$.
 
 \subsection{Implementation Notes}
 
-All of the above versions have been implemented$\footnote{GitHub repository with implemented algorithms: \url{https://github.com/JetBrains-Research/CFPQ_PyAlgo}, last accessed 28.08.2020}$ using GraphBLAS framework that allows you to represent graphs as matrices and work with them in terms of linear algebra. For convenience, all the code is written in Python using pygraphblas\footnote{GitHub repository of PyGraphBLAS library: \url{https://github.com/michelp/pygraphblas}}, which is Python wrapper around GraphBLAS API and based on SuiteSparse:GraphBLAS\footnote{GitHub repository of SuiteSparse:GraphBLAS library: \url{https://github.com/DrTimothyAldenDavis/SuiteSparse}}~\cite{10.1145/3322125} --- the full implementation of GraphBLAS standard. This library is specialized for working with sparse matrices, which most often appear in real graphs. Also, it should be noted that, despite the fact that the function \textsc{getDst} does not seem to be expressed in terms of linear algebra, the implementation used the function \textsc{reduce\_vector} from pygraphblas.
+All of the versions presented have been implemented$\footnote{GitHub repository with implemented algorithms: \url{https://github.com/JetBrains-Research/CFPQ_PyAlgo}, last accessed 28.08.2020}$ using GraphBLAS framework that allows one to represent graphs as matrices and to work with them in terms of linear algebra.
+For convenience, the code is written in Python using pygraphblas\footnote{GitHub repository of PyGraphBLAS library: \url{https://github.com/michelp/pygraphblas}}, which is Python wrapper around GraphBLAS API and based on SuiteSparse:GraphBLAS\footnote{GitHub repository of SuiteSparse:GraphBLAS library: \url{https://github.com/DrTimothyAldenDavis/SuiteSparse}}~\cite{10.1145/3322125} --- the full implementation of GraphBLAS standard. This library is specialized for working with sparse matrices, which most often appear in real graphs. Also, it should be noted that, despite the fact that the function \textsc{getDst} does not seem to be expressed in terms of linear algebra, the implementation used the function \textsc{reduce\_vector} from pygraphblas.
 
 \subsection{Algorithm Evaluation}\label{sect:py_algo_evaluation}
 
@@ -496,11 +499,11 @@ We evaluate both described version of multiple-source algorithm on real-world gr
 For evaluation, we use a PC with Ubuntu 20.04 installed.
 It has Intel core i7-4790 CPU, 3.60GHz, and DDR3 32Gb RAM.
 As far as we evaluate only algorithm execution time, we store each graph fully in RAM as its adjacency matrix in sparse format.
-Note, that graph loading time is not included in the result time of evaluation. 
+Note, that graph loading time is not included in the result time of evaluation.
 
 For evaluation we use graphs and queries from CFPQ\_Data dataset\footnote{CFPQ\_Data is a dataset for CFPQ evaluation which contains both synthetic and real-world data and queries \url{https://github.com/JetBrains-Research/CFPQ\_Data}, last accessed 28.08.2020.}
 Detailed information, such as number if vertices and edges, and number of edges with specific label, on graphs which we select for evaluation is provided in table~\ref{tbl:graphs_for_cfpq}.
-We use classical same-generation queries $g_1$~(eq.~\ref{eqn:g_1}) and $g_2$~(eq.~\ref{eqn:g_2}) which are used in other works for CFPQ evaluation. 
+We use classical same-generation queries $g_1$~(eq.~\ref{eqn:g_1}) and $g_2$~(eq.~\ref{eqn:g_2}) which are used in other works for CFPQ evaluation.
 Also we use $geo$~(eq.~\ref{eqn:geo}) query which was provided by J. Kuijpers et. al~\cite{Kuijpers:2019:ESC:3335783.3335791} for \textit{geospecies} RDF.
 Note that in queries we use $\overline{x}$ notation to denote inverse of $x$ relation and respective edge.
 
@@ -534,13 +537,13 @@ S \to & \textit{broaderTransitive} \ \  S \ \overline{\textit{broaderTransitive}
 Graph          & \#V       & \#E        & \#subCalssOf & \#type &\#broaderTransitive\\
 \hline
 \hline
-core                        & 1323     & 3636       & 178       & 706      & 0      \\ 
-pathways                    & 6238     & 18 598     & 3117      & 3118     & 0      \\ 
-gohierarchy                 & 45 007   & 980 218    & 490 109   & 0        & 0      \\ 
-enzyme                      & 48 815   & 117 851    & 8163      & 14 989   & 8156   \\ 
-eclass\_514en               & 239 111  & 523 727    & 90 962    & 72 517   & 0      \\ 
+core                        & 1323     & 3636       & 178       & 706      & 0      \\
+pathways                    & 6238     & 18 598     & 3117      & 3118     & 0      \\
+gohierarchy                 & 45 007   & 980 218    & 490 109   & 0        & 0      \\
+enzyme                      & 48 815   & 117 851    & 8163      & 14 989   & 8156   \\
+eclass\_514en               & 239 111  & 523 727    & 90 962    & 72 517   & 0      \\
 geospecies                  & 450 609  & 2 311 461  & 0         & 89 062   & 20 867 \\
-go                          & 582 929  & 1 758 432  & 94 514    & 226 481  & 0      \\ 
+go                          & 582 929  & 1 758 432  & 94 514    & 226 481  & 0      \\
 \hline
 \end{tabular}
 }
@@ -549,12 +552,12 @@ go                          & 582 929  & 1 758 432  & 94 514    & 226 481  & 0  
 
 
 Our main goal is to compare behavior of two proposed versions of the algorithm.
-To do it we measure query execution time for both versions for different sizes of star vertex set. 
+To do it we measure query execution time for both versions for different sizes of star vertex set.
 Namely, for each graph we split all vertices into disjoint subsets of fixed size.
-After that, for each subset we evaluate queries using the given subset as a set of start vertices. 
+After that, for each subset we evaluate queries using the given subset as a set of start vertices.
 For algorithm with caching we initialize cache once for each chunk size and accumulate results for all chunks for specific size.
 
-For each graph we evaluate all three queries. 
+For each graph we evaluate all three queries.
 Results of evaluation is presented in figures~\ref{fig:python_core_all}--\ref{fig:python_pathways_all}.
 We use standard violin plot with median to show distribution of results, time is measured in seconds.
 For number of input graphs we provide additional figures for small chunks in order to analyze these cases carefully: figures~\ref{fig:python_eclass_small}--\ref{fig:python_go_small}.
@@ -631,25 +634,25 @@ For number of input graphs we provide additional figures for small chunks in ord
 \end{figure}
 
 
-First of all, we can see, that even for cases when graph does not contain edges which are used in query, chunk processing time grows with size of chunk. 
+First of all, we can see, that even for cases when graph does not contain edges which are used in query, chunk processing time grows with size of chunk.
 For example, look at the results for \textit{geo} query for all graphs except \textit{geospecies} and \textit{enzyme}.
 Thus, preliminary check of existence of edges of interest may be useful in some cases.
 
-Also, we can see, that chunk processing time significantly depends on graph structure. 
-For example, for chunks of size 10~000 and query $g_1$, \textit{go} graph querying requires more than 5 seconds (fig.~\ref{fig:python_go_all}), while \textit{geospecies} graph querying requires less than 0.5 seconds (fig.~\ref{fig:python_geospecies_all}).  
+Also, we can see, that chunk processing time significantly depends on graph structure.
+For example, for chunks of size 10~000 and query $g_1$, \textit{go} graph querying requires more than 5 seconds (fig.~\ref{fig:python_go_all}), while \textit{geospecies} graph querying requires less than 0.5 seconds (fig.~\ref{fig:python_geospecies_all}).
 
-Comparison of two version of algorithm shows that algorithm without caching is significantly faster in almost all cases, even when graph does not contain edges of interest. 
-Analysis of results for small chunks (fig.~\ref{fig:python_eclass_small}--\ref{fig:python_go_small}) shows that it is always true. 
+Comparison of two version of algorithm shows that algorithm without caching is significantly faster in almost all cases, even when graph does not contain edges of interest.
+Analysis of results for small chunks (fig.~\ref{fig:python_eclass_small}--\ref{fig:python_go_small}) shows that it is always true.
 For example, for \textit{eclass\_514en} graph and query $g_2$ (fig.~\ref{fig:python_geospecies_small}) median time for algorithm with caching is slightly better than for the na\"{i}ve version.
 On the other hand, for \textit{geospecies} graph and $geo$ query (fig.\ref{fig:python_geospecies_small}) algorithm with caching is drastically slower that the na\"{i}ve version.
 At the same time, for \textit{go} graph and $g_2$ query median time for both versions are comparable, while time for worst queries is better for the na\"{i}ve version.
 Moreover, caching requires additional memory in comparison with na\"{i}ve version of the algorithm.
 Thus we can conclude, that query results caching introduces significant overhead and does not lead to significant performance improvements.
-Also we can conclude that small chunk processing using the na\"{i}ve version is fast enough: the worst time in our experiments is about 0.2 seconds (fig.~\ref{fig:python_go_small}, query $G_1$). 
+Also we can conclude that small chunk processing using the na\"{i}ve version is fast enough: the worst time in our experiments is about 0.2 seconds (fig.~\ref{fig:python_go_small}, query $G_1$).
 
 
 As a result, we can conclude that caching is not useful for multiple-source CFPQ for evaluated cases even if one want to process several chunks sequentially, or even process full graph chunk-by-chunk.
-Thus, we think that the na\"{i}ve version of the algorithm is better for implementation in real-world graph database. 
+Thus, we think that the na\"{i}ve version of the algorithm is better for implementation in real-world graph database.
 
 
 
