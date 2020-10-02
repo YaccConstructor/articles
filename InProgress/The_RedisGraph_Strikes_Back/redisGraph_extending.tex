@@ -35,7 +35,7 @@ Using this feature, structure of query is pretty similar to context-free grammar
 The example of query which uses named path patters is presented in listing~\ref{lst:cypher_example}. 
 This query is based on context-free grammar $G_1$ (eq.~\ref{eqn:g1_example}). 
 Namely, path pattern with name \texttt{S} specifies exactly the same constraint that specified by the grammar $G_1$. 
-The \texttt{MATCH} clause uses pattern \texttt{S} in complex constraint which says that path of interest should starts in the vertex with label \texttt{x}, than in should goes throw edge with label \texttt{a} or \texttt{c}, and the end of path is a sequence of edges which starts from \texttt{b} and tail of this sequence matches with \texttt{S}.  
+The \texttt{MATCH} clause \simpleton{(...consists of relation pattern [:a | :c] and path pattern /:b $\sim$S/..., this path pattern /:b $\sim$S/ uses reference to named path pattern \texttt{S})} uses pattern \texttt{S} in complex constraint which says that path of interest should starts in the vertex with label \texttt{x}, than in should goes throw edge with label \texttt{a} or \texttt{c}, and the end of path is a sequence of edges which starts from \texttt{b} and tail of this sequence matches with \texttt{S}.  
 
 For the example graph $D_1$ this query returns the next pairs of vertices \texttt{(v, to)} (as specified in \texttt{RETURN} clause): 
 $$\{(0, 4), (0, 5)\}.$$
@@ -47,16 +47,13 @@ Note that we implement\footnote{The modified libsypher-pareser library with supp
 
 \subsection{RedisGraph Extending}
 
-This section describes the implementation of support for executing queries with the extended syntax in the RedisGraph. Throughout this section, we consider executing the example query from listing~\autoref{lst:cypher-example-3} for the graph $D_1$ from~\autoref{fig:example_input_graph}. $\mathcal{E}$ and $\mathcal{V}$ denotes boolean decompositions of adjacency and vertex label matrices of $D_1$ respectively. 
+This section describes the implementation of support for executing queries with the extended syntax in the RedisGraph.  
 
-In the RedisGraph the main part of processing a query is building its execution plan. Execution plan consists of operations that perform basic processing such as filtering, pattern matching, aggregation and result construction. The diagram of its construction is shown in~\autoref{fig:execution-plan-construction}
+In the RedisGraph the main part of processing a query is building its execution plan. Execution plan consists of operations that perform basic processing such as filtering, pattern matching, aggregation and result construction. Operations have parent-child relationships, so they are formed into a tree. Each operation can consume a record from a child operation, process it and produce another one for the parent. Each record corresponds to one accumulated path and contains information necessary for the parent operation, as well as everything to restore the response, such as identifiers of accumulated vertices and edges.
 
-After obtaining algebraic expressions they are used to construct execution plan operations. Each operation is derived from a single algebraic expression that is involved in the further execution of the corresponding operation.  During the query execution this operation performs path pattern matching and solves context-free path reachability problem if necessary. This completes the part of the query execution plan building which concerns unnamed path patterns.
+To support path patterns we extended execution plan building and added a new operation to it. This operation is responsible for processing path pattern and resolving CFPQ problem, which can occur due to restrictions set by named path patterns. 
 
-
-The remaining part of query processing is evaluation its execution plan.
-
-Let`s first consider the structure of the execution plan operations. Operations have parent-child relationships, so they are formed into a tree. For example, the part of execution plan that derived from example query is shown in~\autoref{fig:execution-plan-operations}. Each operation can consume a record from a child operation, process it and produce another one for the parent. Records contain information necessary for the parent operation, as well as everything to restore the response, such as identifiers of accumulated vertices and edges.
+% It works as follows: at first it consumes several records from child operation and then extracts from them vertices from which it should to find paths. Then for each reference to named path pattern it determines the set of starting vertexes. After that, this operation...
 
 
 \subsection{Evaluation}
@@ -71,7 +68,7 @@ RedisGraph with our extensions is installed form our GitHub repository\footnote{
 
 We use the same graphs which are presented in table~\ref{tbl:graphs_for_cfpq} to evaluate RedisGraph-based solution.
 
-Graphs are loaded into RedisGraph database such that each vertex has a field \verb|id| which value is unique and is in $[0 \ldots |V|-1]$, where $|V|$ is a number of vertices in the graph to load.
+Graphs are loaded into RedisGraph database such that each vertex has a field \simpleton{(property)} \verb|id| which value is unique and is in $[0 \ldots |V|-1]$, where $|V|$ is a number of vertices in the graph to load.
 This allows us to generate queries for specific chunk size using templates.
 The template for the $g_1$ query is provided in listing~\ref{lst:query_pattern_g1}.
 Here \texttt{\{id\_from\}} and \texttt{\{id\_to\}} are placeholders for lower and upper bounds for \verb|id|. The example of the exact query for chunk of size 16 is presented in listing~\ref{lst:query_g1}.
@@ -245,3 +242,4 @@ Moreover, while solution from~\cite{10.1145/3398682.3399163} requires huge amoun
 Thus it is more suitable for general-purpose graph databases: main scenario---relatively small start vertices set---can be handled efficiently, and all-pairs reachability, which is not a massive case, can be solved in reasonable time with low memory consumption. In specific cases one can easy tune our solution to get optimal time and memory consumption.
 
 Finally we can conclude that provided solution is a promising way to implement CPFQ for real-world graph databases.
+
