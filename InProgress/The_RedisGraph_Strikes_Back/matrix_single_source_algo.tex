@@ -59,6 +59,7 @@ Let $G = (N, \Sigma, P, S)$ be the input context-free grammar, $D = (V, E, \Sigm
 The result of the algorithm is a Boolean matrix which represents relation $R_{S,D}^{Src}$.
 
 \begin{algorithm}
+\small
 \begin{algorithmic}[1]
 \caption{Multiple-source context-free path querying algorithm}
 \label{alg:algo1}
@@ -67,19 +68,19 @@ The result of the algorithm is a Boolean matrix which represents relation $R_{S,
 \hskip\algorithmicindent $G=(N,\Sigma,P,S)$, \par
 \hskip\algorithmicindent
 $Src$}
-    \State{$T \gets \{T^A \mid  A \in N, T^A_{i,j} \gets \textit{false} \text{, for all $i,j$}\} $}
+    \State{$T \gets \{T^A \mid  A \in N, T^A[i,j] \gets \textit{false} \text{, for all $i,j$}\} $}
 
-    \State{$TSrc \gets \{TSrc^A \mid  A \in N, TSrc^A_{i,j} \gets \textit{false} \text{, for all $i,j$}\}$}
+    \State{$TSrc \gets \{TSrc^A \mid  A \in N, TSrc^A[i,j] \gets \textit{false} \text{, for all $i,j$}\}$}
 
     \ForAll{$ v \in Src$} \Comment{Input matrix initialization}
-        \State{$TSrc^S_{v,v} \gets true$}
+        \State{$TSrc^S[v,v] \gets true$}
     \EndFor
     
-    \State \simpleton{$MSrc \gets TSrc^S$}
+    \State $MSrc \gets TSrc^S$
 
     \ForAll{$A \to x \in P$} \Comment{Simple rules initialization}
         \ForAll{$(v, to) \in E, \lambda_E(v,to) = x$}
-            \State{$T^A_{v,to} \gets true$}
+            \State{$T^A[v,to] \gets true$}
         \EndFor
     \EndFor
 
@@ -91,15 +92,15 @@ $Src$}
             \State{$TSrc^C \gets TSrc^C + $ \Call{getDst}{$M$}}
         \EndFor
     \EndWhile
-    \State \Return \simpleton{$MSrc * $}$T^S$
+    \State \Return $MSrc * T^S$
 \EndFunction
 
 
 
 \Function{getDst}{$M$}
-    \State{$A_{i,j} \gets \textit{false}$}
-    \ForAll{$(v,to) \in V^2 \mid M_{v,to} = true$}
-        \State{$A_{to,to} \gets true$}
+    \State{$A[i,j] \gets \textit{false}$}
+    \ForAll{$(v,to) \in V^2 \mid M[v,to] = true$}
+        \State{$A[to,to] \gets true$}
     \EndFor
     \State \Return A
 \EndFunction
@@ -108,11 +109,11 @@ $Src$}
 
 In order to solve the single-source and multiple-source CFPQ problem, we modified the Azimov's algorithm.
 Each time, when a grammar rule is applied (see line \textbf{8} of Algorithm~\ref{alg:algo0}: boolean matrix multiplication $T_A = T_A + T_B \cdot T_C$ for each $A \rightarrow BC \in P$), only vertices of interest should be stored.
-To do it, we added one more matrix multiplication: $T_A = T_A + (TSrc^A \cdot T_B) \cdot T_C$, where $TSrc^A$ --- matrix of start vertices for the current iteration (lines \textbf{11-13} of the Algorithm~\ref{alg:algo1}).
-After every iteration of the while loop \simpleton{(in the end of every iteration of for loop)}, it is necessary to update the set of \simpleton{vertices (source vertices?)} paths from which we need to calculate.
-To do it, the we call the function \textsc{getDst} (see lines \textbf{17-21}), in line \textbf{14} \simpleton{(in line 15, bit in line 14 source vertices is updated too, but without getdst)}.
+To do it, we added one more matrix multiplication: $T_A = T_A + (TSrc^A \cdot T_B) \cdot T_C$, where $TSrc^A$---matrix of start vertices for the current iteration (lines \textbf{11-13} of the Algorithm~\ref{alg:algo1}).
+In the end of every iteration of for loop, it is necessary to update the set of source vertices paths from which we need to calculate.
+To do it, the we call the function \textsc{getDst} (see lines \textbf{17-21}), in line \textbf{15}.
 Thus, the modified algorithm supports the frontier of the vertices of interest and updates it on each iteration.
-As a result, it only computes the paths which starts from the small set of selected vertices \simpleton{(or maybe all paths, f.e. worstcase :D)}.
+As a result, it only computes the paths which starts from the small set of selected vertices.
 
 In case when one has a sequence of similar queries to the single graph, it may be useful to cache results of the query evaluation and share them between queries.
 This may help to avoid recalculation of the already computed results.
@@ -122,19 +123,20 @@ Thus, the modified algorithm calculates paths from the particular vertex only on
 Note, that \textsc{CreateIndex} function should be called first, and the created index can be shared between multiple calls of \textsc{MultiSrcCFPQSmart} after that.
 
 \begin{algorithm}
+\small
 \begin{algorithmic}[1]
 \caption{Optimized multiple-source context-free path querying algorithm}
 \label{alg:algo2}
 \Function{CreateIndex}{ \par
 \hskip\algorithmicindent $D = (V, E, \Sigma_V, \Sigma_E, \lambda_V, \lambda_E)$, \par
 \hskip\algorithmicindent $G=(N,\Sigma,P,S)$}
-    \State{$T \gets \{T^A \mid  A \in N, T^A_{i,j} \gets \textit{false} \text{, for all $i,j$}\}$}
+    \State{$T \gets \{T^A \mid  A \in N, T^A[i,j] \gets \textit{false} \text{, for all $i,j$}\}$}
 
-    \State{$TSrc \gets \{TSrc^A \mid  A \in N, TSrc^A_{i,j} \textit{false} \text{, for all $i,j$}\}$}
+    \State{$TSrc \gets \{TSrc^A \mid  A \in N, TSrc^A[i,j] \textit{false} \text{, for all $i,j$}\}$}
 
     \ForAll{$A \to x \in P$} \Comment{Simple rules initialization}
         \ForAll{$(v, to) \in E, \lambda_E(v,to) = x$}
-            \State{$T^A_{v,to} \gets true$}
+            \State{$T^A[v,to] \gets \textit{true}$}
         \EndFor
     \EndFor
 
@@ -149,11 +151,11 @@ Note, that \textsc{CreateIndex} function should be called first, and the created
 
     \State{$TNewSrc \gets \{TNewSrc^A \mid  A \in N, TNewSrc^A \gets \varnothing\}$}
 
-    \ForAll{$v \in Src \mid TSrc_{v,v} = false$}
-        \State{$TNewSrc^S_{v,v} \gets true$}
+    \ForAll{$v \in Src \mid TSrc[v,v] = false$}
+        \State{$TNewSrc^S[v,v] \gets true$}
     \EndFor
     
-    \State \simpleton{$MSrc \gets TNewSrc^S$}
+    \State $MSrc \gets TNewSrc^S$
 
     \While{\textit{T or TNewSrc is changing}}
         \ForAll{$A \to B C \in P$}
@@ -164,7 +166,7 @@ Note, that \textsc{CreateIndex} function should be called first, and the created
             \State{$TNewSrc^C \gets TNewSrc^C + $ \Call{getDst}{M}} $\setminus$ $TSrc^C$
         \EndFor
     \EndWhile
-    \Return{\simpleton{$MSrc^S*T^S$}}
+    \State \Return $MSrc*T^S$
     \Comment{We want to return only relevant data, not all cached results}
 \EndFunction
 
@@ -176,7 +178,7 @@ Note, that \textsc{CreateIndex} function should be called first, and the created
 \subsection{Example}
 
 Consider the first few steps of the proposed algorithm (without caching) on the graph $D_1'$, grammar $G_1^{\text{wcnf}}$, and the set of start vertices $Src = \{2\}$.
-At the first step (lines \textbf{4}--\textbf{5}) $TSrc^S_{2,2}$ sets to \textit{true}, all other cells have value \textit{false}.
+At the first step (lines \textbf{4}--\textbf{5}) $TSrc^S[2,2]$ sets to \textit{true}, all other cells have value \textit{false}.
 Then the set of matrices $T$ is initialized using rules $C \to c, D \to d, Y \to y$ as follows:
 {
     \renewcommand{\arraystretch}{0.7}
@@ -644,10 +646,10 @@ For example, consider the results for \textit{geo} query for all graphs except \
 Thus, the preliminary check of the existence of the edges of interest may improve performance.
 
 We can also see, that the chunk processing time significantly depends on the graph structure.
-For example, \textit{go} graph querying requires more than 5 seconds (fig.~\ref{fig:python_go_all}), while \textit{geospecies} graph querying requires less than 0.5 seconds (fig.~\ref{fig:python_geospecies_all}) for the chunks of size 10~000 and the query $g_1$,.
+For example, \textit{go} graph querying requires more than 5 seconds (fig.~\ref{fig:python_go_all}), while \textit{geospecies} graph querying requires less than 0.5 seconds (fig.~\ref{fig:python_geospecies_all}) for the chunks of size 10~000 and the query $g_1$.
 
 The comparison of two versions of the algorithm shows that the algorithm without caching is significantly faster in almost all cases, even when the graph does not contain edges of interest.
-Analysis of results for small chunks (fig.~\ref{fig:python_eclass_small}--\ref{fig:python_go_small}) shows that it is always true.
+Analysis of results for small chunks (fig.~\ref{fig:python_eclass_small}--\ref{fig:python_go_small}) shows that it is not always true.
 For example, median time for algorithm with caching is slightly better than for the naive version for \textit{eclass\_514en} graph and query $g_2$ (fig.~\ref{fig:python_geospecies_small}).
 On the other hand, algorithm with caching is drastically slower than the naive version for \textit{geospecies} graph and $geo$ query (fig.\ref{fig:python_geospecies_small}).
 At the same time, for \textit{go} graph and $g_2$ query, median time of both versions is comparable, while time for the worst queries is better for the naive version.

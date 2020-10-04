@@ -35,10 +35,10 @@ Using this feature, structure of query is pretty similar to context-free grammar
 The example of query which uses named path patters is presented in listing~\ref{lst:cypher_example}. 
 This query is based on context-free grammar $G_1$ (eq.~\ref{eqn:g1_example}). 
 Namely, path pattern with name \texttt{S} specifies exactly the same constraint that specified by the grammar $G_1$. 
-The \texttt{MATCH} clause \simpleton{(...consists of relation pattern [:a | :c] and path pattern /:b $\sim$S/..., this path pattern /:b $\sim$S/ uses reference to named path pattern \texttt{S})} uses pattern \texttt{S} in complex constraint which says that path of interest should starts in the vertex with label \texttt{x}, than in should goes throw edge with label \texttt{a} or \texttt{c}, and the end of path is a sequence of edges which starts from \texttt{b} and tail of this sequence matches with \texttt{S}.  
+The \texttt{MATCH} clause consists of relation pattern \texttt{[:a | :c]} and path pattern \texttt{/:b $\sim$S/}, and this path pattern uses reference to named pattern \texttt{S}. 
+Thus, the specified constraint which says that path of interest should starts in the vertex with label \texttt{x}, than it should goes throw edge with label \texttt{a} or \texttt{c}, and the end of path is a sequence of edges which starts from \texttt{b} and tail of this sequence matches with \texttt{S}.  
 
-For the example graph $D_1$ this query returns the next pairs of vertices \texttt{(v, to)} (as specified in \texttt{RETURN} clause): 
-$$\{(0, 4), (0, 5)\}.$$
+For the example graph $D_1$ this query returns the next pairs of vertices \texttt{(v, to)} (as specified in \texttt{RETURN} clause): $\{(0, 4), (0, 5)\}$.
 
 Thus this Cypher extension allows one express more complex queries including context-free path queries.
 RedisGraph database supports subset of Cypher language and uses \texttt{libcypher-parser}\footnote{The \texttt{libcypher-parser} is an open-source parser library for Cypher query language. GitHub repository of the project: \url{https://github.com/cleishm/libcypher-parser}. Access date: 19.07.2020.} library to parse queries.
@@ -46,24 +46,26 @@ We extend this library by introducing new syntax proposed.
 Note that we implement\footnote{The modified libsypher-pareser library with support of syntax for path patterns: \url{https://github.com/YaccConstructor/libcypher-parser}. Access date: 19.07.2020.} full extension, not only part which is necessary for simple CFPQ. 
 
 \subsection{RedisGraph Extending}
-...
 
-One of the key features of RedisGraph is lazy query evaluation. Let's consider what this means. For simplicity one can assume that when the RedisGraph processes a query it finds all paths that match the constraints specified in this query. And this can be achieved in two ways --- one can find all the paths completely at once, or process them gradually one by one. The first method is potentially faster than the second, but requires much more memory. Moreover, in this case the size of the consumed memory directly depends on the size of the graph, which can be very large. In contrast, the second way may be slower, but it consumes much less memory, which is independent of the graph size and is usually limited. This way is called lazy query evaluation and is used in RedisGraph.
+While syntax extension proposal is fully implemented in parser, only part of new syntax is supported in RedisGraph. 
+As far as the most important part for our work is ability to specify labels of vertices and types of edges, and this part was supported.
+Full support of new syntax requires huge effort and should be done in the future.
 
-To improve performance, the RedisGraph processes paths not just one by one, but groups them into chunks of some size. Thus, we can assume that in one unit of time RedisGraph processes a set of paths with the size of a chunk. This allows one to achieve higher performance in terms of request processing time. The chunk size parameter allows developers to adjust the ratio of time and memory consumption --- increasing this parameter reduces the query execution time but increases the memory consumption.
+Important feature of RedisGraph is lazy query evaluation.
+Assume that when the RedisGraph processes a query it finds all paths that match the constraints specified in this query. This can be achieved in two ways---one can find all the paths completely at once, or process them gradually one by one. The first method is potentially faster than the second, but requires much more memory.
+Moreover, in the first case the size of the consumed memory directly depends on the size of the graph, which can be very large.
+In contrast, the second way may be slower, but it consumes much less memory, which is almost independent of the graph size and is usually limited.
+This way is called lazy query evaluation and is used in RedisGraph.
 
-The multiple source algorithm fits perfectly into the lazy evaluation of the query, since it allows one to process paths from a given set of vertices. Thus integrating our algorithm into the RedisGraph is natural and preserves the important property of lazy evaluation. However, since queries with context-free constraints may require much more execution time than the original Cypher queries, the operation that executes multiple source algorithm must have its own chunk size parameter. This parameter directly affects the size of the set of source vertices on which a single run of the multiple source algorithm will be performed. For convenience, we have added the ability to change this parameter in the configuration file so that everyone can choose the appropriate parameter for a specific query.
+To improve performance, the RedisGraph processes paths not just one by one, but groups them into \textit{chunks} of some size.
+Thus, we can assume that in one unit of time RedisGraph processes a set of paths with the size of a chunk.
+This allows one to achieve higher performance in terms of query processing time.
+The chunk size parameter allows developers to adjust the ratio of time and memory consumption---increasing this parameter reduces the query execution time but increases the memory consumption.
 
-...
-
-We supported evaluation of queries with the basic part of the path pattern syntax provided in~\autoref{?}, which includes ability to specify labels of vertices and types of edges. But we didn't support the ability to specify properties of vertices and edges in the path pattern. However, it not only allows one to specify context-free restriction on paths in the queries, but also greatly increases the expressiveness of the Cypher. \simpleton{(this last paragraph smells bad for some reason :()}
-
-% In the RedisGraph the main part of processing a query is building its execution plan. Execution plan consists of operations that perform basic processing such as filtering, pattern matching, aggregation and result construction. Operations have parent-child relationships, so they are formed into a tree. Each operation can consume a record from a child operation, process it and produce another one for the parent. Each record corresponds to one accumulated path and contains information necessary for the parent operation, as well as everything to restore the response, such as identifiers of accumulated vertices and edges.
-
-% To support path patterns we extended execution plan building and added a new operation to it. This operation is responsible for processing path pattern and resolving CFPQ problem, which can occur due to restrictions set by named path patterns. 
-
-% It works as follows: at first it consumes several records from child operation and then extracts from them vertices from which it should to find paths. Then for each reference to named path pattern it determines the set of starting vertexes. After that, this operation...
-
+The multiple source algorithm fits perfectly into the lazy evaluation of the query, since it allows one to process paths from a given set of vertices.
+Thus integrating our algorithm into the RedisGraph is natural and preserves the important property of lazy evaluation.
+However, since queries with context-free constraints may require much more execution time than the original Cypher queries, the operation that executes multiple source algorithm must have its own chunk size parameter.
+This parameter directly affects the size of the set of source vertices on which a single run of the multiple source algorithm will be performed. For convenience, we have added the ability to change this parameter in the configuration file so that everyone can choose the appropriate parameter for a specific query.
 
 \subsection{Evaluation}
 
@@ -77,10 +79,11 @@ RedisGraph with our extensions is installed form our GitHub repository\footnote{
 
 We use the same graphs which are presented in table~\ref{tbl:graphs_for_cfpq} to evaluate RedisGraph-based solution.
 
-Graphs are loaded into RedisGraph database such that each vertex has a field \simpleton{(property)} \verb|id| which value is unique and is in $[0 \ldots |V|-1]$, where $|V|$ is a number of vertices in the graph to load.
-This allows us to generate queries for specific chunk size using templates \simpleton{(here chunk size don`t means "chunk size parameter of RedisGraph". But "chunk size parameter of RedisGraph" in experiments such enough to evaluate multiple source algorithm only single time)}.
+Graphs are loaded into RedisGraph database such that each vertex has a property \verb|id| which value is unique and is in $[0 \ldots |V|-1]$, where $|V|$ is a number of vertices in the graph to load.
+This allows us to generate queries for start vertex set with specific size using templates. 
+%\simpleton{(here chunk size don`t means "chunk size parameter of RedisGraph". But "chunk size parameter of RedisGraph" in experiments such enough to evaluate multiple source algorithm only single time)}.
 The template for the $g_1$ query is provided in listing~\ref{lst:query_pattern_g1}.
-Here \texttt{\{id\_from\}} and \texttt{\{id\_to\}} are placeholders for lower and upper bounds for \verb|id|. The example of the exact query for chunk of size 16 is presented in listing~\ref{lst:query_g1}.
+Here \texttt{\{id\_from\}} and \texttt{\{id\_to\}} are placeholders for lower and upper bounds for \verb|id|. The example of the exact query for start set of size 16 is presented in listing~\ref{lst:query_g1}.
 
 \begin{algorithm}
 \floatname{algorithm}{Listing}
@@ -110,13 +113,13 @@ Here \texttt{\{id\_from\}} and \texttt{\{id\_to\}} are placeholders for lower an
 \end{algorithmic}
 \end{algorithm}
 
-Queries generator for all three queries ($g_1$, $g_2$, and $geo$) was implemented and used to create queries for all chunks which are used in the previous experiment. 
+Queries generator for all three queries ($g_1$, $g_2$, and $geo$) was implemented and used to create queries for all start sets which are used in the previous experiment. 
 
 
 \subsubsection{Evaluation results}
 
 For evaluation we select $geo$ query for \textit{geospecies} graph as one of the hardest queries, and $g_1$ query for other graphs.
-Time and memory consumption are measured for each chunk processing.
+Time and memory consumption are measured for each start set processing.
 Results of time measurement are presented in figures~\ref{fig:redis_core_all}--\ref{fig:redis_gohierarchy_all}.
 
 \begin{figure}[h]
@@ -171,13 +174,13 @@ Results of time measurement are presented in figures~\ref{fig:redis_core_all}--\
 \end{figure}
 
 We can see, that results is comparable with one given in section~\ref{sect:py_algo_evaluation}. 
-Processing time for all chunks, except chunk of size 10~000 for \textit{geospecies} graph (fig.~\ref{fig:redis_geospecies_all}) is less then 1 second.
-Moreover, for chunks of size 16 processing median time is less then 0.1 second, except \textit{geospecies} graph.
+Processing time for all sets, except set of size 10~000 for \textit{geospecies} graph (fig.~\ref{fig:redis_geospecies_all}) is less then 1 second.
+Moreover, for sets of size 16 processing median time is less then 0.1 second, except \textit{geospecies} graph.
 
 Memory consumption for two big graphs \textit{eclass\_514en} and \textit{geospecies} is presented in figures~\ref{fig:redis_memory_eclass} and~\ref{fig:redis_memory_geospecies} respectively.
-We can see, that amount of used memory depends on graph and query, but for relatively small chunks ($\leq 1000$) RedisGraph uses less that 50Mb of RAM to process one chunk.
+We can see, that amount of used memory depends on graph and query, but for relatively small sets ($\leq 1000$) RedisGraph uses less that 50Mb of RAM to process one set.
 Note that RedisGraph includes memory management system, thus in our experiments all allocated memory is measured, not only really used for query evaluation.
-As a result, we can conclude that multiple-source CFPQ is significantly more memory efficient than creation of full reachability index and its filtering: processing the chunk of size 10~000 on \textit{geospecies} graph requires less than 200Mb, while full index creation requires 16Gb~\cite{10.1145/3398682.3399163}.  
+As a result, we can conclude that multiple-source CFPQ is significantly more memory efficient than creation of full reachability index and its filtering: processing the set of size 10~000 on \textit{geospecies} graph requires less than 200Mb, while full index creation requires 16Gb~\cite{10.1145/3398682.3399163}.  
 
 \begin{figure}[h]
 \centering
@@ -208,7 +211,10 @@ As a result, we can conclude that multiple-source CFPQ is significantly more mem
 \end{algorithm}
 
 
-Additionally, we measure the time required to process full graph (to solve all-pairs reachability problem) by chunks of size 1000 (\simpleton{here chunk size is "chunk size parametr of RedisGraph" and here multiple source algorithm will be evaluated $\frac{|V|}{chunk\_size}$ times. Notice, that not always chunk\_size equal to size of set of source vertices of multiple source algorithm, but for these queries it is true}).
+Additionally, we measure the time required to process full graph (to solve all-pairs reachability problem) by chunks of size 1000. 
+Here chunk size is a chunk size parameter of RedisGraph.
+%, and here multiple source algorithm will be evaluated $\frac{|V|}{chunk\_size}$ times. 
+%Notice, that not always chunk\_size equal to size of set of source vertices of multiple source algorithm, but for these queries it is true}).
 
 Namely, we evaluate the query, presented in listing~\ref{lst:query_g1_full}. 
 It is similar to query form the previous scenario, but without constraints on vertices ids (without \texttt{WHERE} clause).
