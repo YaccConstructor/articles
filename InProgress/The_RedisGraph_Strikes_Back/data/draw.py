@@ -21,6 +21,8 @@ def draw(input_file, p=0):
 	
 	fig, axes = plt.subplots(nrows=3, ncols=1, figsize=(6, 4))
 
+	legend_rename = {'Brute':'Naive', 'Opt':'Cache'}
+
 	i = 0
 	for name, group in data:
 		data = group[['chunk_size','chunk_time']].groupby(['chunk_size'])
@@ -31,7 +33,7 @@ def draw(input_file, p=0):
 		if i%2 == 0 : labels = []
 		add_label(axs.violinplot(d[1],
 				       showmeans=False,
-				       showmedians=True), f'{name[1][16:]} ({name[0]})')
+				       showmedians=True), f'{legend_rename[name[1][16:]]} ({name[0]})')
 
 		axs.set_xticks(range(1,len(d[0])+1))
 		axs.set_xticklabels(d[0])
@@ -121,4 +123,4 @@ files_to_draw_redis = [f'raw_redis/{x}.csv' for x in ['core','eclass_514en','enz
 files_to_draw_redis_memory = [f'raw_memory/{x}.csv' for x in ['core','eclass_514en','enzyme','geospecies','go','pathways']]
 
 
-for f in files_to_draw_redis_memory: draw_redis_memory(f)
+for f in files_to_draw: draw(f,4)
