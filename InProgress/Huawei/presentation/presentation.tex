@@ -1,0 +1,252 @@
+%20 min preso!
+\documentclass[xcolor=table]{beamer}
+\usepackage{beamerthemesplit}
+\usepackage{wrapfig}
+\usetheme{SPbGU}
+\usepackage{pdfpages}
+\usepackage{amsmath}
+\usepackage{cmap}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{multirow}
+\usepackage[noend]{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{fancyvrb}
+\usetikzlibrary{calc}
+\usetikzlibrary{shapes,arrows}
+\usetikzlibrary{arrows,automata}
+\usetikzlibrary{positioning}
+
+\usepackage{tabularx}
+\newcolumntype{Y}{>{\raggedleft\arraybackslash}X}
+
+\renewcommand{\thealgorithm}{}
+
+\newtheorem{mytheorem}{Theorem}
+\renewcommand{\thealgorithm}{}
+
+\newcommand{\tikzmark}[1]{\tikz[overlay,remember picture] \node (#1) {};}
+\def\Put(#1,#2)#3{\leavevmode\makebox(0,0){\put(#1,#2){#3}}}
+
+\newcommand{\ltz}{$< 1$}
+
+
+\tikzset{
+    state/.style={
+           rectangle,
+           rounded corners,
+           draw=black, very thick,
+           minimum height=2em,
+           inner sep=2pt,
+           text centered,
+           },
+}
+
+\beamertemplatenavigationsymbolsempty
+
+\title[Static code analysis and linear algebra]{Fast and Scable Static Code Analysis Requires Fast and Scable Linear Algebra}
+\institute[SPbSU]{
+St Petersburg University
+}
+
+% То, что в квадратных скобках, отображается в левом нижнем углу.
+\author[Semyon Grigorev]{Semyon Grigorev}
+
+\date{October, 2020}
+
+\begin{document}
+{
+\begin{frame}[fragile]
+  \begin{table}
+  \centering
+  \begin{tabularx}{\linewidth}{XcX}
+    \includegraphics[height=1.5cm]{pictures/YC_logo.pdf} \hfill
+    & \begin{minipage}[t]{0.3\textwidth}\center \vspace{-1cm}  Huawei-SPbSU Open Day 2020
+      \end{minipage}
+    & \hfill \includegraphics[height=1.5cm]{pictures/SPbGU_Logo.png}
+  \end{tabularx}
+  \end{table}
+  \titlepage
+\end{frame}
+}
+
+
+\begin{frame}[fragile]
+  \frametitle{Static Code Analysis}
+  \begin{itemize}
+  \item Important part of development workflow
+  \item The most important case is \textbf{interprocedural} code analysis
+  \pause
+  \begin{itemize}
+    \item Computationally hard problem
+    \item Can be expressed in terms of \textbf{language constrained path querying} 
+  \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Language Constrained Path Querying\footnote{Or Formal Language Reachability problem}}
+  \begin{itemize}
+  \item $\Sigma$ is a set of terminals 
+  \item $L(\Sigma)$ is a language over $\Sigma$
+  \pause
+  \item $G = (V,E,D)$ is a directed graph, $E \subseteq V\times D \times V$, $D\subseteq \Sigma$
+  \pause
+  \item $p = v_0 \xrightarrow{l_0} v_1 \xrightarrow{l_1} \cdots v_{n-1}\xrightarrow{l_{n-1}}v_n$ is a path in $G$
+  \item $w(p) = w(v_0 \xrightarrow{l_0} v_1 \xrightarrow{l_1} \cdots v_{n-1}\xrightarrow{l_{n-1}}v_n) = l_0 l_1 \cdots l_{n-1}$
+  \pause
+  \item $R =\{ p \ | \ w(p) \in L(\Sigma)\}$
+  \begin{itemize}
+    \item $R$ can be an infinite set in some cases
+  \end{itemize}
+  \pause
+  \item The problem may be formulated in another way: $Q =\{ (v_0,v_n) \ | \ \exists p = v_0 \xrightarrow{l_0} \cdots \xrightarrow{l_{n-1}}v_n \ (w(p) \in 
+  L(\Sigma))\}$
+  \end{itemize}
+\end{frame}
+
+
+\begin{frame} \frametitle{Context-Free Path Querying (CFPQ)}
+  CFPQ is applicable for static code analysis (Language Reachability Framework)
+    \begin{itemize}
+        \item \emph{Thomas Reps et al.} ``Precise interprocedural dataflow analysis via graph reachability.'' 1995 
+        \item \emph{Jakob Rehof and Manuel Fahndrich.} ``Type-base flow analysis: from polymorphic subtyping to CFL-reachability.'' 2001
+        \item \emph{Dacong Yan et al.} ``Demand-driven context-sensitive alias analysis for Java.'' 2011
+        \item \emph{Qirun Zhang et al.}  ``Efficient subcubic alias analysis for C.'' 2014
+        \item ...
+    \end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Example: Field-Sensitivity}
+\begin{columns}[c] % The "c" option specifies centered vertical alignment while the "t" option is used for top vertical alignment
+
+\column{.25\textwidth} % Left column and width
+\begin{Verbatim}[numbers=left]
+  v.h = u;
+  ...
+  p = v;
+  ...
+  q.g = p;
+  ...
+  w = q;
+  ...
+  x = w.g;
+  if (...) {
+    y = w.f;
+  }
+  else {
+    y = x.h;
+  }    
+\end{Verbatim}
+
+\column{.6\textwidth} % Right column and width
+\begin{figure}[h]
+    \centering        
+    \begin{tikzpicture}[shorten >=1pt,auto]
+       \node[state] (q_0)                      {$u$};
+       \node[state] (q_1) [right=of q_0] {$v$};
+       \node[state] (q_2)  [above=of q_1]  {$p$};
+       \node[state] (q_3) [right=of q_2] {$q$};
+     \node[state] (q_4) [below=of q_3] {$w$};
+     \node[state] (q_5) [right=of q_4] {$x$};
+    \node[state] (q_6) [below=of q_5] {$y$};
+
+        \path[->]
+        (q_0) edge  node {$h$} (q_1)
+        (q_1) edge[thick]  node {$$} (q_2)
+        (q_2) edge  node {$g$} (q_3)
+       (q_3) edge [thick] node {$$} (q_4)
+       (q_4) edge  node {$\bar{g}$} (q_5)
+      (q_5) edge  node {$\bar{h}$} (q_6)
+       (q_4) edge[bend right, below]  node {$\bar{f}$} (q_6);
+
+    \end{tikzpicture}
+\end{figure}
+Correct path: \textcolor{green}{$hg\bar{g}\bar{h}$}
+
+Incorrect path: \textcolor{red}{$hg\bar{f}$}
+
+\end{columns}
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{Applicability of CFPQ}
+
+\begin{itemize} 
+\item Interprocedural static nullability analysis\footnote{\emph{Kai Wang et. al.} Graspan: a single-machine disk-based graph system for interprocedural 
+static analyses of large-scale systems code. 2017}
+  
+\begin{itemize} 
+   \item ``We have identified a total of 1127 unnecessary NULL tests in Linux, 149 in PostgreSQL, 
+   32 in httpd.''
+   \item ``Our analyses reported 108 new NULL pointer dereference bugs in Linux, among which 23 are false positives''
+   \item ``For PostgreSQL and httpd, we detected 33 and 14 new NULL pointer bugs; our manual 
+   validation did not find any false positives among them.''
+\end{itemize}
+
+\end{itemize}
+
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{CFPQ and Linear Algebra}
+
+  \begin{itemize}
+    \item CFQP can be formulated in terms of linear algebra: \emph{Rustam Azimov, Semyon Grigorev} ``Context-free path querying by matrix multiplication.'' 2018 
+    \item CFQP can be efficiently implemented using sparse linear algebra and modern parallel hardware: \emph{Arseniy Terekhov, Artyom Khoroshev, Rustam Azimov, Semyon Grigorev} ``Context-Free Path Querying with Single-Path Semantics by Matrix Multiplication.'' 2020 
+  \end{itemize}
+\end{frame}
+
+
+
+\begin{frame} \frametitle{Evaluation}
+\begin{itemize}
+  \item PC
+  \begin{itemize}
+   \item OS: Ubuntu 18.04
+   \item CPU: Intel core i7 8700k 3,4GHz
+   \item RAM: DDR4 64 Gb
+  \end{itemize}
+  \item Graphs are generated by LLVM for submodules of Linux core
+  \item Implementation is based on SuiteSparse:GraphBLAS\footnote{\url{https://people.engr.tamu.edu/davis/GraphBLAS.html}}
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile] \frametitle{Evaluation: Results\footnote{Graph analysis only. Graph building time is not included}}
+\begin{center}
+  {
+  \rowcolors{1}{}{lightgray}
+  \begin{tabular}{| c | c | c | c |}
+      \hline
+      
+      Name           & \#V        & \#E        & Time (min) \\ 
+      \hline
+      \hline
+      arch           & 3 448 422  & 5 940 484  & 3.25       \\
+      crypto         & 3 464 970  & 5 976 774  & 3.25       \\
+      drivers        & 4 273 803  & 7 415 538  & 17.5       \\
+      fs             & 4 177 416  & 7 218 746  & 6.2        \\  
+      \hline
+    \end{tabular}
+    }
+ \end{center}
+\end{frame}
+
+\begin{frame}[fragile] \frametitle{Conclusion}
+  \begin{itemize}
+    \item Number of tasks of interprocedural static code analysis can be expressed in terms of linear algebra
+    \item Sparse linear algebra can be efficiently implemented for modern parallel hardware
+    \item Not only static code analysis can be reduced to sparse linear algebra
+  \end{itemize}
+\end{frame}
+
+\end{document}
