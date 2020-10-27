@@ -7,22 +7,23 @@
 Абстрактный синтаксис.
 
 \begin{verbatim}
-script: List<stmt>
+type script: Seq of List<stmt>
 
-nt_name: String
+type stmt:
+  | Connect of String
+  | Select of obj_expr * graph_expr
+  | NamedPattern of String * regexp
 
-stmt:
-  | connect of String
-  | list
-  | select of obj_expr * from_expr * where_expr
-  | named_pattern of nt_name * regexp
+type graph_expr =
+  | ReachabilityInfo of graph_expr * path_pattern 
+  | Intersect of graph_expr * graph_expr 
+  | GraphName of String
 
-from_expr: String
-
-obj_expr:
-  | vertices of vs_info  
-  | conut of vs_info
-  | exists of vs_info
+type obj_expr:
+  | Vertices of String  
+  | Conut of String
+  | Exists of String
+  | Pair of obj_expr * obj_expr
 
 vs_info:
   | pair of v_info * v_info
@@ -32,7 +33,7 @@ v_info:
   | name of String
   | any
   
-where_expr:
+path_pattern:
   | path of v_expr * pattern * v_expr
 
 v_expr: 
@@ -43,12 +44,8 @@ v_expr:
 v_pattern:
   | id_pattern of Int   
 
-ident: 
-  | nt_name of String 
-  | t_name of String
-
 pattern: 
-  | smb of ident
+  | smb of String
   | star of regexp
   | plus of regexp
   | alt of regexp * regexp
@@ -56,6 +53,41 @@ pattern:
   | option of regexp
 
 \end{verbatim}
+
+\newcommand{\sem}[1]{\llbracket #1 \rrbracket}
+
+При обработке непустой последовательности инструкций сначала вычисляем результат выполнения первой инструкции, затем на нем --- всех остальных.
+
+$$
+\infer[]{c \xrightarrow{Seq \ (hd::tl)} c''}{c \xrightarrow{hd} c', \ \ c' \xrightarrow{Seq \ tl} c''}
+$$
+
+При обработке команды \verb|Connect| сохраняем её аргумент в конфигурации как путь к текущей базе данных.
+$$
+\infer[]{\langle\sigma, G\rangle \xrightarrow{Connect \ db} \langle\sigma[cur\_db \mapsto db], G\rangle}{}
+$$
+
+При обработке именованного шаблона в граммтику добавляется новое правило, соответствующее этому шаблону.
+
+$$
+\infer[]{\langle\sigma, G\rangle \xrightarrow{NamedPattern \ name \ regexp} \langle\sigma, newRule(name, regexp)::G\rangle}{}
+$$
+
+При обработке инструкции \verb|Select| сперва вычисляется граф, из которого будут выбираться объекты, затем вычисляются сами объекты.
+
+$$
+\infer[]{c \xrightarrow{Select \ obj \ graph} c''}{c \xrightarrow{graph} c', \ \ c' \xrightarrow{obj} c''}
+$$
+
+$$
+\infer[]{c \xrightarrow{ReachcbilityInfo \ graph \ pattern} c''}{c \xrightarrow{graph} c', \ \ c' \xrightarrow{obj} c''}
+$$
+
+
+\end{document}
+
+Семантика. 
+
 
 Пример конкретного синтаксиса.
 
