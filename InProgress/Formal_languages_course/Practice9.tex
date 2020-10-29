@@ -2,9 +2,11 @@
 
 \subsection{Григорьев С.В.}
 
-Абстрактный и конкретный синтаксис языка запросов к графам.
+Абстрактный и конкретный синтаксис языка запросов к графам, семантика языка запросов к гарфам.
 
-Абстрактный синтаксис.
+Абстрактный синтаксис скрывает детали синтаксического анализа и конкретного ``текстового'' представления синтаксиса, оставляя только важную для дальнейшего анализа иформацию о структуре программы. 
+
+Первая, минималистичная, версия языка запросов к графам.
 
 \begin{verbatim}
 type script: Seq of List<stmt>
@@ -12,49 +14,29 @@ type script: Seq of List<stmt>
 type stmt:
   | Connect of String
   | Select of obj_expr * graph_expr
-  | NamedPattern of String * regexp
 
 type graph_expr =
-  | ReachabilityInfo of graph_expr * path_pattern 
   | Intersect of graph_expr * graph_expr 
+  | Query of pattern
   | GraphName of String
 
 type obj_expr:
-  | Vertices of String  
-  | Conut of String
-  | Exists of String
-  | Pair of obj_expr * obj_expr
-
-vs_info:
-  | pair of v_info * v_info
-  | single of v_info
-
-v_info:
-  | name of String
-  | any
+  | Edges   
+  | Conut of obj_expr
   
-path_pattern:
-  | path of v_expr * pattern * v_expr
-
-v_expr: 
-  | name of String
-  | any 
-  | v_pattern
-
-v_pattern:
-  | id_pattern of Int   
-
-pattern: 
+type pattern: 
   | smb of String
-  | star of regexp
-  | plus of regexp
-  | alt of regexp * regexp
-  | seq of regexp * regexp
-  | option of regexp
+  | star of pattern
+  | plus of pattern
+  | alt of pattern * pattern
+  | seq of pattern * pattern
+  | option of pattern
 
 \end{verbatim}
 
 \newcommand{\sem}[1]{\llbracket #1 \rrbracket}
+
+Тперь поговорим о семантике данного языка. Исполнение скрипта на получившимся языке достаточно естественно описывается состоянием из текущей базы данных, текущего графа, и текущего результата вычислений. Значение этой тройки и будет семантикой нашей программы.
 
 При обработке непустой последовательности инструкций сначала вычисляем результат выполнения первой инструкции, затем на нем --- всех остальных.
 
@@ -64,13 +46,7 @@ $$
 
 При обработке команды \verb|Connect| сохраняем её аргумент в конфигурации как путь к текущей базе данных.
 $$
-\infer[]{\langle\sigma, G\rangle \xrightarrow{Connect \ db} \langle\sigma[cur\_db \mapsto db], G\rangle}{}
-$$
-
-При обработке именованного шаблона в граммтику добавляется новое правило, соответствующее этому шаблону.
-
-$$
-\infer[]{\langle\sigma, G\rangle \xrightarrow{NamedPattern \ name \ regexp} \langle\sigma, newRule(name, regexp)::G\rangle}{}
+\infer[]{\langle db, graph, res\rangle \xrightarrow{Connect \ db'} \langle db', graph, res\rangle}{}
 $$
 
 При обработке инструкции \verb|Select| сперва вычисляется граф, из которого будут выбираться объекты, затем вычисляются сами объекты.
@@ -79,17 +55,44 @@ $$
 \infer[]{c \xrightarrow{Select \ obj \ graph} c''}{c \xrightarrow{graph} c', \ \ c' \xrightarrow{obj} c''}
 $$
 
+При обработке инструкции \verb|Graph| загружаем в окружение граф из файла с именем, соотвествующим аргументу этой инструкции, лежащем в базе (директории), соответствующей значению \verb|cur_db|.
+
 $$
-\infer[]{c \xrightarrow{ReachcbilityInfo \ graph \ pattern} c''}{c \xrightarrow{graph} c', \ \ c' \xrightarrow{obj} c''}
+\infer[]{\langle db, graph, res \rangle \xrightarrow{\textit{GraphName} \ name} \langle db ,loadGraph(String.concat(db,name)), res\rangle}{}
+$$
+
+При обработке инструкции \verb|Intersect| сперва вычисляем оба подвыражения, затем пересекаем получившиеся графы как конечные автоматы. Считаем все вершины стартовыми и финальными одновременно.
+
+$$
+\infer[]{\langle db, graph, res\rangle \xrightarrow{\textit{Intersect} \ graph_1 \ graph_2} \langle db, \textit{intersectFA}(graph', graph''), res\rangle}{\langle db, graph,res\rangle \xrightarrow{graph_1} \langle db', graph', res'\rangle, \ \ \langle db, graph,res\rangle \xrightarrow{graph_2} \langle db'', graph'', res''\rangle}
 $$
 
 
-\end{document}
+При обработке инструкции \verb|Query| необходимо потроить минимальный детерминированный автомат по регулярному выражению, задаваемому шаблоном.
 
-Семантика. 
+$$
+\infer[]{\langle db, graph, res \rangle \xrightarrow{\textit{Query} \ pattern} \langle db, \textit{buildMinDFA}(pattern), res \rangle}{}
+$$
+
+При обработке инструкции \verb|Edges| в текущий результат вычислений записывается множество троек, соотвествующих рёбрам текущего графа.
+
+$$
+\infer[]{\langle db, graph, res \rangle \xrightarrow{\textit{Edges}} \langle db, graph, \{(v_i,e,v_j) \mid (v_i,e,v_j) \in graph.Edges\}\rangle}{}
+$$
+
+При обработке инструкции \verb|Count| сперва вычисляется подвыражене, а затем в текущий результат вычислений записывается размер результата вычисления подвыражения, если результат был множеством.
+
+$$
+\infer[type\_of(res') \equiv Set ]{\langle db, graph, res \rangle \xrightarrow{\textit{Count} \ expr} \langle db, graph, Set.count(res') \rangle}{\langle db, graph, res \rangle \xrightarrow{expr} \langle db', graph', res' \rangle}
+$$
+
+--------------------------------------------------------------------------------
+%\end{document}
+
+%Семантика. 
 
 
-Пример конкретного синтаксиса.
+%Пример конкретного синтаксиса.
 
 \begin{align*}
 \textit{script} \to & \varepsilon  \\
@@ -174,3 +177,56 @@ SELECT COUNT(u) FROM [g1.txt] where (v.id = 10) - S -> (u);
   OP_MINUS NT_NAME OP_MINUS OP_GR LBR IDENT RBR SEMI
   \end{verbatim}
 \end{enumerate}
+
+
+
+
+Расширенная версия.
+
+\begin{verbatim}
+type script: Seq of List<stmt>
+
+type stmt:
+  | Connect of String
+  | Select of obj_expr * graph_expr
+  | NamedPattern of String * regexp
+
+type graph_expr =
+  | ReachabilityInfo of graph_expr * path_pattern 
+  | Intersect of graph_expr * graph_expr 
+  | GraphName of String
+
+type obj_expr:
+  | Vertices of String  
+  | Conut of String
+  | Exists of String
+  | Pair of obj_expr * obj_expr
+
+vs_info:
+  | pair of v_info * v_info
+  | single of v_info
+
+v_info:
+  | name of String
+  | any
+  
+path_pattern:
+  | path of v_expr * pattern * v_expr
+
+v_expr: 
+  | name of String
+  | any 
+  | v_pattern
+
+v_pattern:
+  | id_pattern of Int   
+
+pattern: 
+  | smb of String
+  | star of regexp
+  | plus of regexp
+  | alt of regexp * regexp
+  | seq of regexp * regexp
+  | option of regexp
+
+\end{verbatim}
