@@ -22,7 +22,7 @@ type graph_expr =
 
 type obj_expr:
   | Edges   
-  | Conut of obj_expr
+  | Count of obj_expr
   
 type pattern: 
   | smb of String
@@ -115,96 +115,6 @@ $$
 $$
 
 --------------------------------------------------------------------------------
-%\end{document}
-
-%Семантика. 
-
-
-%Пример конкретного синтаксиса.
-
-\begin{align*}
-\textit{script} \to & \varepsilon  \\
-                    & \mid \textit{stmt \ SEMI \ script} \\
-\textit{stmt} \to & \textit{KW\_CONNECT \ KW\_TO \ STRING} \\
-                  & \mid KW\_LIST \ KW\_ALL \ KW\_GRAPHS \\
-                  & \mid select\_stmt \\
-                  & \mid named\_pattern\_stmt \\
-named\_pattern \to & NT\_NAME \ OP\_EQ  \ pattern \\
-select\_stmt \to & \textit{KW\_SELECT} \ obj\_expr \ \textit{KW\_FROM} \ STRING \ \textit{KW\_WHERE} \ where\_expr \\
-obj\_expr \to & vs\_info \\
-              & \mid \textit{KW\_COUNT} \ vs\_info \\
-              & \mid \textit{KW\_EXISTS} \ vs\_info \\
-vs\_info \to & LBR \ IDENT \ COMMA \ IDENT \ RBR \\
-             & \mid IDENT \\
-where\_expr \to & LBR \ v\_expr RBR \ \\
-                & OP\_MINUS \ pattern \ OP\_MINUS \ OP\_GR \\
-                & LBR \ v\_expr \ RBR \\
-v\_expr \to & IDENT \mid UNDERSCORE \mid IDENT \ DOT \ KW_ID \ OP\_EQ \ INT \\
-pattern \to & alt\_elem \\
-            & \mid alt\_elem \ MID \ pattern \\
-alt\_elem \to & seq \\
-             & \mid LBR \ RBR \\
-seq \to & seq\_elem \\
-        & \mid seq\_elem \ seq \\
-seq\_elem \to & prim\_pattern \\
-              & \mid prim\_pattern \ OP\_STAR \\
-              & \mid prim\_pattern \ OP\_PLUS \\
-              & \mid prim\_pattern \ OP\_Q \\
-prim\_pattern \to & IDENT \\
-                 & \mid NT\_NAME \\
-                 & \mid LBR \ pattern \ RBR \\
-\end{align*}
-
-Токены (терминальный алфавит).
-\begin{align*}
-LBR = & '(' \\
-RBR = & ')' \\
-COMMA = & ',' \\
-SEMI = & ';' \\
-MID = & '|' \\
-DOT = & '.' \\
-OP\_STAR = & '*' \\ 
-OP\_PLUS = & '+' \\
-OP\_Q = & '?' \\
-OP\_MINUS = & '-' \\
-OP\_GR = & '>' \\
-OP\_EQ = & '=' \\
-KW\_ID = & 'ID' \\
-KW\_COUNT = & 'COUNT' \\
-KW\_EXISTS = & 'EXISTS' \\
-KW\_FROM = & 'FROM' \\
-KW\_WHERE = & 'WHERE' \\
-KW\_LIST = & 'LIST' \\
-KW\_ALL = & 'ALL' \\
-KW\_GRAPHS = & 'GRAPHS' \\
-KW\_CONNECT = & 'CONNECT' \\
-KW\_TO = & 'TO' \\
-IDENT = & [a-z][a-z]^* \\
-INT = & 0 \mid [1-9][0-9]^* \\
-NT\_NAME = & [A-Z][a-z]^* \\
-STRING = & {'['} ([aA-zZ] \mid [0-9] \mid ({'-'} \mid {' \ '} \mid {'\_'} \mid {'/'} \mid {'.'}))^* {']'}
-\end{align*}
-
-Пример скрипта:
-\begin{verbatim}
-CONNECT TO [\home\user\graph_db];
-S = a S b S | () ;
-SELECT COUNT(u) FROM [g1.txt] where (v.id = 10) - S -> (u);
-\end{verbatim}
-
-Задача на дом.
-\begin{enumerate}
-  \item Описать конкретный синтаксис языка запросов к графам, согралованный с приведённым абстрактным синтаксисом. Результат: грамматика и лексика в маркдаун (*.md) файле в репозитории (например, описание языка в readme.md). С примерами выражений на языка и текстовым описанием его особенностей.
-  \item Синтаксический анализатор предложенного языка на основе имеющейся реализации CYK. На вход принимается строка (с консоли или из файла), в которой токены разделены пробелами и переносами строк. Для приведённого выше скрипта вход выглядит следующим образом:
-  \begin{verbatim}
-  KW_CONNECT KW_TO STRING SEMI 
-  NT_NAME OP_EQ IDENT NT_NAME IDENT NT_NAME MID LBR RBR SEMI 
-  KW_SELECT KW_COUNT LBR IDENT RBR 
-  KW_FROM STRING 
-  KW_WHERE LBR IDENT DOT KW_ID OP_EQ INT RBR 
-  OP_MINUS NT_NAME OP_MINUS OP_GR LBR IDENT RBR SEMI
-  \end{verbatim}
-\end{enumerate}
 
 
 
@@ -212,49 +122,116 @@ SELECT COUNT(u) FROM [g1.txt] where (v.id = 10) - S -> (u);
 Расширенная версия.
 
 \begin{verbatim}
-type script: Seq of List<stmt>
+type script = Seq of List<stmt>
 
-type stmt:
+type stmt =
   | Connect of String
+  | NamedPattern of String * pattern
   | Select of obj_expr * graph_expr
-  | NamedPattern of String * regexp
 
 type graph_expr =
-  | ReachabilityInfo of graph_expr * path_pattern 
   | Intersect of graph_expr * graph_expr 
+  | Query of pattern
   | GraphName of String
+  | SetStartAndFinal of vertices * vertices * graph_expr
 
-type obj_expr:
-  | Vertices of String  
-  | Conut of String
-  | Exists of String
-  | Pair of obj_expr * obj_expr
+type vertices =
+  | Set of Set<int>
+  | Range of int * int
+  | None   
 
-vs_info:
-  | pair of v_info * v_info
-  | single of v_info
-
-v_info:
-  | name of String
-  | any
+type obj_expr =
+  | Edges
+  | Filter of cond * obj_expr
+  | Count of obj_expr
   
-path_pattern:
-  | path of v_expr * pattern * v_expr
+type cond = 
+  | Cond of String * String * String * bool_expr
 
-v_expr: 
-  | name of String
-  | any 
-  | v_pattern
+type bool_expr = 
+  | LblIs   of String * String
+  | IsStart of String
+  | IsFinal of String
 
-v_pattern:
-  | id_pattern of Int   
-
-pattern: 
-  | smb of String
-  | star of regexp
-  | plus of regexp
-  | alt of regexp * regexp
-  | seq of regexp * regexp
-  | option of regexp
+type pattern = 
+  | Term of String
+  | Nonterm of String
+  | Star of pattern
+  | Plus of pattern
+  | Alt of pattern * pattern
+  | Seq of List<pattern>
+  | Option of pattern
 
 \end{verbatim}
+
+
+Для описания семантики для добавленных конструкций потребуется изменить домен --- в него необходимо добавить grammar (текущую граммтику).
+
+
+При обработке инструкции \verb|NamedPattern| добавляем в \textit{grammar} правило, где левая часть --- имя шаблона, а правая часть --- регулятрное выражение построенное по шаблону.
+
+$$
+\infer[]{\langle db, graph, grammar, res \rangle \xrightarrow{\textit{NamedPattern} \ name \ pattern} \langle db, graph, \textit{addRule(grammar, name, pattern)}, res \rangle}{}
+$$
+
+Так как теперь запрос может быть не только регулярным, то изменится обработка кинструкции \verb|Query|. Теперь вместо детерминированного конечного автомата строится рекурсивный конечный автомат с учётом накопленной грамматики.
+
+$$
+\infer[]{\langle db, graph, grammar, res \rangle \xrightarrow{\textit{Query} \ pattern} \langle db, \textit{buildRSM}(pattern, grammar), grammar, res \rangle}{}
+$$
+
+Как следствие, изменяется обработка инструкции \verb|Intersect|: нам необхоимо отслеживать, какого типа графы пересекаются, так как для успешного выполнения операции необходимо, чтобы хотя бы один из них был обыкновенным конечным автоматом. 
+
+$$
+\infer[\textit {$g'$ is DFA or $g''$ is DFA}]{\langle db, g, grm, res\rangle \xrightarrow{\textit{Intersect} \ g_1 \ g_2} \langle db, \textit{intersect}(g', g''), grm, res\rangle}{\langle db, g, grm, res\rangle \xrightarrow{g_1} \langle db, g', grm, res \rangle, \ \ \langle db, g, grm, res \rangle \xrightarrow{g_2} \langle db, g'', grm, res \rangle}
+$$
+
+Добавим операцию, позволяющую явно указывать стартовые и финальные состояния \verb|SetStartAndFinal|.
+
+{
+\scriptsize
+$$
+\infer[res' \neq \varnothing, res'' \neq \varnothing]{\langle db, g, grm, res\rangle \xrightarrow{\textit{SetStartAndFinal} \ start \ final \ g_1} \langle db, \textit{(g' with Start = $res'$, Final = $res''$)}, grm, res\rangle}{\langle db, g, grm, res\rangle \xrightarrow{g_1} \langle db, g', grm, res \rangle, \ \ \langle db, g', grm, res \rangle \xrightarrow{start} \langle db, g', grm, res' \rangle, \ \ \langle db, g', grm, res \rangle \xrightarrow{final} \langle db, g', grm, res'' \rangle}
+$$
+}
+
+{
+\scriptsize
+$$
+\infer[res' = \varnothing, res'' \neq \varnothing]{\langle db, g, grm, res\rangle \xrightarrow{\textit{SetStartAndFinal} \ start \ final \ g_1} \langle db, \textit{(g' with Final = $res''$)}, grm, res\rangle}{\langle db, g, grm, res\rangle \xrightarrow{g_1} \langle db, g', grm, res \rangle, \ \ \langle db, g', grm, res \rangle \xrightarrow{start} \langle db, g', grm, res' \rangle, \ \ \langle db, g', grm, res \rangle \xrightarrow{final} \langle db, g', grm, res'' \rangle}
+$$
+}
+
+{
+\scriptsize
+$$
+\infer[res' \neq \varnothing, res'' = \varnothing]{\langle db, g, grm, res\rangle \xrightarrow{\textit{SetStartAndFinal} \ start \ final \ g_1} \langle db, \textit{(g' with Start = $res$)}, grm, res\rangle}{\langle db, g, grm, res\rangle \xrightarrow{g_1} \langle db, g', grm, res \rangle, \ \ \langle db, g', grm, res \rangle \xrightarrow{start} \langle db, g', grm, res' \rangle, \ \ \langle db, g', grm, res \rangle \xrightarrow{final} \langle db, g', grm, res'' \rangle}
+$$
+}
+
+
+{
+\scriptsize
+$$
+\infer[res' = \varnothing, res'' = \varnothing]{\langle db, g, grm, res\rangle \xrightarrow{\textit{SetStartAndFinal} \ start \ final \ g_1} \langle db, g', grm, res\rangle}{\langle db, g, grm, res\rangle \xrightarrow{g_1} \langle db, g', grm, res \rangle, \ \ \langle db, g', grm, res \rangle \xrightarrow{start} \langle db, g', grm, res' \rangle, \ \ \langle db, g', grm, res \rangle \xrightarrow{final} \langle db, g', grm, res'' \rangle}
+$$
+}
+
+$$
+\infer[]{\langle db, graph, grammar, res \rangle \xrightarrow{\textit{Set} \ s} \langle db, g, grammar, s \cap \textit{graph.Vertices} \rangle}{}
+$$
+
+
+$$
+\infer[]{\langle db, graph, grammar, res \rangle \xrightarrow{\textit{None}} \langle db, g, grammar, \varnothing \rangle}{}
+$$
+
+$$
+\infer[]{\langle db, graph, grammar, res \rangle \xrightarrow{\textit{Range} \ x \ y} \langle db, g, grammar, \textit{graph.Vertices} \cap \{ \min(x,y) \ldots \max(x,y)\} \rangle}{}
+$$
+
+Расширим возможности обработки результата пересечения. Для этого добавим фильтрацию рёбер. Обработка конструкции \verb|Filter| выглядит следующим образом.
+
+$$
+\infer[\textit{type of res' is Set<Edge>}]{\langle db, graph, grammar, res \rangle \xrightarrow{\textit{Filter} \ cond \ src} \langle db, g, grammar, \textit{Set.filter cond res'} \rangle}{\langle db, graph, grammar, res \rangle \xrightarrow{src} \langle db, g, grammar, res' \rangle}
+$$
