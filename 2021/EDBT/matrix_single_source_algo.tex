@@ -1,0 +1,181 @@
+\section{Matrix-based multiple-source CFPQ algorithm}
+\label{sec:multiple-source-algo}
+
+ In this section we introduce two versions of the multiple-source matrix-based CFPQ algorithm.
+ This algorithm is a modification of Azimov's matrix-based algorithm for CFPQ and its core idea is to cut off those vertices which are not in the selected set of start vertices.
+
+
+In order to simplify Azimov's algorithm modification and the final algorithm description, we assume the input graph to have only edge labels.
+Note, that we always can convert the original graph into such form.
+To do it, we should add loops into vertices in the following way: for the vertex $i$ we add an edge $i \xrightarrow{x} i$ iff $\lambda_V(i) = x$ and $x\neq \varnothing$.
+This way we can switch to an edge-labeled graph with the same number of vertices while preserving the defined semantics of CFPQ.
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzpicture}[shorten >=1pt,auto]
+       \node[state] (q_0)                        {$0$};
+       \node[state] (q_1) [right=of q_0]         {$1$};
+       \node[state] (q_2) [below left=of q_1]    {$2$};
+       \node[state] (q_3) [below left=of q_2]    {$3$};
+       \node[state] (q_4) [below right=of q_2]   {$4$};
+       \node[state] (q_5) [below right=of q_1]   {$5$};
+       \path[->]
+        (q_0) edge[loop left]  node {$\{x, y\}$} (q_0)
+        (q_0) edge  node {$\{a\}$} (q_1)
+        (q_2) edge[loop left]  node {$\{x\}$} (q_2)
+        (q_1) edge  node {$\{b\}$} (q_5)
+        (q_1) edge  node {$\{a, b\}$} (q_2)
+        (q_3) edge[above]  node {$\{c\}$} (q_2)
+        (q_4) edge  node {$\{c\}$} (q_3)
+        (q_2) edge[above]  node {$\{c\}$} (q_4)
+        (q_4) edge[loop below]  node {$\{y\}$} (q_4)
+        (q_5) edge[bend left, below]  node {$\{d\}$} (q_4)
+        (q_4) edge[bend left, above]  node {$\{d\}$} (q_5);
+    \end{tikzpicture}
+    \caption{The example of $D_1'$: the modified input graph $D_1$}
+    \label{fig:example_modified_input_graph}
+\end{figure}
+
+The adjacency matrix $M$ of the graph $D_1'$ is
+{
+    \renewcommand{\arraystretch}{0.7}
+    \setlength\arraycolsep{2pt}
+$$
+    M =
+    \begin{pmatrix}
+    \{x, y\}     & \{a\}       & \varnothing & \varnothing & \varnothing & \varnothing \\
+    \varnothing  & \varnothing & \{a, b\}    & \varnothing & \varnothing & \{b\}       \\
+    \varnothing  & \varnothing & \{x\}       & \varnothing & \{c\}       & \varnothing \\
+    \varnothing  & \varnothing & \{c\}       & \varnothing & \varnothing & \varnothing \\
+    \varnothing  & \varnothing & \varnothing & \{c\}       & \{y\}       & \{d\}       \\
+    \varnothing  & \varnothing & \varnothing & \varnothing & \{d\}       & \varnothing
+    \end{pmatrix}.
+$$
+}
+Note that this transformation is impractical for real-world graphs, thus we use it only for algorithm description.
+
+The first version of multiple-source algorithm is the Azimov's algorithm equipped with vertices filtering.
+Let $G = (N, \Sigma, P, S)$ be the input context-free grammar, $D = (V, E, \Sigma_V, \Sigma_E, \lambda_V, \lambda_E)$ be the input graph and $Src$ be the input set of start vertices.
+The result of the algorithm is a Boolean matrix which represents relation $R_{S,D}^{Src}$.
+
+\begin{algorithm}
+\small
+\begin{algorithmic}[1]
+\caption{Multiple-source CFPQ algorithm}
+\label{alg:algo1}
+\Function{MultiSrcCFPQNaive}{\par
+\hskip\algorithmicindent $D = (V, E, \Sigma_V, \Sigma_E, \lambda_V, \lambda_E)$, \par
+\hskip\algorithmicindent $G=(N,\Sigma,P,S)$, \par
+\hskip\algorithmicindent
+$Src$}
+    \State{$T \gets \{T^A \mid  A \in N, T^A[i,j] \gets \textit{false} \text{, for all $i,j$}\} $}
+
+    \State{$TSrc \gets \{TSrc^A \mid  A \in N, TSrc^A[i,j] \gets \textit{false} \text{, for all $i,j$}\}$}
+
+    \ForAll{$ v \in Src$} \Comment{Input matrix initialization}
+        \State{$TSrc^S[v,v] \gets true$}
+    \EndFor
+    
+    \State $MSrc \gets TSrc^S$
+
+    \ForAll{$A \to x \in P$} \Comment{Simple rules initialization}
+        \ForAll{$(v, to) \in E, \lambda_E(v,to) = x$}
+            \State{$T^A[v,to] \gets true$}
+        \EndFor
+    \EndFor
+
+    \While{$T\ or\ TSrc\ is\ changing$} \Comment{Algorithm's body}
+        \ForAll{$A \to B C \in P$}
+            \State{$M \gets TSrc^A*T^B$}
+            \State{$T^A \gets T^A + M*T^C$}
+            \State{$TSrc^B \gets TSrc^B + TSrc^A$}
+            \State{$TSrc^C \gets TSrc^C + $ \Call{getDst}{$M$}}
+        \EndFor
+    \EndWhile
+    \State \Return $MSrc * T^S$
+\EndFunction
+
+
+
+\Function{getDst}{$M$}
+    \State{$A[i,j] \gets \textit{false}$}
+    \ForAll{$(v,to) \in V^2 \mid M[v,to] = true$}
+        \State{$A[to,to] \gets true$}
+    \EndFor
+    \State \Return A
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+In order to solve the single-source and multiple-source CFPQ problem, we modified the Azimov's algorithm.
+Each time, when a grammar rule is applied (see line \textbf{8} of Algorithm~\ref{alg:algo0}: Boolean matrix multiplication $T^A = T^A + T^B \cdot T^C$ for each $A \rightarrow BC \in P$), only vertices of interest should be stored.
+To do it, we added one more matrix multiplication: $T^A = T^A + (TSrc^A \cdot T^B) \cdot T^ C$, where $TSrc^A$---matrix of start vertices for the current iteration (lines \textbf{11-13} of the Algorithm~\ref{alg:algo1}).
+In the end of every iteration of for loop, it is necessary to update the set of source vertices paths from which we need to calculate.
+To do it, the we call the function \textsc{getDst} (see lines \textbf{17-21}), in line \textbf{15}.
+Thus, the modified algorithm supports the frontier of the vertices of interest and updates it on each iteration.
+As a result, it only computes the paths which starts from the small set of selected vertices.
+
+In case when one has a sequence of similar queries to the single graph, it may be useful to cache results of the query evaluation and share them between queries.
+This may help to avoid recalculation of the already computed results.
+To introduce sharing of results between queries, we modify the previous version of the algorithm.
+The modified version stores all the vertices the paths from which have already been calculated in cache \textit{index}, which is used to filter such vertices in line \textbf{11} of Algorithm~\ref{alg:algo2}.
+Thus, the modified algorithm calculates paths from the particular vertex only once.
+Note, that \textsc{CreateIndex} function should be called first, and the created index can be shared between multiple calls of \textsc{MultiSrcCFPQCache} after that.
+
+%\begin{algorithm}
+%\small
+%\begin{algorithmic}[1]
+%\caption{Multiple-source context-free path querying algorithm with caching}
+%\label{alg:algo2}
+%\Function{CreateIndex}{ \par
+%\hskip\algorithmicindent $D = (V, E, \Sigma_V, \Sigma_E, \lambda_V, \lambda_E)$, \par
+%\hskip\algorithmicindent $G=(N,\Sigma,P,S)$}
+%    \State{$T \gets \{T^A \mid  A \in N, T^A[i,j] \gets \textit{false} \text{, for all $i,j$}\}$}
+%
+%    \State{$TSrc \gets \{TSrc^A \mid  A \in N, TSrc^A[i,j] \gets \textit{false} \text{, for all $i,j$}\}$}
+%
+%    \ForAll{$A \to x \in P$} \Comment{Simple rules initialization}
+%        \ForAll{$(v, to) \in E, \lambda_E(v,to) = x$}
+%            \State{$T^A[v,to] \gets \textit{true}$}
+%        \EndFor
+%    \EndFor
+%
+%    \State \Return $(T, TSrc)$
+%\EndFunction
+%\State
+%\Function{MultiSrcCFPQCache}{ \par
+%\hskip\algorithmicindent $D = (V, E, \Sigma_V, \Sigma_E, \lambda_V, \lambda_E)$, \par
+%\hskip\algorithmicindent $G=(N,\Sigma,P,S)$, \par
+%\hskip\algorithmicindent $Src$, \par
+%\hskip\algorithmicindent $Index = (T, TSrc)$}
+%
+%    \State{$TNewSrc \gets \{TNewSrc^A \mid  A \in N, TNewSrc^A \gets \textit{false} \text{, for all $i,j$}\}\}$}
+%
+%    \ForAll{$v \in Src \mid TSrc[v,v] = false$}
+%        \State{$TNewSrc^S[v,v] \gets true$}
+%    \EndFor
+%    
+%    \State $MSrc \gets TNewSrc^S$
+%
+%    \While{\textit{T or TNewSrc is changing}}
+%        \ForAll{$A \to B C \in P$}
+%            \State{$M \gets TNewSrc^A*T^B$}
+%            \State{$T^A \gets T^A + M*T^C$}
+%
+%            \State{$TNewSrc^B \gets TNewSrc^B + TNewSrc^A \setminus TSrc^B$}
+%            \State{$TNewSrc^C \gets TNewSrc^C + $ \Call{getDst}{M}} $\setminus$ $TSrc^C$
+%        \EndFor
+%    \EndWhile
+%    \State \Return $MSrc*T^S$
+%    \Comment{We want to return only relevant data, not all cached results}
+%\EndFunction
+%\end{algorithmic}
+%\end{algorithm}
+
+
+
+\subsection{Implementation Notes}
+
+All of the versions presented have been implemented$\footnote{GitHub repository with implemented algorithms: \url{https://github.com/JetBrains-Research/CFPQ_PyAlgo}, last accessed 28.08.2020}$ using GraphBLAS framework that allows one to represent graphs as matrices and to work with them in terms of linear algebra.
+For~convenience, the code is written in Python using pygraphblas\footnote{GitHub repository of PyGraphBLAS library: \url{https://github.com/michelp/pygraphblas}}, which is a Python wrapper for GraphBLAS API and is based on SuiteSparse:GraphBLAS\footnote{GitHub repository of SuiteSparse:GraphBLAS library: \url{https://github.com/DrTimothyAldenDavis/SuiteSparse}}~\cite{10.1145/3322125} --- the complete implementation of the GraphBLAS standard.
+This library is specialized to work with sparse matrices which appear in real graphs most often.
