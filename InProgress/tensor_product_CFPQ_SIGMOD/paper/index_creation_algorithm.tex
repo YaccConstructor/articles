@@ -344,59 +344,69 @@ Final version of the modified algorithm from Listing~\ref{tensor:cfpq} is shown 
 \label{tensor:cfpq:cubic}
 \Function{contextFreePathQuerying}{G, $\mathcal{G}$}
     % Input data preparation
+    \State{$n \gets$ The number of nodes in $\mathcal{G}$}
     \State{$R \gets$ Recursive automata for $G$}
-    \State{$M_1 \gets$ Adjacency matrix for $R$}
-    \State{$M_2 \gets$ Adjacency matrix for $\mathcal{G}$}
-    \State{$A_2 \gets$ Adjacency matrix for $\mathcal{G}$}
+    \State{$\mathcal{M}_1 \gets$ Boolean adjacency matrix for $R$}
+    \State{$\mathcal{M}_2, \mathcal{A}_2 \gets$ Boolean adjacency matrix for $\mathcal{G}$}
     %\State{$M_3 \gets$ The empty matrix}
-    \State{$C_3 \gets$ The empty matrix}
+    \State{$C_3 \gets$ The empty matrix of size $|R|n \times |R|n$}
     % Eps-transition handling for graph
-    \For{$s \in 0..dim(M_1)-1$}
-        \For{$i \in 0..dim(M_2)-1$}
-            \State{$M_2[i,i] \gets M_2[i,i] \cup \textit{getNonterminals}(R,s,s)$}
+    \For{$s \in 0..dim(\mathcal{M}_1)-1$}
+        \For{$S \in \textit{getNonterminals}(R,s,s)$}
+            \For{$i \in 0..dim(\mathcal{M}_2)-1$}
+                \State{$M^S_2[i,i] \gets 1 $}
+            \EndFor
         \EndFor
     \EndFor
-    \While{Matrix $M_2$ is changing}
-       \State{$M_3' \gets  M_1 \otimes A_2$}
-        \State{$A_2 \gets$ The empty matrix of size $n \times n$}
+    \While{$\mathcal{M}_2$ is changing}
+        \State{$M_3' \gets \bigvee_{M^S \in \mathcal{M}_1 \otimes \mathcal{A}_2} M^S$}
+        %\State{$\mathcal{A}_2 \gets$ The empty matrix of size $n \times n$}
+        \State{$\mathcal{A}_2 \gets$ The empty matrix}
+        \State{$C_3' \gets$ The empty matrix of size $|R|n \times |R|n$}
         %\Comment{Evaluate Kroncker product}
-       \For{$M_3'[i,j] \mid M_3'[i,j] = 1$}
-            \State{$C_3[i,j] \gets 1$}
-             \State{$C_3' \gets  \bigcup_{(i,j)} \textit{add}(C_3, i, j)$}
-             \Comment{Updating the transitive closure}
-             \State{$C_3 \gets C_3 + C_3'$}
+        \For{$(i,j) \mid M_3'[i,j] \neq 0$}
+            %\State{$C_3'[i,j] \gets 1$}
+            \State{$C_3' \gets \textit{add}(C_3, C_3', i, j)$}
+            \Comment{Updating the transitive closure}
+            \State{$C_3 \gets C_3 + C_3'$}
         \EndFor
-        \State{$n \gets$ dim($M_3)$}
+        %\State{$n \gets$ dim($M_3)$}
         %\Comment{Matrix $M_3$ size = $n \times n$}
         % Add non-terminals (possibly new)
         \For{$(i,j)\ |\ C_3'[i,j] \neq 0$}
                 \State{$s, f \gets \textit{getStates}(C_3',i,j)$}
-                \If{$\textit{getNonterminals}(R,s,f) \neq \emptyset$}
-                    \State{$x, y \gets \textit{getCoordinates}(C_3',i,j)$}
-                    \State{$M_2[x,y] \gets M_2[x,y] \cup \textit{getNonterminals}(R,s,f)$}
-                     \State{$A_2[x,y] \gets A_2[x,y] \cup \textit{getNonterminals}(R,s,f)$}
-                \EndIf
+                \State{$x, y \gets \textit{getCoordinates}(C_3',i,j)$}
+                \For{$S \in \textit{getNonterminals}(R,s,f)$}
+                    \State{$M^S_2[x,y] \gets 1$}
+                    \State{$A^S_2[x,y] \gets 1$}
+                \EndFor
         \EndFor
     \EndWhile
 \State \Return $\mathcal{M}_2, C_3$
 \EndFunction
+% \Function{add}{$C, C', i, j$}
+%     \State{$C'[i,j] \gets {1}$}
+%     \For{$(u,v) \mid C[u,i] = C[j,v] = 1, C[u,j] = C[u,v] = 0$}
+%         \State{$C'[u,v] \gets {1}$}
+%     \EndFor
+%     \State \Return{$C'$}
+% \EndFunction
 \end{algorithmic}
 \end{algorithm}
 \begin{theorem}{}
     Let $\mathcal{G} = (V,E,L)$ be a graph and $G = \langle\Sigma, N, S, P\rangle$ be a grammar.
-    The algorithm from Listing~\ref{tensor:cfpq:cubic} calculates a result matrices $\mathcal{M}_2$ and $C_3$ in $O(n^3)$ time where $n = |V|$.
+    The algorithm from Listing~\ref{tensor:cfpq:cubic} calculates a result matrices $\mathcal{M}_2$ and $C_3$ in ${|P|}^3n^3$ time where $n = |V|$.
 \end{theorem}
-
 \begin{proof}
  Let $|\mathcal{A}|$ be a number of non-zero elements in a matrix $\mathcal{A}$. Consider the total time which is needed for computing the Kronecker products. The elements of the matrices $\mathcal{A}_2^{(i)}$ are pairwise distinct on every $i$-th iteration of the algorithm therefore we have 
- $$\sum\limits_i{T(\mathcal{M}_1 \otimes \mathcal{A}_2^{(i)})} = |\mathcal{M}_1| \otimes \sum\limits_i {|\mathcal{A}_2^{(i)}|} = |\mathcal{M}_1|O(n^2)$$
+ $\sum\limits_i{T(\mathcal{M}_1 \otimes \mathcal{A}_2^{(i)})} = |\mathcal{M}_1| \sum\limits_i {|\mathcal{A}_2^{(i)}|} = (|N| + |\Sigma|){|P|}^2 \sum\limits_i {|\mathcal{A}_2^{(i)}|} \le {(|N| + |\Sigma|)}^2{|P|}^2 n^2$
  operations in total. 
 
 
-Now we derive the time complexity of maintainig the dynamic transitive closure. Notice that $C_3$ has size of $O(n^2)$ so no more than $O(n^2)$ edges will be added during all iterations of the Algorithm. The function $checkCondition$ from the Listing~\ref{tensor:cfpq:dynamicTC} takes $O(n)$ time for every inserted edge $(i, j)$. Thus we have $O(n^2n) = O(n^3)$ operations in total. The function $newReachablePairs$ requires $O(n)$ time for a given vertex $u$. This operation is performed for every pair $(j, v)$ of vertices such that a vertex $j$ became reachable from the vertex $u$. The vertex $j$ become reachable from the vertex $u$ (and accordingly the value of the matrix cell $C_3[u, j]$ becomes $1$ from $0$) only once during the entire computation, so the function $newReachablePairs$ will be executed at most $O(n^2)$ times for every $u$ and hence $O(n^3)$ times in total for all vertices. Therefore $O(n^3)$ operations are performed to maintain dynamic transitive closure during all iteration of the algorithm from Listing~\ref{tensor:cfpq:cubic}.
+Now we derive the time complexity of maintainig the dynamic transitive closure. Notice that $C_3$ has size of the Kronecker product of $\mathcal{M}_1 \otimes \mathcal{M}_1$, which is equal to $|R|n \times |R|n = |P|n \times |P|n$ so no more than ${|P|}^2n^2$ edges will be added during all iterations of the Algorithm. The function $checkCondition$ from the Listing~\ref{tensor:cfpq:dynamicTC} takes $O(|P|n)$ time for every inserted edge $(i, j)$. Thus we have $O({|P|}^2n^2|P|n ) = O({|P|}^3n^3)$ operations in total. The function $newReachablePairs$ requires $O(|P|n)$ time for a given vertex $u$. This operation is performed for every pair $(j, v)$ of vertices such that a vertex $j$ became reachable from the vertex $u$. The vertex $j$ become reachable from the vertex $u$ (and accordingly the value of the matrix cell $C_3[u, j]$ becomes $1$ from $0$) only once during the entire computation, so the function $newReachablePairs$ will be executed at most $O({|P|}^2n^2)$ times for every $u$ and hence $O({|P|}^3n^3)$ times in total for all vertices. Therefore $O({|P|}^3n^3)$ operations are performed to maintain dynamic transitive closure during all iteration of the algorithm from Listing~\ref{tensor:cfpq:cubic}.
 
 
-Notice that the matrix $C_3'$ contains only new elements, therefore $C_3$ can be updated directly using only $|C_3'|$ operations and hence $O(n^2)$ operations in total. The same holds for cycle in line 18 of the algorithm from Listing~\ref{tensor:cfpq:cubic}, because operations are performed only for non-zero elements of the matrix $|C_3'|$. Finally, we have that the time complexity of the algorithm is $O(n^2) + O(n^3) + O(n^2) + O(n^2) = O(n^3)$.
+Notice that the matrix $C_3'$ contains only new elements, therefore $C_3$ can be updated directly using only $|C_3'|$ operations and hence $O({|P|}^2n^2)$ operations in total. The same holds for cycle in line 18 of the algorithm from Listing~\ref{tensor:cfpq:cubic}, because operations are performed only for non-zero elements of the matrix $|C_3'|$. Finally, we have that the time complexity of the algorithm is ${(|N| + |\Sigma|)}^2{|P|}^2 n^2 + O({|P|}^3n^3) + O({|P|}^2n^2) + O({|P|}^2n^2)= O({|P|}^3n^3)$.
 \end{proof}{}
 
 \subsubsection{Speeding up by a factor of $\log n$}
@@ -414,7 +424,7 @@ To achieve this goal, we use the Four Russians' trick. Split each vector into $n
 Notice that the maintaining of the dynamic transitive closure dominates the cost of the algorithm from Listing~\ref{tensor:cfpq:cubic}, therefore we immediately deduce the following.
 \begin{corollary}{}
     Let $\mathcal{G} = (V,E,L)$ be a graph and $G = \langle\Sigma, N, S, P\rangle$ be a grammar.
-    The resulting matrices $\mathcal{M}_2$ and $C_3$ can be calculated in $O(n^3/\log n)$ time.
+    The resulting matrices $\mathcal{M}_2$ and $C_3$ can be calculated in $O({|P|}^3n^3/(\log n + \log |P|))$ time.
 \end{corollary}
 
 
