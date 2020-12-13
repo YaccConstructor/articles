@@ -1,14 +1,14 @@
 \subsection{Paths Extraction Algorithm}
 After the index has been created, one can enumerate all paths between specified vertices.
 The index stores information about all reachable pairs for all nonterminals.
-Thus, the most natural way to use this index is to query paths between the specified vertices derivable from the specified nonterminal.
+Thus, the most natural way of using this index is to query paths between the specified vertices derivable from the specified nonterminal.
 \begin{algorithm}[h]
 \floatname{algorithm}{Listing}
 \begin{algorithmic}[1]
 \footnotesize
 \caption{Paths extraction algorithm}
 \label{tensor:pathsExtraction}
-\State{$C_3 \gets $ result of index creation algorithm: final transitive closure}
+\State{$M_3' \gets $ result of index creation algorithm: final Kronecker product}
 \State{$\mathcal{M}_1 \gets $  the set of adjacency matrices of the input RSM}
 \State{$\mathcal{M}_2 \gets $ the set of adjacency matrices of the final graph}
 \State{$R \gets$ Recursive automata for the input RSM}
@@ -42,33 +42,33 @@ Thus, the most natural way to use this index is to query paths between the speci
 % note: the second index in the pair is the vertex of the graph
 
 \Function{genPaths}{$(s_i,v_i), (s_j,v_j)$}
-    \State{$q \gets \text{vector of zeros with size } dim(\mathcal{M}_2)$}
+    \State{$q \gets \text{vector of zeros with size } dim(M_3')$}
     \Comment{Vector for indicating the current vertex}
-    \State{$q[s_i |R| + v_i] \gets 1$}
+    \State{$q[s_i dim(\mathcal{M}_2) + v_i] \gets 1$}
     \State{$resultPaths \gets \emptyset$}
     \State{$supposedPaths \gets \{([~], q)\}$}
     \Comment{Set of pairs: path and the vector for current vertex}
-    \For{$i \in 1..dim(\mathcal{M}_2)$}
+    \For{$i \in 1..dim(M_3')$}
      	\For{$(path, q) \in supposedPaths$}
-     		\If{$q[s_j |R| + v_j] = 1$}
+     		\If{$q[s_j dim(\mathcal{M}_2) + v_j] = 1$}
      			\State{$resultPaths \gets resultPaths \cup path$}
      		\EndIf
      		
-     		\State{$q \gets q \cdot (\mathcal{M}_2)^T$}
+     		\State{$q \gets q \cdot (M_3')^T$}
      		\Comment{Boolean vector-matrix multiplication}
      		
      		\State{$\text{Remove } (path, q)\text{ from } supposedPaths$}
      		\For{$j \text{ such that } q[j] = 1$}
      			\State{$pathNew \gets path$}
      			\If{$path \text{ is empty path}$}
-     				\State{$pathNew \gets pathNew \cdot [((s_i, v_i), (j / |R|, j \bmod |R|))]$}
-     				\Comment{Edge adding}
+     				\State{$pathNew \gets pathNew \cdot [((s_i, v_i), (j / dim(\mathcal{M}_2), j \bmod dim(\mathcal{M}_2)))]$}
+     				%\Comment{Edge adding}
      			\Else
      				\State{$(s_k, v_k) \gets \text{ the last vertex of } path$}
-     				\State{$pathNew \gets pathNew \cdot [((s_k, v_k), (j / |R|, j \bmod |R|))]$}
-     				\Comment{Edge adding}
+     				\State{$pathNew \gets pathNew \cdot [((s_k, v_k), (j / dim(\mathcal{M}_2), j \bmod dim(\mathcal{M}_2)))]$}
+     				%\Comment{Edge adding}
      			\EndIf
-     			\State{$qNew \gets \text{vector of zeros with size } dim(\mathcal{M}_2)$}
+     			\State{$qNew \gets \text{vector of zeros with size } dim(M_3')$}
      			\State{$qNew[j] \gets 1$}
      			\State{$\text{Add } (pathNew, qNew)\text{ to } supposedPaths$}
      		\EndFor
@@ -82,11 +82,11 @@ Thus, the most natural way to use this index is to query paths between the speci
 To do so, we provide a function \textsc{getPaths}($v_s, v_f, N$), where $v_s$ is a start vertex of the graph, $v_f$ --- the final vertex, and $N$ is a nonterminal.
 Implementation of this function is presented in Listing~\ref{tensor:pathsExtraction}.
 
-Paths extraction is implemented as three mutually recursive functions.
+Paths extraction is implemented as two functions.
 The entry point is \textsc{getPaths}($v_s, v_f, N$).
-This function returns a set of the paths between $v_s$ and $v_f$ such that the word formed by a path is derivable from the nonterminal $N$.
+This function returns a set of the paths in input graph between $v_s$ and $v_f$ such that the word formed by a path is derivable from the nonterminal $N$.
 
-To compute such paths, it is necessary to compute paths from vertices of the form $(q_N^s,v_s)$ to vertices of the form $(q_N^f, v_f)$ in the result of transitive closure, where $q_N^s$ is an initial state of RSM for $N$ and $q_N^f$ is a final state.
+To compute such paths, it is necessary to compute paths from vertices of the form $(q_N^0,v_s)$ to vertices of the form $(f, v_f)$ in the result of Kronecker product, where $q_N^s$ is an initial state of RSM for $N$ and $q_N^f$ is a final state.
 The function \textsc{getPathsInner}$((s_i,v_i),(s_j,v_j))$ is used to do it.
 This function finds all possible vertices $(s_k,v_k)$  which split a path from $(s_i,v_i)$ to $(s_j,v_j)$ into two subpaths.
 After that, function \textsc{getSubpaths}$((s_i,v_i),(s_j,v_j),(s_k,v_k))$ computes the corresponding subpaths.
