@@ -11,51 +11,70 @@ Thus, the most natural way to use this index is to query paths between the speci
 \State{$C_3 \gets $ result of index creation algorithm: final transitive closure}
 \State{$\mathcal{M}_1 \gets $  the set of adjacency matrices of the input RSM}
 \State{$\mathcal{M}_2 \gets $ the set of adjacency matrices of the final graph}
+\State{$R \gets$ Recursive automata for the input RSM}
 
 \Function{getPaths}{$v_s, v_f, N$}
-    \State{$q_N^0 \gets$ Start state of automata for $N$}
-    \State{$F_N \gets$ Final states of automata for $N$}
-    \State{$res \gets \bigcup\limits_{f \in F_N} \Call{getPathsInner}{(q_N,v_s),(f,v_f)}$}
-\State \Return $res$
+\State{$q_N^0 \gets$ Start state of automata for $N$}
+\State{$F_N \gets$ Final states of automata for $N$}
+\State{$paths\gets \bigcup\limits_{f \in F_N} \Call{genPaths}{(q_N^0,v_s),(f,v_f)}$}
+\State{$resultPaths \gets \emptyset$}
+\For{$path \in paths$}
+	\State{$currentPaths \gets \emptyset$}
+	\For{$((s_i, v_i), (s_j, v_j)) \in path$}
+	    \State{\begin{minipage}[t]{0.2\textwidth}
+	    		\vspace{-13pt}
+	    		\begin{align*}
+	    			currentSubPaths \gets & \{(v_i,t,v_j) \mid M_2^t[s_i, s_j] \wedge M_1^t[v_i, v_j]\}\\
+	    			& \cup \ \bigcup_{\{N \mid M_2^N[s_i, s_j]\}}\Call{getPaths}{v_i, v_j, N}
+	    		\end{align*}
+	    	\end{minipage}
+	    }
+		\State{$currentPaths \gets currentPaths \cdot currentSubPaths$}
+		\Comment{Concatenation of paths}
+	\EndFor
+	\State{$resultPaths \gets resultPaths \cup currentPaths$}
+\EndFor
+
+\State \Return $resultPaths$
 \EndFunction
 
-% DONE: fixed vertices notation (s,v)
 % note: the first index in the pair is the state of the RSM
 % note: the second index in the pair is the vertex of the graph
 
-\Function{getSubpaths}{$(s_i,v_i), (s_j,v_j), (s_k,v_k)$}
-    %\State{$v_i \gets \Call{getGraphV}{i}$}
-    %\State{$v_k \gets \Call{getGraphV}{k}$}
-    %\State{$v_j \gets \Call{getGraphV}{j}$}
-
-    %\State{$s_i \gets \Call{getRsmState}{i}$}
-    %\State{$s_k \gets \Call{getRsmState}{k}$}
-    %\State{$s_j \gets \Call{getRsmState}{j}$}
-
-  \State{\begin{minipage}[t]{0.2\textwidth}
-           \vspace{-13pt}
-           \begin{align*}
-              l \gets & \{(v_i,t,v_k) \mid M_2^t[s_i, s_k] \wedge M_1^t[v_i, v_k]\}\\
-                & \cup \ \bigcup_{\{N \mid M_2^N[s_i, s_k]\}}\Call{getPaths}{v_i, v_k, N} \\
-                & \cup \ \Call{getPathsInner}{(s_i,v_i), (s_k,v_k)}
-           \end{align*}
-           \end{minipage}
-          }
-    \State{\begin{minipage}[t]{0.2\textwidth}
-           \vspace{-13pt}
-           \begin{align*}
-              r \gets & \{(v_k,t,v_j) \mid M_2^t[s_k, s_j] \wedge M_1^t[v_k, v_j] \}\\
-                      & \cup \ \bigcup_{\{N \mid M_2^N[s_k, s_j] \}}\Call{getPaths}{v_k, v_j, N} \\
-                      & \cup \ \Call{getPathsInner}{(s_k,v_k), (s_j,v_j)}
-           \end{align*}
-           \end{minipage}
-          }
-    \State \Return $l \cdot r$
-\EndFunction
-
-\Function{getPathsInner}{$(s_i,v_i), (s_j,v_j)$}
-    \State{$parts \gets \{ (s_k,v_k) \mid C_3[(s_i,v_i),(s_k,v_k)] = 1 \wedge C_3[(s_k,v_k),(s_j,v_j)] = 1\}$}
-    \State \Return $\bigcup_{(s_k,v_k) \in parts} \Call{getSubpaths}{(s_i,v_i), (s_j,v_j),(s_k,v_k)}$
+\Function{genPaths}{$(s_i,v_i), (s_j,v_j)$}
+    \State{$q \gets \text{vector of zeros with size } dim(\mathcal{M}_2)$}
+    \Comment{Vector for indicating the current vertex}
+    \State{$q[s_i |R| + v_i] \gets 1$}
+    \State{$resultPaths \gets \emptyset$}
+    \State{$supposedPaths \gets \{([~], q)\}$}
+    \Comment{Set of pairs: path and the vector for current vertex}
+    \For{$i \in 1..dim(\mathcal{M}_2)$}
+     	\For{$(path, q) \in supposedPaths$}
+     		\If{$q[s_j |R| + v_j] = 1$}
+     			\State{$resultPaths \gets resultPaths \cup path$}
+     		\EndIf
+     		
+     		\State{$q \gets q \cdot (\mathcal{M}_2)^T$}
+     		\Comment{Boolean vector-matrix multiplication}
+     		
+     		\State{$\text{Remove } (path, q)\text{ from } supposedPaths$}
+     		\For{$j \text{ such that } q[j] = 1$}
+     			\State{$pathNew \gets path$}
+     			\If{$path \text{ is empty path}$}
+     				\State{$pathNew \gets pathNew \cdot [((s_i, v_i), (j / |R|, j \bmod |R|))]$}
+     				\Comment{Edge adding}
+     			\Else
+     				\State{$(s_k, v_k) \gets \text{ the last vertex of } path$}
+     				\State{$pathNew \gets pathNew \cdot [((s_k, v_k), (j / |R|, j \bmod |R|))]$}
+     				\Comment{Edge adding}
+     			\EndIf
+     			\State{$qNew \gets \text{vector of zeros with size } dim(\mathcal{M}_2)$}
+     			\State{$qNew[j] \gets 1$}
+     			\State{$\text{Add } (pathNew, qNew)\text{ to } supposedPaths$}
+     		\EndFor
+     	\EndFor   
+    \EndFor
+    \State \Return $resultPaths$
 \EndFunction
 \end{algorithmic}
 \end{algorithm}
