@@ -143,22 +143,20 @@ The result graph is presented in Figure~\ref{fig:example_result}.
 
 At this point the index creation is finished.
 One can use it to answer reachability queries, but it also can be used
-to restore paths for some reachable vertices. The result transitive closure matrix
-$C_3$ or so called \textit{index} can be used for that. For example, let we try to
-restore paths from 2 to 2 derived from $S$ in the result graph.
+to restore paths for some reachable vertices. The result Kronecker product matrix
+$M_3'$ or so called \textit{index} can be used for that. For example, we try to
+restore paths from the vertex 1 to the vertex 1 derived from $S$ in the result graph.
 
-To get these paths we should call \verb|getPaths(1, 1, s)| function.
+To get these paths we should call \verb|getPaths(1, 1, S)| function.
 Partial trace of this call is presented below in Figure~\ref{trc:example}.
 First, we must query paths for all possible start and final states of the
 machine for the provided graph vertices. Since in the example RSM the component
 state machine with label $S$ has a single final state, the function
-\verb|getPathsInner| is called with arguments $(0,1)$ and $(3,1)$.
+\verb|genPaths| is called with arguments $(0,1)$ and $(3,1)$.
 Note, that the values passed to the functions in the path extraction algorithm are the
 pairs of the machine state and graph vertex, which uniquely identify a cell of
-the index matrix $C_3$. Possible paths concatenation vertices are stored as \verb|parts={(1,0),(2,1)}|. Then we try to get parts of paths going through
-index vertex $(1,0)$. All possible concatenations variants of the paths are
-queried in the corresponding \verb|getSubpaths| function call. As the result,
-we get the set of possible paths in the graph from $1$ to $1$.
+the index matrix $M_3'$. As the result,
+we get the set of all possible paths in the graph from $1$ to $1$ derived from $S$.
 
 \begin{figure}
 \begin{minipage}[t]{0.48\textwidth}
@@ -168,27 +166,33 @@ we get the set of possible paths in the graph from $1$ to $1$.
 \DTsetlength{0.2em}{0.5em}{0.2em}{0.4pt}{1.6pt}
 \dirtree{%
 .1 getPaths($1,1,S$).
-.2 getPathsInner($(0,1),(3,1)$).
-.3 parts$=\{(1,0),(2,1)\}$.
-.3 getSubpaths($(0,1),(3,1),(1,0)$).
-.4 l=$\{1 \xrightarrow{a} 0\}$.
-.5 $\cdots$.
-.6 getPathsInner($(0,0),(3,1)$).
-.7 parts = $\{(1,1)\}$.
-.8 ...
-.9 getPaths($0,1,S$).
-.10 ...
-.11 getSubpaths($(0,0), (3,1), (1,1)$).
-.12 $l=\{ 0 \xrightarrow{a} 1 \}$.
-.12 $r=\{ 1 \xrightarrow{b} 1 \}$.
-.12 return $\{ 0\xrightarrow{a} 1 \xrightarrow{b} 1 \}$.
-.3 getSubpaths($(0,1), (3,1), (2,1)$).
-.4 $\cdots$.
-.5 getPaths(0, 1, S) // \begin{minipage}[t]{14cm} An alternative way to get paths from 0 to 1 (leads to infinite set of paths) \end{minipage}.
-.5 ...
-.10 return $r_\infty^{0 \leadsto 1}$ // \begin{minipage}[t]{5cm} An infinite set of path from 0 to 1 \end{minipage}.
-.6 $\cdots$.
-.2 return $\{1 \xrightarrow{a} 0 \xrightarrow{a} 1  \xrightarrow{b} 1 \xrightarrow{b} 1\} \cup (\{1 \xrightarrow{a}  0 \} \cdot r_\infty^{0\leadsto 1} \cdot \{1 \xrightarrow{b} 1\})$.
+.2 genPaths($(0,1),(3,1)$).
+.3 return $\{[((0,1),(1,0)), ((1,0),(2,1)), ((2,1),(3,1))]\}$.
+.2 currentSubPaths = $\{[1 \xrightarrow{a} 0]\}$.
+.2 currentPaths = $\{[(1 \xrightarrow{a} 0)]\}$.
+.2 getPaths($0,1,S$).
+.3 genPaths($(0,0),(3,1)$).
+.4 return $\{[((0,0),(1,1)), ((1,1),(3,1))], [((0,0),(1,1)), ((1,1),(2,1)), ((2,1),(3,1))]\}$.
+.3 path = $[((0,0),(1,1)), ((1,1),(3,1))]$.
+.3 currentSubPaths = $\{[0 \xrightarrow{a} 1]\}$.
+.3 currentPaths = $\{[0 \xrightarrow{a} 1]\}$.
+.3 currentSubPaths = $\{[1 \xrightarrow{b} 1]\}$.
+.3 $\cdots$.
+.3 resultPaths = $\{[0 \xrightarrow{a} 1 \xrightarrow{b} 1]\}$.
+.3 path = $[((0,0),(1,1)), ((1,1),(2,1)), ((2,1),(3,1))]$.
+.3 currentSubPaths = $\{[0 \xrightarrow{a} 1]\}$.
+.3 currentPaths = $\{[0 \xrightarrow{a} 1]\}$.
+.3 getPaths(1, 1, S) // \begin{minipage}[t]{14cm} An alternative way to get paths from 1 to 1 (leads to infinite set of paths) \end{minipage}.
+.3 $\cdots$.
+.8 return $r_\infty^{1 \leadsto 1}$ // \begin{minipage}[t]{5cm} An infinite set of path from 1 to 1 \end{minipage}.
+.3 currentPaths = $\{[0 \xrightarrow{a} 1] \} \cdot r_\infty^{1\leadsto 1}$.
+.3 currentSubPaths = $\{[1 \xrightarrow{b} 1]\}$.
+.3 $\cdots$.
+.3 return $\{[0 \xrightarrow{a} 1 \xrightarrow{b} 1]\} \cup (\{[0 \xrightarrow{a} 1] \} \cdot r_\infty^{1\leadsto 1} \cdot \{[1 \xrightarrow{b} 1]\})$.
+.2 currentPaths = $\{[1 \xrightarrow{a} 0 \xrightarrow{a} 1 \xrightarrow{b} 1]\} \cup (\{[1 \xrightarrow{a} 0 \xrightarrow{a} 1] \} \cdot r_\infty^{1\leadsto 1} \cdot \{[1 \xrightarrow{b} 1]\})$.
+.2 currentSubPaths = $\{[1 \xrightarrow{b} 1]\}$.
+.2 $\cdots$.
+.2 return = $\{[1 \xrightarrow{a} 0 \xrightarrow{a} 1 \xrightarrow{b} 1 \xrightarrow{b} 1]\} \cup (\{[1 \xrightarrow{a} 0 \xrightarrow{a} 1] \} \cdot r_\infty^{1\leadsto 1} \cdot \{[1 \xrightarrow{b} 1 \xrightarrow{b} 1]\})$.
 }
 }
 \caption{Example of call stack trace}
@@ -197,6 +201,6 @@ we get the set of possible paths in the graph from $1$ to $1$.
 \end{figure}
 
 Lazy evaluation is required here, since the result graph may possibly have an
-infinite number of path between some vertices pair. Another approach here is
-to try to query some fixed number of paths, or just single path. Eventually,
+infinite number of paths between some vertices. Another approach here is
+to try to query some fixed number of paths, query paths with fixed maximum length, or just query single path. Eventually,
 the paths enumeration problem is actual here: how can we enumerate paths with small delay.
