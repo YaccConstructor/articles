@@ -61,11 +61,11 @@ Thus, the most natural way of using this index is to query paths between the spe
      		\For{$j \text{ such that } q[j] = 1$}
      			\State{$pathNew \gets path$}
      			\If{$path \text{ is empty path}$}
-     				\State{$pathNew \gets pathNew \cdot [((s_i, v_i), (j / dim(\mathcal{M}_2), j \bmod dim(\mathcal{M}_2)))]$}
+     				\State{$pathNew \gets pathNew \cdot [\big((s_i, v_i), (\left\lfloor{j / dim(\mathcal{M}_2)}\right\rfloor, j \bmod dim(\mathcal{M}_2))\big)]$}
      				%\Comment{Edge adding}
      			\Else
      				\State{$(s_k, v_k) \gets \text{ the last vertex of } path$}
-     				\State{$pathNew \gets pathNew \cdot [((s_k, v_k), (j / dim(\mathcal{M}_2), j \bmod dim(\mathcal{M}_2)))]$}
+     				\State{$pathNew \gets pathNew \cdot [\big((s_k, v_k), (\left\lfloor{j / dim(\mathcal{M}_2)}\right\rfloor, j \bmod dim(\mathcal{M}_2))\big)]$}
      				%\Comment{Edge adding}
      			\EndIf
      			\State{$qNew \gets \text{vector of zeros with size } dim(M_3')$}
@@ -86,13 +86,9 @@ Paths extraction is implemented as two functions.
 The entry point is \textsc{getPaths}($v_s, v_f, N$).
 This function returns a set of the paths in input graph between $v_s$ and $v_f$ such that the word formed by a path is derivable from the nonterminal $N$.
 
-To compute such paths, it is necessary to compute paths from vertices of the form $(q_N^0,v_s)$ to vertices of the form $(f, v_f)$ in the result of Kronecker product, where $q_N^s$ is an initial state of RSM for $N$ and $q_N^f$ is a final state.
-The function \textsc{getPathsInner}$((s_i,v_i),(s_j,v_j))$ is used to do it.
-This function finds all possible vertices $(s_k,v_k)$  which split a path from $(s_i,v_i)$ to $(s_j,v_j)$ into two subpaths.
-After that, function \textsc{getSubpaths}$((s_i,v_i),(s_j,v_j),(s_k,v_k))$ computes the corresponding subpaths.
-Each subpath may be at least a single edge.
-If single-edge subpath is labeled by terminal then corresponding edge should be added to the result else (label is nonterminal) \textsc{getPaths} should be used to restore paths.
-If subpath is longer then one edge, \textsc{getPaths} should be used to restore paths. 
+To compute such paths, it is necessary to compute paths from vertices of the form $(q_N^0,v_s)$ to vertices of the form $(f, v_f)$ in the resulting Kronecker product $M_3'$, where $q_N^0$ is an initial state of RSM for $N$ and $q_N^f$ is a one of the final states.
+For this reason, we provide the function \textsc{genPaths}$((s_i,v_i),(s_j,v_j))$. This function explores the graph corresponding to the resulting Kronecker product $M_3'$ in breadth first manner. For each path we also store the vector $q$ that indicates which vertex is current now. We find next vertices using the Boolean vector-matrix multiplication in line 30 of the algorithm from Listing~\ref{tensor:pathsExtraction}. After that, we add new edges to our paths in lines 35 and 38. If we reach the vertex $(s_j,v_j)$ then we can add collected path to the resulting set (see lines 27-28). Note that in line 25 we limit length of our paths to $dim(M_3')$ to find all paths without cycles. It is enough because we will handle the paths with cycles by calling recursively the function \textsc{getPaths}.
+The paths constructed by \textsc{genPaths} is used to construct the corresponding paths in the input graph. Each edge $((s_i,v_i),(s_j,v_j))$ corresponds to set of paths in the input graph. This set is computed in line 13 and used as subpaths for constructing the resulting paths in line 14. If single-edge subpath is labeled by terminal then corresponding edge should be added to the result else (label is nonterminal) \textsc{getPaths} should be used to restore paths.
 
 It is assumed that the sets are computed lazily, so as to ensure termination in the case of an infinite number of paths.
 We also do not check paths for duplication manually, since they are assumed to be represented as sets.
