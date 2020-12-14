@@ -16,14 +16,14 @@ This extension introduces path patterns, which are a powerful alternative to the
 Path patterns allow one to express regular constrains over the basic patterns such as relationship and node patterns.
 Like relationship patterns, they can be specified in the \texttt{MATCH} clause.
 
-The main feature which allows one to specify context-free constraints is \textit{named path patterns}: a path pattern can be assigned a name which can be used in other patterns or within the same pattern.
-Named patterns can be defined in the \texttt{PATH PATTERN} clause.
-Using this feature, the structure of queries is pretty similar to a context-free grammar in the Extended Backus-Naur Form (EBNF)~\cite{EBNF_ISO}.
+The feature which allows one to specify context-free constraints is \textit{named path patterns}: a path pattern can be assigned a name which can be used in other patterns or within the same pattern.
+Named patterns is defined in the \texttt{PATH PATTERN} clause.
+Using this feature, the structure of queries is pretty similar to a grammar in the Extended Backus-Naur Form (EBNF)~\cite{EBNF_ISO}.
 
 \begin{algorithm}
 \floatname{algorithm}{Listing}
 \begin{algorithmic}[1]
-\caption{Query based on the example grammar $G_1$ (eq.~\ref{eqn:g1_example}) written in Cypher with path patterns}
+\caption{Query based on the example grammar $G_1$ written in Cypher with path patterns}
 \label{lst:cypher_example}
 \State PATH PATTERN S = ()-/ [:c $\sim$S :d] | [:c (:y) :d] /->()
 \State MATCH (v:x)-[:a | :c]->()-/ :b $\sim$S /->(to)
@@ -33,7 +33,7 @@ Using this feature, the structure of queries is pretty similar to a context-free
 
 
 An example of a query which uses named path patters is presented in listing~\ref{lst:cypher_example}.
-This query is based on the context-free grammar $G_1$ (eq.~\ref{eqn:g1_example}).
+This query is based on the context-free grammar $G_1$.
 Namely, the path pattern named \texttt{S} specifies exactly the same constraint as the grammar $G_1$.
 The \texttt{MATCH} clause consists of the relation pattern \texttt{[:a | :c]} and the path pattern \texttt{/:b $\sim$S/}, and this path pattern references the named pattern \texttt{S}.
 The constraint specifies that a path of interest starts in a vertex labelled \texttt{x}, goes through an edge labelled either \texttt{a} or \texttt{c}, then the rest of the path is constrainted by a path pattern which starts with an edge \texttt{b} and follows with a path matched with \texttt{S}.
@@ -46,7 +46,7 @@ Note that we implement\footnote{The modified libcypher-parser library with suppo
 
 \subsection{RedisGraph Extension}
 
-As a proof-of-concept, we implemented the multiple-source algorithm in the RedisGraph backend.
+We implemented the multiple-source algorithm in the RedisGraph.
 We partially supported the proposed syntax extension in RedisGraph query execution engine so that one can specify the labels of edges and vertices and use named path patterns.
 
 Processing the input as a whole may require a lot of memory.
@@ -75,7 +75,6 @@ This allows us to generate queries for start vertex set with specific size using
 %\simpleton{(here chunk size don`t means "chunk size parameter of RedisGraph". But "chunk size parameter of RedisGraph" in experiments such enough to evaluate multiple source algorithm only single time)}.
 The template for the $g_1$ query is provided in listing~\ref{lst:query_pattern_g1}.
 Here \texttt{\{id\_from\}} and \texttt{\{id\_to\}} are placeholders for the lower and the upper bounds for \verb|id|.
-The example of the concrete query for the start set of size 16 is presented in listing~\ref{lst:query_g1}.
 
 \begin{algorithm}
 \floatname{algorithm}{Listing}
@@ -91,19 +90,19 @@ The example of the concrete query for the start set of size 16 is presented in l
 \end{algorithmic}
 \end{algorithm}
 
-\begin{algorithm}
-\floatname{algorithm}{Listing}
-\begin{algorithmic}[1]
-\caption{Query $g_1$ in Cypher using template from listing~\ref{lst:query_pattern_g1}}
-\label{lst:query_g1}
-\State PATH PATTERN S =  \par
- \hskip\algorithmicindent ()-/ [<:SubClassOf [$\sim$S | ()] :SubClassOf] \par
- \hskip\algorithmicindent | [<:Type [$\sim$S | ()] :Type] /->()
-\State MATCH (src)-/ $\sim$S /->()
-\State WHERE 15 <= src.id and src.id <= 31
-\State RETURN count(*)
-\end{algorithmic}
-\end{algorithm}
+%\begin{algorithm}
+%\floatname{algorithm}{Listing}
+%\begin{algorithmic}[1]
+%\caption{Query $g_1$ in Cypher using template from listing~\ref{lst:query_pattern_g1}}
+%\label{lst:query_g1}
+%\State PATH PATTERN S =  \par
+% \hskip\algorithmicindent ()-/ [<:SubClassOf [$\sim$S | ()] :SubClassOf] \par
+% \hskip\algorithmicindent | [<:Type [$\sim$S | ()] :Type] /->()
+%\State MATCH (src)-/ $\sim$S /->()
+%\State WHERE 15 <= src.id and src.id <= 31
+%\State RETURN count(*)
+%\end{algorithmic}
+%\end{algorithm}
 
 We implemented a query generator for the queries $g_1$ and $geo$ to create concrete queries for all the start sets which are used in the previous experiment.
 
@@ -176,31 +175,31 @@ As a result, we can conclude that the multiple-source CFPQ is significantly more
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.5\textwidth]{data/raw_memory/eclass_514en.pdf}
-\caption{RedisGraph memory consumption on \textit{eclass\_514en} graph}
+\includegraphics[width=0.45\textwidth]{data/raw_memory/eclass_514en.pdf}
+\caption{Memory consumption on \textit{eclass\_514en}}
 \label{fig:redis_memory_eclass}
 \end{figure}
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.5\textwidth]{data/raw_memory/geospecies.pdf}
-\caption{RedisGraph memory consumption on \textit{geospecies} graph}
+\includegraphics[width=0.45\textwidth]{data/raw_memory/geospecies.pdf}
+\caption{Memory consumption on \textit{geospecies}}
 \label{fig:redis_memory_geospecies}
 \end{figure}
 
 
-\begin{algorithm}
-\floatname{algorithm}{Listing}
-\begin{algorithmic}[1]
-\caption{Query $g_1$ in Cypher for all-pairs scenario evaluation}
-\label{lst:query_g1_full}
-\State PATH PATTERN S =  \par
- \hskip\algorithmicindent ()-/ [<:SubClassOf [$\sim$S | ()] :SubClassOf] \par
- \hskip\algorithmicindent | [<:Type [$\sim$S | ()] :Type] /->()
-\State MATCH ()-/ $\sim$S /->()
-\State RETURN count(*)
-\end{algorithmic}
-\end{algorithm}
+%\begin{algorithm}
+%\floatname{algorithm}{Listing}
+%\begin{algorithmic}[1]
+%\caption{Query $g_1$ in Cypher for all-pairs scenario evaluation}
+%\label{lst:query_g1_full}
+%\State PATH PATTERN S =  \par
+% \hskip\algorithmicindent ()-/ [<:SubClassOf [$\sim$S | ()] :SubClassOf] \par
+% \hskip\algorithmicindent | [<:Type [$\sim$S | ()] :Type] /->()
+%\State MATCH ()-/ $\sim$S /->()
+%\State RETURN count(*)
+%\end{algorithmic}
+%\end{algorithm}
 
 We also evaluate how the chunk size affects the performance on the all-pairs reachability problem.
 We fix the size of a chunk to be 1000 for graphs of different sizes and measure time and memory required to process queries.
@@ -214,7 +213,7 @@ Results are provided in table~\ref{tbl:redis_full_graph_processing}.
 {\setlength{\tabcolsep}{0.25em}
 \begin{table}
 {
-\caption{Full graph processing time by RedisGraph with chunks of size 1000, time is measured in seconds, memory in Mb (\textbf{Chunks} --- the proposed solution, \textbf{Mono} --- results from~\cite{10.1145/3398682.3399163})}
+\caption{Full graph processing with chunks of size 1000, time is measured in seconds, memory in Mb ({\textbf{Chunks} --- the proposed solution, \textbf{Mono} --- results from~\cite{10.1145/3398682.3399163})}}
 \label{tbl:redis_full_graph_processing}
 \small
 \rowcolors{3}{black!2}{black!10}
