@@ -18,12 +18,12 @@ Listing~\ref{tensor:cfpq:cubic} demonstrates the main steps of the algorithm.
 \label{tensor:cfpq:cubic}
 \Function{contextFreePathQuerying}{G, $\mathcal{G}$}
     % Input data preparation
-   \State{$n \gets$ The number of nodes in $\mathcal{G}$}
-    \State{$R \gets$ Recursive automata for $G$}
-    \State{$\mathcal{M}_1 \gets$ Boolean adjacency matrix for $R$}
-    \State{$\mathcal{M}_2, \mathcal{A}_2 \gets$ Boolean adjacency matrix for $\mathcal{G}$}
+   \State{$n \gets$ the number of nodes in $\mathcal{G}$}
+    \State{$R \gets$ recursive automata for $G$}
+    \State{$\mathcal{M}_1 \gets$ the set of adjacency matrices for $R$}
+    \State{$\mathcal{M}_2, \mathcal{A}_2 \gets$ the sets of adjacency matrices for $\mathcal{G}$}
     %\State{$M_3 \gets$ The empty matrix}
-    \State{$C_3 \gets$ The empty matrix of size $|R|n \times |R|n$}
+    \State{$C_3, M_3 \gets$ the empty matrices of size $dim(\mathcal{M}_1)n \times dim(\mathcal{M}_1)n$}
     % Eps-transition handling for graph
     \For{$s \in 0..dim(\mathcal{M}_1)-1$}
         \For{$S \in \textit{getNonterminals}(R,s,s)$}
@@ -34,9 +34,12 @@ Listing~\ref{tensor:cfpq:cubic} demonstrates the main steps of the algorithm.
     \EndFor
     \While{$\mathcal{M}_2$ is changing}
         \State{$M_3' \gets \bigvee_{M^S \in \mathcal{M}_1 \otimes \mathcal{A}_2} M^S$}
+        \Comment{Using only new edges from $\mathcal{A}_2$}
+        \State{$M_3 \gets M_3 + M_3'$}
+        \Comment{Updating the matrix for the Kronecker product result}
         %\State{$\mathcal{A}_2 \gets$ The empty matrix of size $n \times n$}
         \State{$\mathcal{A}_2 \gets$ The empty matrix}
-        \State{$C_3' \gets$ The empty matrix of size $|R|n \times |R|n$}
+        \State{$C_3' \gets$ The empty matrix of size $dim(\mathcal{M}_1)n \times dim(\mathcal{M}_1)n$}
         %\Comment{Evaluate Kroncker product}
         \For{$(i,j) \mid M_3'[i,j] \neq 0$}
             %\State{$C_3'[i,j] \gets 1$}
@@ -56,7 +59,7 @@ Listing~\ref{tensor:cfpq:cubic} demonstrates the main steps of the algorithm.
                 \EndFor
         \EndFor
     \EndWhile
-\State \Return $\mathcal{M}_2, M_3'$
+\State \Return $\mathcal{M}_2, M_3$
 \EndFunction
 % \Function{add}{$C, C', i, j$}
 %     \State{$C'[i,j] \gets {1}$}
@@ -67,7 +70,7 @@ Listing~\ref{tensor:cfpq:cubic} demonstrates the main steps of the algorithm.
 % \EndFunction
 \Function{getStates}{$C, i, j$}
     \State{$n \gets dim(\mathcal{M}_2)$}
-   \Comment{$\mathcal{M}_2$ is adjacency matrix for $\mathcal{G}$}
+   \Comment{$\mathcal{M}_2$ the set of adjacency matrices for $\mathcal{G}$}
     \State \Return{$\left\lfloor{i / n}\right\rfloor, \left\lfloor{j / n}\right\rfloor$}
 \EndFunction
 \Function{getCoordinates}{$C, i, j$}
@@ -116,7 +119,7 @@ There are $n/\log n$ such parts, so the element-wise product of two vectors of s
 \begin{theorem}{}
 \label{theorem: subcubic}
     Let $\mathcal{G} = \langle V,E,L \rangle$ be a graph and $G = \langle\Sigma, N, S, P\rangle$ be a grammar.
-    The algorithm from Listing~\ref{tensor:cfpq:cubic} calculates resulting matrices $\mathcal{M}_2$ and $M_3'$ in $O({|P|}^3n^3/\log (|P|n))$ time where $n = |V|$. Moreover, maintaining of the dynamic transitive closure dominates the cost of the algorithm.
+    The algorithm from Listing~\ref{tensor:cfpq:cubic} calculates resulting matrices $\mathcal{M}_2$ and $M_3$ in $O({|P|}^3n^3/\log (|P|n))$ time where $n = |V|$. Moreover, maintaining of the dynamic transitive closure dominates the cost of the algorithm.
 \end{theorem}
 
 \begin{proof}
@@ -124,14 +127,14 @@ There are $n/\log n$ such parts, so the element-wise product of two vectors of s
 
 
 Now we derive the time complexity of maintaining the dynamic transitive closure.
-Notice that $C_3$ has a size of the Kronecker product of $\mathcal{M}_1 \otimes \mathcal{M}_2$, which is equal to $|R|n \times |R|n = |P|n \times |P|n$ so no more than ${|P|}^2n^2$ edges will be added during all iterations of the Algorithm.
+Notice that $C_3$ has a size of the Kronecker product of $\mathcal{M}_1 \otimes \mathcal{M}_2$, which is equal to $dim(\mathcal{M}_1)n \times dim(\mathcal{M}_1)n = |P|n \times |P|n$ so no more than ${|P|}^2n^2$ edges will be added during all iterations of the Algorithm.
 Checking whether $C_3[u, i] = 1$ and $C_3[u, j]=0$ for every node $u \in V$ for each newly inserted edge $(i, j)$ requires one multiplication of vectors per insertion, thus total time is $O({|P|}^3n^3/\log (|P|n))$.
 Note that after checking the condition, at least one element $C[u', j]$ changes value from 0 to 1 and then never becomes 0 for some $u'$ and $j$.
 Therefore the operation $C_3[u',v] = C_3[u', v] \wedge C_3[j, v]$ for all $v \in V$ is executed at most once for every pair of vertices $(u',j)$ during the entire computation implying that the total time is equal to $O({|P|}^2n^2|P|n/\log (|P|n))=O({|P|}^3n^3/\log (|P|n))$ (using the  multiplication of vectors).
 
 
 The matrix $C_3'$ contains only new elements, therefore $C_3$ can be updated directly using only $|C_3'|$ operations and hence ${|P|}^2n^2$ operations in total.
-The same holds for cycle in line 17 of the algorithm from Listing~\ref{tensor:cfpq:cubic}, because operations are performed only for non-zero elements of the matrix $|C_3'|$.
+The same holds for cycle in line 19 of the algorithm from Listing~\ref{tensor:cfpq:cubic}, because operations are performed only for non-zero elements of the matrix $|C_3'|$.
 Finally, the time complexity of the algorithm is $O({(|N| + |\Sigma|)}^2{|P|}^2 n^2) + O({|P|}^2n^2) + O({|P|}^2n^2 \log (|P|n)) + O({|P|}^3n^3/\log (|P|n)) + O({|P|}^2n^2)= O({|P|}^3n^3/\log (|P|n))$. \qed
 \end{proof}
 
