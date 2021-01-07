@@ -1,163 +1,377 @@
 \section{Preliminaries}
 
-In this section we introduce common definitions in graph theory and formal language theory which will be used in this paper. 
-Also, we provide brief description of Azimov's algorithm which is used as a base of our solution.
+In this section we introduce common definitions in graph theory and formal language theory which are used in this paper.
+Also, we provide a brief description of Azimov's algorithm which is used as a base of our solution.
 
-\subsection{Graphs}
+\subsection{Basic Definitions of Graph Theory}
 
-In this work we use labelled digraph as a data model and define it as follows.
-\begin{definition} \emph{Labeled directed graph} is a triple $D = (V, E, \lambda)$, where
+In this paper we use a labeled directed graph as a data model and define it as follows.
+\begin{definition} \emph{Labeled directed graph} is a tuple of six elements $D = (V, E, \Sigma_V, \Sigma_E, \lambda_V, \lambda_E)$, where
 \begin{itemize}
-    \item $V$ is a set of vertices. For simplicity, we assume that the vertices are natural numbers.
-    \item $E \subseteq V \times V$ is a set of edges
-    \item $\lambda : (E\cup V) \xrightarrow{} 2^\Sigma$ is a function that maps edges and vertices to their labels from the label set $\Sigma$.
-\end{itemize}
+    \item $V$ is a finite set of vertices. For simplicity, we assume that the vertices are natural numbers from $0$ to $|V|-1$.
+    \item $E \subseteq V \times V$ is a set of edges.
+    \item $\Sigma_V$ and $\Sigma_E$ are sets of labels of vertices and edges respectively, such that $\Sigma_V \cap \Sigma_E = \varnothing$.
+    \item $\lambda_V : V \xrightarrow{} 2^{\Sigma_V}$ is a function that maps a vertex to a set of its labels, which can be empty.
+    \item $\lambda_E : E \xrightarrow{} 2^{\Sigma_E} \setminus \{\varnothing\}$ is a function that maps an edge to a non-empty set of its labels, so each edge must have at least one label.
+\end{itemize} \qed
 \end{definition}
 
-An example of the graph is presented in figure~\ref{fig:example_input_graph}. Here the set of labels $\Sigma = \{A, B, C, D, X\}$.
+Labeled graph is the basis of the widely-used \textit{property graph} data model~\cite{Angles2018ThePG} and allows one to use not only edge labels but also vertex labels in navigation queries.
+
+An example of the labeled directed graph $D_1$ is presented in figure~\ref{fig:example_input_graph}. Here the sets of labels $\Sigma_V = \{x, y\}$ and $\Sigma_E = \{a, b, c, d\}$.
+We omit vertex labels set if it is empty.
 
 \begin{figure}[h]
-    \centering        
+    \centering
     \begin{tikzpicture}[shorten >=1pt,auto]
-       \node[state] (q_0)                        {$1: X$};
-       \node[state] (q_1) [right=of q_0]         {$2$};
-       \node[state] (q_2) [below left=of q_1]    {$3: X$};
-       \node[state] (q_3) [below left=of q_2]    {$4$};
-       \node[state] (q_4) [below right=of q_2]   {$5$};
-       \node[state] (q_5) [below right=of q_1]   {$6$};
+       \node[elliptic state] (q_0)                        {$0:\{x, y\}$};
+       \node[state] (q_1) [right=of q_0]         {$1$};
+       \node[elliptic state] (q_2) [below left=of q_1]    {$2: \{x\}$};
+       \node[state] (q_3) [below left=of q_2]    {$3$};
+       \node[elliptic state] (q_4) [below right=of q_2]   {$4: \{y\}$};
+       \node[state] (q_5) [below right=of q_1]   {$5$};
        \path[->]
-        (q_0) edge  node {$A$} (q_1)
-        (q_1) edge  node {$B$} (q_5)
-        (q_1) edge  node {$B$} (q_2)
-        (q_3) edge[above]  node {$C$} (q_2)
-        (q_4) edge  node {$C$} (q_3)
-        (q_2) edge[above]  node {$C$} (q_4)
-        (q_5) edge[bend left, below]  node {$D$} (q_4)
-        (q_4) edge[bend left, above]  node {$D$} (q_5);
+        (q_0) edge  node {$\{a\}$} (q_1)
+        (q_1) edge  node {$\{b\}$} (q_5)
+        (q_1) edge  node {$\{a, b\}$} (q_2)
+        (q_3) edge[above]  node {$\{c\}$} (q_2)
+        (q_4) edge  node {$\{c\}$} (q_3)
+        (q_2) edge[above]  node {$\{c\}$} (q_4)
+        (q_5) edge[bend left, below]  node {$\{d\}$} (q_4)
+        (q_4) edge[bend left, above]  node {$\{d\}$} (q_5);
     \end{tikzpicture}
-    \caption{The example of input graph $\mathcal{G}$}
+    \caption{The input graph $D_1$}
     \label{fig:example_input_graph}
 \end{figure}
 
-We use adjacency matrix decomposed to a set of a boolean matrix as a representation of the graph.
 \begin{definition}
-An adjacency matrix $M$ of the labelled graph $\mathcal{G}=(V, E, \lambda)$ is a square $|V|\times|V|$ matrix, such that $M[i,j] = \lambda((i, j))$.
+Path $\pi$ in the graph $D=(V, E, \Sigma_V, \Sigma_E, \lambda_V, \lambda_E)$ is a finite sequence of vertices and edges $(v_0, e_0, v_1, e_1, ..., e_{n-1}, v_{n})$, where $\forall i, 0 \leq i \leq n: v_i \in V$; $\forall j, 1 \leq j \leq n: e_j=(v_j, v_{j+1}) \in E$.
+
+We denote the set of all paths in the graph $D$ as $\pi(D)$. \qed
 \end{definition}
 
-Adjacency matrix $M$ of the graph $\mathcal{G}$ is
+\begin{definition}
+An \emph{adjacency matrix} $M$ of the graph $D$ is a matrix of size  $|V|\times|V|$, such that
+\begin{equation*}
+M[i,j] =
+ \begin{cases}
+   \lambda_E((i, j))&, (i, j) \in E\\
+   \varnothing&, otherwise
+ \end{cases}
+\end{equation*} \qed
+\end{definition}
 
+Adjacency matrix $M$ of the graph $D_1$~(fig.~\ref{fig:example_input_graph}) is the following:
+{
+    \renewcommand{\arraystretch}{0.7}
+    \setlength\arraycolsep{2pt}
 $$
     M =
     \begin{pmatrix}
-    .     & \{A\} &   .   &   .   &   .   &   .   \\
-    .     &   .   & \{B\} &   .   &       & \{B\} \\
-    .     &   .   &   .   &   .   & \{C\} &   .   \\
-    .     &   .   & \{C\} &   .   &   .   &   .   \\
-    .     &   .   &   .   & \{C\} &   .   & \{D\} \\
-    .     & .     &   .   &   .   & \{D\} &   .
+    \varnothing     & \{a\} &   \varnothing      &   \varnothing   &   \varnothing   &   \varnothing   \\
+    \varnothing     &   \varnothing   & \{a, b\} &   \varnothing   &    \varnothing  & \{b\} \\
+    \varnothing     &   \varnothing   &   \varnothing      &   \varnothing   & \{c\} &   \varnothing   \\
+    \varnothing     &   \varnothing   & \{c\}    &   \varnothing   &   \varnothing   &   \varnothing   \\
+    \varnothing     &   \varnothing   &   \varnothing      & \{c\} &   \varnothing   & \{d\} \\
+    \varnothing     & \varnothing     &   \varnothing      &   \varnothing   & \{d\} &   \varnothing
     \end{pmatrix}.
 $$
+}
+
+\begin{definition}
+Let $M$ be an adjacency matrix of the graph $D$. Then the \emph{adjacency matrix of label} $l \in \Sigma_E$ of graph $D$ is a matrix~$\mathcal{E}^l$ of size  $|V| \times |V|$, such that
+\begin{equation*}
+\mathcal{E}^l[i,j] =
+ \begin{cases}
+   1 &, l \in M[i,j]\\
+   0 &, otherwise
+ \end{cases}
+\end{equation*} \qed
+\end{definition}
+
+\begin{definition}
+A \emph{boolean decomposition of adjacency matrix} $M$ of the graph $D$ is a set of Boolean matrices $\mathcal{E} = \{\mathcal{E}^l \mid l \in \Sigma_E\},$
+where $\mathcal{E}^l$ is the adjacency matrix of label $l$. \qed
+\end{definition}
+
+For example, the boolean decomposition of the adjacency matrix $M$ of the graph $D_1$ is the set of Boolean matrices $\mathcal{E}^a$, $\mathcal{E}^b$, $\mathcal{E}^c$ and $\mathcal{E}^d$:
+{
+    \renewcommand{\arraystretch}{0.7}
+    \setlength\arraycolsep{2pt}
+\begin{align*}
+\mathcal{E}^a =
+\begin{pmatrix}
+    . & . & . & . & . & . \\
+    1 & . & . & . & . & . \\
+    . & 1 & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & .
+\end{pmatrix},~
+\mathcal{E}^b =
+\begin{pmatrix}
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & 1 & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & 1 & . & . & . & .
+\end{pmatrix},\\
+\mathcal{E}^c =
+\begin{pmatrix}
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & 1 & . & . \\
+    . & . & . & . & 1 & . \\
+    . & . & 1 & . & . & . \\
+    . & . & . & . & . & .
+\end{pmatrix},~
+\mathcal{E}^d =
+\begin{pmatrix}
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & 1 \\
+    . & . & . & . & 1 & .
+\end{pmatrix}.
+\end{align*}
+}
 
 \begin{definition}
 
-Boolean decomposition of adjacency matrix $M$ of graph $\mathcal{G}=(V, E, \lambda)$ is set of Boolean matrix $$\mathcal{M} = \{M^l \mid l \in \Sigma, M^l[i,j]=1 \iff l \in M[i,j]\}.$$
-
+A \emph{vertex label matrix} $H$ of the graph $D$ is a matrix of size $|V|\times|V|$, such that
+\begin{equation*}
+H[i,j] =
+  \begin{cases}
+    \lambda_V (i) &, i = j \\
+    \varnothing   &, otherwize
+  \end{cases}
+\end{equation*} \qed
 \end{definition}
 
-Matrix $M$ can be represented as a set of two Boolean matrices $M^a$ and $M^b$ where
-\begin{align}
-& M^{A} =    
+The vertex label matrix $H$ of the example graph $D_1$ is
+{
+    \renewcommand{\arraystretch}{0.7}
+    \setlength\arraycolsep{2pt}
+$$
+    H =
+    \begin{pmatrix}
+    \{x, y\}        & \varnothing     &   \varnothing      &   \varnothing   &   \varnothing   &    \varnothing  \\
+    \varnothing     &   \varnothing   & \varnothing        &   \varnothing   & \varnothing     & \varnothing     \\
+    \varnothing     &   \varnothing   &   \{x\}            &   \varnothing   & \varnothing     &   \varnothing   \\
+    \varnothing     &   \varnothing   & \varnothing        &   \varnothing   &   \varnothing   &   \varnothing   \\
+    \varnothing     &   \varnothing   &   \varnothing      &    \varnothing  &   \{y\}         & \varnothing     \\
+    \varnothing     & \varnothing     &   \varnothing      &   \varnothing   & \varnothing     &   \varnothing
+    \end{pmatrix}.
+$$
+}
+
+\begin{definition}
+Let $H$ be a vertex label matrix of graph $D$. Then the \emph{vertices matrix of label} $l$ is a matrix $\mathcal{V}^l$ of size $|V|\times|V|$, such that
+\begin{equation*}
+\mathcal{V}^l[i,j] =
+  \begin{cases}
+    1  &, l \in H[i, j] \\
+    0  &, otherwise
+  \end{cases}
+\end{equation*}
+\end{definition}
+
+\begin{definition}
+A \emph{boolean decomposition of vertex label matrix} $H$ of the graph $D$ is the set of Boolean matrices
+$\mathcal{V} = \{V^l \mid l \in \Sigma\},$
+where $\mathcal{V}^l$ is a vertices matrix of label $l$.
+\end{definition}
+
+Vertex label matrix $H$ of the graph $D_1$ can be decomposed into a set of the following Boolean matrices:
+{
+    \renewcommand{\arraystretch}{0.7}
+    \setlength\arraycolsep{2pt}
+\begin{align*}
+\mathcal{V}^x =
 \begin{pmatrix}
-    .     &   1   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .
-\end{pmatrix}, 
-M^{B} =
+    1 & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & 1 & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & .
+\end{pmatrix},~
+\mathcal{V}^y =
 \begin{pmatrix}
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   1   &   .   &   .   &   1   \\
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .
-\end{pmatrix} \\
-& M^{C} =
-\begin{pmatrix}
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   1   &   .   \\
-    .     &   .   &   1   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   1   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .
-\end{pmatrix},
-M^{D} =
-\begin{pmatrix}
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   .   \\
-    .     &   .   &   .   &   .   &   .   &   1   \\
-    .     &   .   &   .   &   .   &   1   &   .
+    1 & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & 1 & . \\
+    . & . & . & . & . & .
 \end{pmatrix}.
-\label{eq:boolean_decomposition_of_graph}
+\end{align*}
+}
+
+\subsection{Basic Definitions of Formal Languages}
+We use context-free grammars as paths constraints, thus in this subsection we define context-free languages and grammars.
+
+\begin{definition}A \emph{context-free grammar} is a tuple $G=(N, \Sigma, P, S)$, where
+\begin{itemize}
+    \item $N$ is a finite set of nonterminals
+    \item $\Sigma$ is a finite set of terminals, $N \cap \Sigma = \varnothing$
+    \item $P$ is a finite set of productions of the form $A \to \alpha$, where $A \in N,\ \alpha \in (N \cup \Sigma)^*$
+    \item $S$ is the start nonterminal
+\end{itemize} \qed
+\end{definition}
+
+\begin{definition} A \emph{context-free language} is a language generated by a context-free grammar $G$:
+\begin{align*}
+     L(G) = \{w \in \Sigma^* \mid S \xLongrightarrow[G]{*} w \}
+\end{align*}
+Where $S \xLongrightarrow[G]{*} w$  denotes that a string $w$ can be generated from a starting non-terminal $S$ using some sequence of production rules from $P$. \qed
+\end{definition}
+
+\begin{definition} A context-free grammar $G = (N, \Sigma, P, S)$ is in \emph{Chomsky normal form} if every production in $P$ has one of the following forms:
+    \begin{itemize}
+        \item $A \rightarrow BC$, where $A \in N,~B,~C \in N \setminus \{S\}$
+        \item  $A \rightarrow a$, where $A \in N,~a \in \Sigma$
+        \item $S \rightarrow \varepsilon$, where $\varepsilon$ is an empty string.
+    \end{itemize}\qed
+\end{definition}
+
+\begin{definition} A context-free grammar $G = (N, \Sigma, P, S)$ is in \emph{weak Chomsky normal form} if every production in $P$ has one of the following forms:
+    \begin{itemize}
+        \item $A \rightarrow BC$, where $A, B, C \in N$
+        \item  $A \rightarrow a$, where $A \in N, a \in \Sigma$
+        \item $A \rightarrow \varepsilon,~A \in N$
+    \end{itemize} \qed
+\end{definition}
+
+In other words, weak Chomsky normal form differs from Chomsky normal form in the following:
+\begin{itemize}
+    \item $\varepsilon$ can be derived from any non-terminal;
+    \item $S$ can occur in the right-hand side of productions.
+\end{itemize}
+
+The matrix-based CFPQ algorithms process grammars only in weak Chomsky normal form, but every context-free grammar can be transformed into the equivalent grammar in this form.
+
+Consider the example of the context-free grammar $G_1=(N, \Sigma, P, S)$, where~$N=\{S\},~\Sigma=\{c, d, y\}$, and $P$ contains two rules:
+\begin{align}
+\label{eqn:g1_example}
+S \rightarrow c \ S \ d \nonumber\\
+S \rightarrow c \ y \ d
 \end{align}
 
-\begin{definition}
-
-An vertex label matrix $N$ of the labelled graph $\mathcal(G)=(V, E, \lambda)$ is a square $|V|\times|V|$ matrix, such that $N[i,i] = \lambda (i)$ and $N[i,j] = \emptyset$ for $i \neq j$.
-
-\end{definition}
-
-\begin{definition}
-
-Boolean decomposition of vertex label matrix $N$ of graph $\mathcal{G}=(V, E, \lambda)$ is set of Boolean matrix $$\mathcal{N} = \{N^l \mid l \in \Sigma, N^l[i,j]=1 \iff l \in N[i,j]\}.$$
-
-\end{definition}
-
-\subsection{Languages}
-\begin{definition}\emph{Context-free grammar} is a 4-tuple $G=(N, \Sigma, R, S)$, where 
-\begin{itemize}
-    \item $N$ is a set of nonterminals
-    \item $\Sigma$ is a set of terminals
-    \item $R$ is a finite set of productions of the followings form: $A \to \alpha$, $A \in N,~ \alpha \in (N \cup \Sigma)^*$
-    \item $S$ - a starting nonterminal
-\end{itemize}
-\end{definition}
-\begin{definition} Context-free grammar $G = (N, \Sigma, R, S)$ is said to be in \emph{Chomsky normal form} if all productions in $R$ are of the form: $A \rightarrow BC$, $A \rightarrow a$, or $S \rightarrow \varepsilon$, where $A, B, C \in N, a \in \Sigma, \varepsilon$ is an empty string.
-\end{definition}
-
-For example, we have the following context-free grammar:
+This grammar generates the context-free language: $$L(G_1) = \{c^nyd^n, n \in \mathbb{N}\}.$$
+The following grammar $G_1^{\text{wcnf}}$ is a result of the transformation of $G_1$ to weak Chomsky normal form:
 \begin{align*}
-S \rightarrow AB \mid a \\
-B \rightarrow b 
-\end{align*}
-After transformation to Chomsky Normal Form the resulting grammar:
-\begin{align*}
-S \rightarrow a
+S& \to C \ E   & C& \to c   \\
+S& \to C \ S_1 & Y& \to y   \\
+E& \to Y \ D   & D& \to d   \\
+S_1& \to S \ D &&
 \end{align*}
 
-This production itself is a grammar that has the same result, which is ${a}$, as original grammar.
 
-We use a context-free grammar in Chomsky Normal Form that does not include a starting non-terminal, which will be specified in the path queries for the graph. Note that every context-free grammar can be transformed into an equivalent one in Chomsky Normal Form. Since only the empty paths correspond to empty string omitting the rules of the form \mbox{$A \rightarrow \varepsilon$} does not restrict the applicability of the algorithms.
+\subsection{Context-Free Path Querying}
 
+\begin{definition}
+Let $D = (V, E, \Sigma_V, \Sigma_E, \lambda_V, \lambda_E)$ be a labeled graph, $G = (N, \Sigma_V \cup \Sigma_E, P, S)$ be a context free grammar. Then a \emph{context free relation} with grammar $G$ on the labeled graph $D$ is the relation $R_{G, D} \subseteq V \times V$:
+\begin{equation*} \label{eq1}
+\begin{split}
+R_{G, D} = \{(v_1, v_n) \in V \times V  \mid \ &\exists \pi = (v_1, e_1, v_2, \ldots, e_n, v_n) \in \pi(D): \\
+      &\ l(\pi) \cap L(G) \neq \varnothing \},
+\end{split}
+\end{equation*}
+where $l(\pi) \subset (\Sigma_V \cup \Sigma_E)^*$ is the set of labels along the path $\pi$:
+$$l(\pi) = \lambda_V(v_1)^* \cdot \lambda_E(e_1) \cdot \lambda_V(v_2)^* \cdot \lambda_E(e_2) \cdot \ldots \cdot \lambda_E(e_n) \cdot \lambda_V(v_n)^*$$
+\qed
+\end{definition}
+
+For example, $\pi$ is a path from vertex 2 to vertex 5 in the labeled graph presented in figure~\ref{fig:example_input_graph}:
+$$\pi=2:\{x\}\xrightarrow{\{c\}} 4:\{y\} \xrightarrow{\{d\}} 5.$$
+
+Labels along $\pi$ form the set of sequences $l(\pi) = \{x^mcy^nd \mid n \geq 0, m \geq 0\}$.
+Only one of these sequences satisfies context-free constraints of the grammar $G_1$: $cyd$.
+The derivation of the sequence is the following:
+    $$
+         S \Rightarrow CE \Rightarrow cE \Rightarrow cYD \Rightarrow cyD \Rightarrow cyd
+    $$
+Hence $l(\pi) \cap L(G_1) \neq \varnothing$ and the pair $(3,6) \in R_{G_1, D}$.
+
+Take a closer look at the definition of path labels, namely that it allows for zero or more repetitions of a label of each vertex.
+This makes it possible to omit vertex labels or, if there are many vertex labels, to use them in an arbitrary order.
+It also permits to write a query which uses one vertex label multiple times.
+This definition may appear strange in some cases, but it depends on the semantics of the graph query language.
+To formalize the semantics is future work, so we will stick to this definition in this paper.
+
+Finally, we can define context-free path querying problem.
+\begin{definition}
+    \emph{Context-free path querying problem} is the problem of finding context-free relation $R_{G, D}$ for a given directed labeled graph $D$ and a context-free grammar $G$. \qed
+\end{definition}
+
+In other words, the result of context-free path query evaluation is a set of vertex pairs such that there is a path between them and this path forms a word from the given language.
+
+The context-free relation $R_{G_1,D_1}$ for the graph $D_1$ and the context-free free grammar $G_1$ is the following:
+$$R_{G_1, D_1} = \{(2, 4), (2, 5), (3, 4), (3, 5), (4, 4), (4, 5)\}.$$
+Note that any relation $R_{G, D}$ can be represented as a Boolean matrix: $$T[i,j] = 1 \iff (i,j) \in R_{G, D}.$$
+In our example, $R_{G_1, D_1}$ can be represented as follows:
+{
+    \renewcommand{\arraystretch}{0.7}
+    \setlength\arraycolsep{2pt}
+\begin{align*}
+T =
+\begin{pmatrix}
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & 1 & 1 \\
+    . & . & . & . & 1 & 1 \\
+    . & . & . & . & 1 & 1 \\
+    . & . & . & . & . & .
+\end{pmatrix}.
+\end{align*}
+}
+
+\begin{definition}
+    Suppose $Src$ is a given set of start vertices, then \textit{multiple-source context-free path querying problem} for the given $Src$, directed labeled graph $D$ and context-free grammar $G$ is to find a context-free relation
+    $$R_{G, D}^{Src} \subseteq Src\times V \subseteq R_{G,D}.$$
+    Thus we restrict start vertices of the paths of interest to be a vertices from the given set\qed
+\end{definition}
+
+As a special case, a \emph{single-source CFPQ} is when $Src$ is a singleton set.
+If we set $Src=\{2\}$ in the previous example, then the result is: $$R_{G_1, D_1}^{\{2\}} = \{(2, 4), (2, 5)\}.$$
+We can represent the $R_{G_1, D_1}^{\{2\}}$ as a Boolean matrix:
+{
+    \renewcommand{\arraystretch}{0.7}
+    \setlength\arraycolsep{2pt}
+\begin{align*}
+T =
+\begin{pmatrix}
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & 1 & 1 \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & . \\
+    . & . & . & . & . & .
+\end{pmatrix}.
+\end{align*}
+}
 
 \subsection{Matrix-Based Algorithm}
+Our algorithm is based on the Azimov's CFPQ algorithm~\cite{Azimov:2018:CPQ:3210259.3210264} which is based on matrix operations.
+This algorithm allows one to use high-performance linear algebra libraries and utilize modern parallel hardware for CFPQ.
 
-Let $D = (V, E)$ be the input graph and $G = (N, \Sigma, P, S)$ be the input grammar. For a given graph and a context-free grammar, we define \emph{context-free relations} \mbox{$R_A \subseteq V \times V$} for every \mbox{$A \in N$}, such that $R_A = \{(n,m)~|~\exists n \pi m~(l(\pi) \in L(G_A))\}$. For the context-free path query evaluation, we must provide such a path for each node pair from $R_A$.
+Let $G = (N, \Sigma, P, S)$ be the input grammar, the input labeled graph $D = (V, E, \Sigma_V, \Sigma_E, \lambda_V, \lambda_E)$ and language $L$ over alphabet $\Sigma$.
+The matrix-based algorithm for CFPQ can be expressed in terms of operations over Boolean matrices as presented in Algorithm~\ref{alg:algo0}.
+Using Boolean matrices simplifies the implementation of the algorithm.
 
-The matrix-based algorithm for CFPQ can be expressed in terms of operations over Boolean matrices (see listing~\ref{alg:algo0}) which is an advantage for implementation.
-{\footnotesize
+{
 \begin{algorithm}
 \begin{algorithmic}[1]
 \caption{Context-free path querying algorithm}
 \label{alg:algo0}
-\Function{evalCFPQ}{$D=(V,E), G=(N,\Sigma,P)$}
+\Function{evalCFPQ}{$D=(V,E, \Sigma_V, \Sigma_E, \lambda_V, \lambda_E)$,\par
+\hskip\algorithmicindent $G=(N,\Sigma,P,S)$}
     \State{$n \gets$ |V|}
-    \State{$T \gets \{T^{A_i} \mid A_i \in N, T^{A_i}$ is a matrix $n \times n$, $T^{A_i}_{k,l} \gets$ \texttt{false}\} }
-    \ForAll{$(i,x,j) \in E$, $A_k \mid A_k \to x \in P$}
+    \State{$T \gets \{T^{A_i} \mid A_i \in N, T^{A_i}[i,j] \gets \textit{false}$, for all $i,j$\} }
+    \ForAll{$(i,j) \in E$, $A_k \mid \lambda_E(i,j) = x, A_k \to x \in P$}
         %\Comment{Matrices initialization}
         %\For{$A_k \mid A_k \to x \in P$}
           {$T^{A_k}_{i,j} \gets \texttt{true}$}
@@ -165,14 +379,14 @@ The matrix-based algorithm for CFPQ can be expressed in terms of operations over
     \EndFor
     \ForAll{$A_k \mid A_k \to \varepsilon \in P$}
         \ForAll{$i \in \{0,\ldots ,n-1\}$}
-            {$T^{A_k}_{i,i} \gets \texttt{true}$}
+            {$T^{A_k}[i,i] \gets \textit{true}$}
         \EndFor
     \EndFor
 
     \While{any matrix in $T$ is changing}
         %\Comment{Transitive c	losure calculation}
         \For{$A_i \to A_j A_k \in P$}
-          { $T^{A_i} \gets T^{A_i} + (T^{A_j} \times T^{A_k})$ } 
+          { $T^{A_i} \gets T^{A_i} + (T^{A_j} * T^{A_k})$ }
         \EndFor
     \EndWhile
 \State \Return $T$
@@ -181,4 +395,11 @@ The matrix-based algorithm for CFPQ can be expressed in terms of operations over
 \end{algorithm}
 }
 
-This CFPQ algorithm allows efficiently apply GPGPU techniques, but it solves all-pairs problem and takes unreasonable amount of memory in scenarios in which we want to find paths from a relatively small set of vertices, since it calculates a lot of redundant information. 
+Note, that the provided algorithm computes not only the context-free relation $R_{G,D}$ but a set of context-free relations $R_{A,D} \subseteq V \times V$ for every $A \in N$.
+Thus it provides information about paths which form words derivable from any nonterminal in the given grammar.
+Also, this algorithm handles only the edge labels.
+
+As was shown by Nikita Mishin et al.~\cite{Mishin:2019:ECP:3327964.3328503} and Arseniy Terekhov et al.~\cite{ 10.1145/3398682.3399163}, this algorithm can be implemented using various high-performance programming techniques (including GPGPU utilization), and it is applicable for real-world graph analysis.
+But this algorithm solves \textit{all-pairs} version of CFPQ: it finds all pairs of vertices in the given graph, such that there exist a path between them which forms a word in the given language.
+Thus it is impractical in cases when we are only interested in paths which start from the specific set of vertices, especially if this set is relatively small.
+Moreover, Azimov's algorithm operates over an adjacency matrix of the whole input graph, and as a result it requires a huge amount of memory, which may be a problem for a real-world graph database.
