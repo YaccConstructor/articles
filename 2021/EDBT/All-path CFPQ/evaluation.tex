@@ -1,121 +1,110 @@
 \section{Evaluation}
-%The goal of this evaluation is to investigate the applicability of the proposed algorithm to context-free path querying.
-%We measured the execution time of the index creation which solves the reachability problem for both kinds of queries.
-%The execution time for CFPQ was compared with Azimov's algorithm for CFPQ reachability.
-%We also investigated the practical applicability of the paths extraction algorithm to both regular and context-free path queries.
+The goal of this evaluation is to investigate the applicability of the proposed matrix-based algorithm to CFPQ with all-path query semantics and to provide the comparation of the most performant linear algebra-based CFPQ algorithms. We will compare the following CFPQ implementations:
+\begin{itemize}
+	\item $MtxSingle$ --- the implementation from~\cite{10.1145/3398682.3399163} of the matrix-based CFPQ algorithm for single-path query semantics,
+	\item $Tns$ --- the implementation from~\cite{} of the Kronecker product-based CFPQ algorithm for all-path query semantics which all include the single-path query semantics,
+	\item $MtxAll$ --- the implementation of the proposed matrix-based CFPQ algorithm for all-path query semantics which utilizes SuiteSparse\footnote{SuiteSparse is a sparse matrix software which includes GraphBLAS API implementation. Project web page: \url{http://faculty.cse.tamu.edu/davis/suitesparse.html}. Access date: 14.01.2021.}~\cite{Davis2018Algorithm9S} implementation of GraphBLAS API for matrix manipulations.
+\end{itemize}
+
+First, we measured the execution time and required memory of the index creation. Then we compared the practical applicability of the paths extraction for both implementations $MtxAll$ and $Tns$ of the CFPQ with all-path query semantics.
 
 For evaluation, we used a PC with Ubuntu 18.04 installed.
 It has Intel core i7-6700 CPU, 3.4GHz, and DDR4 64Gb RAM.
 We only measure the execution time of the algorithms themselves, thus we assume an input graph is loaded into RAM in the form of its adjacency matrix in the sparse format.
-Note, that the time needed to load an input graph into the RAM is excluded from the time measurements.
 
-\subsubsection{Data Preparation}
+\subsection{Dataset Description}
 
-We use the graphs and respective queries $g_1$ and $geo$ from~\cite{10.1145/3398682.3399163} to evaluate the RedisGraph-based solution.
-The graphs are loaded into the RedisGraph database so that each vertex has a unique property \verb|id| in the range $[0, \ldots, |V|-1]$, where $|V|$ is a number of vertices in the graph to load.
-This allows us to generate queries for a start vertex set with specific size using templates.
-The template for the $g_1$ query is provided in listing~\ref{lst:query_pattern_g1}.
-Here \texttt{\{id\_from\}} and \texttt{\{id\_to\}} are placeholders for the lower and the upper bounds for \verb|id|.
-
-\begin{algorithm}
-\floatname{algorithm}{Listing}
-\begin{algorithmic}[1]
-\caption{Cypher query pattern for $g_1$}
-\label{lst:query_pattern_g1}
-\State PATH PATTERN S =  \par
- \hskip\algorithmicindent ()-/ [<:SubClassOf [$\sim$S | ()] :SubClassOf] \par
- \hskip\algorithmicindent | [<:Type [$\sim$S | ()] :Type] /->()
-\State MATCH (src)-/ $\sim$S /->()
-\State WHERE \{id\_from\} <= src.id and src.id <= \{id\_to\}
-\State RETURN count(*)
-\end{algorithmic}
-\end{algorithm}
-
-We implemented a query generator for the queries $g_1$ and $geo$ to create concrete queries for all the start sets which are used in the previous experiment.
+We use the graphs and respective queries from the CFPQ\_Data dataset\footnote{CFPQ\_Data dataset GitHub repository: \url{https://github.com/JetBrains-Research/CFPQ_Data}. Access date: 14.01.2021.} provided in~\cite{10.1145/3398682.3399163}. This dataset contains the real-world RDFs with properties presented in table~\ref{tbl:propRDF}, and queries $g_1, g_2, geo$ 
+which are different variations of the \textit{same-generation query}~\cite{FndDB} --- an important example of real-world queries that are context-free but not regular.
 
 
-\subsubsection{Evaluation Results}
 
-We use $geo$ query for \textit{geospecies} graph as one of the hardest queries, and $g_1$ query for other graphs.
-We measure time and memory consumption for each start set.
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.41\textwidth]{data/raw_redis/geospecies.pdf}
-\caption{RedisGraph performance on \textit{geospecies} graph}
-\label{fig:redis_geospecies_all}
-\end{figure}
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.41\textwidth]{data/raw_redis/eclass_514en.pdf}
-\caption{RedisGraph performance on \textit{eclass\_514en} graph}
-\label{fig:redis_eclass_all}
-\end{figure}
-
-The execution time for all sets, except the set of size 10~000 for \textit{geospecies} graph (fig.~\ref{fig:redis_geospecies_all}), is less than 1 second.
-Moreover, for smaller graph (\textit{eclass\_514en}), processing time is less than 0.2 second for all chunks (fig.~\ref{fig:redis_geospecies_all}).
-
-Memory consumption for the big graphs \textit{eclass\_514en} and \textit{geospecies} is presented in figures~\ref{fig:redis_memory_eclass} and~\ref{fig:redis_memory_geospecies} respectively.
-The amount of memory used depends on the graph and the query, but RedisGraph uses less that 50Mb of RAM to process graphs with relatively small chunks ($\leq 1000$).
-Note that RedisGraph includes memory management system, thus we measured all allocated memory, not only the memory really used for the query evaluation.
-As a result, we can conclude that the multiple-source CFPQ is significantly more memory efficient than creation of the complete reachability index and its filtering: processing the set of size 10~000 on \textit{geospecies} graph requires less than 200Mb, while full index creation requires 16Gb~\cite{10.1145/3398682.3399163}.
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.41\textwidth]{data/raw_memory/eclass_514en.pdf}
-\caption{Memory consumption on \textit{eclass\_514en}}
-\label{fig:redis_memory_eclass}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.41\textwidth]{data/raw_memory/geospecies.pdf}
-\caption{Memory consumption on \textit{geospecies}}
-\label{fig:redis_memory_geospecies}
-\end{figure}
-
-We also evaluate how chunking affects the performance on the all-pairs reachability problem.
-We fix the size of a chunk to be 1000 for graphs of different sizes and measure time and memory required to process queries.
-Namely, we evaluate the query which is similar to the query from the previous scenario, but it does not constraint vertices ids (it does not have the \texttt{WHERE} clause).
-We measure total processing time (in seconds) and total required memory (in Mb).
-Also, we compare our solution with the results of Arseniy Terekhov et al. from~\cite{10.1145/3398682.3399163} in which the Azimov's algorithm was naively integrated with RedisGraph without support of lazy query evaluation and query language.
-Similar hardware and the same input graphs and queries were used.
-Results are provided in table~\ref{tbl:redis_full_graph_processing}.
 
 {\setlength{\tabcolsep}{0.25em}
-\begin{table}
-{
-\caption{Full graph processing with chunks of size 1000}
-\label{tbl:redis_full_graph_processing}
-\small
-\rowcolors{3}{black!2}{black!10}
-\begin{tabular}{|l|c|c|c|c|c|c|}
-\hline
-\multirow{2}{*}{Graph} & \multirow{2}{*}{\#V} & \multirow{2}{*}{\#E} & \multirow{2}{*}{Q} & \multicolumn{2}{c|}{Chunks}  &  {Mono~\cite{10.1145/3398682.3399163}}  \\
-                       &                      &                      &                        & T (sec)  & Mem (Mb) &  T (sec)\\
-\hline
-\hline
-core                   & 1323                 & 4342                 & $g_1$                  & 0.003  & 2                  &  0.004 \\
-pathways               & 6238                 & 18 598               & $g_1$                  & 0.031  & 6                  &  0.011 \\
-gohierarchy            & 45 007               & 980 218              & $g_1$                  & 0.847  & 62                  &  0.091 \\
-enzyme                 & 48 815               & 109 695              & $g_1$                  & 0.698  & 13                  &  0.018 \\
-eclass\_514en          & 239 111              & 523 727              & $g_1$                  & 18.825 & 35                   &  0.067 \\
-geospecies             & 450 609              & 2 311 461            & $geo$                  & 80.979 & 196                  &  7.146 \\
-go                     & 272 770              & 534 311              & $g_1$                  & 72.034 & 40                  &  0.604 \\
-\hline
-\end{tabular}
-}
-\end{table}
+	\begin{table}
+		{
+			\caption{RDFs properties}
+			\label{tbl:propRDF}
+			\small
+			\rowcolors{2}{black!2}{black!10}
+			\begin{tabular}{|l|c|c|c|}
+				\hline
+				Graph & \#V & \#E & Queries \\
+				\hline
+				\hline
+				pathways               & 6238                 & 18 598               & $g_1, g_2$ \\
+				gohierarchy            & 45 007               & 980 218              & $g_1, g_2$ \\
+				enzyme                 & 48 815               & 109 695              & $g_1, g_2$ \\
+				eclass\_514en          & 239 111              & 523 727              & $g_1, g_2$ \\
+				go                     & 272 770              & 534 311              & $g_1, g_2$ \\
+				geospecies             & 450 609              & 2 311 461            & $g_1, g_2, geo$  \\
+				taxonomy                   & 5 728 398                 & 14 922 125                 & $g_1, g_2$ \\
+				\hline
+			\end{tabular}
+		}
+	\end{table}
 }
 
-Although chunk-by-chunk processing is slower, it still requires reasonable time.
-Moreover, if the chunk size is comparable with the graph size (\textit{core} and \textit{pathways} graphs), then the execution time is comparable with the monolithic processing.
-Thus one can decrease execution time by increasing the chunk size.
-On the other hand, even with relatively small chunks (\textit{eclass\_514}, \textit{go} and \textit{geospecies} graphs), when for chunk-by-chunk processing is 100 times slower, our results are still reasonable for some cases.
-For example, it requires over 70 times less time for \textit{geospecies} graph processing than the solution of Jochem Kuijpers et al.~\cite{Kuijpers:2019:ESC:3335783.3335791} which is based on Neo4j and requires more than 6000 seconds.
-Moreover, while the solution from~\cite{10.1145/3398682.3399163} requires huge amount of memory (more than 16Gb for \textit{geospecies} graph and $geo$ query), our solution requires only 196Mb.
-We argue, that our solution is more suitable for general-purpose graph databases.
-First of all, the core scenario when the set of start vertices is relatively small can be handled efficiently.
-Second, all-pairs reachability, which is not a massive case, can be solved in reasonable time with low memory consumption.
-One can easily tune our solution to get the optimal time and memory consumption for their specific case.
+
+\subsection{Evaluation Results}
+The results of the index creation for all three implementations are presented in table~\ref{tbl:index_creation}. We can see that the running time of both CPU
+and GPGPU versions for the relational query semantics is
+small even for graphs with a big number of vertices and
+edges. The relatively small number of edges of interest may
+be the reason for such behavior. We believe it is necessary
+to extend the dataset with new queries that involve more
+different types of edges. Also, we can see, that $RG_CUSPrel$
+implementation which uses CUSP requires more memory.
+As we can see, the matrix-based algorithm for relational
+query semantics implemented for RedisGraph is more than
+1000 times faster than the one based on annotated grammar
+implemented for Neo4j [17] and uses more than 4 times less
+memory. We can conclude that the matrix-based algorithm
+is more performant than other CFPQ algorithms for query
+evaluation under a relational semantics for real-world data
+processing.
+Also, we can see, that the GPGPU version which utilizes
+sparse matrices is significantly faster than the other implementations especially on big graphs. For example, for
+Geospacies it more than 7 times faster in both relational and
+single-path scenarios. Note, that for GPGPU versions we
+include the time required for data transferring and format
+conversions.
+We can conclude, that the cost of computing matrices
+with PathIndexes for single-path query semantics is not high.
+On average, it is about 2 times slower than the reachability
+matrix calculation. The additional running time of the path
+extraction is presented in figure 7 (boxplots are standard,
+outliers are omitted). As we can see, this time is small and
+linear in the length of the path.
+Finally, we conclude that the matrix-based algorithm paired
+with a suitable database and employing appropriate libraries
+for linear algebra is a promising way to make CFPQ with
+relational and single-path query semantics applicable for
+real-world data analysis. We show that the SuiteSparse-based
+CPU implementation is performant enough to be comparable
+with GPGPU-based implementations on real-world data.
+
+{\setlength{\tabcolsep}{0.25em}
+	\begin{table*}[t]
+		{
+			\caption{Index creation}
+			\label{tbl:index_creation}
+			\small
+			\rowcolors{4}{black!2}{black!10}
+			\begin{tabular}{|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l|}
+				\hline
+				\multicolumn{1}{|c|}{\multirow{3}{*}{Graph}} & \multicolumn{6}{c|}{G1}                                                           & \multicolumn{6}{c|}{G2}                                                           & \multicolumn{6}{c|}{Geo}                                                          \\ \cline{2-19}
+				\multicolumn{1}{|c|}{}                       & \multicolumn{2}{c|}{MtxAll} & \multicolumn{2}{c|}{Tns} & \multicolumn{2}{c|}{MtxSingle} & \multicolumn{2}{c|}{MtxAll} & \multicolumn{2}{c|}{Tns} & \multicolumn{2}{c|}{MtxSingle} & \multicolumn{2}{c|}{MtxAll} & \multicolumn{2}{c|}{Tns} & \multicolumn{2}{c|}{MtxSingle} \\ \cline{2-19}
+				\multicolumn{1}{|c|}{}                       & Time          & Mem         & Time        & Mem        & Time        & Mem        & Time          & Mem         & Time        & Mem        & Time        & Mem        & Time          & Mem         & Time        & Mem        & Time        & Mem        \\ \hline \hline
+				\hline
+				pathways                                     & 0.04          & 91          & 0.02        & 123        & 0.01        & 671        & 0.01          & 49          & 0.01        & 122        & 0.01        & 671        & ---           & ---         & ---         & ---        & ---         & ---        \\ \hline
+				go-hierarchy                                 & 22.12         & 38797       & 0.17        & 265        & 1.41        & 660        & 15.66         & 28447       & 0.24        & 252        & 0.84        & 671        & ---           & ---         & ---         & ---        & ---         & ---        \\ \hline
+				enzyme                                       & 0.4           & 307         & 0.04        & 137        & 0.01        & 216        & 0.02          & 61          & 0.02        & 132        & 0.01        & 217        & ---           & ---         & ---         & ---        & ---         & ---        \\ \hline
+				eclass\_514en                                & 25.02         & 14416       & 0.24        & 205        & 0.23        & 216        & 0.22          & 126         & 0.27        & 193        & 0.16        & 216        & ---           & ---         & ---         & ---        & ---         & ---        \\ \hline
+				go                                           & 11.8          & 8290        & 1.58        & 282        & 1.45        & 215        & 1.13          & 990         & 1.27        & 243        & 0.93        & 217        & ---           & ---         & ---         & ---        & ---         & ---        \\ \hline
+				geospecies                                   & 4.45          & 2691        & 0.08        & 218        & 0.06        & 2250       & 0.34          & 156         & 0.01        & 196        & 0.01        & 2251       & 32.06         & 44235       & 26.32       & 19537      & 15.54       & 22941      \\ \hline
+				taxonomy                                     & ---           & ---         & 4.42        & 2018       & 2.73        & 1962       & 19.13         & 27232       & 3.56        & 1776       & 1.15        & 2250       & ---           & ---         & ---         & ---        & ---         & ---        \\ \hline
+			\end{tabular}
+		}
+	\end{table*}
+}
