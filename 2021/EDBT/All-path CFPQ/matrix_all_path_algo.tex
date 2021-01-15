@@ -1,7 +1,42 @@
 \section{Matrix-based CFPQ algorithm for all-path query semantics}
 \label{sec:all-path-algo}
-In this section, we propose the matrix-based algorithm for CFPQ w.r.t. the all-path query semantics (see Listing~\ref{lst:algo1}). This algorithm is a modification of Azimov's matrix-based algorithm for CFPQ and it constructs the set of matrices $T$ with AllPathIndexes as elements.
+In this section, we introduce the AllPathIndex structure which is used as a base of our solution for all-path query semantics. Also, we propose the matrix-based algorithm for CFPQ w.r.t. the all-path query semantics.
 
+\subsection{AllPathIndex}
+Our algorithm is based on Azimov's CFPQ algorithm~\cite{Azimov:2018:CPQ:3210259.3210264} which is based on matrix operations.
+This algorithm reduces CFPQ to operations over Boolean matrices and as a result, allows one to use high-performance linear algebra libraries and utilize modern parallel hardware for CFPQ.
+
+Note, that the algorithm computes not only the context-free relation $R_{G,D}$ but also a set of context-free relations $R_{G_A,D} \subseteq V \times V$ for every $A \in N$ where $G_A = (N, \Sigma, P, A)$.
+Thus it provides information about paths that form words derivable from any nonterminal $A \in N$.
+
+We use an idea similar to one that was used for the CFPQ with single-path query semantics in~\cite{10.1145/3398682.3399163}. We store additional information in matrices to be able to restore all paths which form words derivable from any nonterminal in the given grammar.
+
+In order to do this, we introduce the 
+$$\textit{AllPathIndex} = (\textit{left},\textit{right},\textit{middles})$$ 
+--- the elements of matrices that describe the found paths as concatenations of two smaller paths and help to restore each path after the index creation. Here \textit{left} and \textit{right} stand for the indexes of starting and ending vertices in the founded path, \textit{middles} --- the set of indexes of intermediate vertices used in the concatenation of two smaller paths. When we do not find the path for some vertex pair $i,j$, we use the $\textit{AllPathIndex} = \bot = (0,0,\emptyset)$.
+
+Additionally, we will use the notation of \textit{proper matrix} which means that for every element of the matrix with indexes $i,j$ it either $\textit{AllPathIndex} = (i,j,\_)$ or $\bot$.
+
+For proper matrices we use a binary operation $\otimes$ defined for AllPathIndexes \mbox{$AP_1, AP_2$} which are not equal to $\bot$ and with $AP_1.\textit{right} = AP_2.\textit{left}$ as
+\begin{align*}
+	AP_1 \otimes AP_2 = (&AP_1.left, AP_2.right, \{AP_1.right\}).
+\end{align*}
+
+And if at least one operand is equal to $\bot$ then $AP_1 \otimes AP_2 = \bot$.
+
+For proper matrices we also use a binary operation $\oplus$ defined for AllPathIndexes \mbox{$AP_1, AP_2$} which are not equal to $\bot$ with $AP_1.\textit{left} = AP_2.\textit{left}$ and $AP_1.\textit{right} = AP_2.\textit{right}$ as
+\begin{align*}
+	AP_1 \otimes AP_2 = (&AP_1.left, AP_1.right, AP_1.middles \cup AP_2.middles).
+\end{align*}
+If only one operand is equal to $\bot$ then $AP_1 \oplus AP_2$ equal to another operand. If both operands are equal to $\bot$ then $AP_1 \oplus AP_2 = \bot$.
+
+Using $\otimes$ as multiplication of AllPathIndexes, and $\oplus$ as an addition, we can define a \emph{matrix multiplication}, \mbox{$a \odot b = c$}, where $a$ and $b$ are matrices of a suitable size, that have AllPathIndexes as elements, as $c_{i,j} = \bigoplus^{n}_{k=1}{a_{i,k} \otimes b_{k,j}}.$
+
+Also, we use the element-wise $+$ operation on matrices $a$ and $b$ with the same size: \mbox{$a + b = c$}, where $c_{i,j} = a_{i,j} \oplus b_{i,j}.$
+
+
+\subsection{The matrix-based algorithm}
+We introduce the matrix-based algorithm for CFPQ w.r.t. the all-path query semantics (see Listing~\ref{lst:algo1}). This algorithm is a modification of Azimov's matrix-based algorithm for CFPQ and it constructs the set of matrices $T$ with AllPathIndexes as elements.
 Let $G = (N, \Sigma, P, S)$ be the input context-free grammar, $D = (V, E, \Sigma)$ be the input graph.
 The result of the algorithm is a set of matrices $T$ which stores information about all paths in the graph $D$ that form a word derivable from some nonterminal of the context-free grammar $G$. Note that in line 4 we add the special value $n$ to the $T^{A_i}_{k,l}.middles$ to specify that this path is a single-edge path or an empty path $\pi_{\varepsilon}$.
 
@@ -44,7 +79,7 @@ to use lazy evaluation or limit the resulting set of paths in some other way.
 For example, one can try to query some fixed number of paths or query paths
 of fixed maximum length.
 
-We propose the algorithm (see Listing~\ref{lst:algo2}) for extracting these paths. Our algorithm returns a set with the empty path $\pi_{\varepsilon}$ only if $i = j$ and $A \to \varepsilon \in P$. If the AllPathIndex for the given $i,j,A$ is equal to $\bot$ then our algorithm returns $\emptyset$ since such paths do not exist. Note that in line 19 we use
+We propose the algorithm (see Listing~\ref{lst:algo2}) for extracting these paths. Our algorithm returns a set with the empty path $\pi_{\varepsilon}$ only if $i = j$ and $A \to \varepsilon \in P$. If the AllPathIndex for the given $i,j,A$ is equal to $\bot$ then our algorithm returns the empty set since such paths do not exist. Note that in line 19 we use
 the operation $\cdot$ which naturally generalizes the path concatenation operation
 by constructing all possible concatenations of path pairs from the given two
 sets. It is assumed that the sets are computed lazily, to ensure the termination in case of an infinite number of paths.

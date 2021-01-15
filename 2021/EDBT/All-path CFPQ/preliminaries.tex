@@ -2,7 +2,7 @@
 \label{sec:preliminaries}
 
 In this section, we introduce common definitions in graph theory and formal language theory which are used in this paper.
-Also, we provide a brief description of CFPQ problems and AllPathIndex structure which is used as a base of our solution for all-path query semantics.
+Also, we provide a brief description of CFPQ problems.
 
 \subsection{Basic Definitions of Graph Theory}
 
@@ -115,36 +115,3 @@ Using this definition, we can also define context-free path querying problems wi
 \begin{definition}
 	\emph{Context-free path querying problem with all-path query semantics} for a given directed labeled graph $D$ and a context-free grammar $G$ is the problem of finding context-free relation $R_{G, D}$ and finding for each vertex pair $(v_0, v_n) \in R_{G, D}$ all paths $\pi$ between these vertices such that $l(\pi) \in L(G)$.
 \end{definition}
-
-
-\subsection{Matrix-Based Algorithm}
-Our algorithm is based on Azimov's CFPQ algorithm~\cite{Azimov:2018:CPQ:3210259.3210264} which is based on matrix operations.
-This algorithm reduces CFPQ to operations over Boolean matrices and as a result, allows one to use high-performance linear algebra libraries and utilize modern parallel hardware for CFPQ.
-
-Note, that the algorithm computes not only the context-free relation $R_{G,D}$ but also a set of context-free relations $R_{G_A,D} \subseteq V \times V$ for every $A \in N$ where $G_A = (N, \Sigma, P, A)$.
-Thus it provides information about paths that form words derivable from any nonterminal $A \in N$.
-
-We use an idea similar to one that was used for the CFPQ with single-path query semantics in~\cite{10.1145/3398682.3399163}. We store additional information in matrices to be able to restore all paths which form words derivable from any nonterminal in the given grammar.
-
-In order to do this, we introduce the 
-$$\textit{AllPathIndex} = (\textit{left},\textit{right},\textit{middles})$$ 
---- the elements of matrices that describe the found paths as concatenations of two smaller paths and help to restore each path after the index creation. Here \textit{left} and \textit{right} stand for the indexes of starting and ending vertices in the founded path, \textit{middles} --- the set of indexes of intermediate vertices used in the concatenation of two smaller paths. When we do not find the path for some vertex pair $i,j$, we use the $\textit{AllPathIndex} = \bot = (0,0,\emptyset)$.
-
-Additionally, we will use the notation of \textit{proper matrix} which means that for every element of the matrix with indexes $i,j$ it either $\textit{AllPathIndex} = (i,j,\_)$ or $\bot$.
-
-For proper matrices we use a binary operation $\otimes$ defined for AllPathIndexes \mbox{$AP_1, AP_2$} which are not equal to $\bot$ and with $AP_1.\textit{right} = AP_2.\textit{left}$ as
-\begin{align*}
-	AP_1 \otimes AP_2 = (&AP_1.left, AP_2.right, \{AP_1.right\}).
-\end{align*}
-
-And if at least one operand is equal to $\bot$ then $AP_1 \otimes AP_2 = \bot$.
-
-For proper matrices we also use a binary operation $\oplus$ defined for AllPathIndexes \mbox{$AP_1, AP_2$} which are not equal to $\bot$ with $AP_1.\textit{left} = AP_2.\textit{left}$ and $AP_1.\textit{right} = AP_2.\textit{right}$ as
-\begin{align*}
-	AP_1 \otimes AP_2 = (&AP_1.left, AP_1.right, AP_1.middles \cup AP_2.middles).
-\end{align*}
-If only one operand is equal to $\bot$ then $AP_1 \oplus AP_2$ equal to another operand. If both operands are equal to $\bot$ then $AP_1 \oplus AP_2 = \bot$.
-
-Using $\otimes$ as multiplication of AllPathIndexes, and $\oplus$ as an addition, we can define a \emph{matrix multiplication}, \mbox{$a \odot b = c$}, where $a$ and $b$ are matrices of a suitable size, that have AllPathIndexes as elements, as $c_{i,j} = \bigoplus^{n}_{k=1}{a_{i,k} \otimes b_{k,j}}.$
-
-Also, we use the element-wise $+$ operation on matrices $a$ and $b$ with the same size: \mbox{$a + b = c$}, where $c_{i,j} = a_{i,j} \oplus b_{i,j}.$
