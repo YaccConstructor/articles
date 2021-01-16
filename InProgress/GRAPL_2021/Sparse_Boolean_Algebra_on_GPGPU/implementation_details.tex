@@ -1,5 +1,69 @@
 \section{Implementation Details}
 
-Details on implementation. 
+% Details on implementation. 
+% Architecture.
 
-Architecture.
+% TODO:
+% - stunning architecture diagram
+% - exciting example of usage
+% - unbelievable python API showcase 
+
+Implemented sparse boolean linear algebra libraries for OpenCL and NVIDIA Cuda platforms are called
+\textit{clBool} and \textit{cuBool} respectively. Source code and related artefacts are available at GitHub 
+hosting~\cite{todo1, todo2}. Libraries implemented in C++ programming language, which is well-suited for such 
+kind of performance and resource critical computational tasks. Libraries expose C compatible API with 
+relatively small amount of functions and primitives, what gives expressiveness and allows to embed that API 
+into other execution environments via interoperability mechanisms, for example, into Python or .NET runtimes. 
+Libraries source code compilation is configured with CMake tool. Libraries compilation process is 
+straightforward and requires setup of only basic components and instruments, such as compiler, build 
+configuration tools and platform-specific development kit.
+
+Libraries operate on boolean semiring with values set \{\textit{True}, \textit{False}\} with \textit{False} as 
+a neutral element, '+' operation defined as logical \textit{or} and '*' defined as logical \textit{and}. 
+
+Main libraries primitive is sparse matrix of boolean values, stored in one the sparse formats. Sparse vector 
+primitive is not presented, since its utilization is relatively rare presented in practical computational 
+tasks. But its support could be added later. Primary available operations and functions are following.
+
+\begin{itemize}
+    \item Creating sparse matrix $M$ of size $m \times n$.
+    \item Deleting sparse matrix $M$ and releasing all its internal resources.
+    \item Filling matrix $M$ with values $L = \{(i,j)_k\}_k$. The result of this operation is $M_{i,j} = 
+    \textit{True}$ for each $(i, j) \in L$, and $M_{i,j} = \textit{False}$ for the rest of matrix values.
+    \item Reading matrix $M$ values $L = \{(i, j)~|~M_{i,j} = \textit{True}\}$.
+    \item Matrix $M + N$ operation.
+    \item Matrix $M * N$ operation.
+    \item Matrix $M \otimes N$ operation, where $\otimes$ denotes matrix Kronecker product.
+\end{itemize}
+
+\subsection{cuBool}
+
+CuBool is sparse boolean linear algebra implementation specifically for NVIDIA Cuda platform. Core of this 
+library relies on Cuda C/C++ language and API, what with NVCC compiler allows to intermix C++ with Cuda 
+specific things. Also library implementation employs NVIDIA Thrust auxiliary library, which provides 
+implementation for generic data containers and operations, such as \textit{iterating}, \textit{exclusive or 
+inclusive scan}, \textit{map} and etc., which are executed on Cuda device. That allows express algorithms in 
+terms of high-level primitives, what increases code readability and reduces time for prototyping.
+
+Sparse matrix primitive is stored in the \textit{compressed sparse row} (CSR) format with only two arrays: 
+$rowspt$ for row offset indices and $cols$ for columns indices. Boolean matrices has no actual values, thus 
+$True$ values are encoded only as $(i, j)$ pairs. It allows to store matrix $M$ of size $m \times n$ with 
+non-false values count $C$ in $(m + C) \times \textit{sizeof(IndexType)}$ bytes of GPU memory, where 
+\textit{IndexType} is type of stored indices, for simplicity can be selected as \textit{uint32\_t}.
+
+The algorithm Nspasrse is used for matrix-matrix multiplication. This algorithm is a boolean values case 
+adaptation of the state-of-the-art, efficient and memory saving sparse general matrix multiplication (SpGEMM) 
+algorithm, proposed in Yusuke Nagasaka et al. research~\cite{todo}. This algorithm was selected because it 
+gives promising relatively small memory footprint for large matrices processing, as well as it competes with 
+other major Cuda SpGEMM implementations, such as cuSPARSE or CUSP.  
+
+Matrix-matrix addition is based on Merge Path algorithm with dynamic work balancing, for better workload 
+dispatch among execution blocks, and two step processing, what allows do more precise memory allocations in 
+order to keep memory footprint small. 
+
+As an example of library C API embedding, cuBool provides python wrapper, called Pycubool. This module exports 
+library functionality via default CTypes module for native functions calling and provides safe and automated 
+management for native resources. 
+
+\subsection{clBool}
+
