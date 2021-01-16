@@ -18,27 +18,27 @@ Libraries source code compilation is configured with CMake tool. Libraries compi
 straightforward and requires setup of only basic components and instruments, such as compiler, build 
 configuration tools and platform-specific development kit.
 
-Libraries operate on boolean semiring with values set \{\textit{True}, \textit{False}\} with \textit{False} as 
-a neutral element, '+' operation defined as logical \textit{or} and '*' defined as logical \textit{and}. 
+Libraries operate on boolean semiring with values set \{\textit{true}, \textit{false}\} with \textit{false} as 
+a neutral element, '+' operation defined as logical \textit{or} and '*' defined as logical \textit{and}. Values are also denoted as $\{0,~1\}$ respectively, and the abbreviation $NNZ(M)$ gives the number of non-zero cell of the matrix $M$.
 
 Main libraries primitive is sparse matrix of boolean values, stored in one the sparse formats. Sparse vector 
 primitive is not presented, since its utilization is relatively rare presented in practical computational 
 tasks. But its support could be added later. Primary available operations and functions are following.
 
 \begin{itemize}
-    \item Creating sparse matrix $M$ of size $m \times n$.
-    \item Deleting sparse matrix $M$ and releasing all its internal resources.
-    \item Filling matrix $M$ with values $L = \{(i,j)_k\}_k$. The result of this operation is $M_{i,j} = 
-    \textit{True}$ for each $(i, j) \in L$, and $M_{i,j} = \textit{False}$ for the rest of matrix values.
-    \item Reading matrix $M$ values $L = \{(i, j)~|~M_{i,j} = \textit{True}\}$.
-    \item Matrix $M + N$ operation.
-    \item Matrix $M * N$ operation.
-    \item Matrix $M \otimes N$ operation, where $\otimes$ denotes matrix Kronecker product.
+    \item Create sparse matrix $M$ of size $m \times n$.
+    \item Delete sparse matrix $M$ and release all its internal resources.
+    \item Fill the matrix $M$ with values $L = \{(i,j)_k\}_k$. The result of this operation is $M_{i,j} = 
+    \textit{true}$ for each $(i, j) \in L$, and $M_{i,j} = \textit{false}$ for the rest of matrix values.
+    \item Read matrix $M$ values $L = \{(i, j)~|~M_{i,j} = \textit{true}\}$.
+    \item Matrix-matrix multiply-add operation $C \mathrel{+}= M \times N$.
+    \item Matrix-matrix add $M \mathrel{+}= N$.
+    \item Matrix-matrix Kronecker product $K = M \otimes N$.
 \end{itemize}
 
 \subsection{cuBool}
 
-CuBool is sparse boolean linear algebra implementation specifically for NVIDIA Cuda platform. Core of this 
+cuBool is sparse boolean linear algebra implementation specifically for NVIDIA Cuda platform. Core of this 
 library relies on Cuda C/C++ language and API, what with NVCC compiler allows to intermix C++ with Cuda 
 specific things. Also library implementation employs NVIDIA Thrust auxiliary library, which provides 
 implementation for generic data containers and operations, such as \textit{iterating}, \textit{exclusive or 
@@ -47,8 +47,8 @@ terms of high-level primitives, what increases code readability and reduces time
 
 Sparse matrix primitive is stored in the \textit{compressed sparse row} (CSR) format with only two arrays: 
 $rowspt$ for row offset indices and $cols$ for columns indices. Boolean matrices has no actual values, thus 
-$True$ values are encoded only as $(i, j)$ pairs. It allows to store matrix $M$ of size $m \times n$ with 
-non-false values count $C$ in $(m + C) \times \textit{sizeof(IndexType)}$ bytes of GPU memory, where 
+$true$ values are encoded only as $(i, j)$ pairs. It allows to store matrix $M$ of size $m \times n$ 
+in $(m + \textit{NNZ(M)}) \times \textit{sizeof(IndexType)}$ bytes of GPU memory, where 
 \textit{IndexType} is type of stored indices, for simplicity can be selected as \textit{uint32\_t}.
 
 The algorithm Nspasrse is used for matrix-matrix multiplication. This algorithm is a boolean values case 
@@ -57,9 +57,9 @@ algorithm, proposed in Yusuke Nagasaka et al. research~\cite{todo}. This algorit
 gives promising relatively small memory footprint for large matrices processing, as well as it competes with 
 other major Cuda SpGEMM implementations, such as cuSPARSE or CUSP.  
 
-Matrix-matrix addition is based on Merge Path algorithm with dynamic work balancing, for better workload 
-dispatch among execution blocks, and two step processing, what allows do more precise memory allocations in 
-order to keep memory footprint small. 
+Matrix-matrix addition is based on Merge Path algorithm with dynamic work balancing and two pass processing. 
+It is done for better workload dispatch among execution blocks and for more precise memory allocations in
+order to keep memory footprint small respectively. 
 
 As an example of library C API embedding, cuBool provides python wrapper, called Pycubool. This module exports 
 library functionality via default CTypes module for native functions calling and provides safe and automated 
@@ -67,3 +67,21 @@ management for native resources.
 
 \subsection{clBool}
 
+clBool is sparse boolean linear algebra implementation for OpenCL platform. This library is implemented 
+in C++ with OpenCL kernels, stored as separate source files, loaded on demand at runtime. 
+
+Sparse matrix primitive is stored in \textit{coordinate format} COO with two arrays: $rows$ and $cols$ for row 
+and column indices of the stored values. For the matrix $M$ of size $m \times n$ memory consumption is 
+$2 \times \textit{NNZ(M)} \times \textit{sizeof(IndexType)}$. This format was selected instead of 
+CSR, because COO gives better memory footprint for very sparse matrices with a lot of empty rows.
+
+\textbf{!!! Matrix-matrix multiplication !!!}
+
+Matrix-matrix addition is based on Merge Path algorithm as well. Since all COO matrix values are stored in 
+the single array, its merge can be completed at single time, compared to CSR matrix merge computed on a 
+per row basis. This operation is implemented in a classic one pass fashion: it allocates single merge 
+buffer of size $\textit{NNZ(A)} + \textit{NNZ(B)})$ before actual merge of matrices $A$ and $B$, which can
+negatively affect memory consumption for large matrices with lots of duplicated non-false values at the 
+same positions.
+
+\textbf{!!! Something about managed environment wrapper !!!}
