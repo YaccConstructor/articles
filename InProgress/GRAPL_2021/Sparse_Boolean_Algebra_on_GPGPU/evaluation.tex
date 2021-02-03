@@ -9,23 +9,26 @@
 % - what data we need?
 % - very sparse, different distributions
 
-We evaluate the applicability of the proposed libraries for analysis of some real-world graph data.
+We evaluate the applicability of the proposed libraries for analysis of some real-world matrix data.
 The experiments are designed as a computational tasks, that arise as stand-alone or intermediate steps
 in the solving of practical problems.  
 
-\textbf{!!! Target machine description !!!}
+% Todo: check the info
+% Todo: check the info !!!
+For evaluation, we used a PC with Ubuntu 20.04 installed.
+It has Intel core i7-6700 CPU, 3.4GHz, DDR4 64Gb RAM and Geforce 1070Ti GPU with 8Gb VRAM.
+We only measure the execution time of the operations themselves.
+The actual data is assumed to be loaded into the VRAM or RAM respectively in the appropriate format, required for the target tested framework.
+Time to load data from disc and prepare initial matrices state is excluded from the time measurements.
+
+We use four sparse matrix libraries, CUSP, cuSPARSE, clSPARSE for GPU and SuiteSparse for CPU. 
+CUSP provides template based implementation for operations, however it does not provide extra optimizations especially for boolean case values. cuSPARSE and clSPARSE both provide operations only for general types, such as float or double. 
+But this limitation can be ignored, if we consider non-zero float values as \textit{true} one.
+SuiteSparse is a GraphBLAS API reference implementation for CPU, which allows to use build-in boolean semiring.
 
 For performance evaluations, we selected N various square matrices which are widely used for sparse matrices benchmarks
 from the Sparse Matrix Collection at University of Florida\footnote{T. Davis. The SuiteSparse Matrix Collection (the University of Florida Sparse Matrix Collection). Home page: \url{https://sparse.tamu.edu/}. Access date: 23.01.2021.}.
 The name and size of the matrix data are summarized in the table~\ref{table:sparse_matrices}. 
-
-
-
-% https://sparse.tamu.edu/LAW/hollywood-2009 
-% https://sparse.tamu.edu/SNAP/soc-LiveJournal1
-% https://sparse.tamu.edu/LAW/indochina-2004
-% https://sparse.tamu.edu/SNAP/roadNet-CA
-% https://sparse.tamu.edu/DIMACS10/belgium_osm
 
 {\setlength{\tabcolsep}{0.3em}
 \begin{table}
@@ -35,13 +38,98 @@ The name and size of the matrix data are summarized in the table~\ref{table:spar
 \label{table:sparse_matrices}
 \scriptsize
 \rowcolors{2}{black!2}{black!10}
-\begin{tabular}{|l|c|c|c|c|c|}
+\begin{tabular}{|l|c|c|c|c|}
 \hline
-Matrix          & Size       & Non-zero   & Nnz/row   & Max nnz/row & Nnz of $M^2$ \\
+Matrix $M$      & $\# rows$  & Nnz of $M$   & Nnz of $M^2$  & Nnz of $M + M^2$ \\
 \hline
 \hline
-first           & a          & b          & c         & d            & e              \\
-second          & a          & b          & c         & d            & e              \\
+wing            & 62032      & 243088       & 714200        & 917178            \\
+luxembourg\_osm & 114599     & 239332       & 393261        & 632185            \\
+roadNet-PA      & 1090920    & 3083796      & 7238920       & 9931528           \\
+roadNet-TX      & 1393383    & 3843320      & 8903897       & 12264987          \\
+belgium\_osm    & 1441295    & 3099940      & 5323073       & 8408599           \\
+roadNet-CA      & 1971281    & 5533214      & 12908450      & 17743342          \\
+
+\hline
+\end{tabular}
+}
+\end{table}
+}
+
+The results of the evaluation are summarized in the tables below.
+Time is measured in seconds unless specified otherwise.
+The result for each experiment is average over 20 runs. 
+The cell is left blank if the time limit is exceeded, 
+or if there is not enough memory to allocate the data and internal auxiliary structures.  
+
+The first experiment is intended to measure performance of the matrix-matrix multiplication as $M \times M$. 
+The results are presented in the table~\ref{table:eval_mm_results}. 
+We can see that for a relatively small matrices, the results of all libraries are comparable. 
+However, cuBool shows generally better performance among competitors.
+clBool gives good performance, constantly better than SuiteSparse, and comparable to cuSPRASE or CUSP in some cases.
+However, there is still space for optimizations, so it requires an in deep investigation in our further research.
+
+The second experiment is intended to measure performance of the element-wise matrix-matrix addition as $M + M^2$, 
+where evaluation of matrix $M^2$ is excluded from measurements.  
+The results are presented in the table~\ref{table:eval_ma_results}. 
+The numbers obtained in this experiment are less unambiguous than in the previous experiment. 
+Although libraries are still comparable for small matrices, results vary greatly for large matrices. 
+CUSP shows nearly best performance among almost all experiments. 
+cuSPRASE is also comparable with it in this aspect. 
+Libraries cuBool and clBool lag behind insignificantly, and generally keep their results within acceptable limits. 
+It is worth mention, that CUSP matrix-matrix addition implementation has significant memory consumption,
+what can negatively affect on processing of huge data. 
+cuSPARSE performance can degraded in such case as well, since its implementation is based on hashing, 
+what is very sensitive for out-of shared blocks memory access for large data processing.  
+
+{\setlength{\tabcolsep}{0.3em}
+\begin{table}[t]
+\centering
+{
+\caption{Matrix-matrix evaluation results, time is measured in seconds.}
+\label{table:eval_mm_results}
+\scriptsize
+\rowcolors{2}{black!2}{black!10}
+\begin{tabular}{|l|c|c|c|c|c|c|}
+\hline
+
+Matrix $M$      & CuBool  & CUSP    & CuSprs  & ClBool  & ClSprs  & SuiteSprs \\
+\hline
+\hline
+wing            & 0.003   & 0.007   & 0.021   & 0.007   & -       & 0.007   \\
+luxembourg\_osm & 0.005   & 0.005   & 0.002   & 0.010   & -       & 0.003   \\
+roadNet-PA      & 0.023   & 0.043   & 0.037   & 0.047   & -       & 0.067   \\
+roadNet-TX      & 0.030   & 0.053   & 0.047   & 0.057   & -       & 0.084   \\
+belgium\_osm    & 0.027   & 0.034   & 0.030   & 0.054   & -       & 0.061   \\
+roadNet-CA      & 0.039   & 0.076   & 0.071   & 0.078   & -       & 0.121   \\
+
+\hline
+\end{tabular}
+}
+\end{table}
+}
+
+{\setlength{\tabcolsep}{0.3em}
+\begin{table}[t]
+\centering
+{
+\caption{Element-wise matrix-matrix addition, time is measured in seconds.}
+\label{table:eval_ma_results}
+\scriptsize
+\rowcolors{2}{black!2}{black!10}
+\begin{tabular}{|l|c|c|c|c|c|c|}
+\hline
+
+Matrix $M$      & CuBool  & CUSP    & CuSprs  & ClBool   & ClSprs  & SuiteSprs \\
+\hline
+\hline
+wing            & 0.001   & 0.002   & 0.003   & 0.006    & -       & 0.003   \\
+luxembourg\_osm & 0.002   & 0.002   & 0.001   & 0.006    & -       & 0.002   \\
+roadNet-PA      & 0.015   & 0.011   & 0.013   & 0.073    & -       & 0.035   \\
+roadNet-TX      & 0.019   & 0.014   & 0.015   & 0.076    & -       & 0.045   \\
+belgium\_osm    & 0.019   & 0.010   & 0.011   & 0.064    & -       & 0.027   \\
+roadNet-CA      & 0.027   & 0.019   & 0.020   & 0.141    & -       & 0.062   \\
+
 \hline
 \end{tabular}
 }
