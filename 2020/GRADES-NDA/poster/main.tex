@@ -35,6 +35,8 @@
 \usepackage{graphicx}
 \usepackage{listings}
 \usepackage{mathtools}
+\usepackage[percent]{overpic}
+
 
 \usepackage{multirow}
 %\usepackage{verbatimbox}
@@ -120,24 +122,24 @@ background=none,
 headerborder=none, % Change to closed for a line under the content box headers
 boxshade=plain
 }
-{\includegraphics[width=3cm]{sigm0d2.png}}
+{\includegraphics[width=4cm]{jr.png}}
 %
 %----------------------------------------------------------------------------------------
 %   TITLE AND AUTHOR NAME
 %----------------------------------------------------------------------------------------
 %
-{\bf \huge{Evaluation of \ the Context-Free Path Querying Algorithm Based on Matrix Multiplication} }
+{\bf \huge{Context-Free Path Querying with Single-Path Semantics by Matrix Multiplication} }
 %\\  \Large \it Context-free grammars and neural networks for secondary structure} % Poster title
-{\vspace{0.6em} \smaller \textbf{Semyon Grigorev} \\  % Author names
+{\vspace{0.6em} \smaller \textbf{Rustam Azimov} \\  % Author names
 \smaller \it {JetBrains Research, Saint Petersburg University, Russia } \\ % Author email addresses
-\smaller  {s.v.grigoriev@spbu.ru, Semyon.Grigorev@jetbrains.com}}
+\smaller  {Rustam.Azimov@jetbrains.com}}
 {\includegraphics[width=2.5cm]{SPbGU_Logo.png}} % University/lab logo
 
 
 %----------------------------------------------------------------------------------------
 %   INTRODUCTION
 %----------------------------------------------------------------------------------------
-\begin{posterbox}[name=CFPQ,column=0,row=0, span=4]{Context-Free Path Querying}
+\begin{posterbox}[name=CFPQ,column=0,row=0, span=4]{Relational CFPQ}
 
   Find paths which satisfy constraints in form of a formal language $L=\{a^n b^n \mid n > 0\}$
     \includegraphics[width=7cm]{example_graph_transparent.png}
@@ -149,7 +151,7 @@ boxshade=plain
 \end{posterbox}
 
 \headerbox {Matrix-Based Algorithm~\cite{Azimov:2018:CPQ:3210259.3210264}}
-{name=matrices,column=0,span=4, row=2, below=CFPQ}%,bottomaligned=sol2}
+{name=matrices,column=0,span=6, row=2, below=CFPQ}%,bottomaligned=sol2}
 {
 
 $T$ is an adjacency matrix of the input graph\\
@@ -163,7 +165,7 @@ T^{(i)} &= T^{(i-1)} \cup (T^{(i-1)} \times T^{(i-1)})
 \end{align*}
 
 \begin{itemize}
-  \item Can be formulated in terms of boolean \\ matrices multiplication
+  \item Can be formulated in terms of boolean matrices multiplication
   \item Easy to run in parallel environments: GPUs, multithreaded CPUs, clusters
 %  \item Existing matrix multiplication library can be used
 \end{itemize}
@@ -172,146 +174,126 @@ T^{(i)} &= T^{(i-1)} \cup (T^{(i-1)} \times T^{(i-1)})
 
 \headerbox {Results}{name=results,column=4,row=0, span=4, bottomaligned=CFPQ}{
 \begin{itemize}
-  \item Dataset for CFPQ evaluation is collected and published
-  \begin{itemize}
-    \item Contains both graphs and queries
-    \item Contains both real-world and synthetic graphs
-  \end{itemize}
-  \item Several CFPQ algorithms implementations are created, evaluated and published
+  \item We provide the matrix-based algorithm for CFPQ with single-path query semantics
+  \item We provide several implementations of the CFPQ algorithms for both query semantics which use RedisGraph as graph storage
+  \item We extend the dataset presented in~\cite{Mishin:2019:ECP:3327964.3328503} with new real-world and synthetic cases of CFPQ
 \end{itemize}
 }
 
 \headerbox {Future Research}{name=answers,column=8,row=0, span=4, bottomaligned=results}{
 
 \begin{itemize}
-  \item Create an open extensible platform for CFPQ \\ algorithms evaluation
-  \item Extend dataset with new data
-  \item Implement and evaluate distributed \\ matrix-based CFPQ algorithms
-  \item Implement and evaluate sparse boolean matrix-based CFPQ algorithms
+  \item Extend the matrix-based CFPQ algorithm to all-path
+  query semantics
+  \item Update the query results dynamically when data changes
+  \item Include real-world cases from
+  the area of static code analysis to the dataset
+  \item Find new applications that required CFPQ
 \end{itemize}
 
 }
 
 
-\headerbox {Implementations}
-{name=impl,column=4,span=8, row=2, below=results,bottomaligned=matrices}
+\headerbox {CFPQ with Single-Path Semantics}
+{name=impl,column=6,span=6, row=2, below=results,bottomaligned=matrices}
 {
-\textbf{Our implementations~\cite{Mishin:2019:ECP:3327964.3328503}:}\\
-\begin{minipage}[t]{0.6cm}
-\hspace{0.6cm}
-\end{minipage}
-~
-\begin{minipage}[t]{0.93\textwidth}
 \begin{itemize}
-\item[\textbf{[Scipy]}] Matrix-based algorithm which uses sparse matrices from \textbf{Scipy} library (\textbf{Python})
-\item[\textbf{[M4RI]}] Matrix-based algorithm which uses dense matrices multiplication from \textbf{m4ri} library (Method of Four Russians, \textbf{C})
-\item[\textbf{[GPU]}] Matrix-based algorithm which uses our own implementation of the na\"{\i}ve boolean matrix multiplication in \textbf{CUDA C}
+	\item We also need to provide one such path for all node pairs $(u,v)$
+	\item Use $\textit{PathIndex} = (\textit{left},\textit{right},\textit{middle},\textit{height},\textit{length})$ as matrix elements
+	\begin{itemize}
+		\item $left$, $right$ --- the starting and the ending node of the path
+		\item $middle$ --- the intermediate node of last path concatenation
+		\item $\textit{height}$, $\textit{length}$ --- the height and the length of path			
+	\end{itemize}
+    \item Update the matrix operations to keep PathIndexes correct
+    \item After the CFPQ algorithm we can extract the path stored
+    \item The path extraction time is small and linear in the length of the path
 \end{itemize}
-\end{minipage}
-
-\vspace{0.5cm}
-\textbf{Reference implementations:}\\
-\begin{minipage}[t]{1cm}
-\hspace{1cm}
-\end{minipage}
-~
-\begin{minipage}[t]{0.91\textwidth}
-\begin{itemize}
-\item[\textbf{[CuSprs]}] Matrix-based algorithm~\cite{Azimov:2018:CPQ:3210259.3210264} uses NVIDIA cuSPARSE library (\textbf{CUDA C, GPGPU})
-\item[\textbf{[CYK]}]  CYK-based algorithm~\cite{10.1007/978-3-319-46523-4_38} implemented in \textbf{Java} (CPU)
-  %\item X. Zhang et al, 2016, ``Context-free path queries on RDF graphs''
-
-\end{itemize}
-
-\end{minipage}
-}
-
-
-
-
-\headerbox{We Need More Real-World Data}{name=rdfs,span=12,column=0,row=3,below=matrices}{
-\vspace{0.05cm}
-%\begin{table}[h]
-%\rowcolors{1}{}{red}
-\begin{minipage}[t]{0.5\textwidth}
-Graph: classical ontologies (RDFs)\\
-Query: same-generation query over \textbf{\texttt{type}} and \textbf{\texttt{SubClassOf}} relations \\
-Grammar: $S \to \textit{scor} \ S \ \textit{sco} \ | \ \textit{tr} \ S \ \textit{t} \ | \ \textit{scor} \ \textit{sco} \ | \ \textit{tr} \ \textit{t}$ \\
-
-\vspace{-0.1cm}
-
-\begin{tabular}{| p{1.5cm} | c | c | c | c | c | c | c |}
-    \hline
-    \multicolumn{3}{|c|}{RDF}        & \multicolumn{5}{|c|}{Algorithms}  \\
-    \hline
-    Name                               & \#V & \#E  & Scipy & M4RI & GPU & CuSprs & CYK \\ %~\footnote{Results from X. Zhang et al, 2016, ``Context-Free Path Queries on RDF Graphs''} \\
-    \hline
-    \hline
-    {atm-prim}                    & 291 & 685  & 3 ms     &  2 ms    & 1 ms      & 269 ms  & 8.5 min  \\
-    {biomed}                      & 341 & 711  & 3 ms     &  5 ms    & 1 ms      & 283 ms  & 7.1 min  \\
-    {pizza}                       & 671 & 2604 & 6 ms     &  8 ms    & 1 ms      & 292 ms  & 54 min \\
-    {wine}                        & 733 & 2450 & 7 ms     &  6 ms    & 1 ms      & 294 ms  & 68 min \\
-    \hline
-  \end{tabular}
-%  \captionof{table}{}
-
-\end{minipage}
-~
-\begin{minipage}[t]{0.48\textwidth}
-%\vspace{-1.5cm}
-  \begin{itemize}
-    \item 2019 (GPU) is $10^6$ times faster than 2016 (CYK) on real-world data
-    \begin{itemize}
-       \item Reasonable time even for CPU based implementations
-    \end{itemize}
-    \item We should find bigger RDFs
-    \item We should find other real-world cases for CFPQ
-    \begin{itemize}
-       \item Both graphs and queries
-    \end{itemize}
-
-  \end{itemize}
-\end{minipage}
 }
 
 \setlength{\tabcolsep}{5pt}
-\headerbox{We Should Do More Research on the Algorithms Scaling}{name=scaling,span=12,column=0,row=2,below=rdfs}{
-\vspace{0.05cm}
-\begin{minipage}[t]{0.52\textwidth}
+\headerbox{New Implementations of CFPQ}{name=rdfs,span=12,column=0,row=3,below=matrices}{
+	\vspace{0.05cm}
+	\begin{minipage}[t]{0.48\textwidth}
+		\begin{itemize}
+			\item We use RedisGraph graph database as storage
+			\item CPU-based implementations:
+			\begin{itemize}
+				\item $\textbf{RG\_CPU}_{\textit{rel}}$ --- for the relation query semantics			
+				\item $\textbf{RG\_CPU}_{\textit{path}}$ --- for the single-path query semantics			
+			\end{itemize}
+		\end{itemize}
+	\end{minipage}
+	~
+	\begin{minipage}[t]{0.5\textwidth}
+		\begin{itemize}
+			\item GPGPU-based implementations:
+			\begin{itemize}
+				\item $\textbf{RG\_CUSP}_{\textit{rel}}$ --- relational semantics, utilizes a \textbf{CUSP} library
+				
+				\item $\textbf{RG\_GPU}_{\textit{rel}}$ --- relational semantics, uses low-latency on-chip shared memory for the hash table of each row of the result matrix
+				
+				\item $\textbf{RG\_GPU}_{\textit{path}}$ --- single-path semantics, operating over PathIndex
+			\end{itemize}
+		\end{itemize}
+	\end{minipage}
+}
 
-  \begin{tabular}{r | l | c | c | c | c | }
-      \cline{2-6}
-%      & Graph              & \makecell{Scipy \\ \small sec}  & M4RI      & GPU & CuSprs  \\
-      & Graph              & Scipy  & M4RI      & GPU & CuSprs  \\
-      \hline
-      \hline
-      \multirow{4}{3.5cm}{{\small Sparse graphs are generated by GTgraph \\
-  Query: $S \to a \ S \ b \ | \ a \ b$}}&
-       \small{G10k-0.001} & 37 s  & 2 s    & 0.2 s  & 35 s  \\
-      &\small{G10k-0.1}   & 601 s & 1 s    & 0.1 s  & 395 s \\
-      &\small{G40k-0.001} & -       & 97 s   & 8.1 s  & -       \\
-      &\small{G80k-0.001} & -       & 1142 s & 65 s & -       \\
-      \hline
-      \hline
-      \multirow{3}{3.5cm}{{\small Graph is a cycle \\ Query: $S \to S \ S \ | \ a$}}&
-       G25k                & -       & 33 s   & 5 s   & -           \\
-      &G50k                & -       & 360 s  & 44 s  & -           \\
-      &G80k                & -       & 1292 s & 190 s & -           \\
-      \hline
-    \end{tabular}
+
+\headerbox{CFPQ Evaluation with Relational and Single-Path Query Semantics}{name=scaling,span=12,column=0,row=2,below=rdfs}{
+\vspace{0.05cm}
+%\begin{table}[h]
+%\rowcolors{1}{}{red}
+%\begin{center}
+\begin{minipage}[t]{0.7\textwidth}
+%\vspace{-4.5cm}
+\begin{tabular}{| l | c | c | r  r | r  r | r  r | r  r |}
+	\hline
+	
+	\multirow{3}{*}{Name} & \multirow{3}{*}{\#V} & \multirow{3}{*}{\#E}  &   \multicolumn{4}{|c|}{Relational semantics index}	&	\multicolumn{4}{|c|}{Single path semantics index} \\
+	\cline{4-11} & &
+	&	\multicolumn{2}{|c|}{RG\_CPU\textsubscript{rel}}	&	\multicolumn{2}{|c|}{RG\_GPU\textsubscript{rel}} &	\multicolumn{2}{|c|}{RG\_CPU\textsubscript{path}}	&	\multicolumn{2}{|c|}{RG\_GPU\textsubscript{path}}	 \\
+	\cline{4-11} & &
+	&   Time & Mem &  Time     & Mem & Time     & Mem   & Time     & Mem \\
+	\hline
+	\hline
+	%core           & 1,323		& 8,684              & 0.004 & 0.3    & 0.010  & 0.1      & 0.002 & 0.3  & 0.016 & 0.1  \\
+	pathways        & 6,238		& 37,196           & 0.011 & 0.1    & 0.007 & 0.1      & 0.021 & 0.5  & 0.021 & 2.0    \\
+	go-hierarchy    & 45,007	& 1,960,436        & 0.091 & 16.3    & 0.108 & 121.2    & 0.976 & 92.0   & 0.336 & 125.0  \\
+	enzyme          & 48,815	& 219,390          & 0.018 & 5.9     & 0.018 & 4.0        & 0.029 & 8.1  & 0.043 & 6.0    \\
+	eclass\_514en   & 239,111	& 1,047,454        & 0.067 & 13.8     & 0.166 & 16.0     & 0.195 & 31.2 & 0.496 & 26.0   \\
+	
+	
+	go              & 272,770	& 1,068,622        & 0.604 & 28.8     & 0.365 & 30.2     & 1.286 & 75.7 & 0.739 & 45.4 \\
+		
+	geospecies      & 450,609	& 4,622,922        & 7.146 & 16934.2 & 0.856 & 5274 & 15.134 & 35803.6 & 1.935 & 5282   \\
+	\hline
+\end{tabular}
+\end{minipage}~
+\begin{minipage}[t]{0.3\textwidth}
+\vspace{-2.2cm}
+\begin{overpic}[width=0.98\textwidth]{plots/G1_go.pdf}
+    \put (20,55) {{Path extraction time for \textbf{Go}}}
+  \end{overpic}
+%\includegraphics[width=0.95\textwidth]{plots/G1_go.pdf}
+\end{minipage}
+
+\begin{minipage}[t]{0.5\textwidth}
+	\vspace{0.05cm}
+	\begin{itemize}
+		\item Time in seconds and memory is measured in megabytes
+		\item  Graph: real-world ontologies (RDFs), query: same-generation query
+		\item Example of a grammar: $S \to \textit{scor} \ S \ \textit{sco} \ | \ \textit{tr} \ S \ \textit{t} \ | \ \textit{scor} \ \textit{sco} \ | \ \textit{tr} \ \textit{t}$
+	\end{itemize}
 \end{minipage}
 ~
-\begin{minipage}[t]{0.46\textwidth}
-\vspace{-2cm}
+\begin{minipage}[t]{0.48\textwidth}
+\vspace{0.05cm}
   \begin{itemize}
-    \item We can handle graphs with 80k vertices in a reasonable time by using GPGPU
-    \begin{itemize}
-     \item Technical bound: GPGPU RAM does not fit bigger graphs
-    \end{itemize}
-    \item We should evaluate multi-GPU systems
-    \item We should evaluate distributed solutions
-    \item We should implement a sparse boolean matrices library for GPGPU
-   \end{itemize}
+  	\item GPGPUs utilization significantly increases the performance
+  	\item Implementations with sparse matrices significantly faster than others
+  	\item The cost of computing matrices with PathIndexes is not high
+  \end{itemize}
 \end{minipage}
 }
 
@@ -320,35 +302,36 @@ Grammar: $S \to \textit{scor} \ S \ \textit{sco} \ | \ \textit{tr} \ S \ \textit
 \headerbox {\smaller{Contact Us}}{name=contact,column=0,span=5,below=scaling}{
 \scriptsize
 \begin{minipage}[t]{0.65\textwidth}
-  \vspace{-3cm}
-Our team:
+  \vspace{-2.5cm}
 \begin{itemize}
   \item Semyon Grigorev: \href{mailto:s.v.grigoriev@spbu.ru}{s.v.grigoriev@spbu.ru}
-  \item Nikita Mishin: \href{mailto:mishinnikitam@gmail.com}{mishinnikitam@gmail.com}
-  \item Iaroslav Sokolov: \href{mailto:sokolov.yas@gmail.com}{sokolov.yas@gmail.com}
-  \item Egor Spirin: \href{mailto:egor@spirin.tech}{egor@spirin.tech}
-  \item Egor Nemchinov: \href{mailto:nemchegor@gmail.com}{nemchegor@gmail.com}
+  \item Rustam Azimov:\href{mailto:Rustam.Azimov@jetbrains.com}{Rustam.Azimov@jetbrains.com}
+  \item Arseniy Terekhov: \href{mailto:simpletondl@yandex.ru}{simpletondl@yandex.ru}
+  \item Artyom Khoroshev: \href{mailto:arthoroshev@gmail.com}{arthoroshev@gmail.com}
 \end{itemize}
 
 
 \end{minipage}
 ~
 \begin{minipage}[t]{3cm}
-\includegraphics[width=3cm]{qr-research-jetbra.pdf}
+\includegraphics[width=2.8cm]{qr-research-jetbra.pdf}
+\vspace{0.7cm}
 \end{minipage}
+%\vspace{1cm}
+{\scriptsize
+%Both dataset and implementations are available on GitHub
+\vspace{-1cm}
 \begin{itemize}
-  \item Vladimir Kutuev: \href{mailto:vladimir.kutuev@gmail.com}{vladimir.kutuev@gmail.com}
-  \item Sergey Gorbatyuk: \href{mailto:sergeygorbatyuk171@gmail.com}{sergeygorbatyuk171@gmail.com}
+	\item Dataset link:
+	\url{https://github.com/JetBrains-Research/CFPQ_Data}
+	\item Implementations link:
+	\url{https://github.com/YaccConstructor/RedisGraph}
 \end{itemize}
-\vspace{1cm}
-{\normalsize
-Both dataset and implementations are available on GitHub:\\
-\url{https://github.com/SokolovYaroslav/CFPQ-on-GPGPU}
+}
+
 }
 
 
-
-}
 
 \headerbox{\smaller{References}}{name=references,column=5,span=7,below=scaling}{
 
@@ -360,10 +343,12 @@ Both dataset and implementations are available on GitHub:\\
     \bibliography{biblio} % Use biblio.bib as the bibliography file
 }
 
-\headerbox {\smaller{Acknowledgments}}{name=ack,column=5,span=7,below=references,bottomaligned=contact}{
+\headerbox {\smaller{Acknowledgments}}{name=ack,column=5,span=7,below=references}{
 \small
-The research is supported by the JetBrains Research grant and the~Russian Science Foundation grant 18-11-00100
+The reported study was funded by grant from JetBrains Research and by RFBR, project number 19-37-90101
 }
+
+{\hspace{5pt}\includegraphics[width=0.4\textwidth]{2020Sigmod-LOGO.png}}
 
 
 \end{poster}

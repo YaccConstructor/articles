@@ -5,7 +5,9 @@
 \usetheme{SPbGU}
 \usepackage{pdfpages}
 \usepackage{amsmath}
+\usepackage{mathtools}
 \usepackage{cmap}
+\usepackage{subcaption}
 \usepackage[T2A]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage[english]{babel}
@@ -21,6 +23,15 @@
 \usetikzlibrary{shapes,arrows}
 \usetikzlibrary{arrows,automata}
 \usetikzlibrary{positioning}
+\usetikzlibrary{fit}
+
+
+\usepackage{kbordermatrix} % include package @ document preamble
+\renewcommand{\kbldelim}{(} % change default array delimiters to parentheses
+\renewcommand{\kbrdelim}{)}
+
+\newcommand\mca{\multicolumn{1}{c}{\cellcolor{red}\textbf{\{a\}}}}
+\newcommand\mcb{\multicolumn{1}{c}{\cellcolor{red}\textbf{\{b\}}}}
 
 \usepackage{tabularx}
 \newcolumntype{Y}{>{\raggedleft\arraybackslash}X}
@@ -49,7 +60,7 @@
 
 \beamertemplatenavigationsymbolsempty
 
-\title[CFPQ on GPGPU]{Evaluation of the Context-Free Path Querying Algorithm Based on Matrix Multiplication}
+\title[Kronecker Product CFPQ]{Context-Free Path Querying by Kronecker Product}
 %\subtitle[YaccConstructor]{Parsing techniques for graph analysis}
 % То, что в квадратных скобках, отображается в левом нижнем углу.
 \institute[JetBrains Research]{
@@ -58,9 +69,9 @@ Saint Petersburg University
 }
 
 % То, что в квадратных скобках, отображается в левом нижнем углу.
-\author[Semyon Grigorev]{Nikita Mishin, Iaroslav Sokolov, Egor Spirin, Vladimir Kutuev, Egor Nemchinov, Sergey Gorbatyuk, \textbf{Semyon Grigorev}}
+\author[Rustam Azimov]{Egor Orachev, Ilya Epelbaum, \\ Semyon Grigorev, \textbf{Rustam Azimov}}
 
-\date{June 30, 2019}
+\date{August 26, 2020}
 
 \begin{document}
 {
@@ -69,7 +80,7 @@ Saint Petersburg University
   \centering
   \begin{tabularx}{\linewidth}{YcX}
     \includegraphics[height=1.5cm]{pictures/jetbrainsResearch.pdf} \hfill
-    & \begin{minipage}[t]{0.3\textwidth}\center \vspace{-1cm}  GRADES-NDA 2019
+    & \begin{minipage}[t]{0.3\textwidth}\center \vspace{-1cm}  ADBIS 2020
       \end{minipage}
     & \hfill \includegraphics[height=1.5cm]{pictures/SPbGU_Logo.png}
   \end{tabularx}
@@ -103,12 +114,12 @@ Saint Petersburg University
 %  \end{frame}
 
   \begin{frame}[fragile]
-    \frametitle{Context-Free Path Querying: Relational Query Semantics}
+    \frametitle{CFPQ: Query Semantics}
     \begin{itemize}
       \item $\mathbb{G} = (\Sigma, N, P)$ --- context-free grammar in normal form
       \begin{itemize}
         \item $A \rightarrow B C$, where $A, B, C \in N$
-        \item $A \rightarrow x$, where $A \in N, x \in \Sigma$
+        \item $A \rightarrow x$, where $A \in N, x \in \Sigma \cup \{\varepsilon\}$
         \item $L(\mathbb{G},A) = \{ \omega \mid A \Rightarrow^* \omega \}$
       \end{itemize}
       \pause
@@ -125,325 +136,375 @@ Saint Petersburg University
     \end{itemize}
   \end{frame}
 
-  \begin{frame}[fragile] \frametitle{Matrix-Based Algorithm}
-    \begin{algorithm}[H]
-    \begin{algorithmic}[1]
-    \caption{Context-Free Path Querying by Matrix Multiplication}
-    \Function{contextFreePathQuerying}{D, G}
-
-        \State{$n \gets$ the number of nodes in $D$}
-        \State{$E \gets$ the directed edge-relation from $D$}
-        \State{$P \gets$ the set of production rules in $G$}
-        \State{$T \gets$ the matrix $n \times n$ in which each element is $\varnothing$}
-        \ForAll{$(i,x,j) \in E$}
-        \Comment{Matrix initialization}
-            \State{$T_{i,j} \gets T_{i,j} \cup \{A~|~(A \rightarrow x) \in P \}$}
-        \EndFor
-        \While{matrix $T$ is changing}
-            \State{$T \gets T \cup (T \times T)$}
-            \Comment{Transitive closure $T^{cf}$ calculation}
-        \EndWhile
-    \State \Return $T$
-    \EndFunction
-    \end{algorithmic}
-    \end{algorithm}
+  \begin{frame}[fragile] \frametitle{CFPQ: Existing solutions}
+    	\begin{itemize}
+    		\item Solutions based on different parsing techniques (CYK, LL, LR, etc.)
+    		\pause
+    		\item Matrix-based solutions
+    		\pause
+    		\item All existing solutions work only with context-free grammar in normal form (CNF, BNF)
+    		\pause
+    		\item The transformation takes time and can lead to a significant grammar size increase
+    		
+    	\end{itemize}
   \end{frame}
 
-
-  \begin{frame}[fragile] \frametitle{Matrix-Based Algorithm: Technical Details}
-    \begin{itemize}
-      \item The matrix $T$ can be represented as set of Boolean matrices: one matrix per nonterminal
-      \item The algorithm can be implemented in terms of Boolean matrices multiplication
-      \item All matrices can be statically allocated in memory
-    \end{itemize}
-  \end{frame}
-
-
-\begin{frame}[fragile] \frametitle{Research Questions}
-  \begin{itemize}
-    \item Does GPGPUs utilization for CFPQ improve performance in comparison with the CPU version?
-    \pause
-    \item Is it possible to achieve higher performance by using existing libraries for operations over matrices or do we need to create our own specialized solution?
-    \pause
-    \item Can we achieve high performance with high-level languages?
-    \pause
-    \item Can we improve performance with sparse matrix representation?
-  \end{itemize}
-\end{frame}
-
-
-\begin{frame}[fragile] \frametitle{CPU-Based Implementations}
-  \begin{minipage}[t]{1cm}
-\hspace{1cm}
-  \end{minipage}
-  ~
-\begin{minipage}[t]{0.85\textwidth}
+\begin{frame}[fragile] \frametitle{Recursive State Machines (RSM)}
 \begin{itemize}
-  \item[\textbf{[Scipy]}] Sparse matrices multiplication by using \textbf{Scipy} in \textbf{Python}
-\pause
-  \item[\textbf{[M4RI]}] Dense matrices multiplication by using \textbf{m4ri} library which implements the Method of Four Russians in \textbf{C}
-\end{itemize}
-\end{minipage}
-\end{frame}
-
-
-\begin{frame}[fragile] \frametitle{GPGPU-Based Implementations}
-  \begin{minipage}[t]{1cm}
-\hspace{1cm}
-  \end{minipage}
-  ~
-\begin{minipage}[t]{0.85\textwidth}
-\begin{itemize}
-\item[\textbf{[GPU4R]}] Our own implementation of the Method of Four
-Russians in \textbf{CUDA C}
-\pause
-\item[\textbf{[GPU\_N]}] Our own implementation of the na\"{\i}ve boolean
-matrix multiplication in \textbf{CUDA C}
-\pause
-\item[\textbf{[GPU\_Py]}] Our own implementation of na\"{\i}ve boolean matrix
-multiplication in \textbf{Python} by using \textbf{numba} compiler
-\end{itemize}
-\end{minipage}
-\end{frame}
-
-\begin{frame}[fragile] \frametitle{Reference Implementations}
-  \begin{minipage}[t]{1cm}
-\hspace{1cm}
-  \end{minipage}
-  ~
-\begin{minipage}[t]{0.85\textwidth}
-\begin{itemize}
-\item[\textbf{[CuSprs]}]
-\begin{itemize}
-  \item Rustam Azimov, 2018, ``Context-free Path Querying by Matrix Multiplication''
-  \item Implementation is based on NVIDIA cuSPARSE library (\textbf{CUDA C, GPGPU})
-\end{itemize}
-\pause
-\item[\textbf{[CYK]}]
-\begin{itemize}
-  \item X. Zhang et al, 2016, ``Context-free path queries on RDF graphs''
-  \item CYK-based algorithm implemented in \textbf{Java} (CPU)
-\end{itemize}
-\end{itemize}
-\end{minipage}
-\end{frame}
-
-
-\begin{frame}[fragile] \frametitle{Dataset}
-  \begin{minipage}[t]{1cm}
-\hspace{1cm}
-  \end{minipage}
-  ~
-\begin{minipage}[t]{0.85\textwidth}
-\begin{itemize}
-\item[\textbf{[RDF]}]
-\begin{itemize}
-  \item The set of the real-world RDF files (ontologies)
-  \item Queries: $G_4: s \to SCOR \ s \ SCO \ | \ TR \ s \ T \ | \ SCOR \ SCO \ | \ TR \ T$
-$G_5: s \to SCOR \ s \ SCO \ | \ SCO$
+	\item RSM behaves as a set of finite state machines (FSM) with additional recursive calls
+	\item Any CFG can be easily encoded by an RSM with one box per nonterminal
 \end{itemize}
 
-\pause
-\item[\textbf{[Worst]}]
-\begin{itemize}
-  \item The input graph is two cycles of coprime lengths with one shared vertex
-  \begin{figure}
-        \begin{tikzpicture}[shorten >=1pt,node distance=2cm,on grid,auto]
-   \node[state] (q_1)   {$1$};
-   \node[state] (q_2) [above=of q_1] {$2$};
-   \node[state] (q_3) [above right=of q_1, below right=of q_2] {$0$};
-   \node[state] (q_4) [right=of q_3] {$3$};
-    \path[->]
-    (q_1) edge  node {A} (q_2)
-    (q_2) edge  node {A} (q_3)
-    (q_3) edge  node {A} (q_1)
-    (q_3) edge[bend left, above]  node {B} (q_4)
-    (q_4) edge[bend left, below]  node {B} (q_3);
-\end{tikzpicture}
+\begin{figure}[h]
+	\begin{tikzpicture}[shorten >=1pt,auto]
+	\node[state, initial] (q_0)   {$q_S^0$};
+	\node[state] (q_1) [right=of q_0] {$q_S^1$};
+	\node[state] (q_2) [right=of q_1] {$q_S^2$};
+	\node[state, accepting] (q_3) [right=of q_2] {$q_S^3$};
+	\path[->]
+	(q_0) edge node {a} (q_1)
+	(q_1) edge node {S} (q_2)
+	(q_2) edge node {b} (q_3)
+	(q_1) edge [bend left = 38, above]  node {b} (q_3);
+	\node[draw=black, fit= (q_0) (q_1) (q_2) (q_3), xshift=-4.5ex, inner sep=0.95cm, label=Box S] {};
+	\end{tikzpicture}
+	\centering
+	\caption{The RSM for grammar with rules $S \to a S b \mid a b$}
 \end{figure}
-  \item Query: $G_1: s \to A \ s \ B \ | \ A \ B$
-\end{itemize}
-\end{itemize}
-\end{minipage}
+
 \end{frame}
 
-\begin{frame}[fragile] \frametitle{Dataset}
-  \begin{minipage}[t]{1cm}
-\hspace{1cm}
-  \end{minipage}
-  ~
-\begin{minipage}[t]{0.85\textwidth}
-\begin{itemize}
-\item[\textbf{[Full]}]
-\begin{itemize}
-  \item The input graph is sparse, but the result is a full graph
-  \item Queries: \\ $G_2: s \to s \ s \ | \ A$ \\ $G_3: s \to s \ s \ s \ | \ A$
-\end{itemize}
+\begin{frame}[fragile] \frametitle{CFPQ Algorithm Iteration 1}	
+
+\begin{figure}[h]
+	\centering
+	\begin{subfigure}{.46\textwidth}
+		\begin{center}
+			\begin{tikzpicture}[shorten >=1pt,auto]
+			\node[state] (q_0)                      {$0$};
+			\node[state] (q_1) [right=of q_0]       {$1$};
+			\node[state] (q_2) [right=of q_1]       {$2$};
+			\node[state] (q_3) [right=of q_2]       {$3$};
+			\path[->]
+			(q_0) edge  node {a} (q_1)
+			(q_1) edge  node {S} (q_2)
+			(q_2) edge  node {b} (q_3)
+			(q_1) edge[bend left = 45, above]  node {b} (q_3);
+			\end{tikzpicture}
+		\end{center}
+	\end{subfigure}
+\begin{subfigure}{.07\textwidth}
+	\begin{center}
+		\huge{$\otimes$}
+	\end{center}
+\end{subfigure}
+	\begin{subfigure}{.36\textwidth}
+		\begin{center}
+			\begin{tikzpicture}[shorten >=1pt,auto]
+			\node[state] (q_0)                      {$0$};
+			\node[state] (q_1) [above right=of q_0] {$1$};
+			\node[state] (q_2) [right=of q_0]       {$2$};
+			\node[state] (q_3) [right=of q_2]       {$3$};
+			\path[->]
+			(q_0) edge  node {a} (q_1)
+			(q_1) edge  node {a} (q_2)
+			(q_2) edge  node {a} (q_0)
+			(q_2) edge[bend left, above]  node {b} (q_3)
+			(q_3) edge[bend left, below]  node {b} (q_2);
+			\end{tikzpicture}
+		\end{center}
+	\end{subfigure}
+\begin{subfigure}{.07\textwidth}
+	\begin{center}
+		\huge{$=$}
+	\end{center}
+\end{subfigure}
+
 \pause
-\item[\textbf{[Sparse]}]
+
+	\begin{subfigure}{.38\textwidth}
+		\begin{center}
+			\[
+		\begin{array}{rcccl}
+		0,0 & \xrightarrow{\text{a}} & 1,1 & & \\
+		0,\underline{\textbf{1}} & \xrightarrow{\textbf{a}} & 1,2 & \xrightarrow{\textbf{b}} & 	3,\underline{\textbf{3}}\\
+		0,2 & \xrightarrow{\text{a}} & 1,0 & & \\
+		2,2 & \xrightarrow{\text{b}} & 3,3 & & \\
+		2,3 & \xrightarrow{\text{b}} & 3,2 & & \\
+		1,3 & \xrightarrow{\text{b}} & 3,2 & & \\
+		\end{array}
+		\]
+		%\caption{Constructing the product automaton}
+		\end{center}
+	\end{subfigure}
+\pause
+\begin{subfigure}{.08\textwidth}
+	\begin{center}
+		\huge{$$\rightarrow$$}
+	\end{center}
+\end{subfigure}
+	\begin{subfigure}{.48\textwidth}
+		\begin{center}
+			\begin{tikzpicture}[shorten >=1pt,auto]
+			\node[state] (q_0)                      {$0$};
+			\node[state] (q_1) [above right=of q_0] {$1$};
+			\node[state] (q_2) [right=of q_0]       {$2$};
+			\node[state] (q_3) [right=of q_2]       {$3$};
+			\path[->]
+			(q_0) edge  node {a} (q_1)
+			(q_1) edge  node {a} (q_2)
+			(q_1) edge[color=red, bend left, above]  node {\textbf{S}} (q_3)
+			(q_2) edge  node {a} (q_0)
+			(q_2) edge[bend left, above]  node {b} (q_3)
+			(q_3) edge[bend left, below]  node {b} (q_2);
+			\end{tikzpicture}
+			%\caption{The updated input graph $\mathcal{G}$ using rule $S \to a b$}
+		\end{center}
+	\end{subfigure}
+
+
+%\begin{itemize}
+%	\item  We need to intersect these two graphs by constructing the product automaton
+%\end{itemize}
+	
+\end{figure}
+
+\end{frame}
+
+
+\begin{frame}[fragile] \frametitle{CFPQ Algorithm Iteration 2}	
+
+\begin{figure}[h]
+	\centering
+	\begin{subfigure}{.46\textwidth}
+		\begin{center}
+			\begin{tikzpicture}[shorten >=1pt,auto]
+			\node[state] (q_0)                      {$0$};
+			\node[state] (q_1) [right=of q_0]       {$1$};
+			\node[state] (q_2) [right=of q_1]       {$2$};
+			\node[state] (q_3) [right=of q_2]       {$3$};
+			\path[->]
+			(q_0) edge  node {a} (q_1)
+			(q_1) edge  node {S} (q_2)
+			(q_2) edge  node {b} (q_3)
+			(q_1) edge[bend left = 45, above]  node {b} (q_3);
+			\end{tikzpicture}			
+		\end{center}
+	\end{subfigure}
+	\begin{subfigure}{.07\textwidth}
+		\begin{center}
+			\huge{$\otimes$}
+		\end{center}
+	\end{subfigure}
+	\begin{subfigure}{.36\textwidth}
+		\begin{center}
+			\begin{tikzpicture}[shorten >=1pt,auto]
+			\node[state] (q_0)                      {$0$};
+			\node[state] (q_1) [above right=of q_0] {$1$};
+			\node[state] (q_2) [right=of q_0]       {$2$};
+			\node[state] (q_3) [right=of q_2]       {$3$};
+			\path[->]
+			(q_0) edge  node {a} (q_1)
+			(q_1) edge  node {a} (q_2)
+			(q_1) edge[bend left, above]  node {\textbf{S}} (q_3)
+			(q_2) edge  node {a} (q_0)
+			(q_2) edge[bend left, above]  node {b} (q_3)
+			(q_3) edge[bend left, below]  node {b} (q_2);
+			\end{tikzpicture}
+		\end{center}
+	\end{subfigure}
+	\begin{subfigure}{.07\textwidth}
+		\begin{center}
+			\huge{$=$}
+		\end{center}
+	\end{subfigure}
+	\pause
+	\begin{subfigure}{.36\textwidth}
+	\begin{center}
+		\[
+		\begin{array}{rcccccl}
+		0,\underline{\textbf{0}} & \xrightarrow{\textbf{a}} & 1,1 & \xrightarrow{\textbf{S}} & 2,3 & \xrightarrow{\textbf{b}} & 3,\underline{\textbf{2}} \\
+		0,1 & \xrightarrow{\text{a}} & 1,2 & \xrightarrow{\text{b}} &	3,3 & &\\
+		0,2 & \xrightarrow{\text{a}} & 1,0 & & & &\\
+		2,2 & \xrightarrow{\text{b}} & 3,3 & & & &\\
+		1,3 & \xrightarrow{\text{b}} & 3,2 & & & &\\
+		\end{array}
+		\]
+	\end{center}
+\end{subfigure}
+\pause
+\begin{subfigure}{.07\textwidth}
+	\begin{center}
+		\huge{$$\rightarrow$$}
+	\end{center}
+\end{subfigure}
+\begin{subfigure}{.55\textwidth}
+	\begin{center}
+		\begin{tikzpicture}[shorten >=1pt,auto]
+		\node[state] (q_0)                      {$0$};
+		\node[state] (q_1) [above right=of q_0] {$1$};
+		\node[state] (q_2) [right=of q_0]       {$2$};
+		\node[state] (q_3) [right=of q_2]       {$3$};
+		\path[->]
+		(q_0) edge  node {a} (q_1)
+		(q_1) edge  node {a} (q_2)
+		(q_1) edge[bend left, above]  node {\text{S}} (q_3)
+		(q_2) edge  node {a} (q_0)
+		(q_2) edge[bend left, above]  node {b} (q_3)
+		(q_3) edge[bend left, below]  node {b} (q_2)
+		(q_0) edge[color=red, bend right = 60, below]  node {\textbf{S}} (q_2);
+		\end{tikzpicture}
+	\end{center}
+\end{subfigure}
+
+	
+\end{figure}
+
+\end{frame}
+
+
+\begin{frame}[fragile] \frametitle{CFPQ Algorithm: Kronecker Product}
+%\begin{itemize}
+	%\item We repeat these iterations while input graph $\mathcal{G}$ is changing
+	Automaton intersection is a \textbf{Kronecker product} of adjacency matrices for $\mathcal{G}$ and $\mathcal{G}_{RSM}$
+	{\scriptsize
+	$$
+	\begin{pmatrix}
+    . & \{a\} & . & .     \\
+    . & . & \{S\} & \{b\} \\
+    . & . & . & \{b\}     \\
+    . & . & . & .
+    \end{pmatrix}
+    \otimes
+    \begin{pmatrix}
+    . & \{a\} & . & .     \\
+    . & . & \{a\} & .     \\
+    \{a\} & . & . & \{b\} \\
+    . & . & \{b\} & .
+    \end{pmatrix}
+    =$$
+    }
+    {\scriptsize
+    \renewcommand{\arraystretch}{0.5}
+    \setlength\arraycolsep{0.1pt}
+    \begin{align*}
+    & \kbordermatrix{
+    	& (0,0) & (0,1) & (0,2) & (0,3) & \vrule & (1,0) & (1,1) & (1,2) & (1,3) & \vrule &  (2,0) & (2,1) & (2,2) & (2,3) & \vrule &  (3,0) & (3,1) & (3,2) & (3,3) &\\ 
+    	(0,0) & . & . & . & . & \vrule & . & \{a\} & . & . & \vrule & . & . & . & . &  \vrule & . & . & . & . \\
+    	(0,1) & . & . & . & . & \vrule & . & . & \mca & . & \vrule & . & . & . & . &  \vrule & . & . & . & . \\
+    	(0,2) & . & . & . & . & \vrule & \{a\} & . & . & . & \vrule & . & . & . & . &  \vrule & . & . & . & . \\
+    	(0,3) & . & . & . & . & \vrule & . & . & . & . & \vrule & . & . & . & . &  \vrule & . & . & . & . \\
+    	\hline
+    	(1,0) & . & . & . & .  & \vrule & . & . & . & . & \vrule & . & . & . & . & \vrule & . & . & . & . \\
+    	(1,1) & . & . & . & .  & \vrule & . & . & . & . & \vrule & . & . & . & . & \vrule & . & . & . & . \\
+    	(1,2) & . & . & . & .  & \vrule & . & . & . & . & \vrule & . & . & . & . & \vrule & . & . & . & \mcb \\
+    	(1,3) & . & . & . & .  & \vrule & . & . & . & . & \vrule & . & . & . & . & \vrule & . & . & \{b\} & . \\
+    	\hline
+    	(2,0) & . & . & . & .  & \vrule & . & . & . & . & \vrule & . & . & . & . & \vrule & . & . & . & . \\
+    	(2,1) & . & . & . & .  & \vrule & . & . & . & . & \vrule & . & . & . & . & \vrule & . & . & . & . \\
+    	(2,2) & . & . & . & .  & \vrule & . & . & . & . & \vrule & . & . & . & . & \vrule & . & . & . & \{b\} \\
+    	(2,3) & . & . & . & .  & \vrule & . & . & . & . & \vrule & . & . & . & . & \vrule & . & . & \{b\} & . \\
+    	\hline
+    	(2,0) & . & . & . & .  & \vrule & . & . & . & . & \vrule & . & . & . & . & \vrule & . & . & . & . \\
+    	(2,1) & . & . & . & .  & \vrule & . & . & . & . & \vrule & . & . & . & . & \vrule & . & . & . & . \\
+    	(2,2) & . & . & . & .  & \vrule & . & . & . & . & \vrule & . & . & . & . & \vrule & . & . & . & . \\
+    	(2,3) & . & . & . & .  & \vrule & . & . & . & . & \vrule & . & . & . & . & \vrule & . & . & . & . \\
+    }
+    \end{align*}
+}
+	%\item We can use the sparse and block nature of the obtained matrices to apply wide class of optimizations
+%\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile] \frametitle{Implementations}
+
 \begin{itemize}
-  \item Sparse graphs are generated by GTgraph
-  \item Query: $G_1: s \to A \ s \ B \ | \ A \ B$
+	\item $\textbf{Kron}$ --- implementation of the proposed algorithm using \textbf{SuiteSparse} C implementation of \textbf{GraphBLAS} API, which provides a set of sparse matrix operations
+	\pause
+	\item We compare our implementation with $\textbf{Orig}$ --- the best CPU implementation of the original matrix-based algorithm using M4RI library
 \end{itemize}
-\end{itemize}
-\end{minipage}
 \end{frame}
 
 \begin{frame} \frametitle{Evaluation}
-  \begin{itemize}
-   \item OS: Ubuntu 18.04
-   \item CPU: Intel core i7 8700k 3,7GHz
-   \item RAM: DDR4 32 Gb
-   \item GPGPU: NVIDIA GeForce 1080Ti (11Gb RAM)
-  \end{itemize}
+\begin{itemize}
+	\item OS: Ubuntu 18.04
+	\item CPU: Intel(R) Core(TM) i7-4790 CPU 3.60GHz
+	\item RAM: DDR4 32 Gb
+\end{itemize}
 \end{frame}
 
-\begin{frame}[fragile] \frametitle{Evaluation: [RDF]\footnote{Time in milliseconds}}
+
+\begin{frame}[fragile] \frametitle{Evaluation results\footnote{Queries are based on the context-free grammars for 
+		nested parentheses} \footnote{Time is measured in seconds}}
 \begin{center}
-  {\tiny
-  \rowcolors{1}{}{lightgray}
-  \begin{tabular}{| p{1.25cm} | c | c | c | c | c | c | c | c | c |}
-      \hline
-      \multicolumn{3}{|c|}{RDF}        & \multicolumn{7}{|c|}{Query $G_4$}  \\
-      \hline
-      Name                                & \#V & \#E  & Scipy & M4RI  & GPU4R & GPU\_N & GPU\_Py & CuSprs & CYK~\footnote{Results from X. Zhang et al, 2016, ``Context-Free Path Queries on RDF Graphs''} \\
-      \hline
-      \hline
-      \tiny{atm-prim}                    & 291 & 685  & 3     &  2    & 2     & 1      & 5       & 269  & 515285  \\
-      \tiny{biomed}                      & 341 & 711  & 3     &  5    & 2     & 1      & 5       & 283  & 420604  \\
-      \tiny{foaf}                        & 256 & 815  & 2     &  9    & 2     & \ltz   & 5       & 270  & 5027    \\
-      \tiny{funding}                     & 778 & 1480 & 4     &  7    & 4     & 1      & 5       & 279  & 499     \\
-      \tiny{generations}                 & 129 & 351  & 3     &  3    & 2     & \ltz   & 5       & 273  & 6091    \\
-      \tiny{people\_pets}                & 337 & 834  & 3     &  3    & 3     & 1      & 7       & 284  & 82081   \\
-      \tiny{pizza}                       & 671 & 2604 & 6     &  8    & 3     & 1      & 6       & 292  & 3233587 \\
-      \tiny{skos}                        & 144 & 323  & 2     &  4    & 2     & \ltz   & 5       & 273  & 1044    \\
-      \tiny{travel}                      & 131 & 397  & 3     &  5    & 2     & \ltz   & 6       & 268  & 13971   \\
-      \tiny{unv-bnch}                    & 179 & 413  & 2     &  4    & 2     & \ltz   & 5       & 266  & 20981   \\
-      \tiny{wine}                        & 733 & 2450 & 7     &  6    & 4     & 1      & 7       & 294  & 4075319 \\
-      \hline
-    \end{tabular}
-    }
- \end{center}
-
+	\tikzmark{yyy}{
+	}
+ {\small
+ \setlength{\tabcolsep}{0.35em}
+ 			\centering
+ 			\label{tbl:tableRDF}
+ 			%\rowcolors{1}{}{lightgray}
+ 			\begin{tabular}{| c | p{1.6cm} | c | c | c | c || c | p{0.8cm} | c | c | c | c |}
+ 				\hline
+ 				&  Graph              & \#V & \#E  & $Kron$  & $Orig$ &  & Graph & \#V & \#E     & $Kron$    & $Orig$ \\
+ 				\hline
+ 				\hline
+ 				\parbox[t]{2mm}{\multirow{11}{*}{\rotatebox[origin=c]{90}{RDF}}}
+ 				& \small{generations}                 & 129 & 351     & 0.04  & 0.03 &
+ 				\parbox[t]{2mm}{\multirow{2}{*}{\rotatebox[origin=c]{90}{RDF}}} & \small{core}                        & 1323 & 8684   & 0.28  &  0.12   \\
+ 				& \small{travel}                      & 131 & 397     & 0.05  & 0.05 & & \small{pways}                    & 6238 & 37196  & 4.88 &   0.18      \\\cline{7-12}
+ 				& \small{skos}                        & 144 & 323     & 0.02  & 0.04 &
+ 				\parbox[t]{2mm}{\multirow{5}{*}{\rotatebox[origin=c]{90}{Worst case}}} & $WC_1$& 64 & 65 & 0.03 & 0.04      \\
+ 				& \small{unv-bnch}                    & 179 & 413     & 0.05  & 0.04 & & $WC_2$ & 128 & 129 & 0.16 & 0.23      \\
+ 				& \small{foaf}                        & 256 & 815     & 0.07  & 0.02  & & $WC_3$ & 256 & 257 & 0.96 & 1.99    \\
+ 				& \small{atm-prim}                    & 291 & 685     & 0.24   & 0.02 & & $WC_4$ & 512 & 513 & 7.14 & 23.21      \\
+ 				& \small{ppl\_pets}                & 337 & 834     & 0.18  & 0.03 & & $WC_5$ & 1024& 1025&  121.99 & 528.52      \\ \cline{7-12}
+ 				& \small{biomed}                      & 341 & 711     & 0.24  & 0.05 &
+ 				\parbox[t]{2mm}{\multirow{4}{*}{\rotatebox[origin=c]{90}{Full}}} & $F_1$ & 100 & 100 & 0.17 &  0.02     \\
+ 				& \small{pizza}                       & 671 & 2604    & 1.14  & 0.08 & & $F_2$ & 200 & 200 & 1.04 & 0.03        \\
+ 				& \small{wine}                        & 733 & 2450    & 1.71  & 0.06 & & $F_3$ & 500 & 500 & 18.86  & 0.03   \\
+ 				& \small{funding}                     & 778 & 1480    & 0.43  & 0.07  & & $F_4$ & 1000 & 1000& 554.22 & 0.07       \\
+ 				\hline
+ 			\end{tabular}
+ 	}
+\end{center} 
+\pause
+\onslide<2>{\tikz[overlay,remember picture]{\draw[draw=red,thick,fill opacity=0.2] ($ (yyy) + (-1.65,-0.6)$) rectangle ($ (yyy) + (0.08,-2.2)$);}}
+\pause
+\onslide<3>{\tikz[overlay,remember picture]{\draw[draw=red,thick,fill opacity=0.2] ($ (yyy) + (3.98,-3.55)$) rectangle ($ (yyy) + (6.2,-5.15)$);}}
+\pause
+\onslide<4>{\tikz[overlay,remember picture]{\draw[draw=red,thick,fill opacity=0.2] ($ (yyy) + (3.98,-1.45)$) rectangle ($ (yyy) + (6.25,-3.45)$);}}
 \end{frame}
-
-
-\begin{frame} \frametitle{Evaluation: [Worst]\footnote{Time in seconds}}
-  \tikzmark{yyy}{
-  }
-  \begin{centering}
-  \rowcolors{1}{}{lightgray}
-  \begin{tabular}{| l | c | c | c | c | c | c | }
-      \hline
-      \#V  & Scipy    & M4RI    & GPU4R  & GPU\_N  & GPU\_Py & CuSprs   \\
-      \hline
-      \hline
-      16   & 0.032    & $< 0.001$    & 0.008  & 0.002   & 0.027   & 0.309    \\
-      32   & 0.118    & 0.001   & 0.034  & 0.008   & 0.136   & 0.441    \\
-      64   & 0.476    & 0.041   & 0.133  & 0.032   & 0.524   & 0.988    \\
-      128  & 2.194    & 0.226   & 0.562  & 0.129   & 2.751   & 3.470    \\
-      256  & 15.299   & 1.994   & 3.088  & 0.544   & 11.883  & 15.317   \\
-      512  & 121.287  & 23.204  & 13.685 & 2.499   & 43.563  & 102.269  \\
-      1024 & 1593.284 & 528.521 & 88.064 & 19.357  & 217.326 & 1122.055 \\
-      2048 & -        & -       & -      & 325.174 & -       & -        \\
-      \hline
-    \end{tabular}
-  \end{centering}
-  \pause
-\onslide<2>{\tikz[overlay,remember picture]{\draw[draw=red,thick,fill opacity=0.2] ($ (yyy) + (6.5,0.01)$) rectangle ($ (yyy) + (8.1,-4.5)$);}}
-\end{frame}
-
-\begin{frame} \frametitle{Evaluation: [Sparse]\footnote{Time in seconds}}
-  \tikzmark{yyy}{
-  }
-{\small
-  \rowcolors{1}{}{lightgray}
-  \begin{tabular}{| l | c | c | c | c | c | c | }
-      \hline
-      Graph              & Scipy   & M4RI     & GPU4R  & GPU\_N & GPU\_Py & CuSprs  \\
-      \hline
-      \hline
-      \small{G5k-0.001}  & 10.352  & 0.647    & 0.113  & 0.041  & 0.216   & 5.729   \\
-      \small{G10k-0.001} & 37.286  & 2.395    & 0.435  & 0.215  & 1.331   & 35.937  \\
-      \small{G10k-0.01}  & 97.607  & 1.455    & 0.273  & 0.138  & 0.763   & 47.525  \\
-      \small{G10k-0.1}   & 601.182 & 1.050    & 0.223  & 0.114  & 0.859   & 395.393 \\
-      \small{G20k-0.001} & 150.774 & 11.025   & 1.842  & 1.274  & 6.180   & -       \\
-      \small{G40k-0.001} & -       & 97.841   & 11.663 & 8.393  & 37.821  & -       \\
-      \small{G80k-0.001} & -       & 1142.959 & 88.366 & 65.886 & -       & -       \\
-      \hline
-    \end{tabular}
-}
-\onslide<2>{\tikz[overlay,remember picture]{\draw[draw=red,thick,fill opacity=0.2] ($ (yyy) + (-0.05,-1.8)$) rectangle ($ (yyy) + (3.75,-2.7)$);}}
-\onslide<3>{\tikz[overlay,remember picture]{\draw[draw=red,thick,fill opacity=0.2] ($ (yyy) + (-0.05,-1)$) rectangle ($ (yyy) + (12.1,-2.3)$);}}
-\end{frame}
-
-
-\begin{frame}[fragile] \frametitle{Evaluation: [Full]\footnote{Time in seconds}}
-\begin{center}
-  {\small
-  \rowcolors{1}{}{lightgray}
-  \begin{tabular}{| l | c | c | c | c | c | c |}
-      \hline
-      \multirow{2}{*}{\#V} & \multicolumn{6}{|c|}{Query $G_2$}  \\
-      \cline{2-7}
-                           & Scipy   & M4RI    & GPU4R   & GPU\_N  & GPU\_Py & CuSprs  \\
-      \hline
-      \hline
-      100                  & 0.007   & 0.002    & 0.002   & $< 0.001$    & 0.003   & 0.278       \\
-      200                  & 0.040   & 0.003    & 0.002   & 0.001   & 0.004   & 0.279       \\
-      500                  & 0.480   & 0.003    & 0.003   & 0.001   & 0.004   & 0.329       \\
-      1000                 & 3.741   & 0.007    & 0.005   & 0.001   & 0.006   & 0.571       \\
-      2000                 & 40.309  & 0.063    & 0.019   & 0.003   & 0.017   & 1.949       \\
-      5000                 & 651.343 & 0.366    & 0.125   & 0.038   & 0.150   & 99.651      \\
-      10000                & -       & 1.932    & 0.552   & 0.315   & 0.840   & 1029.042    \\
-      25000                & -       & 33.236   & 7.252   & 5.314   & 15.521  & -           \\
-      50000                & -       & 360.035  & 58.751  & 44.611  & 129.641 & -           \\
-      80000                & -       & 1292.817 & 256.579 & 190.343 & 641.260 & -           \\
-
-      \hline
-    \end{tabular}
-    }
-    \end{center}
-\end{frame}
-
 
 \begin{frame}[fragile] \frametitle{Conclusion}
   \begin{itemize}
-    \item GPGPUs utilization significantly increases the performance of CFPQ
-    \pause
-    \item High performance libraries utilization is a good idea
-    \begin{itemize}
-      \item But not always: M4RI (CPU) is better then cuSPARSE (GPGPU)
-    \end{itemize}
-    \pause
-    \item Automatic translation from a high-level language to GPGPU language provides a good balance between performance and implementation complexity
-    \pause
-    \item Sparse matrix representation is important for performance %([Scipy] for [Sparse])
-  \end{itemize}
-  \pause
-  \begin{itemize}
-    \item Dataset is published: both graphs and queries
-    \item Implementations are available on GitHub
-    \item Link: \url{https://github.com/SokolovYaroslav/CFPQ-on-GPGPU}
+  	\item We show that the linear algebra based CFPQ can be done without grammar transformation
+  	\pause
+  	\item The Kronecker product can be used as the main matrix operation in such algorithm
+  	\pause
+  	\item We show that in some cases our algorithm outperforms the original matrix-based algorithm
+  	%\pause
+    %item We can use existing high-performance libraries for matrix operations
   \end{itemize}
 \end{frame}
 
 \begin{frame}[fragile] \frametitle{Future Research}
   \begin{itemize}
-    \item Investigate implemented algorithms to explain nontrivial behaviors
-    \item Create open extensible platform for CFPQ algorithms comparison
-    \item Evaluate other CFPQ algorithms
-    \begin{itemize}
-      \item Sparse matrices
-      \item Destributed matrix multiplication
-      \item LL- and LR-based algorithms
-    \end{itemize}
-    \item Add new data and queries to the dataset
-    \begin{itemize}
-      \item Bigger RDFs
-      \item Static code analysis
-    \end{itemize}
-  \end{itemize}
+  	\item Improve our implementation to make it applicable for real-world graphs analysis
+  	\pause
+  	\item Analyze how the behavior depends on the query type and its form
+  	\begin{itemize}
+  		\item Analyze regular path queries evaluation and context-free path queries in the form
+  		of extended context-free grammars (ECFG)
+  	\end{itemize}
+  	\pause	
+    \item Compare our algorithm with the matrix-based one
+    in cases when the size difference between Chomsky Normal Form and ECFG
+    representation of the query is significant
+    \pause
+    \item Extend our algorithm to single-path and all-path
+    query semantics
+\end{itemize}
 \end{frame}
 
 \begin{frame}
@@ -454,14 +515,16 @@ $G_5: s \to SCOR \ s \ SCO \ | \ SCO$
       \item \href{mailto:s.v.grigoriev@spbu.ru}{s.v.grigoriev@spbu.ru}
       \item \href{mailto:Semen.Grigorev@jetbrains.com}{Semen.Grigorev@jetbrains.com}
     \end{itemize}
-  \item Nikita Mishin: \href{mailto:mishinnikitam@gmail.com}{mishinnikitam@gmail.com}
-  \item Iaroslav Sokolov: \href{mailto:sokolov.yas@gmail.com}{sokolov.yas@gmail.com}
-  \item Egor Spirin: \href{mailto:egor@spirin.tech}{egor@spirin.tech}
-  \item Vladimir Kutuev: \href{mailto:vladimir.kutuev@gmail.com}{vladimir.kutuev@gmail.com}
-  \item Egor Nemchinov: \href{mailto:nemchegor@gmail.com}{nemchegor@gmail.com}
-  \item Sergey Gorbatyuk: \href{mailto:sergeygorbatyuk171@gmail.com}{sergeygorbatyuk171@gmail.com}
+  \item Rustam Azimov:
+  \begin{itemize}
+  	\item \href{mailto:rustam.azimov19021995@gmail.com}{rustam.azimov19021995@gmail.com}
+  	\item \href{mailto:Rustam.Azimov@jetbrains.com}{Rustam.Azimov@jetbrains.com}
+  \end{itemize}
+  \item Egor Orachev: \href{mailto:egor.orachev@gmail.com}{egor.orachev@gmail.com}
+  \item Ilya Epelbaum: \href{mailto:iliyepelbaun@gmail.com}{iliyepelbaun@gmail.com}
 \vspace{0.5cm}
-  \item Dataset and algorithm implementations: \href{https://github.com/SokolovYaroslav/CFPQ-on-GPGPU}{https://github.com/SokolovYaroslav/CFPQ-on-GPGPU}
+  \item Dataset: \href{https://github.com/JetBrains-Research/CFPQ_Data}{https://github.com/JetBrains-Research/CFPQ\_Data}
+   \item Algorithm implementations: \href{https://github.com/YaccConstructor/RedisGraph}{https://github.com/YaccConstructor/RedisGraph}
 \end{itemize}
 \vspace{0.1cm}
 \center{\huge{Thanks!}}

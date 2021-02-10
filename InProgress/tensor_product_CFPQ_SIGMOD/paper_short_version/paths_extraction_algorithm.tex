@@ -1,0 +1,81 @@
+\subsection{Paths Extraction Algorithm}
+
+After the index has been created, one can enumerate all paths between specified vertices.
+The index stores information about all reachable pairs for all nonterminals.
+Thus, the most natural way to use this index is to query paths between the specified vertices derivable from the specified nonterminal.
+
+To do so, we provide a function \textsc{getPaths}($v_s, v_f, N$), where $v_s$ is a start vertex of the graph, $v_f$ --- the final vertex, and $N$ is a nonterminal.
+Implementation of this function is presented in Listing~\ref{tensor:pathsExtraction}.
+
+\begin{algorithm}[h]
+\floatname{algorithm}{Listing}
+\begin{algorithmic}[1]
+\footnotesize
+\caption{Paths extraction algorithm}
+\label{tensor:pathsExtraction}
+\State{$C_3 \gets $ result of index creation algorithm: final transitive closure}
+\State{$\mathcal{M}_1 \gets $  the set of adjacency matrices of the input RSM}
+\State{$\mathcal{M}_2 \gets $ the set of adjacency matrices of the final graph}
+
+\Function{getPaths}{$v_s, v_f, N$}
+    \State{$q_N^0 \gets$ Start state of automata for $N$}
+    \State{$F_N \gets$ Final states of automata for $N$}
+    \State{$res \gets \bigcup\limits_{f \in F_N} \Call{getPathsInner}{(q_N,v_s),(f,v_f)}$}
+\State \Return $res$
+\EndFunction
+
+% DONE: fixed vertices notation (s,v)
+% note: the first index in the pair is the state of the RSM
+% note: the second index in the pair is the vertex of the graph
+
+\Function{getSubpaths}{$(s_i,v_i), (s_j,v_j), (s_k,v_k)$}
+    %\State{$v_i \gets \Call{getGraphV}{i}$}
+    %\State{$v_k \gets \Call{getGraphV}{k}$}
+    %\State{$v_j \gets \Call{getGraphV}{j}$}
+
+    %\State{$s_i \gets \Call{getRsmState}{i}$}
+    %\State{$s_k \gets \Call{getRsmState}{k}$}
+    %\State{$s_j \gets \Call{getRsmState}{j}$}
+
+  \State{\begin{minipage}[t]{0.2\textwidth}
+           \vspace{-13pt}
+           \begin{align*}
+              l \gets & \{(v_i,t,v_k) \mid M_2^t[s_i, s_k] \wedge M_1^t[v_i, v_k]\}\\
+                & \cup \ \bigcup_{\{N \mid M_2^N[s_i, s_k]\}}\Call{getPaths}{v_i, v_k, N} \\
+                & \cup \ \Call{getPathsInner}{(s_i,v_i), (s_k,v_k)}
+           \end{align*}
+           \end{minipage}
+          }
+    \State{\begin{minipage}[t]{0.2\textwidth}
+           \vspace{-13pt}
+           \begin{align*}
+              r \gets & \{(v_k,t,v_j) \mid M_2^t[s_k, s_j] \wedge M_1^t[v_k, v_j] \}\\
+                      & \cup \ \bigcup_{\{N \mid M_2^N[s_k, s_j] \}}\Call{getPaths}{v_k, v_j, N} \\
+                      & \cup \ \Call{getPathsInner}{(s_k,v_k), (s_j,v_j)}
+           \end{align*}
+           \end{minipage}
+          }
+    \State \Return $l \cdot r$
+\EndFunction
+
+\Function{getPathsInner}{$(s_i,v_i), (s_j,v_j)$}
+    \State{$parts \gets \{ (s_k,v_k) \mid C_3[(s_i,v_i),(s_k,v_k)] = 1 \wedge C_3[(s_k,v_k),(s_j,v_j)] = 1\}$}
+    \State \Return $\bigcup_{(s_k,v_k) \in parts} \Call{getSubpaths}{(s_i,v_i), (s_j,v_j),(s_k,v_k)}$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+Paths extraction is implemented as three mutually recursive functions.
+The entry point is \textsc{getPaths}($v_s, v_f, N$).
+This function returns a set of the paths between $v_s$ and $v_f$ such that the word formed by a path is derivable from the nonterminal $N$.
+
+To compute such paths, it is necessary to compute paths from vertices of the form $(q_N^s,v_s)$ to vertices of the form $(q_N^f, v_f)$ in the result of transitive closure, where $q_N^s$ is an initial state of RSM for $N$ and $q_N^f$ is a final state.
+The function \textsc{getPathsInner}$((s_i,v_i),(s_j,v_j))$ is used to do it.
+This function finds all possible vertices $(s_k,v_k)$  which split a path from $(s_i,v_i)$ to $(s_j,v_j)$ into two subpaths.
+After that, function \textsc{getSubpaths}$((s_i,v_i),(s_j,v_j),(s_k,v_k))$ computes the corresponding subpaths.
+Each subpath may be at least a single edge.
+If single-edge subpath is labeled by terminal then corresponding edge should be added to the result else (label is nonterminal) \textsc{getPaths} should be used to restore paths.
+If subpath is longer then one edge, \textsc{getPaths} should be used to restore paths. 
+
+It is assumed that the sets are computed lazily, so as to ensure termination in the case of an infinite number of paths.
+We also do not check paths for duplication manually, since they are assumed to be represented as sets.

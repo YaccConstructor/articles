@@ -1,0 +1,89 @@
+\section{Evaluation}
+We evaluated the proposed approach with the described above modifications on two tRNA sequences analysis tasks.
+The first one was a classification of tRNA into two classes: eukaryotes and prokaryotes, while the second was a classification into four classes: archaea, bacteria, plants and fungi.
+
+We used the neural networks shown in the figure~\ref{nn} each of them having the following hyperparameters.
+\begin{itemize}
+    \item Batch size --- 64.
+    \item Cross entropy loss function.
+    \item Adagrad optimizer (adaptive gradient) with learning rate 0.05.
+\end{itemize}
+
+
+We took sequences from tRNA databases GtRNAdb\footnote{GtRNAdb tRNA database Web page: \url{http://gtrnadb.ucsc.edu/}. Access date: 05.06.2019.}~\cite{chan2016gtrnadb} and tRNADB-CE\footnote{The tRNADB-CE tRNA database Web page: \url{http://trna.ie.niigata-u.ac.jp/cgi-bin/trnadb/index.cgi}. Access date: 05.06.2019.}~\cite{abe2014trnadb} for these experiments.
+We used the parsing algorithm implemented by means of the YaccConstructor\footnote{YaccConstructor is an SDK for syntax analysis tools development. Project repository on GitHub: \url{https://github.com/YaccConstructor/YaccConstructor}. Access date: 07.03.2020.} platform and Keras library~\cite{chollet2015keras} with Tensorflow framework~\cite{tensorflow2015-whitepaper} for neural networks training and testing.
+All models, as well as parsing tool, were run on GPU NVIDIA GeForce GTX 1070.
+We selected the equal number of samples (single tRNA molecule sequences) for each class for both classification tasks.
+Each sample was parsed w.r.t. the grammar $G_0$ and then both vectorized and transformed into an image.
+After that, we trained two neural networks: the first handles the representation of the parsing result as vectors, and the second~--- as images.
+Finally, we trained the extended neural network.
+It consists of a block which takes an initial tRNA sequence as an input and transforms it into the parsing result, and the block of pretrained layers: either the vector- or the image-based model from the previous step. 
+
+All extended neural networks were trained, validated (by hold-out validation) and tested on the same datasets as the corresponding base ones.
+The trained models for two classes (EP) and for four classes (ABFP) classification tasks were estimated by using classical machine learning metrics: accuracy, precision and recall.
+
+Accuracy metrics for each problem for the test datasets are presented in the table~\ref{acc}, where base model is a model which handles parsing result (image or vector respectively) and extended model handles tRNA sequences and extends the corresponding base model. Also, this table shows the total time spent on two stages of training (base network + extended network) for both problems and types of data.
+
+\begin{table}[h]
+\centering
+\caption{Base and extended models test results by accuracy metrics}
+\begin{tabular}{|l||l|l||l|l|}
+\hline
+Classifier                                                               & \multicolumn{2}{l||}{EP}               & \multicolumn{2}{l|}{ABFP}           \\ \hline \hline
+Approach                                                                 & Vector-based       & Image-based      & Vector-based      & Image-based     \\ \hline
+\begin{tabular}[c]{@{}l@{}}Base model\\ accuracy\end{tabular}            & 94.1\%             & 96.2\%           & 86.7\%            & 93.3\%          \\ \hline
+\begin{tabular}[c]{@{}l@{}}Extended model \\ accuracy\end{tabular}       & 97.5\%             & 97.8\%           & 96.2\%            & 95.7\%          \\ \hline
+\begin{tabular}[c]{@{}l@{}}Total training \\ time\end{tabular}       & 30000s             & 4600s           & 31800s            & 3600s          \\ \hline
+\begin{tabular}[c]{@{}l@{}}Samples for\\ train:valid:test\end{tabular} & \multicolumn{2}{l||}{\begin{tabular}[c]{@{}l@{}}20000:5000:10000\\ (57\%:14\%:29\%)\end{tabular}} & \multicolumn{2}{l|}{\begin{tabular}[c]{@{}l@{}}8000:1000:3000\\ (67\%:8\%:25\%)\end{tabular}} \\ \hline
+\end{tabular}
+\label{acc}
+\end{table}
+
+
+The estimations by precision and recall metrics for extended models for both classifiers on the same samples as in the  table~\ref{acc} are presented in the table~\ref{pe}.
+
+\begin{table}[h]
+\centering
+\caption{Extended models test results by precision and recall metrics for each class}
+\begin{tabular}{|l||l|l|l|l|l|}
+\hline
+\multirow{2}{*}{Classifier} & \multirow{2}{*}{Class} & \multicolumn{2}{l|}{Vector-based approach} & \multicolumn{2}{l|}{Image-based approach} \\ \cline{3-6} 
+                            &                        & precision         & recall        & precision        & recall        \\ \hline \hline
+\multirow{2}{*}{EP}         & prokaryotic            & 95.8\%            & 99.4\%        & 96.2\%           & 99.4\%        \\ \cline{2-6} 
+                            & eukaryotic             & 99.4\%            & 95.6\%        & 99.4\%           & 99.5\%        \\ \hline \hline
+\multirow{4}{*}{ABFP}       & archaeal               & 91.1\%            & 99.2\%        & 91.6\%           & 98.5\%        \\ \cline{2-6} 
+                            & bacterial              & 96.6\%            & 95.1\%        & 95.2\%           & 95.5\%        \\ \cline{2-6} 
+                            & fungi                  & 98.5\%            & 94.9\%        & 97.5\%           & 94.3\%        \\ \cline{2-6} 
+                            & plant                  & 99.4\%            & 95.7\%        & 99.2\%           & 94.7\%        \\ \hline
+\end{tabular}
+\label{pe}
+\end{table}
+
+The results show that our approach is applicable to tRNA classification tasks and both vector- and image-based models can be used along with dense and convolutional layers in neural networks architectures.
+While the differences in results for extended models are insignificant, for base models image-based network demonstrates slightly better results (see table~\ref{acc}).
+We believe that the reason of this effect lays in a better locality of features in the image-based representation of parsing result: chain of one-s which means a high stem is local in terms of picture but is broken during linearization. 
+Also, we analyzed the time spent on all the models training (table~\ref{acc}) and, although some of these numbers could probably be decreased by more detailed networks tuning, we can state that the image-based networks learn much faster than the vector-based ones.
+The current model for images classification uses a single convolutional layer.
+Whether it is possible to utilize deep convolutional networks for secondary structure analysis in the discussed approach is a question for future research.
+
+The idea of the extended model that handles sequences instead of parsing results is proved to be applicable in practice and it demonstrates even higher quality than the original parsing-based model, as illustrated by table~\ref{acc}.
+We can conclude that it is possible to use parsing only for network training without decreasing the network quality.
+
+To demonstrate the advantage of this technique in practical use 
+in comparison with the classical way (when sequences should first be parsed) we took 100 tRNA sequences from two classes: eukaryotes and prokaryotes and used all four of the trained models to predict their classes. While using base models each sequence was parsed, transformed to correspondent format (image or vector) and fed to the neural network. Extended networks run on original sequences, so the parsing step was skipped. We measured the total time required to output predicted class for all the considered sequences in each case. In the table~\ref{time} the results of this experiment are provided and it is clear that the time spent for parsing is crucial relative to the total working time. So, parsing elimination significantly improves the performance of our solution.
+
+
+\begin{table}[]
+\centering
+\caption{Time measurements for 100 sequences processing}
+\begin{tabular}{|p{2cm}||p{2cm}|p{2cm}|p{2cm}|p{2cm}|}
+\hline
+\multirow{2}{*}{Step} & \multicolumn{2}{l|}{Vector based approach} & \multicolumn{2}{l|}{Image based approach} \\ \cline{2-5} 
+ & \begin{tabular}[c]{@{}l@{}}Base \end{tabular} & \begin{tabular}[c]{@{}l@{}}Extended \end{tabular} & \begin{tabular}[c]{@{}l@{}}Base \end{tabular} & \begin{tabular}[c]{@{}l@{}}Extended \end{tabular} \\ \hline \hline
+Parsing & 307.6s & --- & 310.5s & --- \\ \hline
+Weights loading & 0.2s & 0.2s & 0.1s & 0.3s \\ \hline
+Class predicting & 0.2s & 0.2s & 0.2s & 0.3s \\ \hline
+Total & 308.0s & 0.4s & 310.8s & 0.6s \\ \hline
+\end{tabular}
+\label{time}
+\end{table}

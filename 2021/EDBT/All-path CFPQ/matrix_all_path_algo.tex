@@ -1,0 +1,230 @@
+\section{Matrix-based CFPQ algorithm for all-path query semantics}
+\label{sec:all-path-algo}
+In this section, we introduce the AllPathIndex structure which is used as a base of our solution for all-path query semantics. Also, we propose the matrix-based algorithm for CFPQ w.r.t. the all-path query semantics.
+
+\subsection{AllPathIndex}
+Our algorithm is based on Azimov's CFPQ algorithm~\cite{Azimov:2018:CPQ:3210259.3210264} which is based on matrix operations.
+This algorithm reduces CFPQ to operations over Boolean matrices and as a result, allows one to use high-performance linear algebra libraries and utilize modern parallel hardware for CFPQ.
+
+Note, that the algorithm computes not only the context-free relation $R_{G,D}$ but also a set of context-free relations $R_{G_A,D} \subseteq V \times V$ for every $A \in N$ where $G_A = (N, \Sigma, P, A)$.
+Thus it provides information about paths that form words derivable from any nonterminal $A \in N$.
+
+We use an idea similar to one that was used for the CFPQ with single-path query semantics in~\cite{10.1145/3398682.3399163}. We store additional information in matrices to be able to restore all paths which form words derivable from any nonterminal in the given grammar.
+
+In order to do this, we introduce the 
+$$\textit{AllPathIndex} = (\textit{left},\textit{right},\textit{middles})$$ 
+--- the elements of matrices that describe the found paths as concatenations of two smaller paths and help to restore each path after the index creation. Here \textit{left} and \textit{right} stand for the indexes of starting and ending vertices in the founded path, \textit{middles} --- the set of indexes of intermediate vertices used in the concatenation of two smaller paths. When we do not find the path for some vertex pair $i,j$, we use the $\textit{AllPathIndex} = \bot = (0,0,\emptyset)$.
+
+Additionally, we will use the notation of \textit{proper matrix} which means that for every element of the matrix with indexes $i,j$ it either $\textit{AllPathIndex} = (i,j,\_)$ or $\bot$.
+
+For proper matrices we use a binary operation $\otimes$ defined for AllPathIndexes \mbox{$AP_1, AP_2$} which are not equal to $\bot$ and with $AP_1.\textit{right} = AP_2.\textit{left}$ as
+\begin{align*}
+	AP_1 \otimes AP_2 = (&AP_1.left, AP_2.right, \{AP_1.right\}).
+\end{align*}
+
+And if at least one operand is equal to $\bot$ then $AP_1 \otimes AP_2 = \bot$.
+
+For proper matrices we also use a binary operation $\oplus$ defined for AllPathIndexes \mbox{$AP_1, AP_2$} which are not equal to $\bot$ with $AP_1.\textit{left} = AP_2.\textit{left}$ and $AP_1.\textit{right} = AP_2.\textit{right}$ as
+\begin{align*}
+	AP_1 \otimes AP_2 = (&AP_1.left, AP_1.right, AP_1.middles \cup AP_2.middles).
+\end{align*}
+If only one operand is equal to $\bot$ then $AP_1 \oplus AP_2$ equal to another operand. If both operands are equal to $\bot$ then $AP_1 \oplus AP_2 = \bot$.
+
+Using $\otimes$ as multiplication of AllPathIndexes, and $\oplus$ as an addition, we can define a \emph{matrix multiplication}, \mbox{$a \odot b = c$}, where $a$ and $b$ are matrices of a suitable size, that have AllPathIndexes as elements, as $c_{i,j} = \bigoplus^{n}_{k=1}{a_{i,k} \otimes b_{k,j}}.$
+
+Also, we use the element-wise $+$ operation on matrices $a$ and $b$ with the same size: \mbox{$a + b = c$}, where $c_{i,j} = a_{i,j} \oplus b_{i,j}.$
+
+
+\subsection{The matrix-based algorithm}
+We introduce the matrix-based algorithm for CFPQ w.r.t. the all-path query semantics (see Listing~\ref{lst:algo1}). This algorithm is a modification of Azimov's matrix-based algorithm for CFPQ and it constructs the set of matrices $T$ with AllPathIndexes as elements.
+Let $G = (N, \Sigma, P, S)$ be the input context-free grammar, $D = (V, E, \Sigma)$ be the input graph.
+The result of the algorithm is a set of matrices $T$ which stores information about all paths in the graph $D$ that form a word derivable from some nonterminal of the context-free grammar $G$. Note that in line 4 we add the special value $n$ to the $T^{A_i}_{k,l}.middles$ to specify that this path is a single-edge path or an empty path $\pi_{\varepsilon}$.
+
+\begin{algorithm}
+\small
+\begin{algorithmic}[1]
+\floatname{algorithm}{Listing}
+\caption{CFPQ algorithm for all-path query semantics}
+\label{lst:algo1}
+\Function{AllPathCFPQ}{\par
+\hskip\algorithmicindent $D = (V, E, \Sigma)$, \par
+\hskip\algorithmicindent $G=(N,\Sigma,P,S)$} \Comment{Grammar in WCNF}\par
+\State{$n \gets$ |V|}
+\State{$T \gets \{T^{A} \mid A \in N, T^{A}$ is a matrix $n \times n$, $T^{A}_{i,j} \gets \bot$ \} }
+\ForAll{$(i,x,j) \in E$, $A \mid A \to x \in P$}
+%\Comment{Matrices initialization}
+%\For{$A_k \mid A_k \to x \in P$}
+{$T^{A}_{i,j} \gets (i,j,\{n\})$}
+%\EndFor
+\EndFor
+\ForAll{$A \mid A \to \varepsilon \in P$}
+{$T^{A}_{i,i} \gets (i,i,\{n\})$}
+\EndFor
+
+\While{any matrix in $T$ is changing}
+%\Comment{Transitive closure calculation}
+\ForAll{$A \to B C \in P$ where $T^{B}$ or $T^{C}$ are changed}
+\State{ $T^{A} \gets T^{A} + (T^{B} \odot T^{C})$ } 
+\EndFor
+\EndWhile
+\State \Return $T$
+\EndFunction
+
+\end{algorithmic}
+\end{algorithm}
+
+After constructing a set of matrices $T$ or so-called \textit{index}, we can construct a set of all paths $\pi$ between specified vertex pair $(i, j)$ and a non-terminal $A$ such that $A \xLongrightarrow[G]{*} l(\pi)$. The index $T$ already stores data about all paths derivable from each nonterminal. However, the
+set of such paths can be infinite. From a practical perspective, it is necessary
+to use lazy evaluation or limit the resulting set of paths in some other way.
+For example, one can try to query some fixed number of paths or query paths
+of fixed maximum length.
+
+We propose the algorithm (see Listing~\ref{lst:algo2}) for extracting these paths. Our algorithm returns a set with the empty path $\pi_{\varepsilon}$ only if $i = j$ and $A \to \varepsilon \in P$. If the AllPathIndex for the given $i,j,A$ is equal to $\bot$ then our algorithm returns the empty set since such paths do not exist. Note that in line 19 we use
+the operation $\cdot$ which naturally generalizes the path concatenation operation
+by constructing all possible concatenations of path pairs from the given two
+sets. It is assumed that the sets are computed lazily, to ensure the termination in case of an infinite number of paths.
+
+\begin{algorithm}
+	\small
+	\begin{algorithmic}[1]
+		\floatname{algorithm}{Listing}
+		\caption{All paths extraction algorithm}
+		\label{lst:algo2}		
+		\Function{extractAllPaths}{$i, j, A, T=\{T^{A_i}\}, G=(N,\Sigma,P,S)$}
+		\State{$index \gets T^{A}_{i,j}$ }
+		
+		\If{$index = \bot$}
+		\State \Return $\emptyset$
+		\Comment{Such paths do not exist}
+		\EndIf
+		
+		\State{$n \gets $ size of the square matrix $T^{A}$}
+		\State{$resultPaths \gets \emptyset$}
+		
+		\ForAll{$middle \in index.middles$}		
+		\If{$middle = n$}  \Comment{Add single-edge or empty paths}
+		\ForAll{$x \mid A \to x \in P$}
+		\If{$(i,x,j) \in E$}
+		\State{$resultPaths \gets resultPaths \cup \{((i,x,j))\}$}
+		\EndIf
+		\EndFor
+		\If{$(i = j) \wedge (A \to \varepsilon \in P)$}
+		\State{$resultPaths \gets resultPaths \cup \{\pi_{\varepsilon}\}$}
+		\EndIf
+		\Else \Comment{Add to result the concatenated paths from $i$ to $middle$ and from $middle$ to $j$}
+		\ForAll{$A \to B C \in P$}
+		\State{$index_B \gets T^{B}_{i,middle}$ }
+		\State{$index_C \gets T^{C}_{middle,j}$ }
+		\If{$(index_B \neq \bot) \wedge (index_C \neq \bot)$}
+		\State{$lPaths \gets$ \Call{extractAllPaths}{$i, middle, B, T, G$}}
+		\State{$rPaths \gets$ \Call{extractAllPaths}{$middle, j, C, T, G$}}
+		\State{$resultPaths \gets resultPaths \cup lPaths \cdot rPaths$}
+		\EndIf
+		\EndFor
+		\EndIf
+		\EndFor
+		\State \Return $resultPaths$
+		\EndFunction
+	\end{algorithmic}
+\end{algorithm}
+
+\subsection{Correctness}
+
+The following correctness theorem holds.
+
+\begin{mytheorem}\label{thm:correct}
+Let $G = (N, \Sigma, P, S)$ be the input context-free grammar, $D = (V, E, \Sigma)$ be the input graph, and $T$ be a set of matrices returned by the algorithm in Listing~\ref{lst:algo1}. Then for any $i, j$ and for any non-terminal $A \in N$, $index = T^A_{i,j}$ and $index = (i,j,middles) \neq \bot$ iff $(i,j) \in R_{G_A, D}$ and there is a path $\pi$ from vertex $i$ to $j$ such that $l(\pi) \in G_A = (N,\Sigma,P,A)$.
+\end{mytheorem}
+\begin{proof}[Proof sketch]
+	At each iteration of the main cycle in lines 6-8 of the algorithm, the new paths corresponding to nonterminals $A \in N$ are considered using the rules $A \to B C \in P$. These new paths are obtained by the concatenation of two smaller paths corresponding to the nonterminals $B$ and $C$. At the initialization step of the algorithm in lines 3-5, we consider all single-edge or empty paths corresponding to the derivation tree of height 1. Thus, it can be shown that at iteration $l$ of the main cycle we consider all paths $\pi$ such that there is a derivation tree of the height $h \leq l + 1$ for the string $l(\pi)$ and a context-free grammar $G_A$. Therefore, the theorem can be proved using the induction on the height of such derivation trees.	
+\end{proof}
+
+Now, using the theorem~\ref{thm:correct} and induction on the length of the path, it can be easily shown that the following theorem holds.
+
+\begin{mytheorem}\label{thm:correct_extraction}
+Let $G = (N, \Sigma, P, S)$ be the input context-free grammar, $D = (V, E, \Sigma)$ be the input graph, and $T$ be a set of matrices returned by the algorithm in Listing~\ref{lst:algo1}. Then for any $i, j$ and for any non-terminal $A \in N$ such that $index = T^A_{i,j}$ and $index = (i,j,middles) \neq \bot$, the algorithm in Listing~\ref{lst:algo2} for these parameters will return a set of all paths $\pi$ from vertex $i$ to $j$ such that $l(\pi) \in G_A = (N,\Sigma,P,A)$.
+\end{mytheorem}
+
+We can, therefore, determine whether $(i,j) \in R_{G, D}$ by asking whether $T^S_{i,j} = \bot$. Also, we can extract all paths which form a word from the context-free language $L(G)$ by using our algorithm in Listing~\ref{lst:algo2}. Thus, we show how the context-free path query evaluation w.r.t. the all-path query semantics can be solved in terms of matrix operations.
+
+%\subsection{Complexity}
+
+%Denote the number of elementary operations executed by the algorithm of multiplying two $n \times n$ matrices with PathIndexes as $MM(n)$. Also, denote the number of elementary operations, executed by the matrix element-wise + operation of two $n \times n$ matrices with PathIndexes as $MA(n)$. Since the line \textbf{7} of the algorithm in listing~\ref{lst:algo2} is executed no more than $|V|^2|N|$ times (for the same reasons as in the original paper~\cite{Azimov:2018:CPQ:3210259.3210264} of the matrix-based CFPQ algorithm), the following theorem holds.
+
+%\begin{myproposition}\label{thm:time}
+%	Let $D = (V,E)$ be a graph and let $G =(N,\Sigma,P)$ be a grammar. The algorithm in listing~\ref{lst:algo2} calculates the set of matrices $T$ in $O(|V|^2|N|^3(MM(|V|) + MA(|V|)))$.
+%\end{myproposition}
+
+%Also, denote the time complexity of the access to the PathIndex in the $n \times n$ matrix as $Access(n)$. Then the following theorem on the time complexity of the path extraction algorithm holds.
+
+%\begin{myproposition}\label{thm:time_extraction}
+%	Let $D = (V,E)$ be a graph, let $G =(N,\Sigma,P)$ be a grammar and $T$ be a set of matrices returned by the algorithm in listing~\ref{lst:algo2}. Then for any $i, j$ and for any non-terminal $A \in N$ such that $index = T^A_{i,j}$ and $index = (i,j,k,h,l) \neq \bot$, the algorithm in listing~\ref{lst:algo3} for these parameters calculates a path $i \pi j$ in $O(l \times N \times Access(|V|))$.
+%\end{myproposition}
+
+\subsection{An Example}
+In this section, we provide a step-by-step demonstration of the proposed algorithms. %For this, we consider the example with the worst-case time complexity.
+
+We run the query on a graph $D_1$, presented in Figure~\ref{fig:example_input_graph}. We provide a step-by-step demonstration of the work of algorithm in Listing~\ref{lst:algo1} with the given graph $D$ and grammar $G_1^{\text{wcnf}}$ from section~\ref{sec:preliminaries}. After the matrix initialization in lines \textbf{3-5} of this algorithm, we have a set of matrices $T^{(1)}$, presented in Figure~\ref{ExampleQueryInitMatrix}.
+
+{\footnotesize
+	\begin{figure}[h]
+		\[
+		T^{(1),A} = \begin{pmatrix}
+			\bot & (0,1,\{4\})       & \bot & \bot       \\
+			\bot & \bot & (1,2,\{4\})       & \bot \\
+			(2,0,\{4\})       & \bot & \bot & \bot \\
+			\bot       & \bot & \bot & \bot \\
+		\end{pmatrix}
+		\]
+		\[
+		T^{(1),B} = \begin{pmatrix}
+			\bot & \bot       & \bot & (0,3,\{4\})       \\
+			\bot & \bot & \bot       & \bot \\
+			\bot       & \bot & \bot & \bot \\
+			(3,0,\{4\})      & \bot & \bot & \bot \\
+		\end{pmatrix}
+		\]
+		\caption{The initial matrices for the example query. The PathIndexes $T^{(1),S_1}_{i,j}$ and $T^{(1),S}_{i,j}$ are equal to $\bot$ for every $i,j$}
+		\label{ExampleQueryInitMatrix}
+	\end{figure}
+}
+
+After the initialization, the only matrices which will be updated are $T^{S_1}$ and $T^{S}$. These matrices obtained after the first loop iteration is shown in Figure~\ref{ExampleQueryFirstIteration}.
+
+{\footnotesize
+	\begin{figure}[h]
+		\[
+		T^{(2),S} = \begin{pmatrix}
+			\bot & \bot       & \bot & \bot       \\
+			\bot & \bot & \bot       & \bot \\
+			\bot       & \bot & \bot & (2,3,\{0\}) \\
+			\bot       & \bot & \bot & \bot \\
+		\end{pmatrix}
+		\]
+		\caption{The first iteration of computing the transitive closure for the example query. The PathIndexes $T^{(1),S_1}_{i,j}$ are equal to $\bot$ for every $i,j$}
+		\label{ExampleQueryFirstIteration}
+	\end{figure}
+}
+
+When the algorithm at some iteration finds new paths for some non-terminal in the graph $D_1$, then it adds corresponding AllPathIndexes to the matrix for this non-terminal. For example, after the first loop iteration, AllPathIndex $(2,3,\{0\})$ is added to the matrix $T^{S}$. This AllPathIndex is added to the element with a row index $i = 2$ and a column index $j = 3$. This means, that there is a path $\pi$ from the vertex 2 to the vertex 3, such that $S \xLongrightarrow[G_1^{\text{wcnf}}]{*} l(\pi)$ and this path obtained by concatenation of two smaller paths via vertex 0.
+
+The calculation of the index $T$ is completed after $k$ iterations, when a fixpoint is reached: $T^{(k)} = T^{(k-1)}$. For the example query, $k = 14$ since $T_{14} = T_{13}$. The resulted matrix for non-terminal $S$ is presented in Figure~\ref{ExampleQueryFinalMatrices}.
+
+{\footnotesize
+	\begin{figure}[h]
+		\[
+		T^{(14),S} = \begin{pmatrix}
+			(0,0,\{1\}) & \bot       & \bot & (0,3,\{1\})       \\
+			(1,0,\{2\}) & \bot & \bot       & (1,3,\{2\}) \\
+			(2,0,\{0\})       & \bot & \bot & (2,3,\{0\}) \\
+			\bot       & \bot & \bot & \bot \\
+		\end{pmatrix}
+		\]
+		\caption{The final matrix for non-terminal $S$ after computing the index}
+		\label{ExampleQueryFinalMatrices}
+	\end{figure}
+}
+
+Now, after constructing the index, we can construct the context-free relation $$R_{G_1^{\text{wcnf}}, D_1}=\{(0,0),(0,3),(1,0),(1,3),(2,0),(2,3)\}.$$
+
+In the relation $R_{G_1^{\text{wcnf}}, D_1}$, we have all vertex pairs corresponding to paths, whose labeling is in the language $L(G_1^{\text{wcnf}}) = \{a^n b^n \mid n \geq 1\}$. Using the algorithm in Listing~\ref{lst:algo2} we can restore paths for each vertex pair from the context-free relation. For example, given $i=j=0$, non-terminal $S$, set of resulted matrices $T$, and context-free grammar $G_1^{\text{wcnf}}$, the algorithm in Listing~\ref{lst:algo2} returns an infinite set of all paths from vertex 0 to vertex 0 whose labeling form words from the following set $\{a^6 b^6, a^{12} b^{12}, a^{18} b^{18}, \ldots \}$. Following the path corresponding to the word $a^{6m} b^{6m}$, we will go through the cycle with $a$ labels $2m$ times and through the cycle with $b$ labels $3m$ times for all $m \geq 1$.
