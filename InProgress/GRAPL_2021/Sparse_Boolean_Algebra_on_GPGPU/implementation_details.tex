@@ -41,8 +41,19 @@ This format was selected instead of CSR, because COO gives better memory footpri
 Matrix-matrix multiplication implementation is based on the algorithm, proposed in the paper by Weifeng Liu et al.~\cite{DBLP:journals/corr/0002V15a:spframework}.
 It is a multi-step algorithm with dynamic workload balancing which operates on CSR matrices.
 This algorithm is suitable for OpenCL implementation, which is confirmed by its utilization in clSPARSE library.
-Since clBool primary primitive is COO matrix, the input matrices are converted into \textit{doubly compressed sparse row} (DCSR) format, described in A. Buluc et al. work~\cite{4536313:about:dcsr}, before matrix-matrix multiplication.
+Input matrices are converted from COO into \textit{doubly compressed sparse row} (DCSR) format.
+because a redundant COO rows array slows down the rows indexing process. 
+% Since clBool primary primitive is COO matrix, the input matrices are converted into \textit{doubly compressed sparse row} (DCSR) format, described in A. Buluc et al. work~\cite{4536313:about:dcsr}, before matrix-matrix multiplication.
 
+% Matrix-matrix addition is based on the GPU Merge Path algorithm as well.
+% % Since all COO matrix values are stored continuously, its merge can be completed \cho{at single time}, whereas the matrix merge in CSR is computed on a per row basis.
+% It is implemented in the classic fashion: it allocates a single merge buffer of size $\textit{nnz(A)} + \textit{nnz(B)}$ before the actual merge of matrices $A$ and $B$, what can negatively affect the memory consumption for large matrices with lots of duplicated non-zero values at the same positions.
 Matrix-matrix addition is based on the GPU Merge Path algorithm as well.
-% Since all COO matrix values are stored continuously, its merge can be completed \cho{at single time}, whereas the matrix merge in CSR is computed on a per row basis.
-It is implemented in the classic fashion: it allocates a single merge buffer of size $\textit{nnz(A)} + \textit{nnz(B)}$ before the actual merge of matrices $A$ and $B$, what can negatively affect the memory consumption for large matrices with lots of duplicated non-zero values at the same positions.
+Since all COO matrix values are stored continuously, 
+its addition can be treated as the merge of two sorted arrays, 
+whereas the matrix merge in CSR is computed on a per row basis. 
+This operation is implemented in two steps: merge and duplicates reduce. 
+In the first step it allocates a single merge buffer of size $\textit{nnz(A)} + \textit{nnz(B)}$, 
+where merge result is stored with possible duplicates. 
+% Then we reduce duplicates using scan, and finally copy the unique values at their actual positions. 
+Although this approach is simple and straightforward, it can negatively affect the memory consumption for large matrices with lots of duplicated non-zero values at the same positions.
