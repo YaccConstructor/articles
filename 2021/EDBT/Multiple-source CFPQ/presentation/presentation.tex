@@ -78,6 +78,11 @@ at (#3) {#4};
            },
 }
 
+\makeatletter
+\AtBeginEnvironment{minted}{\dontdofcolorbox}
+\def\dontdofcolorbox{\renewcommand\fcolorbox[4][]{##4}}
+\makeatother
+
 \beamertemplatenavigationsymbolsempty
 
 \title[Multiple-Source CFPQ]{Multiple-Source Context-Free Path Querying in Terms of Linear Algebra}
@@ -116,28 +121,45 @@ Saint Petersburg State University
   Navigation through an edge-labeled graph
   \begin{itemize}
         \item \textbf{Path} specifies a \textbf{word} formed by labels of edges
-        \item \textbf{Paths constraint} is a \textbf{language}: the path specified word should be in the given language
-        \item Constraints expressiveness is related to \textbf{formal languages classes}
+        \item \textbf{Paths constraint} is a \textbf{language}: the word specified by the path should be in the given language
+        \item Th expressiveness of constraints is related to \textbf{formal languages classes}
   \end{itemize}
-  \pause
-  Regular path queries (RPQ)
-  \begin{itemize}
-        \item \textbf{Regular} languages are used as constraints
+  %\pause
+  %Regular path queries (RPQ)
+  %\begin{itemize}
+  %      \item \textbf{Regular} languages are used as constraints
+  %      \item Which nodes are reachable from \textbf{C} by arbitrary number of $\textbf{R} \text{ and } \textbf{Down}$ edges?
+  %      \item $\mathcal{L} = (\textit{R} \mid \textit{Down})^*$
+  %\end{itemize}
+
+  \end{minipage}
+
+\end{frame}
+
+
+\begin{frame}[fragile] \frametitle{Regular Path Queries (RPQ)}
+      \begin{minipage}[m]{0.45\linewidth}
+  \raisebox{-0.5\totalheight}{\includegraphics[width=\textwidth]{pictures/hierarchical_rpq.pdf}}
+  \end{minipage}\hfill
+  \begin{minipage}[m]{0.5\linewidth}
+  \textbf{Regular} languages as constraints
+  \begin{itemize}        
         \item Which nodes are reachable from \textbf{C} by arbitrary number of $\textbf{R} \text{ and } \textbf{Down}$ edges?
-        \item $\mathcal{L} = (\textit{R} \mid \textit{Down})^*$
+        \item Regular language $\mathcal{L} = (\textit{R} \mid \textit{Down})^*$
   \end{itemize}
 
   \end{minipage}
 
 \end{frame}
 
-\begin{frame}[fragile] \frametitle{Context-Free Path Querying (CFPQ)}
+
+\begin{frame}[fragile] \frametitle{Context-Free Path Queries (CFPQ)}
       \begin{minipage}[m]{0.45\linewidth}
   \raisebox{-0.5\totalheight}{\includegraphics[width=\textwidth]{pictures/hierarchical.pdf}}
   \end{minipage}\hfill
   \begin{minipage}[m]{0.5\linewidth}    
-  \begin{itemize}
-        \item \textbf{Context-free} languages are used as constraints 
+  \textbf{Context-free} languages as constraints 
+  \begin{itemize}        
         \item Are nodes A and B on the same level of hierarchy?
         \item Is there a path of form $\overline{\textbf{Down}}^n \, \textbf{Down}^n$ between A and B?
         \item Context-free grammar: $\textit{sameLvl} \to \overline{\textit{Down}} \ \textit{sameLvl} \ \textit{Down} \mid \varepsilon$
@@ -147,8 +169,7 @@ Saint Petersburg State University
     \begin{itemize}
       \item Static code analysis [\href{https://dl.acm.org/doi/10.1145/199448.199462}{T. Reps, et al, 1995}]
       \item Graph segmentation [\href{https://dblp.org/rec/conf/icde/0001D19.html}{H. Miao, et al, 2019}]
-      \item Biological data analysis [\href{https://pubmed.ncbi.nlm.nih.gov/20134073/}{P. Sevon, et al, 2008}]
-      \item ...      
+      \item Biological data analysis [\href{https://pubmed.ncbi.nlm.nih.gov/20134073/}{P. Sevon, et al, 2008}] \ldots
     \end{itemize}
     
   \end{minipage}
@@ -156,15 +177,17 @@ Saint Petersburg State University
   \end{frame}
 
 \begin{frame}[fragile] \frametitle{Problem Statement}
-%\begin{center}
+\begin{center}
    There is no support of CFPQ in real-world graph analysis systems (graph databases)
-%\end{center}
+\end{center}
+\vfill
 \pause
    \begin{itemize}     
       \item J. Kuijpers, et al\footnote<.(1)->{Jochem Kuijpers, George Fletcher, Nikolay Yakovets, and Tobias Lindaaker. 2019. An Experimental Study of Context-Free Path Query Evaluation Methods.}: existing algorithms are too slow to be practical (in the context of Neo4j)
-      \pause
+      \pause      
       \item A. Terekhov, et al\footnote<.(1)->{Arseniy Terekhov, Artyom Khoroshev, Rustam Azimov, and Semyon Grigorev. 2020. Context-Free Path Querying with Single-Path Semantics by Matrix Multiplication.}: linear algebra based CFPQ algorithm can be performant enough
       \pause
+      \vfill
       \item There is no full-stack support of CFPQ
       \begin{itemize}
         \item Grammars instead of full-featured queries
@@ -177,15 +200,15 @@ Saint Petersburg State University
 
 \begin{frame}[fragile] \frametitle{Proposed Solution}
   \begin{itemize}
-      \item \textbf{Multiple-Source CFPQ} to process only required subset of a graph
+      \item \textbf{Multiple-Source CFPQ} to process only the relevant subset of a graph
       \pause
       \item \textbf{Cypher} extended with \textbf{path patterns}\footnote<.(1)->{Tobias Lindaaker, Path Patterns for Cypher, 2017, \scriptsize \url{https://github.com/thobe/openCypher/blob/rpq/cip/1.accepted/CIP2017-02-06-Path-Patterns.adoc}} to express context-free constraints 
       \pause
       \item \textbf{RedisGraph} database 
       \begin{itemize}
-        \item Provides graph storage with matrix-based representation
-        \item Contains linear algebra based query engine (SuiteSparse:GraphBLAS\footnote<.(1)->{Timothy A. Davis. 2019. Algorithm 1000: SuiteSparse:GraphBLAS: Graph Algorithms in the Language of Sparse Linear Algebra} is used)
-        \item Allows one to use Cypher for querying (libcypher-parser\footnote<.(1)->{Chris Leishman, \url{https://github.com/cleishm/libcypher-parser}} is used)
+        \item Graph storage with matrix-based representation
+        \item Linear algebra based query engine (SuiteSparse:GraphBLAS\footnote<.(1)->{Timothy A. Davis. 2019. Algorithm 1000: SuiteSparse:GraphBLAS: Graph Algorithms in the Language of Sparse Linear Algebra} is used)
+        \item Cypher for querying (libcypher-parser\footnote<.(1)->{Chris Leishman, \url{https://github.com/cleishm/libcypher-parser}} is used)
       \end{itemize}
       
       
@@ -194,13 +217,19 @@ Saint Petersburg State University
 \end{frame}
 
 \begin{frame}[fragile] \frametitle{Multiple-Source CFPQ}
-An improved version of Rustam Azimov CFPQ algorithm\footnote{Rustam Azimov and Semyon Grigorev. 2018. Context-free path querying by matrix multiplication.}
+\begin{center}
+An improved version of Rustam Azimov CFPQ algorithm\footnote{Rustam Azimov and Semyon Grigorev. 2018. Context-Free Path Querying by Matrix Multiplication.}
+\end{center}
+\begin{minipage}[t]{0.45\textwidth}
+\vspace{-2.5cm}
   \begin{itemize}
-      \item The set of start vertices can be specified
-      \pause
-      \item Only required subgraph will be processed      
+      \onslide<2-3>{\item The set of start vertices can be specified }
+      \onslide<3>{\item Only the relevant subgraph will be processed }
   \end{itemize}
-  
+\end{minipage}
+\begin{minipage}[t]{0.54\textwidth}
+\raisebox{-0.5\totalheight}{\includegraphics[width=0.8\textwidth]{pictures/hierarchical_mltpl_src.pdf}}
+\end{minipage}
 \end{frame}
 
 \begin{frame}[fragile] \frametitle{Multiple-Source CFPQ}
@@ -277,7 +306,7 @@ An improved version of Rustam Azimov CFPQ algorithm\footnote{Rustam Azimov and S
   \end{minipage}\hfill
   \begin{minipage}[m]{0.55\linewidth}
   \begin{minted}{cypher}
-MATCH (u)-[(R | Down)*]->(v)
+MATCH (u)-/[:R | :Down]*/->(v)
 RETURN u.name, v.name
   \end{minted}
   
@@ -286,7 +315,7 @@ RETURN u.name, v.name
   \tikzmark{xxx}{}
   \begin{minted}{cypher}
 PATH PATTERN SameLvl = 
-  ()-/ <:Down [~SameLvl | ()] :Down> /->()
+  ()-/[<:Down ~SameLvl :Down] | ()/->()
 MATCH (u)-/ ~SameLvl /->(v)
 RETURN u.name, v.name
   \end{minted}
@@ -322,7 +351,7 @@ RETURN u.name, v.name
 \vspace{-2cm}
 \begin{itemize}
   \item Ubuntu 18.04, Intel Core i7-6700 CPU, 3.4GHz, DDR4 64Gb RAM
-  \item Graphs stored in RedisGraph with our extensions
+  \item Graphs are stored in RedisGraph with our extensions
   \item Queries are generated with template for given size of start set
   \item The union of all start sets is $V$ 
 \end{itemize}
@@ -397,7 +426,7 @@ RETURN count(*)
 
 \begin{frame}[fragile] \frametitle{Conclusion}
   \begin{itemize}
-      \item Full-stack support for CFPQ in real-world graph query language (Cypher) on the top of real-world graph database (RedisGraph)
+      \item Full-stack support for CFPQ in real-world applications which use RedisGraph database with Cypher query language
       \begin{itemize}
          \item No more context-free grammars
          \item No more custom graph formats and storages
@@ -421,7 +450,7 @@ RETURN count(*)
       \item Correctness of translation to linear algebra
     \end{itemize}
     \pause
-    \item Integration of tensor-based CFPQ algorithm\footnote<.(1)->{Egor Orachev, Ilya Epelbaum, R. Azimov and S. Grigorev. “Context-Free Path Querying by Kronecker Product.” ADBIS (2020).} to RedisGraph
+    \item Integration of tensor-based CFPQ algorithm\footnote<.(1)->{Egor Orachev, Ilya Epelbaum, R. Azimov and S. Grigorev. 2020. Context-Free Path Querying by Kronecker Product.} to RedisGraph
     \begin{itemize}
       \item To construct paths, not only reachability facts
       \item The algorithm should be modified to get multiple-source version
