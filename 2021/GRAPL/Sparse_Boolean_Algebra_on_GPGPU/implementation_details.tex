@@ -1,14 +1,14 @@
 \section{Implementation Details}
 
-In this section we discuss the particular implementation details of the proposed libraries.
+In this section we discuss the particular implementation details of the proposed backends.
 Although general structure and architecture are similar, the internal storage formats and algorithms are different.
 With this development strategy, we address the potential problem of processing the sparse data with different values distribution, as well as the problem of proper balancing between time of the execution and memory consumption.
 
-\subsection{Library cuBool}
+\subsection{Backend cuBool}
 
-cuBool\footnote{cuBool project: \url{https://github.com/JetBrains-Research/cuBool}. Access date: 10.02.2021.}
+cuBool\footnote{cuBool project: \url{https://github.com/JetBrains-Research/cuBool}. Access date: 30.03.2021.}
 is a sparse boolean linear algebra implementation developed specially for NVIDIA Cuda platform.
-The core of this library relies on Cuda C language and API.
+The core of this backend relies on Cuda C language and API.
 %, \cho{what with NVCC compiler allows intermix C++ with Cuda specifics}.
 Also cuBool employs NVIDIA Thrust auxiliary library, which provides implementation for generic data containers and operations, such as \textit{iterating}, \textit{exclusive or inclusive scan}, \textit{map}, etc., which are executed on Cuda device.
 The algorithms can be expressed in terms of high-level optimized primitives, which increases code readability and reduces time for development.
@@ -17,9 +17,9 @@ Sparse matrices are stored in the \textit{compressed sparse row} (CSR) format wi
 There is no need to store any values in boolean sparse matrices, thus $1$ values are encoded only as $(i, j)$ pairs.
 This means that it is possible to store a matrix $M$ of size $m \times n$ in $(m + \textit{nnz(M)}) \times \textit{sizeof(index\_t)}$ bytes of GPU memory, where \textit{index\_t} is the type of stored indices, which can be selected to be \textit{uint32\_t} for simplicity.
 
-We use the algorithm Nspasrse~\cite{inproceedings:cfpq_for_redis_graph} for matrix-matrix multiplication.
+We use the algorithm Nsparse~\cite{inproceedings:cfpq_for_redis_graph} for matrix-matrix multiplication.
 This algorithm is an adaptation of the state-of-the-art, efficient and memory saving sparse general matrix multiplication (SpGEMM) algorithm, proposed in Yusuke Nagasaka et al. research~\cite{algo:spgemm:8025284} for boolean values.
-This algorithm was selected because it has a relatively small memory footprint for large matrices processing, as well as it competes with other major Cuda SpGEMM implementations, such as cuSPARSE or CUSP.
+This algorithm was selected because it has a relatively small memory footprint for large matrices processing, as well as it compares favorably with other major Cuda SpGEMM implementations, such as cuSPARSE or CUSP.
 
 Matrix-matrix addition is based on GPU Merge Path algorithm~\cite{inproceedings:gpu_merge_path} with dynamic work balancing and two pass processing.
 These optimizations give better workload dispatch among execution blocks and allow for more precise memory allocations in order to keep memory footprint small.
@@ -28,21 +28,26 @@ These optimizations give better workload dispatch among execution blocks and all
 % library functionality via default CTypes module for native functions calling and provides safe and automated
 % management for native resources.
 
-\subsection{Library clBool}
+\subsection{Backend clBool}
 
-clBool\footnote{clBool project: \url{https://github.com/mkarpenkospb/sparse_boolean_matrix_operations}. Access date: 10.02.2021.} 
+clBool\footnote{clBool project: \url{https://github.com/mkarpenkospb/sparse_boolean_matrix_operations}. Access date: 30.03.2021.} 
 is a sparse boolean linear algebra implementation for OpenCL platform.
-This library is implemented in C++ with OpenCL kernels, packed into executable code at compile time. 
+This backend is implemented in C++ with OpenCL kernels, packed into executable code at compile time. 
 
 Sparse matrix primitive is stored in the \textit{coordinate format} (COO) with two arrays: $rows$ and $cols$ for row and column indices of the stored non-zero values.
 For the matrix $M$ of size $m \times n$, the memory consumption is $2 \times \textit{nnz(M)} \times \textit{sizeof(index\_t)}$.
 This format was selected instead of CSR, because COO gives better memory footprint for very sparse matrices with many empty rows.
 
-Matrix-matrix multiplication implementation is based on the algorithm, proposed in the paper by Weifeng Liu et al.~\cite{DBLP:journals/corr/0002V15a:spframework}.
-It is a multi-step algorithm with dynamic workload balancing which operates on CSR matrices.
-This algorithm is suitable for OpenCL implementation, which is confirmed by its utilization in clSPARSE library.
-Input matrices are converted from COO into \textit{doubly compressed sparse row} (DCSR) format,
-because a redundant COO rows array slows down the rows indexing process. 
+% Matrix-matrix multiplication implementation is based on the algorithm, proposed in the paper by Weifeng Liu et al.~\cite{DBLP:journals/corr/0002V15a:spframework}.
+% It is a multi-step algorithm with dynamic workload balancing which operates on CSR matrices.
+% This algorithm is suitable for OpenCL implementation, which is confirmed by its utilization in clSPARSE library.
+
+Matrix-matrix multiplication implementation is based on the algorithm, proposed in the paper by Yusuke Nagasaka et al.~\cite{algo:spgemm:8025284} as well. 
+Since this algorithm was designed originally for processing CSR matrices on Cuda devices, 
+it is modified to work on OpenCL platform.
+In particular, input matrices are converted from COO into \textit{doubly compressed sparse row} (DCSR)~\cite{4536313:about:dcsr} format,
+because a COO rows array slows down the rows indexing process. 
+
 % Since clBool primary primitive is COO matrix, the input matrices are converted into \textit{doubly compressed sparse row} (DCSR) format, described in A. Buluc et al. work~\cite{4536313:about:dcsr}, before matrix-matrix multiplication.
 
 % Matrix-matrix addition is based on the GPU Merge Path algorithm as well.
