@@ -17,17 +17,17 @@ $$\textit{AllPathIndex} = (\textit{left},\textit{right},\textit{middles})$$
 
 Additionally, we will use the notation of \textit{proper matrix} which means that for every element of the matrix with indexes $i,j$ it either $\textit{AllPathIndex} = (i,j,\_)$ or $\bot$.
 
-For proper matrices we use a binary operation $\otimes$ defined for AllPathIndexes \mbox{$AP_1, AP_2$} which are not equal to $\bot$ and with $AP_1.\textit{right} = AP_2.\textit{left}$ as
+We use a binary operation $\otimes$ defined for AllPathIndexes \mbox{$AP_1, AP_2$} which are not equal to $\bot$ as
 \begin{align*}
 	AP_1 \otimes AP_2 = (&AP_1.left, AP_2.right, \{AP_1.right\}).
 \end{align*}
 
-And if at least one operand is equal to $\bot$ then $AP_1 \otimes AP_2 = \bot$.
+And if at least one operand is equal to $\bot$ then $AP_1 \otimes AP_2 = \bot$. Note that we will use this operation only for multiplication of proper matrices where $AP_1 \neq \bot \neq AP_2$ only when $AP_1.\textit{right} = AP_2.\textit{left}$.
 
-For proper matrices we also use a binary operation $\oplus$ defined for AllPathIndexes \mbox{$AP_1, AP_2$} which are not equal to $\bot$ with $AP_1.\textit{left} = AP_2.\textit{left}$ and $AP_1.\textit{right} = AP_2.\textit{right}$ as $AP_1 \otimes AP_2$ equal to
+We also use a binary operation $\oplus$ defined for AllPathIndexes \mbox{$AP_1, AP_2$} which are not equal to $\bot$ as $AP_1 \oplus AP_2$ equal to
 	$$(AP_1.left, AP_1.right, AP_1.middles \cup AP_2.middles).$$
 	
-If only one operand is equal to $\bot$ then $AP_1 \oplus AP_2$ equal to another operand. If both operands are equal to $\bot$ then $AP_1 \oplus AP_2 = \bot$.
+If only one operand is equal to $\bot$ then $AP_1 \oplus AP_2$ equal to another operand. If both operands are equal to $\bot$ then $AP_1 \oplus AP_2 = \bot$. Note that we will use this operation only for multiplication and element-wise addition of proper matrices where $AP_1 \neq \bot \neq AP_2$ only when $AP_1.\textit{left} = AP_2.\textit{left}$ and $AP_1.\textit{right} = AP_2.\textit{right}$
 
 Using $\otimes$ as multiplication of AllPathIndexes, and $\oplus$ as an addition, we can define a \emph{matrix multiplication}, \mbox{$a \odot b = c$}, where $a$ and $b$ are matrices of a suitable size, that have AllPathIndexes as elements, as $c_{i,j} = \bigoplus^{n}_{k=1}{a_{i,k} \otimes b_{k,j}}.$
 
@@ -37,40 +37,44 @@ Also, we use the element-wise $+$ operation on matrices $a$ and $b$ with the sam
 \subsection{The matrix-based algorithm}
 We introduce the matrix-based algorithm for CFPQ w.r.t. the all-path query semantics (see Listing~\ref{lst:algo1}). This algorithm is a modification of Azimov's matrix-based algorithm for CFPQ and it constructs the set of matrices $T$ with AllPathIndexes as elements.
 Let $G = (N, \Sigma, P, S)$ be the input context-free grammar, $D = (V, E, \Sigma)$ be the input graph.
-The result of the algorithm is a set of matrices $T$ which stores information about all paths in the graph $D$ that form a word derivable from some nonterminal of the context-free grammar $G$. Note that in line 4 we add the special value $n$ (it can be any number that is not equal to any of the vertex indices) to the $T^{A_i}_{k,l}.middles$ to specify that this path is a single-edge path or an empty path $\pi_{\varepsilon}$.
+The result of the algorithm is a set of matrices $T$ which stores information about all paths in the graph $D$ that form a word derivable from some nonterminal of the context-free grammar $G$. Note that in line 4 we add the special value $n$ (it can be any number that is not equal to any of the vertex indices) to the $T^{A}_{i,j}.middles$ to specify that this path is a single-edge path or an empty path $\pi_{\varepsilon}$.
 
 \begin{algorithm}
-\small
-\begin{algorithmic}[1]
-\floatname{algorithm}{Listing}
-\caption{CFPQ algorithm for all-path query semantics}
-\label{lst:algo1}
-\Function{AllPathCFPQ}{\par
-\hskip\algorithmicindent $D = (V, E, \Sigma)$, \par
-\hskip\algorithmicindent $G=(N,\Sigma,P,S)$} \Comment{Grammar in WCNF}\par
-\State{$n \gets$ |V|}
-\State{$T \gets \{T^{A} \mid A \in N, T^{A}$ is a matrix $n \times n$, $T^{A}_{i,j} \gets \bot$ \} }
-\ForAll{$(i,x,j) \in E$, $A \mid A \to x \in P$}
-%\Comment{Matrices initialization}
-%\For{$A_k \mid A_k \to x \in P$}
-{$T^{A}_{i,j} \gets (i,j,\{n\})$}
-%\EndFor
-\EndFor
-\ForAll{$A \mid A \to \varepsilon \in P$}
-{$T^{A}_{i,i} \gets (i,i,\{n\})$}
-\EndFor
-
-\While{any matrix in $T$ is changing}
-%\Comment{Transitive closure calculation}
-\ForAll{$A \to B C \in P$ where $T^{B}$ or $T^{C}$ are changed}
-\State{ $T^{A} \gets T^{A} + (T^{B} \odot T^{C})$ } 
-\EndFor
-\EndWhile
-\State \Return $T$
-\EndFunction
-
-\end{algorithmic}
+	\small
+	\begin{algorithmic}[1]
+		\floatname{algorithm}{Listing}
+		\caption{CFPQ algorithm for all-path query semantics}
+		\label{lst:algo1}
+		\Function{AllPathCFPQ}{\par
+			\hskip\algorithmicindent $D = (V, E, \Sigma)$, \par
+			\hskip\algorithmicindent $G=(N,\Sigma,P,S)$} \Comment{Grammar in WCNF}\par
+		\State{$n \gets$ |V|}
+		\State{$T \gets \{T^{A} \mid A \in N, T^{A}$ is a matrix $n \times n$, $T^{A}_{i,j} \gets \bot$ \} }
+		\ForAll{$(i,x,j) \in E$, $A \mid A \to x \in P$}
+		%\Comment{Matrices initialization}
+		%\For{$A_k \mid A_k \to x \in P$}
+		{$T^{A}_{i,j} \gets (i,j,\{n\})$}
+		%\EndFor
+		\EndFor
+		\ForAll{$A \mid A \to \varepsilon \in P$}
+		{$T^{A}_{i,i} \gets (i,i,\{n\})$}
+		\EndFor
+		
+		\While{any matrix in $T$ is changing}
+		%\Comment{Transitive closure calculation}
+		\ForAll{$A \to B C \in P$ where $T^{B}$ or $T^{C}$ are changed}
+		\State{ $T^{A} \gets T^{A} + (T^{B} \odot T^{C})$ } 
+		\EndFor
+		\EndWhile
+		\State \Return $T$
+		\EndFunction
+		
+	\end{algorithmic}
 \end{algorithm}
+
+Also, we can show that the proposed algorithm terminates in finite number of steps. It is sufficient to show, that the operations in the lines 7 and 8 change the matrices in $T$ only finite number of times. These operations can change the matrices in $T$ no more than $|V|^3|N|$ times since they can only add some vertices to the $middles$ component of some element, and there are $|N|$ matrices in $T$ with $|V|^2$ elements and for each element the maximum size of the set $middles$ is equal to $|V|$.
+
+
 
 After constructing a set of matrices $T$ or so-called \textit{index}, we can construct a set of all paths $\pi$ between specified vertex pair $(i, j)$ and a non-terminal $A$ such that $A \xLongrightarrow[G]{*} l(\pi)$. The index $T$ already stores data about all paths derivable from each nonterminal. However, the
 set of such paths can be infinite. From a practical perspective, it is necessary
@@ -89,7 +93,7 @@ sets. It is assumed that the sets are computed lazily, to ensure the termination
 		\floatname{algorithm}{Listing}
 		\caption{All paths extraction algorithm}
 		\label{lst:algo2}		
-		\Function{extractAllPaths}{$i, j, A, T=\{T^{A_i}\}, G=(N,\Sigma,P,S)$}
+		\Function{extractAllPaths}{$i, j, A, T=\{T^{A_k} \mid A_k \in N\}, G=(N,\Sigma,P,S)$}
 		\State{$index \gets T^{A}_{i,j}$ }
 		
 		\If{$index = \bot$}
