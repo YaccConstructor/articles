@@ -1,5 +1,5 @@
 %20 min preso!
-\documentclass[xcolor=table]{beamer}
+\documentclass[xcolor=table,aspectratio=169]{beamer}
 \usepackage{beamerthemesplit}
 \usepackage{wrapfig}
 \usetheme{SPbGU}
@@ -93,11 +93,13 @@ Saint Petersburg University
   \raisebox{-0.5\totalheight}{\includegraphics[width=\textwidth]{pictures/hierarchical.pdf}}
   \end{minipage}\hfill
   \begin{minipage}[m]{0.5\linewidth}
-  Navigation through a graph
+  \textbf{Context-free} languages as constraints on the paths
   \begin{itemize}
         \item Are nodes A and B on the same level of hierarchy?
-        \item Is there a path of form $\textbf{Up}^n \, \textbf{Down}^n$?
-        \item Find all paths of form $\textbf{Up}^n \, \textbf{Down}^n$ which start from the~node A
+        \item Is there a path of form $\overline{\textbf{Down}}^n \, \textbf{Down}^n$ between A and B?
+        \item Find all paths of form $\overline{\textbf{Down}}^n \, \textbf{Down}^n$ between A and B
+        
+        \item Context-free grammar: $\textit{SameLvl} \to \overline{\textit{Down}} \ \textit{SameLvl} \ \textit{Down} \mid \varepsilon$
   \end{itemize}
 
   \end{minipage}
@@ -171,9 +173,7 @@ Saint Petersburg University
 \begin{frame}[fragile]
 \frametitle{Context-Free Path Querying: Single-Path Query Semantics}
 \begin{itemize}
-	\item $R_A = \{ (n, m) \mid \exists n \pi m$, such that $\omega(\pi) \in L(\mathbb{G},A)\}$ --- answers for the relational query semantics
-	\pause
-	\item For all $A \in N$, for all $(n,m) \in R_A$ also return some such path $n\pi m$
+	\item For all $A \in N$, for all $(n,m) \in R_A$ also return some path $n\pi m$ such that $\omega(\pi) \in L(\mathbb{G},A)$
 	\begin{itemize}
 		\item usually the shortest path is returned
 		\item returned path can be used as a proof of existence
@@ -191,12 +191,10 @@ Saint Petersburg University
 \begin{frame}[fragile]
 	\frametitle{Context-Free Path Querying: All-Path Query Semantics}
 	\begin{itemize}
-		\item $R_A = \{ (n, m) \mid \exists n \pi m$, such that $\omega(\pi) \in L(\mathbb{G},A)\}$ --- answers for the relational query semantics
-		\pause
-		\item For all $A \in N$, for all $(n,m) \in R_A$ also return \textbf{all} such paths $n\pi m$
+		\item For all $A \in N$, for all $(n,m) \in R_A$ also return \textbf{all} paths $n\pi m$ such that $\omega(\pi) \in L(\mathbb{G},A)$
 		\begin{itemize}
+			\item in some cases we want to find all data dependencies, for example in static code analysis when searching for vulnerabilities
 			\item the number of such paths can be infinite if the input graph has cycles
-			\item usually the result is represented in the form of a finite structure such as annotated grammar or a parse forest
 		\end{itemize}
 		\pause
 		\item Currently, our matrix-based algorithms cannot handle the all-path query semantics
@@ -206,109 +204,6 @@ Saint Petersburg University
 	\end{itemize}
 \end{frame}
 
-\begin{frame}[fragile]
-	\frametitle{Kronecker product-based algorithm}
-	\begin{itemize}
-		\item Does not require transformation of the input grammar
-		\item Uses Recursive State Machines for the context-free grammar representation
-		
-	\end{itemize}
-
-	\begin{figure}[h]
-		\begin{tikzpicture}[shorten >=1pt,auto]
-			\node[state, initial] (q_0)   {$q_S^0$};
-			\node[state] (q_1) [right=of q_0] {$q_S^1$};
-			\node[state] (q_2) [right=of q_1] {$q_S^2$};
-			\node[state, accepting] (q_3) [right=of q_2] {$q_S^3$};
-			\path[->]
-			(q_0) edge node {a} (q_1)
-			(q_1) edge node {S} (q_2)
-			(q_2) edge node {b} (q_3)
-			(q_1) edge [bend left = 38, above]  node {b} (q_3);
-			\node[draw=black, fit= (q_0) (q_1) (q_2) (q_3), xshift=-4.5ex, inner sep=0.95cm, label=Box S] {};
-		\end{tikzpicture}
-		\centering
-		\caption{The RSM for the grammar $S \to a S b \mid a b$ of the same-generation query}
-	\end{figure}
-\end{frame}
-
-\begin{frame}[fragile]
-	\frametitle{Kronecker product-based algorithm}
-	\begin{itemize}
-		\item Does not require transformation of the input grammar
-		\item Uses Recursive State Machines for the context-free grammar representation
-		
-	\end{itemize}
-	
-	\begin{figure}[h]
-		\begin{tikzpicture}[shorten >=1pt,auto]
-			\node[state, initial] (q_0)   {$q_S^0$};
-			\node[state] (q_1) [right=of q_0] {$q_S^1$};
-			\node[state] (q_2) [right=of q_1] {$q_S^2$};
-			\node[state, accepting] (q_3) [right=of q_2] {$q_S^3$};
-			\path[->]
-			(q_0) edge node {a} (q_1)
-			(q_1) edge node {S} (q_2)
-			(q_2) edge node {b} (q_3)
-			(q_1) edge [bend left = 38, above]  node {b} (q_3);
-			\node[draw=black, fit= (q_0) (q_1) (q_2) (q_3), xshift=-4.5ex, inner sep=0.95cm, label=Box S] {};
-		\end{tikzpicture}
-		\centering
-		\caption{The RSM for the grammar $S \to a S b \mid a b$ of the same-generation query}
-	\end{figure}
-\end{frame}
-
-\begin{frame}[fragile]
-	\frametitle{Kronecker product-based algorithm}
-	\begin{itemize}
-		\item The algorithm computes the Kronecker product of the adjacency matrices of the graph for RSM and the input graph
-		{\scriptsize
-			$$
-			\begin{pmatrix}
-				. & \{a\} & . & .     \\
-				. & . & \{S\} & \{b\} \\
-				. & . & . & \{b\}     \\
-				. & . & . & .
-			\end{pmatrix}
-			\otimes
-			\begin{pmatrix}
-				. & \{a\} & . & .     \\
-				. & . & \{a\} & .     \\
-				\{a\} & . & . & \{b\} \\
-				. & . & \{b\} & .
-			\end{pmatrix}
-			=$$
-		}
-		{\scriptsize
-			\renewcommand{\arraystretch}{0.5}
-			\setlength\arraycolsep{0.1pt}
-			\begin{align*}
-				& \kbordermatrix{
-					& (0,0) & (0,1) & (0,2) & (0,3) & \vrule & (1,0) & (1,1) & (1,2) & (1,3) & \vrule &  (2,0) & (2,1) & (2,2) & (2,3) & \vrule &  (3,0) & (3,1) & (3,2) & (3,3) &\\ 
-					(0,0) & . & . & . & . & \vrule & . & \{a\} & . & . & \vrule & . & . & . & . &  \vrule & . & . & . & . \\
-					(0,1) & . & . & . & . & \vrule & . & . & \mca & . & \vrule & . & . & . & . &  \vrule & . & . & . & . \\
-					(0,2) & . & . & . & . & \vrule & \{a\} & . & . & . & \vrule & . & . & . & . &  \vrule & . & . & . & . \\
-					(0,3) & . & . & . & . & \vrule & . & . & . & . & \vrule & . & . & . & . &  \vrule & . & . & . & . \\
-					\hline
-					(1,0) & . & . & . & .  & \vrule & . & . & . & . & \vrule & . & . & . & . & \vrule & . & . & . & . \\
-					(1,1) & . & . & . & .  & \vrule & . & . & . & . & \vrule & . & . & . & . & \vrule & . & . & . & . \\
-					(1,2) & . & . & . & .  & \vrule & . & . & . & . & \vrule & . & . & . & . & \vrule & . & . & . & \mcb \\
-					(1,3) & . & . & . & .  & \vrule & . & . & . & . & \vrule & . & . & . & . & \vrule & . & . & \{b\} & . \\
-					\hline
-					(2,0) & . & . & . & .  & \vrule & . & . & . & . & \vrule & . & . & . & . & \vrule & . & . & . & . \\
-					(2,1) & . & . & . & .  & \vrule & . & . & . & . & \vrule & . & . & . & . & \vrule & . & . & . & . \\
-					(2,2) & . & . & . & .  & \vrule & . & . & . & . & \vrule & . & . & . & . & \vrule & . & . & . & \{b\} \\
-					(2,3) & . & . & . & .  & \vrule & . & . & . & . & \vrule & . & . & . & . & \vrule & . & . & \{b\} & . \\
-					\hline
-					(2,0) & . & . & . & .  & \vrule & . & . & . & . & \vrule & . & . & . & . & \vrule & . & . & . & . \\
-					(2,1) & . & . & . & .  & \vrule & . & . & . & . & \vrule & . & . & . & . & \vrule & . & . & . & . \\
-					(2,2) & . & . & . & .  & \vrule & . & . & . & . & \vrule & . & . & . & . & \vrule & . & . & . & . \\
-					(2,3) & . & . & . & .  & \vrule & . & . & . & . & \vrule & . & . & . & . & \vrule & . & . & . & . \\
-				}
-			\end{align*}
-		}
-		\end{itemize}
-\end{frame}
 
 \begin{frame}[fragile] \frametitle{Research Questions}
 \begin{itemize}
@@ -327,37 +222,7 @@ Saint Petersburg University
 $$T^A_{i,k} \otimes T^B_{k,j} = \begin{cases} \{k\}, & \mbox{if } T^A_{i,k} \neq \emptyset \wedge T^B_{k,j} \neq \emptyset \\ \emptyset, & \mbox{otherwise} \end{cases}$$
 \end{frame}
 
-  \begin{frame}[fragile] \frametitle{Matrix-Based Algorithm: All-Path Query Semantics}
-\begin{algorithm}[H]
-	\begin{algorithmic}[1]
-		\caption{CFPQ algorithm w.r.t. all-path query semantics}
-		\label{lst:algo2}
-		\Function{AllPathCFPQ}{\par
-			\hskip\algorithmicindent $D = (V, E, \Sigma)$, \par
-			\hskip\algorithmicindent $G=(N,\Sigma,P,S)$} %\Comment{Grammar in WCNF}\par
-		\State{$n \gets$ |V|}
-		\State{$T \gets \{T^{A} \mid A \in N, T^{A}$ is a matrix $n \times n$, $T^{A}_{i,j} \gets \emptyset$ \} }
-		\ForAll{$(i,x,j) \in E$, $A \mid A \to x \in P$}
-		%\Comment{Matrices initialization}
-		%\For{$A_k \mid A_k \to x \in P$}
-		{$T^{A}_{i,j} \gets \{n\}$}
-		%\EndFor
-		\EndFor
-		\ForAll{$A \mid A \to \varepsilon \in P$}
-		{$T^{A}_{i,i} \gets \{n\}$}
-		\EndFor
-		
-		\While{any matrix in $T$ is changing}
-		%\Comment{Transitive closure calculation}
-		\ForAll{$A \to B C \in P$ where $T^{B}$ or $T^{C}$ are changed}
-		\State{ $T^{A} \gets T^{A} + (T^{B} \odot T^{C})$ } 
-		\EndFor
-		\EndWhile
-		\State \Return $T$
-		\EndFunction
-	\end{algorithmic}
-\end{algorithm}
-\end{frame}
+ 
 
  % \begin{frame}[fragile] \frametitle{Matrix-Based Algorithm: Technical Details}
   %  \begin{itemize}
@@ -481,18 +346,18 @@ $$T^A_{i,k} \otimes T^B_{k,j} = \begin{cases} \{k\}, & \mbox{if } T^A_{i,k} \neq
 		\item \textbf{$MtxRel$} --- for  relational query semantics that uses \textbf{pygraphblas} --- a Python wrapper around the GraphBLAS API
 		\item \textbf{$MtxSingle$} --- for  single-path query semantics that also uses \textbf{pygraphblas}
 		\item \textbf{$MtxAll$} --- the implementation of the proposed matrix-based algorithm for all-path query semantics which utilizes \textbf{SuiteSparse} and our own Python wrapper
-		\item \textbf{$Tns$} --- our Python implementation of the Kronecker product-based algorithm for all-path query semantics
+		\item \textbf{$Tns$} --- the implementation of the Kronecker product-based algorithm for all-path query semantics that uses \textbf{pygraphblas}
 		
 	\end{itemize}
 \end{itemize}
 \end{frame}
 
 
-\begin{frame} \frametitle{Evaluation}
+\begin{frame} \frametitle{Evaluation Setup}
   \begin{itemize}
-   \item OS: Ubuntu 18.04
-   \item CPU: Intel core i7 6700 3,4GHz
-   \item RAM: DDR4 64 Gb
+  	\item Ubuntu 18.04, Intel Core i7-6700 CPU, 3.4GHz, DDR4 64Gb RAM
+  	\item We use graphs corresponding to real RDFs
+  	\item We use same-generation query
   \end{itemize}
 \end{frame}
 
@@ -519,38 +384,57 @@ $$T^A_{i,k} \otimes T^B_{k,j} = \begin{cases} \{k\}, & \mbox{if } T^A_{i,k} \neq
 	}
 }
  \end{center}
-%\pause
-%\onslide<2>{\tikz[overlay,remember picture]{\draw[draw=red,thick,fill opacity=0.2] %($ (yyy) + (3,0.85)$) rectangle ($ (yyy) + (7.18,-1.6)$);}}
-%\pause
-%\onslide<3>{\tikz[overlay,remember picture]{\draw[draw=red,thick,fill opacity=0.2] %($ (yyy) + (4.6,1.2)$) rectangle ($ (yyy) + (5.3,-1.58)$);}}
-%\pause
-%\onslide<4>{\tikz[overlay,remember picture]{\draw[draw=red,thick,fill opacity=0.2] %($ (yyy) + (5.4,1.2)$) rectangle ($ (yyy) + (6.1,-1.58)$);}}
-%\pause
-%\onslide<5>{\tikz[overlay,remember picture]{\draw[draw=red,thick,fill opacity=0.2] ($ (yyy) + (9.2,1.2)$) rectangle ($ (yyy) + (9.9,-1.58)$);}}
+\pause
+\onslide<2>{\tikz[overlay,remember picture]{\draw[draw=red,thick,fill opacity=0.2] ($ (yyy) + (5.22,-0.41)$) rectangle ($ (yyy) + (8.78,-1.53)$);}}
+\pause
+\onslide<3>{\tikz[overlay,remember picture]{\draw[draw=red,thick,fill opacity=0.2] ($ (yyy) + (6.88,-0.41)$) rectangle ($ (yyy) + (10.58,-1.53)$);}}
+\pause
+\onslide<4>{\tikz[overlay,remember picture]{\draw[draw=red,thick,fill opacity=0.2] ($ (yyy) + (8.69,-0.41)$) rectangle ($ (yyy) + (12.40,-1.53)$);}}
 \end{frame}
 
 \begin{frame}[fragile] \frametitle{Evaluation: Average Path Extraction Time For \textit{go}}
 \begin{center}
     \[
-		\includegraphics[width=10cm]{pictures/go_10_all_matrixall_tensor.pdf}
+		\includegraphics[width=9cm]{pictures/go_10_all_matrixall_tensor.pdf}
 	\]
 \end{center}
 
 \end{frame}
 
+\begin{frame}[fragile] \frametitle{Evaluation Results}
+	\begin{itemize}
+		\item The proposed algorithm constructs index up to 2-3 times slower and consumes more memory than the algorithm for single-path query semantics
+		\pause
+		\item If it is necessary to frequently recalculate
+		the index for a changing graph or a path query then the best
+		choice is the Kronecker product-based algorithm with
+		faster and less memory consuming index construction
+		\pause
+		\item If it is  necessary to extract paths many times for a once constructed
+		index or index changes can be efficiently computed dynamically then the proposed matrix-based CFPQ algorithm is  preferable
+	\end{itemize}
+	%\pause
+	%\begin{itemize}
+	% \item Dataset is published: both graphs and queries
+	%\begin{itemize}
+	%	\item Link: \url{https://github.com/JetBrains-Research/CFPQ_Data}
+	%\end{itemize}
+	
+	%\item Implementations are available on GitHub
+	%\begin{itemize}
+	%	\item Link: \url{https://github.com/JetBrains-Research/CFPQ_PyAlgo}
+	%\end{itemize}
+	
+	%\end{itemize}
+\end{frame}
+
 \begin{frame}[fragile] \frametitle{Conclusion}
   \begin{itemize}
-    \item We propose a matrix-based CFPQ algorithm for all-path query semantics
+    \item The matrix-based CFPQ algorithm can be extended for all-path query semantics
     \pause
-    \item The proposed algorithm constructs index up to 2-3 times slower and consumes more memory than the algorithm for single-path query semantics
+    \item The cost of such extension is an increase in the index creation time and a large increase in memory consumption for some graphs and queries with complex structure of result
     \pause
-    \item If it is necessary to frequently recalculate
-    the index for a changing graph or a path query then the best
-    choice is the Kronecker product-based algorithm with
-    faster and less memory consuming index construction
-    \pause
-    \item If it is     necessary to extract paths many times for a once constructed
-    index or index changes can be efficiently computed dynamically then the proposed matrix-based CFPQ algorithm is  preferable
+    \item The proposed matrix-based solution for all-path query semantics compared to the Kronecker product-based solution consumes more memory, but allows one to extract paths significantly faster 
   \end{itemize}
   %\pause
   %\begin{itemize}
