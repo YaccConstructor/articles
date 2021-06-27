@@ -1,0 +1,205 @@
+1
+
+Hello. My name is Semyon and I want to present our results on context-free path querying algorithms empirical evaluation which we have done in JetBrains laboratory.
+
+2
+
+Context-Free path queries are the way to specify constraints for paths in terms of context-free grammars.
+It is a more expressive extension of regular path queries.
+We often see this in hierarchy analysis, so, for example, consider the graph. 
+We can ask the next question: whether node A and node B on the same level of the hierarchy. 
+This question can be formulated in terms of context-free path query such as the presented on the slide. 
+CFPQs can be used for graph analysis in such areas as static code analysis, graph database querying, RDF analysis, network analysis and so on.
+
+3
+
+In our work we suppose that constraints are formulated in terms of context-free grammar.
+It is nise to deel with grammar in normal form, so I would stick to te form where the rule has two nonterminal or on terminal in the right part.
+Note that the start nonterminal is not fixed in grammar definition.
+We do this for description simplification.
+So, to specify language we should specify both a grammar and the start nonterminal.
+
+When I say "graph", I mean directed, edge-labeled graph. We suppose that labels are a subset of terminal symbols.
+
+Each path in a graph forms a word. We introduce the function omega which converts a path to a word.
+
+Having all necessary definitions introduced, I can state that goal of CFPQ is to find all pairs of vertices such that there is a path between them which forms a word in the given language.
+In other words, we should construct a reachability relation over vertices.
+
+4
+
+One of the algorithms to construct such relation is based on matrix multiplication and it was recently proposed by Rustam Azimov.
+This algorithm takes a grammar and an adjacency matrix of a graph, and iteratively computes the special type of transitive closure of the given matrix.
+This is the way to reduce context-free path querying to the multiplication of matrices.
+
+
+5
+
+Note that the matrix T can be represented as a set of boolean matrices: one matrix per each nonterminal.
+Abd dealing with boolean matrices is really good for implementation.
+Also note, that the number of matrices and its size is known at the start of computations. So, we can allocate all necessary memory statically, improving performance by reducing expensive memory operations.
+
+So, this algorithm is very simple to implement, and it was shown that it outperforms other existing algorithms more ten ten times even if float matrices are used.
+Our aim was to deeply evaluate this algorithm.
+
+!!!!
+Also we want to create open infrastructure for CFPQ algorithms benchmarking.
+I think that it is important step.
+Practical CFPQ algorithms development at the start now and there is a set of different datasets which are described in different papers.
+They should be collected and properly organized.
+More over, such infrastructure can be useful for different algorithms comparison.
+It is a classical way in different areas.
+
+6
+
+We pose the next questions in our research.
+
+The first question is about GPUs utilization for CFPQ. GPU is a good choice for matrices manipulation, but in some cases, data transfer between CPU and GPU cancels this performance gain.
+Is it reasonable to use GPUs for CFPQ?
+
+It is good practice in software engineering to reuse existing components.
+But we use boolean matrices, not double or int which are more popular and better supported.
+And our algorithm is not only about matrix multiplication.
+It requires more complex manipulation with matrices.
+So, we should check whether it make sense to use existing libraries for matrices operations.
+
+Another question is whether it is possible to achieve high performance by using high-level languages, or we better stick old low-level C.
+
+And the last one is how we represent data.
+Real-world data is often sparse.
+It may seem obvious that we should use sparse matrix representation, but on the same time, operations with sparse matrices require more memory operations which are very expensive.
+So, it is not evident that sparse matrices is a good choice for our algorithm.
+
+7
+
+To answer these questions we implement the matrix-based algorithm in different settings.
+
+First of all, we implement two CPU-based versions.
+
+The first one is implemented in Python and uses Scipy library for sparse matrices manipulation.
+
+The second one is implemented in C and uses M4RI library which provides one of the fastest implementation of Four Russians Method for boolean matrices multiplication. Four Russians Method is a practcal fastest algorithm for boolean matrices multiplication.
+
+8
+
+Also, we provide a set of GPU-based implementations.
+
+The first one is based on our own implementation of Four Russians Method in CUDA C
+
+The second one is based on nive boolean matrices multiplication algorithm.
+Boolean values are compressed to an integer, and naive multiplication algorithm which uses bitwise operations is implemented.
+
+And the last one is a GPU-based implementation which is written in a high-level language.
+Here we use numba just-in-time compiler to convert Python code to GPU executable code.
+
+9
+
+Also, we include two existing implementations to our experiments.
+
+The first one is a CuSpare-based implementation of a matrix-based algorithm which is provided by Rustam Azimov.
+
+And the second one is a Java implementation of CYK-based algorithm which is represented by Zhang et al within a set of RDFs for evaluation.
+This set we use this work and other our works.
+
+10
+
+The second important part of our research is data set collecting.
+We could not find an open data set for CFPQ evaluation, so we collect and publish such data set.
+It contains both real-world and synthetic data and queries in simple textual format.
+
+The data set contains the following parts.
+
+The first one is a set of real-world RDFs which we converted to graphs.
+
+The second one is data on which the theoretical worst-case behavior is achieved. This structure of the graph and this query was proposed by Jelle Hellings. It is shown that CYK-based and matrix-based algorithms demonstrates theoretically worst behavior on this input.
+
+11
+
+Also, we provide data which should be bad for algorithms which are based on sparse matrices. 
+The input graph is very sparse. 
+So, to utilize sparse matrices to process such graphs looks a good idea.
+But the result of a query is a full graph.
+More over, for the proposed query, the density of matrices will increase while computation.
+
+And the last one is a set of sparse graphs which are generated by special sparse graph generator. This case emulates real-world sparse data.
+
+12
+
+For evaluation, we use PC with modern GPU and a big amount of RAM.
+Note that biggest graphs in our data set require all available memory on GPU.
+It is because we allocate all necessary memory at GPU statically at he start of computations.
+This way we can avoid data transferring and increase performance. But it reduces size of graphs which can be processed. 
+
+Now we discuss the results of our evaluation.
+
+13
+
+Here you can see results of RDFs querying.
+Note that results for CYK-based algorithm are taken from the correspondent article.
+We didn't implement this algorithm because our implementations significantly outperform it.
+But it is not critical because the main result here is that the performance of CFPQ is significantly improved in the last three years. 
+I believe there is more room to grow, so, we need a bigger representative RDFs in our dataset.
+
+14
+
+The next results are for the worst case.
+We can see, that this case is also very hard in practice.
+
+The interesting result that the naive GPU based implementation is significantly better than all the other implementations. 
+Even than the GPU-based implementation of Four Russians Method, which is surprising for me, because I think that the naive method should be slower.
+ 
+
+15
+
+Here you can see results for sparse graphs. Graph name consists of two parts. The first part is a number of vertices and the second one is a probability of the existence of the edge between two vertices.
+
+First of all, we can see, that sparsity is very important for implementation which uses sparse matrices.
+
+The next interesting observation is differences between the behavior of dense matrix-based implementations and sparse matrices based one. 
+While running time of sparse matrices based implementations increases while sparsity decreases, running time of dense matrices based implementations decreases for both CPU and GPU implementations.
+This behavior should be investigated in the future.
+
+16
+
+And the last case is when the input graph is sparse and the result is a full graph. 
+We can see, that such property of input is a problem for sparse matrices based solutions. 
+Both Scipy and CuSparse are significantly slower than in the previous case. 
+But it is not a problem for dense matrices. 
+We still can handle big graphs in a reasonable time even on CPU. 
+Also, note that the naive GPU-based implementation is still better.
+
+17
+
+Finally, we can conclude that GPU utilization for CFPQ can significantly increase performance. 
+Utilization of appropriate high-performance libraries is a good idea. 
+It is not necessary to create your own matrix multiplication library. 
+So, it is easy to implement the matrix-based algorithm with good performance.
+
+We can see, that automatic translation from high-level languages to GPU code can be a good way to achieve balance between implementation complexity and performance.
+
+Also, we can conclude that the utilization of sparse matrices may be a good idea for real-world data processing. But here we should do more research.
+
+Finally, all our implementations and collected data set are available on GitHub.
+
+18
+
+So, we start a work on CFPQ benchmarking and we plan to continue this work.
+Graph querying languages stand more popular, and I think that the ability to handle context-free constraints will be included in real-world languages.
+Now we can see a context-free extension of SPARQL and a proposal for openCypher, which introduces context-free queries in this language.
+
+First of all, we should explain some nontrivial behaviors, as we see on sparse graphs, to better understand the limitations of cfpq algorithms.
+
+Also, I think, it is necessary to create an open extensible platform for CFPQ algorithms evaluation and comparison.
+
+It would be interesting to evaluate different implementations which use sparse matrices on CPU and GPU.
+Another direction is the evaluation of distributed CFPQ algorithms which are necessary for huge data processing.
+Of course, there are other types of CFPQ algorithms. For example, algorithms which are based on such parsing techniques as LR or LL.
+These algorithms have useful properties, for example, can construct the set of paths which satisfie to constraints.
+Moreover, from formal languages theory and practical parsing experience, the running time of such algorithms may be better than for matrix-based algorithm in some cases.
+So, we should evaluate such algorithms too.
+
+The second big part is a data set extension. We should find more real-world cases for CFPQ to get a proper set of benchmarks.
+
+19
+
+Thank you for attention!
