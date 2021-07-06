@@ -1,0 +1,422 @@
+\section{Preliminaries}
+
+In this section, we introduce some basic notation and definitions from graph theory and formal language theory which will be used in the rest of the paper.
+
+\subsection{Language-Constrained Path Querying Problem}
+
+We use a directed edge-labeled graph as a data model.
+To introduce the \term{Language-Constraint Path Querying Problem}~\citep{barrett2000formal} over directed edge-labeled graphs we first give definitions for both languages and grammars.
+
+\begin{definition}
+An \term{edge-labeled directed graph} $\mathcal{G}$ is a triple $\langle V,E,L \rangle$, where $V = \{0, \ldots, |V|-1\}$ is a finite set of vertices, $E \subseteq V \times L \times V$ is a finite set of edges and $L$ is a finite set of edge labels.
+\end{definition}
+
+The graph  $\mathcal{G}$  which we use in the further examples is presented in Figure~\ref{fig:example_input_graph}.
+
+\begin{figure}[h!]
+\tikzset{every loop/.style={min distance=10mm,in=0,out=70,looseness=5}}
+    \centering
+    \begin{tikzpicture}[shorten >=1pt,auto]
+       \node[state] (q_0)                      {$0$};
+       \node[state] (q_1) [right=of q_0]       {$1$};
+        \path[->]
+        (q_0) edge[bend left, above]   node {a} (q_1)
+        (q_1) edge [bend left, below] node {a} (q_0)
+        (q_1) edge[loop right] node {b} (q_1);
+    \end{tikzpicture}
+    \caption{The example of input graph $\mathcal{G}$}
+    \label{fig:example_input_graph}
+\end{figure}
+
+\begin{definition}
+An \term{adjacency matrix} for an edge-labeled directed graph $\mathcal{G} = \langle V,E,L \rangle$ is a matrix $M$, where:
+\begin{itemize}
+    \item $M$ has size $|V|\times|V|$
+    \item $M[i,j] = \{l~\mid e = (i,l,j) \in E\}$
+\end{itemize}
+\end{definition}
+
+Adjacency matrix $M_2$ of the graph $\mathcal{G}$ is
+
+$$
+    M_2 =
+    \begin{pmatrix}
+    \emptyset & \{a\}     \\
+   \{a\}   &   \{b\}     \\
+    \end{pmatrix}.
+$$
+
+\begin{definition}
+The \term{Boolean matrices decomposition},
+for an edge-labeled directed graph $\mathcal{G} =
+\langle V,E,L \rangle$ with adjacency matrix $M$ is a set of matrices $\mathcal{M} = \{ M^l~\mid~l \in L, \ M^l[i,j] = 1 \iff l \in M[i,j]\}$.
+\end{definition}
+
+In our work, we use the decomposition of the adjacency matrix into a set of Boolean matrices. As an example, matrix $M_2$ can be represented as a set of two Boolean matrices $M_2^a$ and $M_2^b$.
+$$
+\mathcal{M}_2 =\bigg\{
+M_2^{a} =
+\begin{pmatrix}
+    . & 1     \\
+    1 & .
+\end{pmatrix},
+M_2^{b} =
+\begin{pmatrix}
+    . & .    \\
+    . & 1
+\end{pmatrix}
+\bigg\}.
+$$
+
+This way we reduce operations necessary for our algorithm from
+operations over custom semiring (over edge labels) to operations over a Boolean semiring with an \term{addition} $+$ as a disjunction $\lor$ and a \term{multiplication} $\cdot$ as a conjunction $\land$ over Boolean values.
+
+We also use the notation $\mathcal{M}(\mathcal{G})$ and $\mathcal{G}(\mathcal{M})$ to describe the Boolean decomposition matrices for some graph and the graph formed by its adjacency Boolean matrices.
+
+\begin{definition}
+A \term{path} $\pi$ in the graph $\mathcal{G} = \langle V,E,L \rangle$ is a sequence $e_0,e_1,\ldots,e_{n-1}$, where $e_i = (v_i,l_i,u_i) \in E$ and for any $e_i, e_{i+1}$: $u_i = v_{i+1}$. We denote a path from $v$ to $u$ as $v\pi u$.
+\end{definition}
+
+\begin{definition}
+A \term{word formed by a path} $$\pi = (v_0,l_0,v_1),(v_1,l_1,v_2),\ldots,(v_{n-1},l_{n-1},v_n)$$ is a concatenation of labels along the path: $\omega(\pi) = l_0 l_1 \ldots l_{n-1}$.
+\end{definition}
+
+
+\begin{definition}
+A \term{language} $\mathcal{L}$ over a finite alphabet $\Sigma$ is a subset of all possible sequences formed by symbols from the alphabet: $\mathcal{L}_{\Sigma} = \{\omega \mid \omega \in \Sigma^*\}$.
+\end{definition}
+
+Now we are ready to introduce language-constraint path querying problem for the given graph  $\mathcal{G} = \langle V,E,L \rangle$ and the given language $\mathcal{L}$ with reachability and all-path semantics.
+
+\begin{definition}
+To evaluate language-constraint path query with reachability semantics is to construct a set of pairs of vertices $(v_i,v_j)$ such that there exists a path $v_i \pi v_j$ in $\mathcal{G}$ which forms the word from the given language:
+$$
+R = \{(v_i,v_j) \mid \exists \pi: v_i \pi v_j, \ \omega(\pi) \in \mathcal{L} \}
+$$
+\end{definition}
+
+\begin{definition}
+To evaluate language-constraint path query with all-path semantics is to construct a set of paths $\pi$ in $\mathcal{G}$ which form the word from the given language:
+$$
+\Pi = \{ \pi \mid \omega(\pi) \in \mathcal{L}\}
+$$
+\end{definition}
+
+Note that $\Pi$ can be infinite, thus in practice, we should provide a way to build a finite representation of such paths with reasonable complexity, instead of explicit construction of the $\Pi$.
+
+\subsection{Regular Path Queries and Finite State Machine}
+
+In \term{Regular Path Querying} (RPQ) the language $\mathcal{L}$ is regular.
+This case is widespread and well-studied.
+The most common way to specify regular languages is by \term{regular expressions}.
+
+We use the following definition of regular expressions.
+\begin{definition}
+A \term{regular expression} over the alphabet $\Sigma$ is a finite combination of patterns, which can be defined as follows: $\varnothing$ (empty language), $\varepsilon$ (empty string), $a_i \in \Sigma$ are regular expressions, and if $R_1$ and $R_2$ are regular expressions, then $R_1 \mid R_2$ (alternation), $R_1 \cdot R_2$ (concatenation), $R_1^*$ (Kleene star) are also regular expressions.
+\end{definition}
+
+For example, one can use regular expression $R_1 = ab^*$ to search for paths in the graph $\mathcal{G}$ (Figure~\ref{fig:example_input_graph}).
+The expected query result is a set of paths that start with an $a$-labeled edge and contain zero or more $b$-labeled edges after that.
+
+In this work we use the notion of \term{Finite-State Machine} (FSM) or \term{Finite-State Automaton} (FSA) for RPQs.
+
+\begin{definition}
+A \term{deterministic finite-state machine without $\varepsilon$-transitions} $T$ is a tuple $\langle \Sigma, Q, Q_s, Q_f, \delta \rangle$, where:
+\begin{itemize}
+    \item $\Sigma$ is an input alphabet,
+    \item $Q$ is a finite set of states,
+    \item $Q_s \subseteq Q$ is a set of start (or initial) states,
+    \item $Q_f \subseteq Q$ is a set of final states,
+    \item $\delta: Q \times \Sigma \to Q$ is a transition function.
+\end{itemize}
+\end{definition}
+
+It is well known, that every regular expression can be converted to deterministic FSM without $\varepsilon$-transitions~\citep{automata:theory:10.5555/1177300}.
+We use FSM as a representation of RPQ.
+FSM $T = \langle \Sigma, Q, Q_s, Q_f, \delta \rangle$ can be naturally represented by a directed edge-labeled graph $\mathcal{G} = \langle V,E,L \rangle$, where $V = Q$, $L = \Sigma$, $E = \{(q_i,l,q_j) \mid \delta(q_i,l) = q_j\}$ and some vertices are marked as the start and final states.
+An example of the graph representation of FSM $T_1$ for the regular expression $R_1$ is presented in Figure~\ref{fig:example_fsm}.
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzpicture}[shorten >=1pt,auto]
+       \node[state, initial] (q_0)                      {$0$};
+       \node[state, accepting] (q_1) [right=of q_0] {$1$};
+       \path[->]
+        (q_0) edge  node {a} (q_1)
+        (q_1) edge[loop above]  node {b} (q_1)
+        ;
+    \end{tikzpicture}
+    \caption{The example of graph representation of FSM for regular expression $ab^*$}
+    \label{fig:example_fsm}
+\end{figure}
+
+As a result, FSM also can be represented as a set of Boolean adjacency matrices $\mathcal{M}$ accompanied by the information about the start and final vertices.
+For example, FSM $T_1$ can be represented as follows.
+$$
+M_1^a =
+\begin{pmatrix}
+.&1 \\
+.&.
+\end{pmatrix},~
+M_1^b =
+\begin{pmatrix}
+.&. \\
+.&1
+\end{pmatrix}.
+$$
+
+Note, that an edge-labeled graph can be viewed as an FSM where edges represent transitions and all vertices are both start and final at the same time.
+Thus RPQ evaluation is an intersection of two FSMs.
+The query result can also be represented as FSM because regular languages are closed under intersection~\citep{automata:theory:10.5555/1177300}.
+
+\subsection{Context-Free Path Querying and Recursive State Machines}
+
+An even more general case than RPQ is a \term{Context-Free Path Querying Problem (CFPQ)}, where one can use context-free languages as constraints.
+These constraints are more expressive than regular ones.
+For example, a classic same-generation query can be expressed by a context-free language, but not a regular language \citep{databasebook}.
+
+\begin{definition}
+A \term{context-free grammar} $G$ is a tuple $\langle\Sigma, N, S, P\rangle$, where:
+\begin{itemize}
+    \item $\Sigma$ is a finite set of terminals (or terminal alphabet)
+    \item $N$ is a finite set of nonterminals (or nonterminal alphabet)
+    \item $S \in N$ is a start nonterminal
+    \item $P$ is a finite set of productions (grammar rules) of form $N_i \to \alpha$ where  $N_i \in N$, $\alpha \in (\Sigma \cup N)^*$.
+\end{itemize}
+\end{definition}
+
+\begin{definition}
+
+    The \emph{size of the grammar} $G = \langle \Sigma, N, S, P \rangle$ is defined as the sum of the sizes of its productions:
+    \[|G| = \sum_{p \in P} |p|,\]
+    where the \term{size of a production} $p = N \to \alpha$ depends on the length of its right-hand side:
+    \[|p| = 1 + |\alpha|.\]
+
+\end{definition}
+
+% Consider a context-free grammar in \term{extended Backus-Naur form (EBNF)}. EBNF is a code that expresses the grammar of a formal language. An EBNF consists of terminal symbols and non-terminal production rules which are the restrictions governing how terminal symbols can be combined into a legal sequence. Examples of terminal symbols include alphanumeric characters, punctuation marks, and whitespace characters. Thus, if its production rule contains a regular expression then the size of such a rule is equal to the sum of the sizes of production rules obtained by the conversion of the regular expression directly to the corresponding linear grammar with the eliminating $\varepsilon$-rules.
+
+\begin{definition}
+The sequence $\omega_2 \in (\Sigma \cup N)^*$ is \term{derivable} from $\omega_1 \in (\Sigma \cup N)^*$ \term{in one derivation step}, or $\omega_1 \to \omega_2$, in the grammar $G = \langle\Sigma, N, S, P\rangle$ iff $\omega_1=\alpha N_i \beta$, $\omega_2 = \alpha \gamma \beta$, and $N_i \to \gamma \in P$.
+\end{definition}
+
+\begin{definition}
+Context-free grammar $G=\langle\Sigma, N, S, P\rangle$ specifies a \term{context-free language}: $\mathcal{L}(G) = \{\omega \mid S \xrightarrow{*} \omega \}$, where $(\xrightarrow{*})$ denotes zero or more derivation steps $(\to)$.
+\end{definition}
+
+For instance, the grammar $G_1 = \langle \{a,b\}, \{S\}, S, \{S \to a \ b; \ S \to a \ S \ b\} \rangle$ can be used to search for paths, which form words in the language $\mathcal{L}(G_1) = \{a^n b^n \mid n > 0\}$ in the graph $\mathcal{G}$ (Figure~\ref{fig:example_input_graph}).
+
+%Regular expressions can be transformed to a FSM, and a context free grammar can be transformed to \textit{Recursive State Machine} (RSM) (also known as recursive networks~\cite{!!!}, recursive automata~\cite{!!!}, !!!.) in the similar way.
+
+% Ref to  Rajeev Alur, Kousha Etessami, and Mihalis Yannakakis. 2001.
+% Analysis of Recursive State Machines place here???
+While a regular expression can be transformed to an FSM, a context-free grammar can be transformed to a \term{Recursive State Machine} (RSM) in a similar fashion.
+In our work, we use the following definition of RSM based
+on~\cite{rsm:analysis:10.1007/3-540-44585-4_18}.
+
+\begin{definition}
+A \term{recursive state machine} $R$ over a finite alphabet $\Sigma$ is defined as a tuple of elements $\langle B,m,\{C_i\}_{i \in B} \rangle$, where:
+
+\begin{itemize}
+    \item $B$ is a finite set of labels of boxes,
+    \item $m \in B$ is an initial box label,
+    \item Set of \term{component state machines} or \term{boxes},
+          where $C_i=(\Sigma \cup B, Q_i,q_i^0,F_i,\delta_i)$:
+    \begin{itemize}
+        \item $\Sigma \cup B$ is a set of symbols, $\Sigma \cap B = \varnothing$,
+        \item $Q_i$ is a finite set of states,
+              where $Q_i \cap Q_j =  \varnothing, \forall i \neq j$,
+        \item $q_i^0$ is an initial state for $C_i$,
+        \item $F_i$ is a set of final states for $C_i$, where $F_i \subseteq Q_i$,
+        \item $\delta_i: Q_i \times (\Sigma \cup B) \to Q_i$ is a transition function. %for $C_i$
+    \end{itemize}
+\end{itemize}
+
+\end{definition}
+
+\begin{definition}
+    The \term{size of RSM} $|R|$ is defined as the sum of the number of states in all boxes.
+\end{definition}
+
+RSM behaves as a set of finite state machines (or FSM).
+Each such FSM is called a \term{box} or a \term{component state machine}.
+A box works similarly to the classic FSM, but it also handles additional \term{recursive calls} and employs an implicit \term{call stack} to \term{call} one component from another and then return execution flow back.
+
+The execution of an RSM could be defined as a sequence of the configuration transitions, which are done while reading the input symbols.
+The pair $(q_i,\mathcal{S})$, where $q_i$ is a current state for box $C_i$ and $\mathcal{S}$ is  a stack of \term{return states}, describes an \term{execution configuration}.
+
+The RSM execution starts from the configuration $(q_m^0, \langle\rangle)$.
+The following list of rules defines the machine transition from configuration $(q_i,\mathcal{S})$ to $(q',\mathcal{S}')$ on some input symbol $a$:
+
+\begin{itemize}
+    \item $(q_i^k,\mathcal{S}) \leadsto (\delta_i (q_i^k, a),\mathcal{S})$
+    \item $(q_i^k,\mathcal{S}) \leadsto (q_j^0, \delta_i (q_i^k, j) \circ\mathcal{S})$
+    \item $(q_j^k,q_i^t\circ \mathcal{S}) \leadsto (q_i^t, \mathcal{S}),$ where $q_j^k \in F_j$
+    %\item $q' \gets q_j^0, S' \gets q_i^t \circ S$, where $q_i^t = \delta_i (q_i^k, j),  q_i^k = q, j \in M$
+    %\item $q' \gets q_i^t, S' \gets S_{tail}$, where $S = q_i^t \circ S_{tail}, q_j^k = q, q_j^k \in F_j$
+\end{itemize}
+
+An input word $a_1 \dots a_n$ is accepted, if machine reaches configuration $(q,\langle\rangle)$, where $q \in F_m$.
+Note, that an RSM makes nondeterministic transitions and does not read the input character when it \term{calls} some component or \term{returns}.
+
+According to~\cite{rsm:analysis:10.1007/3-540-44585-4_18}, recursive state machines are equivalent to pushdown systems.
+Since pushdown systems are capable of accepting context-free languages~\citep{automata:theory:10.5555/1177300}, RSMs are equivalent to context-free languages.
+Thus RSMs are suitable to encode query grammars.
+Any CFG $G=\langle\Sigma, N, S, P\rangle$ can be easily converted to an RSM $R_G$ with one box per nonterminal.
+The box which corresponds to a nonterminal $N_i$ is constructed using the right-hand side of each rule for $N_i$.
+Such conversion implies that $|R_G| = O(|G|) = O(|P|)$ because the number of states in $R_G$ does not exceed the sum of the lengths of every rule in $G$ in the worst case.
+
+An example of such RSM $R$ constructed for the grammar $G_1$ with rules $S \to a S b \mid a b$ is provided in Figure~\ref{example:automata}.
+For the given example of the grammar and the RSM, consider the following sequence of the machine configuration transitions, in the case where one wants to determine if the input word $aabb$ belongs to the language $L(G_1)$.
+The RSM execution starts from configuration $(q_S^0,\langle \rangle)$, reads the symbol $a$ and goes the to $(q_S^1, \langle \rangle)$.
+Then, in a nondeterministic manner it tries to read $b$ but fails, and in the same time tries to derive $S$ and goes to the configuration $(q_S^0, \langle q_S^2 \rangle)$, where $q_S^2$ is a \textit{return} state.
+Then machine reads $a$ and goes to $(q_S^1, \langle q_S^2 \rangle)$. In this case, it fails to derive $S$ in the nondeterministic choice, but successfully reads $b$ and goes to the configuration $(q_S^3,\langle q_S^2 \rangle)$.
+Since $q_S^3$ is a final state for the box $S$, the RSM tries to $return$ and goes to $(q_S^2,\langle \rangle)$.
+Then it reads $b$ and transits to $(q_S^3,\langle \rangle)$.
+Since $q_S^3 \in F_S$ and the stack of return states is empty, the machine accepts the input sequence $aabb$.
+\begin{figure}[h]
+    \begin{tikzpicture}[shorten >=1pt,auto]
+        \node[state, initial] (q_0)   {$q_S^0$};
+        \node[state] (q_1) [right=of q_0] {$q_S^1$};
+        \node[state] (q_2) [right=of q_1] {$q_S^2$};
+        \node[state, accepting] (q_3) [right=of q_2] {$q_S^3$};
+        \path[->]
+            (q_0) edge node {a} (q_1)
+            (q_1) edge node {S} (q_2)
+            (q_2) edge node {b} (q_3)
+            (q_1) edge [bend left, above]  node {b} (q_3);
+        \node (box) [draw=black, fit= (q_0) (q_1) (q_2) (q_3), xshift=-4ex, yshift=2ex, inner xsep=0.75cm, inner ysep=0.5cm] {};
+
+        \node[draw=black, anchor=north west] at (box.north west) {Box $S$};
+    \end{tikzpicture}
+    \centering
+    \caption{The recursive state machine $R$ for grammar $G_1$}
+    \label{example:automata}
+\end{figure}
+
+
+Similarly to an FSM, an RSM can be represented as a graph and, hence, as a set of Boolean adjacency matrices.
+For our example, $M_1$ for the RSM $R$ from Figure~\ref{example:automata} is:
+    $$
+    M_1 =
+    \begin{pmatrix}
+    \emptyset & \{a\} &   \emptyset &  \emptyset     \\
+     \emptyset &  \emptyset & \{S\} & \{b\} \\
+     \emptyset &  \emptyset &  \emptyset & \{b\}     \\
+     \emptyset &  \emptyset &   \emptyset&   \emptyset
+    \end{pmatrix}
+    $$
+
+Matrix $M_1$ can be represented as a set of Boolean matrices as follows:
+{\small
+\begin{align*}
+M_1^S =
+\begin{pmatrix}
+    . & . & . & .   \\
+    . & . & 1 & .   \\
+    . & . & . & .   \\
+    . & . & . & .
+\end{pmatrix},~M_1^a =
+\begin{pmatrix}
+   . & 1 & . & .   \\
+   . & . & . & .   \\
+   . & . & . & .   \\
+   . & . & . & .   \\
+\end{pmatrix},~M_1^b =
+\begin{pmatrix}
+    . & . & . & .   \\
+    . & . & . & 1   \\
+    . & . & . & 1   \\
+    . & . & . & .   \\
+\end{pmatrix}
+\end{align*}
+}
+Similarly to an RPQ, a CFPQ is the intersection of the given context-free language and an FSM specified by the given graph.
+As far as every context-free language is closed under the intersection with regular languages~\citep{automata:theory:10.5555/1177300}, such intersection can be represented as an RSM.
+Also, an RSM can be viewed as an FSM over $\Sigma \cup N$.
+In this work, we use this point of view to propose a unified algorithm to evaluate both regular and context-free path queries with zero overhead for regular queries.
+
+\subsection{Graph Kronecker Product and Machines Intersection}
+
+In this section, we introduce the classic Kronecker product definition,
+describe graph Kronecker product and its relation to Boolean matrices algebra,
+and RSM and FSM intersection.
+
+\begin{definition}
+Given two matrices $A$ and $B$ of sizes $m_1 \times n_1$ and $m_2 \times n_2$
+respectively, with element-wise product operation $\cdot$, the \term{Kronecker product} of these two matrices is a new matrix $C = A \otimes B$ of size $m_1 * m_2 \times n_1 * n_2$ and \[C[u * m_2 + v,n_2 * p + q] = A[u,p] \cdot B[v,q].\]
+\end{definition}
+
+It is worth to mention, that the Kronecker product produces blocked matrix $C$,
+with total number of the blocks $m_1 * n_1$, where each block has size
+$m_2 * n_2$ and is defined as $A[i,j] \cdot B$.
+% (scalar to matrix)
+
+\begin{definition}
+\label{def:graph:product}
+Given two edge-labeled directed graphs $\mathcal{G}_1=\langle V_1, E_1, L_1 \rangle$
+and $\mathcal{G}_2=\langle V_2, E_2, L_2 \rangle$,
+the \term{Kronecker product} of these two graphs is a edge-labeled directed graph
+$\mathcal{G}=\mathcal{G}_1 \otimes \mathcal{G}_2$,
+where $\mathcal{G}= \langle V, E, L \rangle$:
+\begin{itemize}
+    \item $V = V_1 \times V_2$
+    \item $E = \{((u,v),l,(p,q)) \mid (u,l,p) \in E_1 \wedge (v,l,q) \in E_2 \}$
+    \item $L = L_1 \cap L_2$
+\end{itemize}
+\end{definition}
+
+The Kronecker product for graphs produces a new graph with a property
+that if and only if some path $(u,v)\pi(p,q)$ exists in the result graph
+then paths $u\pi_1p$ and $v\pi_2q$ exist in the input graphs,
+and $\omega(\pi) = \omega(\pi_1) = \omega(\pi_2)$.
+These paths $\pi_1$ and $\pi_2$ can easily be found from $\pi$ by its definition.
+
+The Kronecker product for directed graphs can be described as
+the Kronecker product of the corresponding adjacency matrices of graphs,
+what gives the following definition:
+
+\begin{definition}
+Given two adjacency matrices $M_1$ and $M_2$ of sizes
+$m_1 \times n_1$ and $m_2 \times n_2$ respectively
+for some directed graphs $\mathcal{G}_1$ and $\mathcal{G}_2$,
+the \term{Kronecker product} of these two adjacency matrices is the adjacency matrix $M$
+of some graph $\mathcal{G}$, where $M$ has size $m_1 * m_2 \times n_1 * n_2$ and
+\[M[u * m_2 + v,n_2 * p + q] = M_1[u,p] \cap M_2[v,q].\]
+\end{definition}
+
+By definition, the Kronecker product for adjacency matrices gives an
+adjacency matrix with the same set of edges as in the resulting graph in the
+Def.~\ref{def:graph:product}. Thus, $M(\mathcal{G}) = M(\mathcal{G}_1) \otimes
+M(\mathcal{G}_2)$, where $\mathcal{G} = \mathcal{G}_1 \otimes \mathcal{G}_2$.
+
+\begin{definition}
+\label{def:fsm:intersection}
+Given two finite state machines \\
+$T_1 = \langle \Sigma, Q^1, Q_S^1, Q_F^1, \delta^1 \rangle$ and $T_2 = \langle \Sigma, Q^2, Q_S^2, Q_F^2, \delta^2 \rangle$, the \term{intersection} of these two machines is a new 
+\\ FSM $T = \langle \Sigma, Q, Q_S, Q_F, \delta \rangle$, where:
+\begin{itemize}
+    \item $Q = Q^1 \times Q^2$
+    \item $Q_S = Q_S^1 \times Q_S^2$
+    \item $Q_F = Q_F^1 \times Q_F^2$
+    \item $\delta: Q \times \Sigma \to Q$,
+    $\delta (\langle q_1, q_2 \rangle, s) = \langle q_1', q_2' \rangle$, if $\delta(q_1,s)=q_1'$ and $\delta(q_2,s)=q_2'$
+\end{itemize}
+\end{definition}
+
+According to~\cite{automata:theory:10.5555/1177300} an FSM intersection defines the machine for which $L(T) = L(T_1) \cap L(T_2)$.
+
+The most substantial part of the intersection is the $\delta$ function construction for the new machine $T$.
+Using adjacency matrices representation for FSMs, we can reduce the intersection to the Kronecker product of such matrices over Boolean semiring to some extent, since the transition function $\delta$ of the machine $T$ in the matrix form is exactly the same as the product result.
+More precisely:
+
+\begin{definition}
+\label{def:bool:product}
+Given two sets of Boolean adjacency matrices $\mathcal{M}_1$ and $\mathcal{M}_2$, the \term{Kronecker product} of these matrices is a new matrix
+$\mathcal{M} = \mathcal{M}_1 \otimes \mathcal{M}_2$, where $\mathcal{M} = \{ M_1^a \otimes M_2^a~|~a \in \Sigma \}$ and the element-wise operation is a conjunction over Boolean values ($\wedge$).
+\end{definition}
+
+Applying the Kronecker product for both the FSM and the edge-labeled directed graph, we can intersect these objects as shown in Def.~\ref{def:bool:product}, since the graph could be interpreted as an FSM with transitions matrix represented as the Boolean adjacency matrix.
+
+In this work, we show how to express RSM and FSM intersection in terms of
+the Kronecker product and transitive closure over a Boolean semiring.
