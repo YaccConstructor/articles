@@ -1,0 +1,290 @@
+\documentclass[xcolor=table]{beamer}
+\usepackage{beamerthemesplit}
+\usepackage{wrapfig}
+\usetheme{SPbGU}
+\usepackage{pdfpages}
+\usepackage{amsmath}
+\usepackage{cmap}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{multirow}
+\usepackage[noend]{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{fancyvrb}
+%usepackage{fancyvrb}
+%\usepackage{minted}
+%\usepackage{verbments}
+
+\newenvironment{psmallmatrix}
+  {\left(\begin{smallmatrix}}
+  {\end{smallmatrix}\right)}
+
+
+\beamertemplatenavigationsymbolsempty
+
+\title[SCFPQ]{Синтаксический анализ графов для случая стохастических грамматик и вероятностных графов с помощью систем матричных уравнений}
+\institute[СПбГУ]{
+JetBrains Research, Programming Languages and Tools Lab  \\
+Санкт-Петербургский Государственный Университет
+}
+
+\author[Юлия Сусанина]{Юлия Сусанина}
+
+\date{19.12.2020}
+
+\begin{document}
+{
+\begin{frame}[fragile]
+  \begin{tabular}{p{2.0cm} p{7.5cm} p{1cm}}
+   \begin{center}
+      \includegraphics[height=1.5cm]{pictures/jetbrainsResearch.pdf}
+    \end{center}
+    &
+    \begin{center}
+      \includegraphics[height=1.5cm]{pictures/YC_logo.pdf}
+    \end{center}
+    &
+    \begin{center}
+      \includegraphics[height=1.5cm]{pictures/SPbGU_Logo.png}
+    \end{center}
+  \end{tabular}
+  \titlepage
+\end{frame}
+}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Context-Free Path Querying (CFPQ)}
+  
+\begin{itemize}
+  \item КС-грамматика $G=(N, \Sigma, R)$ \\
+  $\mathcal{L}(G_S) = \{\omega \mid S \Rightarrow_{G}^{*} \omega\}$, $S \in N$
+  \item Орграф $D = (V,E,\sigma)$, $\sigma \subseteq \Sigma$, $E\subseteq V\times \sigma \times V$ \\
+  $m\lambda n$ --- путь из $m$ в $n$ в графе $D$, $\lambda$ --- слово данного пути
+  \item $R_A = \{(m, n) \mid m\lambda n \text{ --- путь в } D, \lambda \in \mathcal{L}(G_A)\}$
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{CFPQ на языке линейной алгебры}
+\begin{itemize}
+  \item Через перемножение булевых матриц
+            \begin{minipage}{.9\linewidth}
+            \begin{algorithm}[H]
+            \begin{algorithmic}
+                \ForAll{$(i,x,j) \in E$}
+                    \State{$T_{i,j} \gets T_{i,j} \cup \{A~|~(A \rightarrow x) \in P \}$}
+                \EndFor
+                \While{матрица $T$ меняется}
+                    \State{$T \gets T \cup (T \times T)$}
+                \EndWhile
+            \end{algorithmic}
+            \end{algorithm}
+            \end{minipage}
+  \item Как системы матричных уравнений над $\mathbb{R}$
+            \begin{minipage}{.9\linewidth}
+            \begin{algorithm}[H]
+            \begin{algorithmic}
+            \ForAll {$N_i \to \beta^0_0 \dots \beta^0_k \mid \ldots \mid \beta^l_0 \dots \beta^l_m$}
+                \State{решить $\mathcal{T}_{N_i} = \epsilon_{N_i}(T_{\beta^0_0}\cdot \ldots \cdot T_{\beta^0_k} + \ldots + T_{\beta^l_0}\cdot \ldots \cdot T_{\beta^l_m}),$}
+                \State{$ \text{где } \epsilon_{N_i} \text{выбрана так, чтобы} \mathcal{T}_{N_i}^{k} \leq \textbf{1}$}
+            \EndFor
+            \end{algorithmic}
+            \end{algorithm}
+            \end{minipage}
+\end{itemize}
+
+\end{frame}
+
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Мотивация}
+\begin{itemize}
+  \item Данные из реального мира почти всегда могут быть получены только с некоторой точностью. Детерминированные модели нередко слишком грубо описывают действительность
+  \item Данные могут содержать ошибки и неточности
+\end{itemize}
+
+$$\Downarrow$$
+
+\begin{center}
+    Необходимо находить новые вероятностные модели для более точной обработки существующих массивов данных (например, из биоинформатики)
+\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Stochastic Context-Free Path Querying (SCFPQ)}
+  \begin{itemize}
+  \item Пути с наибольшей вероятностью для всех пар вершин
+      $$T_A[i,j] == \max_{\substack{A \to BC \\ 0 \leq k < n}} \Theta(A \to BC) T_B[i,k] T_C[k,j]$$
+  \begin{itemize}
+      \item Сложность: $(|N^3||V^5|)$
+  \end{itemize}
+  \item Вероятности между всеми парами вершин
+      \begin{align*}
+        T_A[i,j] &= T_A[i,j] + \Theta(A \to BC) \ (T_BT_C)[i, j] \\
+        \text{or} \\
+        T_{N_i} &= \sum_{N_i \to \alpha_j} \Theta(N_i \to \alpha_j) \ T_{\beta^j_0}\cdot \ldots \cdot T_{\beta^j_k}
+    \end{align*}
+  \begin{itemize}
+      \item В общем случае точное вычисление невозможно
+  \end{itemize}
+    
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Пример}
+  
+\begin{columns}
+\begin{column}{0.6\textwidth}
+  
+$$S \xrightarrow[]{0.3} aSb$$
+$$S \xrightarrow[]{0.6} cSd$$
+
+\only<1>{
+\def\a{\color{red}0.03}
+\def\b{\color{red}0.00081}
+\def\c{\color{red}0.0027}
+\def\d{\color{red}0.1}
+\def\e{\color{red}0.000243}
+\def\f{\color{red}0.009}
+\def\g{\color{violet}0.1}
+\def\k{\color{violet}0.036}
+\def\l{\color{violet}0.01296}
+\def\n{\color{violet}0.0216}
+\def\m{\color{violet}0.07776}
+\def\o{\color{violet}0.06}
+
+$$$$
+
+    \begin{psmallmatrix}
+    0&0&\a& &\b&0& \\   
+    0&0&\c&&\d&0& \\
+    0&0&\e&&\f&0&  \\ 
+    0&0&0&0&0&0&0 \\
+    0&\g&0&0&0&\k&\l \\
+    0&\n&0&0&0&\m&\o    \\
+    0&0&0&0&0&0&0      \\
+    \end{psmallmatrix}
+}
+
+\only<2>{
+\def\a{\color{red}30000}
+\def\b{\color{red}810}
+\def\c{\color{red}2700}
+\def\d{\color{red}100000}
+\def\e{\color{red}243}
+\def\f{\color{red}9000}
+\def\g{\color{violet}100000}
+\def\k{\color{violet}36000}
+\def\l{\color{violet}12960}
+\def\n{\color{violet}21600}
+\def\m{\color{violet}7776}
+\def\o{\color{violet}60000}
+
+$$$$
+
+    \begin{psmallmatrix}
+    0&0&\a& &\b&0& \\   
+    0&0&\c&&\d&0& \\
+    0&0&\e&&\f&0&  \\ 
+    0&0&0&0&0&0&0 \\
+    0&\g&0&0&0&\k&\l \\
+    0&\n&0&0&0&\m&\o    \\
+    0&0&0&0&0&0&0      \\
+    \end{psmallmatrix}
+}
+    
+\end{column}
+\begin{column}{0.4\textwidth}  %%<--- here
+
+    \begin{tikzpicture}[->,node distance={22mm}, main/.style = {draw, circle}] 
+    
+    \node[main] (5) {$x_6$};
+    \node[main] (1) [below left of=5] {$x_2$};
+    \node[main] (0) [below left of=1] {$x_1$};
+    \node[main] (2) [below right of=1] {$x_3$}; 
+    \node[main] (3) [below left of=2] {$x_4$};
+    \node[main] (6) [above left of=1] {$x_7$};
+    \node[main] (4) [above left of=5] {$x_5$};
+    
+      \path
+        (0) edge[red] [above] node [pos=0.4] {a} (1)
+        (1) edge[red] [above] node [pos=0.6]  {a} (2)
+        (2) edge[red] [above] node {a} (0)
+        (2) edge[red] [bend right] node [above, pos=0.6] {b} (3)
+        (3) edge[red] [bend right] node [below, pos=0.6] {b} (2)
+        (4) edge[violet] [bend left] node [above, pos=0.6] {c} (5)
+        (5) edge[violet] [bend left ] node [below, pos=0.6] {c} (4)
+        (1) edge[violet] [below] node [pos=0.6] {d} (6)
+        (6) edge[violet] [below] node {d} (5)
+        (5) edge[violet] [below] node [pos=0.4]  {d} (1);
+    \end{tikzpicture}
+
+\end{column}
+\end{columns}
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Взвешенные правила и терминалы}
+\begin{itemize}
+  \item Веса у правил грамматики --- приоритет путям с определенными паттернами
+  \item Веса у вершин графа (или терминалов) --- приоритет путям, проходящим через определенные ребра
+  \item Иногда эти два случая совпадают
+  \begin{itemize}
+      \item Веса у правил грамматики и у терминалов для однозначных грамматик
+  \end{itemize}
+\end{itemize}
+\end{frame}
+
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Результаты}
+  
+\begin{itemize}
+    \item Сформулированы две проблемы синтаксического анализа графов для случая стохастических грамматик и вероятностных графов
+    \item Предложены методы решения этих проблем с помощью методов, основанных на алгоритмах линейной алгебры и вычислительной математики
+    \item В процессе
+    \begin{itemize}
+    \item Создание эталонного набора данных
+    \item Эффективная параллельная реализация предложенных алгоритмов с помощью разных итеративных методов и их сравнение
+    \item Короткая статья на EDBT 2021
+\end{itemize}
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{Публикации прошлых работ}
+  
+\begin{itemize}
+
+  \item \textbf{ACM SIGMOD 2020 Student Research Competition:} \\ 
+  Yuliya Susanina. Context-Free Path Querying via Matrix Equations.\\
+  \item \textbf{LNBI 2020:} \\
+  Yuliya Susanina, Anna Yaveyn and Semyon Grigorev. Modification of Valiant’s Parsing Algorithm for String-Searching Problem. \\
+  \item \textbf{Журнал <<Труды ИСП РАН>>:} \\
+  Сусанина Ю.А., Григорьев С.В. Модификация алгоритма Валианта для задачи поиска подстрок. \\
+  
+\end{itemize}
+
+\end{frame}
+
+\end{document}

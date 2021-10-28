@@ -1,0 +1,121 @@
+\documentclass[sigplan,review,anonymous,nonacm]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
+
+
+
+\setcopyright{none}
+
+\usepackage{minted}
+
+\bibliographystyle{ACM-Reference-Format}
+%% Some recommended packages.
+\usepackage{booktabs}   %% For formal tables:
+                        %% http://ctan.org/pkg/booktabs
+\usepackage{subcaption} %% For complex figures with subfigures/subcaptions
+                        %% http://ctan.org/pkg/subcaption
+
+
+
+\newcommand\question[1]{{\color{violet}#1}}
+\newcommand\todo[1]{{\color{red}#1}}
+
+\begin{document}
+
+
+
+\title{Hardware and Software Co-Design for Sparse Linear Algebra Operations Acceleration} 
+
+
+\maketitle
+
+\section{Scope of problem}
+
+Linear algebra is a great instrument for solving a wide variety of problems utilizing matrices and vectors for data representation and analysis with the help of highly optimized routines.
+And whilst the matrices involved in a vast diversity of modern applications, e.g., recommender systems~\cite{gupta2020architectural,amazon} and graph analysis~\cite{graph1,graph2}, consist of a large number of elements, the major part of them are zeros.
+Such a high sparsity incurs both computational and storage inefficiencies, requiring unnecessarily large storage, occupied by zero elements, and a large number of operations on zeroes, where the result is obviously known beforehand.
+The traditional approach to address these inefficiencies is to compress the matrix and store only the non-zero elements. 
+Thus, the effect of matrices tending to be sparse in many applications makes the techniques of matrix compressed representation and sparse linear algebra to be the effective way of tackling problems in areas including but not limited to graph analysis~\cite{GAILLA}, computational biology~\cite{compBio}, and machine learning~\cite{Kepner_2017}.
+
+
+Sparse linear algebra defines primitives for expressing algorithms for the mentioned areas in a uniform way in terms of sparse matrix and vector operations parameterized by a semiring.
+Such uniform representation allows tunning the whole bunch of expressible algorithms through optimizing the primitives solely.
+One of the most used primitive is a sparse matrix-sparse matrix multiplication (spMspM) operation. 
+It has finely-tuned implementations for both CPU and GPU, which, however, are proven to be underutilized due to the memory-bound nature of sparse computations induced by compressed representation~\cite{Florida,leskovec2016snap,Song_2016,zhang2020sparch}.
+Further, the pipeline of spMspM is patchy, which makes some of the computational units to be idle from time to time, while the peak FLOPS is less than 1\% of maximum available\footnote{\url{https://hanlab.mit.edu/projects/sparch/} (Accessed 09.02.2021)}. 
+
+
+\begin{listing}
+  \caption{Sequence of sparse operations example}
+\label{listing:1}
+
+\begin{minted}[]{haskell}
+  -- A,B,C,D are sparse matrices
+  -- M is a mask
+  D<M> = A eWiseAdd B eWiseMult C
+\end{minted}
+
+\end{listing}
+
+This makes the typical CPUs and GPUs not well-suited hardware for sparse computations and gives a rise to specialized hardware accelerators, which are primarily concerned with spMspM.
+However, for a sparse framework to be useful, it should incorporate not only spMspM, but also other sparse operations like in listing~\ref{listing:1}, where masking, which filters the matrix elements, and element-wise operations (possibly parameterized by a semiring) needed for, e.g., PageRank and bread-first search (BFS) algorithms~\cite{yang2020graphblast},  are presented.
+Such operations are assembled in \emph{GraphBLAS}~\cite{buluc2017graphblas} specification and have found their usage as building blocks for algorithms even far beyond graph processing~\cite{compBio,Kepner_2017,GAILLA}.
+When such operations are chained explicitly or implicitly, via a loop body, certain optimizations could be applied, like the one that eliminates intermediate matrices in sequence from listing~\ref{listing:1}.
+Unfortunately, some of such optimizations (e.g., the one mentioned) are only expressible at a software level, i.e., in a programming language, hence modern spMspM accelerators could be impractical for accelerating the whole program representing a sparse linear algebra-based algorithm like PageRank or BFS, due to the lack of a software part and to a too narrow hardware specialization.
+
+For example, in memory-bound applications, like sparse linear algebra one, optimizations that minimize data transfer are essential. 
+Namely, \emph{kernel fusion} is a wide-addressed optimization that fuses multiple operations into one, avoiding intermediate memory accesses, utilizing, e.g., registers to pass the data between the operations.
+Fusion is also wide addressed in functional programming by techniques like supercompilation~\cite{supercompilation} and serves to remove intermediate computations induced by the paradigm.
+In the case of sparse linear algebra frameworks, it is not yet widely implemented, but most often related to fusing chained operations like
+% \begin{minted}[escapeinside=//]{haskell}
+%   D<M> = A eWiseAdd B eWiseMult C
+% \end{minted}
+from listing~\ref{listing:1} to avoid intermediate matrices construction and reduce memory accesses with masking~\cite{yang2020graphblast}.
+These fusion family optimizations are implementation-dependent, meaning that the optimizer should have an access to the source code, which is impossible when the function is implemented solely in hardware, hence a software part is inevitable in the design of a system that tries to put together fusion and hardware.
+% Thus, present hardware accelerators are not general enough to implement and accelerate a whole sparse linear algebra-based program, e.g., do not provide arbitrary semiring support, and lack a software part hence leaving out essential optimizations.
+% General-purpose devices such as GPUs are hard to perform some optimizations, e.g., fusion requires two GPU kernels to have the same memory access pattern and partial evaluation could induce some thread divergence due to SIMD nature of a GPU. 
+Present systems that support fusion are either domain-specific\footnote{\url{https://www.tensorflow.org/xla} (Accessed 09.02.2021)}, or perform the optimization on top of data structures that may not be suitable for sparse operations (mainly for effective compressed representation), e.g., streams and lists~\cite{StreamFusion,StreamFusion2}, while array-based fusion systems do not perform fusion with index arithmetic~\cite{Futhark}.
+% Finally, some data needed for optimizations~\cite{jones} is only available in runtime, thus there should be support for JIT optimizations.
+
+We propose a co-design of dedicated hardware and software components, i.e., domain-specific processor (DSP) and a corresponding domain-specific language (DSL), to provide a system that is not more efficient for spMspM than present hardware accelerators, but appear to be more efficient in terms of speed and power consumption for holistic pieces of program, i.e., for chained operations, than current CPUs and GPUs implementations.
+The hardware should natively support the compressed representation of choice, while the latter should provide enough capabilities for successful fusion. We hope to exploit a functional programming language as a DSL, since they have a support for such optimizations~\cite{hosc}.
+
+\section{Solution}
+We believe that a functional DSL, where an arbitrary semiring
+could be concisely and conveniently expressed, powered by a
+set of optimizers  and  compilable  to  some  DSP  with  enough
+parallelism could be a good starting point towards the problem.
+Next, we briefly elaborate on the software and hardware parts of the proposed co-design. 
+\paragraph{Software}
+We intend to implement a DSL for a reasonable subset of GraphBLAS specification in a small functional language supported by a supercompiler~\cite{hosc}
+with the focus on a more amenable to fusion quadtree compressed representation, with some custom fusion rules added if needed.
+If some functions are not fused well it is reasonable to implement them in hardware. Another feature we want to have is to generate code in runtime for some data which is fixed, e.g., between different loop iterations.
+It is referred to as partial evaluation~\cite{jones}.
+
+\paragraph{Hardware}
+Any program representing a sparse linear algebra computation written in the DSL should be compiled to the DSP.
+There are a number of state-of-the-art processors~\cite{ACqua,PILGRIM,Reduceron}, developed to add hardware support for functional languages where the main computation is tree reduction.
+They support tempting features like parallel execution of independent function calls, pipelining, extended support for lists and \texttt{map} function. 
+However, they seem to be too complex to integrate with, e.g., to add hardware support for indexing or another computation, which cannot be optimized at software level.
+Instead, we plan to opt for a more flexible solution and want to leverage the approach of dataflow representation of functional programs with indirect memory accesses~\cite{funcHLS}, which then could be effectively represented in hardware in a highly parallel way. 
+The approach currently generates application-specific RTL code, but we hope to adapt it for dataflow processor architecture, e.g., transport-triggered-architecture (TTA), in order to have a highly scalable and parallel processor with hardware support for a compressed representation, able to run functional programs and easily extensible with custom operations.  
+Finally, the processor should exploit MIMD parallelism, since, e.g., a huge bunch of \texttt{case} statements possibly induced by supercompilation makes SIMD ineffective due to execution paths divergence. 
+
+Mainly the following challenges would be addressed in our hardware design
+\begin{enumerate}
+    \item Is it possible to add effective hardware support for quadtree compressed representation? It seems more profitable due to better fusion support and divide-and-conquer nature, hence parallelism could be explored by the compiler~\cite{funcHLS}.
+     The idea of hardware support for indexing originates from~\cite{smash}, but instead of making indexing as hardware intrinsics, we want to keep the indexing fully transparent for the supercompiler
+     and support the indexing with, e.g., cache mechanism that would prefetch sub-trees.
+     \item Is it possible to generalize the dataflow approach of compiling a functional program to RTL description~\cite{funcHLS} to compiling a functional program to a dataflow processor, e.g., to TTA? 
+\end{enumerate}
+As a full-fledged prototype, we want to use this hardware as a co-processor, i.e., the prototype should be a platform where FPGA and CPU share the memory, supported by SDK for interoperability with general-purpose programming languages.
+\section{Evaluation}
+The intend of the presented optimizations is to enhance the performance in terms of, e.g., clock cycles in case of simulation, rather than to reduce power consumption, which, nevertheless, is an important aspect especially when compared to GPUs. 
+So we will focus on execution time in our evaluation.
+
+Our first experiments will be aimed at evaluating HLS of fused and non-fused programs implemented in our functional language of choice via simulation. This would tell us whether the whole hypothesis of fusion is true and, in particular, the usefulness of a supercompiler in this scenario.
+Then we will try to integrate hardware support for quadtrees into these implementations. % \section{Optimizations}
+Once we have our dataflow processor ready, we plan to perform an evaluation of GraphBLAS algorithms implemented in our DSL and state-of-the-art implementations from~\cite{yang2020graphblast,LaGRAPH} using a CPU/FPGA board, while potentially targeting ASIC board in the future if successful.
+
+
+
+\bibliography{bib}
+\end{document}
