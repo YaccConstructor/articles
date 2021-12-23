@@ -4,19 +4,21 @@
 \subsection{Algorithm description}
 The algorithm is based on the generalization of the FSM intersection for an RSM,  and the edge-labeled directed input graph.
 Since the RSM is composed as a set of FSMs, it could easily be presented as an adjacency matrix for some graph over the set of labels.
-As shown in the Definition~\ref{def:graph:adjproduct}, we can apply Kronecker product for matrices to \textit{intersect} the RSM and the input graph to some extent.
+As shown in the Definition~\ref{def:graph:adjproduct}, we can apply the Kronecker product for matrices to \textit{intersect} the RSM and the input graph to some extent.
 But the RSM contains nonterminal symbols with the additional logic of \textit{recursive calls}, which requires a \textit{transitive closure} step to extract such symbols.
 
 The core idea of the algorithm comes from the Kronecker product and transitive closure.
 The algorithm boils down to the evaluation of the iterative Kronecker product for the adjacency matrix $\mathcal{M}_1$ of the RSM $R$ and the adjacency matrix $\mathcal{M}_2$ of the  input graph $\mathcal{G}$, followed by the transitive closure, extraction of new reachability information and updating the graph adjacency matrix $\mathcal{M}_2$. These steps are described in Algorithm~\ref{tensor:cflr}.
 
-New elements of the Kronecker product are computed in Line 9 of the Algorithm~\ref{tensor:cflr}. Function $DTC(T, K)$ from Algorithm~\ref{tensor:cflr} takes transitive closure matrix $T$ and a matrix $K$ with edges to be inserted, maintains $T$ under edge insertions and returns pairs of vertices $(i,j)$ such that $j$ \textit {became reachable} from $i$ after the insertion of some egde from $K$. Then the new reachable pairs are validated in Lines 12-16: we are interested only in paths from start to final state for some box, therefore some pairs can be excluded from adding to $\mathcal{M}_2$. If $\mathcal{M}_2$ have changed after the insertion of the elements, we calculate the new elements of the Kronecker product and so on. 
+New elements of the Kronecker product are computed in Line 9 of the Algorithm~\ref{tensor:cflr}. Function $DTC(T, K)$ from Algorithm~\ref{tensor:cflr} takes transitive closure matrix $T$ and a matrix $K$ with edges to be inserted, maintains $T$ under edge insertions and returns pairs of vertices $(i,j)$ such that $j$ \textit {became reachable} from $i$ after the insertion of some edge from $K$. Then the new reachable pairs are validated in the lines 12-18: we are interested only in paths from start to final state of some box, therefore some pairs can be excluded from adding to $\mathcal{M}_2$. If $\mathcal{M}_2$ has changed after the insertion of the elements, we calculate the new elements of the Kronecker product and so on. 
+
+Notice that Algorithm~\ref{tensor:cflr} naturally allows one to calculate regular reachability or FSM intersection (in this case the main while loop takes only one iteration to actually append data). This feature may be useful for regular over-approximation of the CFL-reachability, for example, when one needs to make the finding of the point-to information less expensive~\cite{10.1145/2814270.2814307, 10.1145/1103845.1094817}.
 
 \begin{algorithm}[h]
 \floatname{algorithm}{Listing}
 \begin{algorithmic}[1]
 \footnotesize
-\caption{Linear algebra based CFL-reachability}
+\caption{Kronecker product-based CFL-reachability}
 \label{tensor:cflr}
 \Function{LA-CFL-Reachability}{G, $\mathcal{G}$}
     % Input data preparation
@@ -71,7 +73,7 @@ We have modified this algorithm to achieve a logarithmic speed-up on a word RAM 
 
 To achieve logarithmic speed-up, we use the Four Russians' trick \cite{arlazarov1970economical}.
 Let us assume an architecture with word size $w= \theta(\log n)$.
-First we split each vector into $n/\log n$ parts of size $\log n$.
+First, we split each vector into $n/\log n$ parts of size $\log n$.
 Then we create a table $\mathcal{T}$ such that $\mathcal{T}(a, b)$ = $a \wedge b$ where $a, b \ \in {\{0,1\}}^{\log n}$.
 This takes time $O(n^2 \log n)$, since there are $2^{\log n} = n$ variants of Boolean vectors of size $\log n$ and hence $n^2$ possible pairs of vectors $(a, b)$ in total, and each component takes $O(\log n)$ time.
 Assuming constant-time logical operations on words, we can store a polynomial number of lookup tables (arrays) $\mathcal{T}_i$ (one array for each vector of size $\log n$), such that given an index of a table $\mathcal{T}_i$, and any $O(\log n)$ bit vector $b$, we can look up $\mathcal{T}_i(b)$ in constant time. The index of each array $\mathcal{T}_a$ is stored in array $\mathcal{T}$, which can be accessed in constant time for a given $\log$-size vector $a$. Thus, we can calculate the product of two parts $a$ and $b$ of size $\log n$ in constant time using the table $\mathcal{T}$.
@@ -84,7 +86,7 @@ There are $n/\log n$ such parts, so the element-wise product of two vectors of s
 \paragraph*{Correctness}
 \begin{theorem}
     Let $\mathcal{G} = (V,E,L)$ be a graph and $G = \langle\Sigma, N, S, P\rangle$ be a grammar.
-    Let $\mathcal{M}_{2}$ be a resulting adjacency matrix after the execution of the algorithm in Listing~\ref{tensor:cflr}. Then for any valid indices $i, j$ and for each nonterminal $A \in N$ the following statement holds: the cell $\mathcal{M}_2[i,j]$ contains $\{A\}$, iff there is a path $i\pi j$ in the graph $\mathcal{G}$ such that $ A \xrightarrow{*} l(\pi)$.
+    Let $\mathcal{M}_{2}$ be a resulting adjacency matrix after the execution of the algorithm in Algorithm~\ref{tensor:cflr}. Then for any valid indices $i, j$ and for each nonterminal $A \in N$ the following statement holds: the non-terminal $A \in \mathcal{M}_2[i,j]$, iff there is a $A$-path from node $i$ to node $j$ in the graph $\mathcal{G}$.
 \end{theorem}
 \begin{proof}
     The main idea of the proof is to use induction on the height of the derivation tree obtained on each iteration.
@@ -103,16 +105,16 @@ There are $n/\log n$ such parts, so the element-wise product of two vectors of s
 \begin{proof}
 The most time-consuming steps of the algorithm are the computations of the Kronecker product and transitive closure.
 
- Let $|\Delta\mathcal{M}_2|$ be the number of non-zero elements in a matrix $\Delta\mathcal{M}_2$. Consider the total time which is needed for computing the Kronecker products. The elements of the matrices $\Delta\mathcal{M}_2^{(i)}$ are pairwise distinct on every $i$-th iteration of the algorithm, because $\Delta T$ contains only new reachable pairs of vertices.  Therefore the total number of operations is $\sum\limits_i{t(\mathcal{M}_1 \otimes \Delta\mathcal{M}_2^{(i)})} = |\mathcal{M}_1| \sum\limits_i {|\Delta\mathcal{M}_2^{(i)}|} = (|N| + |\Sigma|){|P|}^2 \sum\limits_i {|\Delta\mathcal{M}_2^{(i)}|} = O({(|N| + |\Sigma|)}^2{|P|}^2 n^2)$.
+ Let $|\Delta\mathcal{M}_2|$ be the number of non-zero elements in a matrix $\Delta\mathcal{M}_2$. Consider the total time which is needed for computing the Kronecker products. The elements of the matrices $\Delta\mathcal{M}_2^{(i)}$ are pairwise distinct on every $i$-th iteration of the algorithm because $\Delta T$ contains only new reachable pairs of vertices.  Therefore the total number of operations is $\sum\limits_i{\text{\# of operations }(\mathcal{M}_1 \otimes \Delta\mathcal{M}_2^{(i)})} = |\mathcal{M}_1| \sum\limits_i {|\Delta\mathcal{M}_2^{(i)}|} = (|N| + |\Sigma|){|P|}^2 \sum\limits_i {|\Delta\mathcal{M}_2^{(i)}|} = O({(|N| + |\Sigma|)}^2{|P|}^2 n^2)$.
 
 Now we derive the time complexity of maintaining the dynamic transitive closure.
-Notice that $K$ has a size of the Kronecker product of $\mathcal{M}_1 \otimes \mathcal{M}_2$, which is equal to $dim(\mathcal{M}_1)n \times dim(\mathcal{M}_1)n = |P|n \times |P|n$ so no more than ${|P|}^2n^2$ edges will be added during all iterations of the Algorithm.
+Notice that $K$ has the size of the Kronecker product of $\mathcal{M}_1 \otimes \mathcal{M}_2$, which is equal to $r n \times r n = |P|n \times |P|n$ so no more than ${|P|}^2n^2$ edges will be added during all iterations of the Algorithm~\ref{tensor:cflr}.
 Checking whether $T[u, i] = 1$ and $T[u, j]=0$ for every node $u \in V$ for each newly inserted edge $(i, j)$ requires one multiplication of vectors per insertion, thus total time is $O({|P|}^3n^3/\log (|P|n))$.
 Note that after checking the condition, at least one element $T[u', j]$ changes value from 0 to 1 and then never becomes 0 for some $u'$ and $j$.
 Therefore the operation $T[u',v] = T[u', v] \wedge T[j, v]$ for all $v \in V$ is executed at most once for every pair of vertices $(u',j)$ during the entire computation implying that the total time is equal to $O({|P|}^2n^2|P|n/\log (|P|n))=O({|P|}^3n^3/\log (|P|n))$, using the  multiplication of vectors.
 
 The matrix $\Delta T$ contains only new elements, therefore $T$ can be updated directly using only $|\Delta T|$ operations and hence ${|P|}^2n^2$ operations in total.
-The same holds for the Lines 12-16 of the algorithm from Algorithm~\ref{tensor:cflr}, because operations are performed only for non-zero elements of $|\Delta T|$.
+The same holds for the lines 12-18 of the Algorithm~\ref{tensor:cflr}, because operations are performed only for non-zero elements of $|\Delta T|$.
 Finally, the time complexity of the Algorithm~\ref{tensor:cflr} is $O({(|N| + |\Sigma|)}^2{|P|}^2 n^2) + O({|P|}^2n^2) + O({|P|}^2n^2 \log (|P|n)) + O({|P|}^3n^3/\log (|P|n)) + O({|P|}^2n^2)= O({|P|}^3n^3/\log (|P|n))$. 
 \end{proof}
 The complexity analysis of the Algorithm~\ref{tensor:cflr} shows that the maintaining of the incremental transitive closure dominates the cost of the algorithm. Thus, CFL-reachability can be solved in truly subcubic $O(n^{3-\varepsilon})$ time if there exists an incremental dynamic algorithm for the transitive closure for a graph with $n$ vertices with preprocessing time $O(n^{3-\varepsilon})$ and total update time $O(n^{3-\varepsilon})$. Unfortunately, such an algorithm is unlikely to exist: it was shown that there is no incremental dynamic transitive closure algorithm for a graph with $n$ vertices and at most $m$ edges with preprocessing time $poly(m)$, total update time $mn^{1-\varepsilon}$, and query time $m^{\delta-\varepsilon}$ for any $\delta \in (0, 1/2]$ per query that has an error probability of at most 1/3 assuming the widely believed Online Boolean Matrix-Vector Multiplication (OMv) Conjecture~\cite{10.1145/2746539.2746609}. OMv Conjecture states that for any constant $ \varepsilon>0$, there is no $O(n^{3-\varepsilon})$-time algorithm that solves OMv with an error probability of at most 1/3.
