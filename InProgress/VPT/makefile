@@ -13,4 +13,4 @@ compile:
 	$(CC) $(FLAGS) $(SOURCE)
 
 clean:
-	rm -rf *.aux *.log *.out *.blg *.bbl *~ auto 
+	rm -rf *.aux *.log *.out *.blg *.bbl *.pag *~ auto 
