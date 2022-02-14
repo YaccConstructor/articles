@@ -23,7 +23,9 @@ Additional warm-up run for each test execution is excluded from measurements.
 
 \subsection{Graph Algorithms}
 
-For preliminary study \textit{breadth-first search} (bfs) and \textit{triangles counting} (tc) algorithms were chosen, since they allows analyse the performance of \textit{vxm} and \textit{mxm} operations, rely heavily on \textit{masking}, and utilize \textit{reduction} or \textit{assignment}. BFS implementation utilizes automated vector storage from sparse to dense switch and without pull optimization. TC implementation uses masked \textit{mxm} of source lower-triangular matrix with second transposed argument.
+For preliminary study \textit{breadth-first search} (bfs) and \textit{triangles counting} (tc) algorithms were chosen, since they allows analyse the performance of \textit{vxm} and \textit{mxm} operations, rely heavily on \textit{masking}, and utilize \textit{reduction} or \textit{assignment}. 
+BFS implementation utilizes automated vector storage from sparse to dense switch and only \textit{}{push optimization}. 
+TC implementation uses masked \textit{mxm} of source lower-triangular matrix with second transposed argument.
 
 \subsection{Dataset}
 
@@ -62,16 +64,17 @@ Table~\ref{results} presents results of the evaluation and compares performance 
 Tools are grouped by the type of the device for the execution, where either Nvidia GPU or Intel CPU are used. 
 Cell left empty if tested tool failed to analyse graph due to \textit{out of memory} exception.
 
-In general, Spla BFS shows acceptable performance, especially on a graphs with large vertex degree, such as soc-LiveJournal and com-Orkut.
+In general, Spla BFS shows acceptable performance, especially on graphs with large vertex degree, such as soc-LiveJournal and com-Orkut.
 On graphs roadNet-CA and rgg it has a significant performance drop due to the nature of underlying algorithms and data structures. 
-Firstly, library utilizes immutable data buffers. Thus, the dense vector of reached vertices, iteratively updated, must copied for each modification, what dominates the performance of the library on a graph with large search depth. 
-Secondly, Spla BFS does not utilise \textit{pull optimization}, what is critical in graph with relatively small search frontier. 
+Firstly, library utilizes immutable data buffers. Thus, iteratively updated dense vector of reached vertices must be copied for each modification, what dominates the performance of the library on a graph with large search depth. 
+Secondly, Spla BFS does not utilise \textit{pull optimization}, what is critical in a graph with relatively small search frontier. 
 
-Spla TC has a good performance on GPU, is all cases better that reference SuiteSparse solution. 
-But in most tests GPU competitors, especially Gunrock, show better small processing times. 
+Spla TC has a good performance on GPU, which is better in all cases that reference SuiteSparse solution. 
+But in most tests GPU competitors, especially Gunrock, show smaller processing times. 
 GraphBLAST shows better performance as well. 
-Library utilises masked SpGEMM algorithm, the sane as in GraphBLAST, but without \textit{identity} element to fill gaps. 
-Library explicitly stores all non-zero elements, and uses mask to reduce only non-zero while evaluating dot products of rows and columns, what causes extra divergence inside work groups. 
+Library utilises masked SpGEMM algorithm, the same as in GraphBLAST, but without \textit{identity} element to fill gaps. 
+Library explicitly stores all non-zero elements, and uses mask to reduce only non-zero while evaluating dot products of rows and columns. 
+What causes extra divergence inside work groups. 
 On Intel device Spla shows better performance compared to SuiteSparse on com-Orkut, cit-Patents and soc-LiveJournal. 
 A possible reason is the large lengths of processed rows and columns in the product of matrices.
 
