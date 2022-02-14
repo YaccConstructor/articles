@@ -1,63 +1,140 @@
 \section{Evaluation}
 
-What and how. 
+For performance analysis of proposed solution we evaluated some most common graph algorithms using real-world sparse matrix data. 
+As a baseline for comparison we chose LAGraph~\cite{szarnyas2021lagraph} in connection with SuiteSparse~\cite{10.1145/3322125} as a CPU tool, Gunrock~\cite{7967137} and GraphBLAST~\cite{yang2019graphblast} as a Nvidia GPU tools. 
+Also, we tested algorithms on several devices with distinct OpenCL vendors in order to validate portability of the proposed solution. 
+In general, these evaluation intentions are summarized in the following research questions. 
 
-
-
-\subsection{Graph Algorithms}
-
-BFS, SSSP, ... implemented 
-
-\subsection{Dataset Description}
-
-SuiteSparse matrix collection\footnote{\url{https://sparse.tamu.edu/}.}~\cite{10.1145/2049662.2049663}. Table with specific graphs.
+\vspace{0.2cm}
+\begin{itemize}
+    \item[\textbf{RQ1}] What is the performance of the proposed solution relative to existing tools for both CPU and GPU analysis?
+    
+    \item[\textbf{RQ2}] What is the portability of the proposed solution with respect to various device vendors and OpenCL runtimes?
+\end{itemize}
 
 \subsection{Evaluation Setup}
 
-Hardware description, two GPU, ....
+For evaluation, we use a PC with Ubuntu 20.04 installed, which has 3.40Hz Intel Core i7-6700 4-core CPU, DDR4 64Gb RAM, and Nvidia GeForce GTX 1070 GPU with 8Gb VRAM. 
+Host programs were compiled with GCC 9.3.0 compiler. Programs using CUDA were compiled with GCC 8.4.0 and Nvidia NVCC 10.1.243 compiler.
+Release mode and maximum optimization level was enabled for all tested programs. 
+Data loading time, preparation, format transformations and host-device initial communications are excluded from time measurements. 
+All tests are averaged across 10 runs.
+Additional warm-up run for each test execution is excluded from measurements.
 
-Single GPU 
+\subsection{Graph Algorithms}
 
-Two GPU
+For preliminary study \textit{breadth-first search} (bfs) and \textit{triangles counting} (tc) algorithms were chosen, since they allows analyse the performance of \textit{vxm} and \textit{mxm} operations, rely heavily on \textit{masking}, and utilize \textit{reduction} or \textit{assignment}. 
+BFS implementation utilizes automated vector storage from sparse to dense switch and only \textit{}{push optimization}. 
+TC implementation uses masked \textit{mxm} of source lower-triangular matrix with second transposed argument.
 
-\subsection{Evaluation Results}
+\subsection{Dataset}
 
-Single GPU 
-
-\begin{table}[htbp]
-    \caption{Table Type Styles}
-    \begin{center}
-    \begin{tabular}{|c|c|c|c|}
-    \hline
-    \textbf{Table}&\multicolumn{3}{|c|}{\textbf{Table Column Head}} \\
-    \cline{2-4} 
-    \textbf{Head} & \textbf{\textit{Table column subhead}}& \textbf{\textit{Subhead}}& \textbf{\textit{Subhead}} \\
-    \hline
-    copy& More table copy$^{\mathrm{a}}$& &  \\
-    \hline
-    \multicolumn{4}{l}{$^{\mathrm{a}}$Sample of a Table footnote.}
-    \end{tabular}
-    \label{tab1}
-    \end{center}
-\end{table}
-    
-Two GPU
+Nine graph matrices were selected from the Sparse Matrix Collection at University of Florida~\cite{dataset:10.1145/2049662.2049663}. 
+Information about graphs is summarized in Table~\ref{dataset:info}. 
+All datasets are converted to undirected graphs. 
+Self-loops and duplicated edges are removed.
 
 \begin{table}[htbp]
-    \caption{Table Type Styles}
-    \begin{center}
-    \begin{tabular}{|c|c|c|c|}
+\caption{Dataset description.} 
+\begin{center}
+    \rowcolors{2}{black!2}{black!10}
+    \begin{tabular}{|l|r|r|r|}
     \hline
-    \textbf{Table}&\multicolumn{3}{|c|}{\textbf{Table Column Head}} \\
-    \cline{2-4} 
-    \textbf{Head} & \textbf{\textit{Table column subhead}}& \textbf{\textit{Subhead}}& \textbf{\textit{Subhead}} \\
+    Dataset & Vertices  & Edges & Max Degree \\
     \hline
-    copy& More table copy$^{\mathrm{a}}$& &  \\
     \hline
-    \multicolumn{4}{l}{$^{\mathrm{a}}$Sample of a Table footnote.}
+    coAuthorsCiteseer & 227.3K &   1.6M &    1372 \\
+    coPapersDBLP      & 540.4K &  30.4M &    3299 \\
+    hollywood-2009    &   1.1M & 113.8M &  11,467 \\
+    roadNet-CA        &   1.9M &   5.5M &      12 \\
+    com-Orkut         &     3M &   234M &   33313 \\
+    cit-Patents       &   3.7M &  16.5M &     793 \\
+    rgg\_n\_2\_22\_s0 &   4.1M &  60.7M &      36 \\
+    soc-LiveJournal   &   4.8M &  68.9M &  20,333 \\
+    indochina-2004    &   7.5M & 194.1M & 256,425 \\
+    \hline
     \end{tabular}
-    \label{tab1}
-    \end{center}
+    \label{dataset:info}
+\end{center}
 \end{table}
 
-Analysis and conclusion.     
+\subsection{Results}
+
+Table~\ref{results} presents results of the evaluation and compares performance of Spla against other tool on different execution platforms.
+Tools are grouped by the type of the device for the execution, where either Nvidia GPU or Intel CPU are used. 
+Cell left empty if tested tool failed to analyse graph due to \textit{out of memory} exception.
+
+In general, Spla BFS shows acceptable performance, especially on graphs with large vertex degree, such as soc-LiveJournal and com-Orkut.
+On graphs roadNet-CA and rgg it has a significant performance drop due to the nature of underlying algorithms and data structures. 
+Firstly, library utilizes immutable data buffers. Thus, iteratively updated dense vector of reached vertices must be copied for each modification, what dominates the performance of the library on a graph with large search depth. 
+Secondly, Spla BFS does not utilise \textit{pull optimization}, what is critical in a graph with relatively small search frontier. 
+
+Spla TC has a good performance on GPU, which is better in all cases that reference SuiteSparse solution. 
+But in most tests GPU competitors, especially Gunrock, show smaller processing times. 
+GraphBLAST shows better performance as well. 
+Library utilises masked SpGEMM algorithm, the same as in GraphBLAST, but without \textit{identity} element to fill gaps. 
+Library explicitly stores all non-zero elements, and uses mask to reduce only non-zero while evaluating dot products of rows and columns. 
+What causes extra divergence inside work groups. 
+On Intel device Spla shows better performance compared to SuiteSparse on com-Orkut, cit-Patents and soc-LiveJournal. 
+A possible reason is the large lengths of processed rows and columns in the product of matrices.
+
+Gunrock shows nearly best average performance due to its specialized and optimized algorithms.
+Also, it has good time characteristics on a mentioned earlier roadNet-CA and rgg in BFS algortihm. 
+GraphBLAST follows Gunrock and show good performance as well. 
+But it runs out of memory on a two significantly large graphs con-Orkut and indochina-2004. 
+Spla does not rut out of memory on any test due to simplified storage scheme.
+
+\begin{table}[htbp]
+\caption{Graph algorithms evaluation results.\\Time in milliseconds (lower is better).} 
+\begin{center}
+    \begin{tabular}{|l|r|r|r|r|r|}
+    \hline
+    \multirow{2}{*}{Dataset} & \multicolumn{3}{c|}{Nvidia} & \multicolumn{2}{c|}{Intel} \\
+    \cline{2-6}
+    & GR & GB & SP & SS & SP \\
+    \hline
+    \hline
+    \multicolumn{6}{|c|}{BFS} \\
+    \hline
+    \rowcolor{black!10} hollywood-2009    &  20.3 &  82.3 &   36.9 &   23.7 &   303.4 \\
+    \rowcolor{black!2 } roadNet-CA        &  33.4 & 130.8 & 1456.4 &  168.2 &   965.6 \\
+    \rowcolor{black!10} soc-LiveJournal   &  60.9 &  80.6 &   90.6 &   75.2 &  1206.3 \\
+    \rowcolor{black!2 } rgg\_n\_2\_22\_s0 &  98.7 & 414.9 & 4504.3 & 1215.7 & 15630.1 \\
+    \rowcolor{black!10} com-Orkut         & 205.2 & -- -- &  117.9 &   43.2 &   903.6 \\
+    \rowcolor{black!2 } indochina-2004    &  32.7 & -- -- &  199.6 &  227.1 &  2704.6 \\
+    \hline
+    \hline
+    \multicolumn{6}{|c|}{TC} \\
+    \hline
+    \rowcolor{black!10} coAuthorsCiteseer &   2.1 &    2.0 &    9.5 &    17.5 &    64.9 \\
+    \rowcolor{black!2 } coPapersDBLP      &   5.7 &   94.4 &  201.9 &   543.1 &  1537.8 \\
+    \rowcolor{black!10} roadNet-CA        &  34.3 &    5.8 &   16.1 &    47.1 &   357.6 \\
+    \rowcolor{black!2 } com-Orkut         & 218.1 & 1583.8 & 2407.4 & 23731.4 & 15049.5 \\
+    \rowcolor{black!10} cit-Patents       &  49.7 &   52.9 &   90.6 &   698.3 &   684.1 \\
+    \rowcolor{black!2 } soc-LiveJournal   &  69.1 &  449.6 &  673.9 &  4002.6 &  3823.9 \\
+    \hline
+    \hline
+    \multicolumn{6}{l}{Tools: Gunrock (GR), GraphBLAST (GB), SuiteSparse (SS), Spla (SP).} \\
+    \end{tabular}
+    \label{results}
+\end{center}
+\end{table}
+ 
+% Two GPU
+
+% \begin{table}[htbp]
+%     \caption{Table Type Styles}
+%     \begin{center}
+%     \begin{tabular}{|c|c|c|c|}
+%     \hline
+%     \textbf{Table}&\multicolumn{3}{|c|}{\textbf{Table Column Head}} \\
+%     \cline{2-4} 
+%     \textbf{Head} & \textbf{\textit{Table column subhead}}& \textbf{\textit{Subhead}}& \textbf{\textit{Subhead}} \\
+%     \hline
+%     copy& More table copy$^{\mathrm{a}}$& &  \\
+%     \hline
+%     \multicolumn{4}{l}{$^{\mathrm{a}}$Sample of a Table footnote.}
+%     \end{tabular}
+%     \label{tab2}
+%     \end{center}
+% \end{table}
