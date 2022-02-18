@@ -1,0 +1,38 @@
+\section{Proposed Solution}
+
+The goal of our research is to find out if sparse linear algebra-based programs can be efficiently optimized by program distillation~\cite{hamilton2021700} through eliminating intermediate data structures and computations.
+To answer this question, we have developed a library of matrix operations
+%\footnote{Linear algebra operations in POT language: \url{https://github.com/YaccConstructor/Distiller/blob/master/inputs/LinearAlgebra.pot}}
+ in POT language: a simple functional language used in distiller.%\footnote{Distiller implementation on GitHub: \url{https://github.com/poitin/Distiller}}.  
+
+We use a quad-tree matrix representation~\cite{qtree} since it both avoids indexing and can be implemented via algebraic data type, which itself is very natural for functional programming.
+Besides, it provides similar compression rate to widely adopted CSR and COO, and a natural way to represent both sparse and dense matrices, as well as makes it possible to express basic operations over the representation via recursive functions traversing the tree-like structure.
+Finally, the quad-tree representation allows to natively exploit divide-and-conquer parallelism in matrices handling functions.
+
+%\begin{listing}
+%
+%    \begin{minted}[]{Haskell}
+%  
+%    data QTree a = QNone  
+%                 | QVal a 
+%                 | QNode (QTree a) (QTree a)
+%                         (QTree a) (QTree a) 
+%    
+%    \end{minted}
+%    \caption{Quad-tree compressed representation}
+%    \label{lst:qtree}
+%    
+%    \end{listing}
+
+Since general purpose devices like CPUs and GPUs appear to be heavily underutilized when executing sparse routines due to low arithmetic intensity and memory boundness, custom hardware seems to be a promising solution towards mitigating these issues. 
+Distillation provides all the needed optimizations for free for a functional language, so what remains is to translate a functional program into custom hardware. We have opted for two solutions here.
+The first one is Reduceron~\cite{naylorRunciman2012} --- a processor, designed to perform highly performant reductions.
+The second one is FHW~\cite{Edwards2019FHWP} --- a project, which is constituted of several compilers that help to translate an arbitrary Haskell progam into System Verilog to eventually provide a bitstream for a custom hardware.
+It leverages a parallel and pipelined dataflow representation, which is abstracted over, e.g., nodes for memory operations, which makes it possible to come up with a specialized memory for our data structures.
+While the first case is more typical, the second might provide higher performance for specific tasks.
+
+For now, we propose to use program distillation as the first step of program optimization which, we hope, should reduce memory usage and other unnecessary computations, and then compile a distilled program to the two different hardware platforms by using the respective compiler with platform-specific optimizations.
+
+For evaluation, we have been implementing a library of a subset of linear algebraic routines, only matrix-matrix operations for now: matrix-to-matrix element-wise addition (\verb|mtxAdd|),
+matrix-to-scalar \emph{apply-to-all} operation (\verb|map|),
+masking (\verb|mask|), which takes a subset of matrix elements, and Kronecker product (\verb|Kron|).% All operations are simplified, for example, they do not check matrices' size correctness, handling of incorrect input not provided.
