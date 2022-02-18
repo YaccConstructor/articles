@@ -1,0 +1,483 @@
+\documentclass[x11names,dvipsnames,table]{beamer}
+\usepackage{beamerthemesplit}
+\usepackage{wrapfig}
+\usetheme{SPbGU}
+\usepackage{pdfpages}
+\usepackage{amsmath}
+\usepackage{cmap} 
+\usepackage[T2A]{fontenc} 
+\usepackage[utf8]{inputenc}
+\usepackage[english,russian]{babel}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{multirow}
+\usepackage[noend]{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usetikzlibrary{shapes,arrows}
+\usetikzlibrary{automata, arrows.meta, positioning}
+\usetikzlibrary{decorations.pathreplacing, calligraphy}
+\usepackage{fancyvrb}
+\usepackage{colortbl}
+
+\newtheorem{rutheorem}{Теорема}
+\newtheorem{ruproof}{Доказательство}
+\newtheorem{rudefinition}{Определение}
+\newtheorem{rulemma}{Лемма}
+
+\beamertemplatenavigationsymbolsempty
+
+
+\title[]{Field-sensitive Points-to Analysis with CFL-Reachability}
+% \subtitle[]{}
+% То, что в квадратных скобках, отображается в левом нижнем углу. 
+\institute[SPbU]{
+JetBrains Research, Programming Languages and Tools Lab  \\
+Saint Petersburg State University }
+
+% То, что в квадратных скобках, отображается в левом нижнем углу.
+\author[Vladimir Kutuev]{Vladimir Kutuev
+}
+
+\date{17.12.2021}
+
+\begin{document}
+{
+% Лого университета или организации, отображается в шапке титульного листа
+\begin{frame}
+    \begin{tabular}{p{2.0cm} p{7.5cm} p{1cm}}
+       \begin{center}
+          \includegraphics[height=1.5cm]{pictures/jetbrainsResearch.pdf}
+        \end{center}
+        &
+        \begin{center}
+          \includegraphics[height=1.5cm]{pictures/YC_logo.pdf}
+        \end{center}
+        &
+        \begin{center}
+          \includegraphics[height=1.5cm]{pictures/SPbGU_Logo.png}
+        \end{center}
+      \end{tabular}
+    \titlepage
+\end{frame}
+}
+
+\begin{frame}[fragile]
+  \transwipe[direction=90]
+  \frametitle{CFL-Reachability}
+  \begin{itemize}
+    \item Context-free grammar --- $G = ( \Sigma, N, P, S )$
+    \begin{itemize}
+        \item $\Sigma$ --- set of terminal symbols
+        \item $N$ --- set of non-terminal symbols
+        \item $P$ --- set of production rules $\{A \to \alpha | A \in N, \alpha \in (\Sigma \cup N)^*\}$
+        \item $S \in N$ --- start symbol
+    \end{itemize}
+    \item Graph --- $\mathcal{G}=(V,E,l)$
+    \begin{itemize}
+        \item $V$~--- set of vertices
+        \item $E \subseteq V \times V$ --- set of edges 
+        \item $l:E \to L$
+    \end{itemize}
+    \item $\{(v_1, v_n): \exists p=(e_1, e_2,..., e_n)) \in E^*, src(e_1)=v_1, dst(e_n)=v_n, l(e_1) \cdot...\cdot l(e_n) \in L(G)\}$
+  \end{itemize}
+\end{frame}
+            
+\begin{frame}[fragile]
+\transwipe[direction=90]
+\frametitle{Field-sensitive Points-to Analysis}
+
+\begin{itemize}
+    \item Graph \\
+    \begin{tabular}{lll}
+        Relation & Statement & Graph edge \\
+        $alloc$\ $\subseteq$ Vars $\times$ Objects & x = new Obj(); & $x \xrightarrow{alloc} h$ \\
+        $assign$\ $\subseteq$ Vars $\times$ Vars & x = y; & $x \xrightarrow{assign} y$ \\
+        $load_f$\ $\subseteq$ Vars $\times$ Vars & x = y.f; & $x \xrightarrow{load_f} y$ \\
+        $store_f$\ $\subseteq$ Vars $\times$ Vars & x.f = y; & $x \xrightarrow{store_f} y$ \\
+    \end{tabular}
+
+    \item Context-free grammar defining analysis \\
+    \begin{tabular}{ll}
+        $PointsTo\ \to\ (assign\ |\ load_f\ Alias\ store_f)^*$ $alloc$ & \\
+        $Alias$ $\to$ $PointsTo$ \ $FlowsTo$ & $\forall$ f $\in$ $Fields$ \\
+        $FlowsTo\ \to\ \overline{alloc}\ (\overline{assign}\ |\ \overline{store_f}\ Alias\ \overline{load_f})^*$ & \\
+    \end{tabular}
+
+\end{itemize}
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+\transwipe[direction=90]
+\frametitle{Example Graph}
+
+\begin{tabular}{cc}
+    
+    \begin{minipage}{.3\textwidth}
+    \begin{Verbatim}[commandchars=\\\{\}]
+v1 = new Obj(); // h1
+v2 = new Obj(); // h2
+v4 = new Obj(); // h3
+v6 = new Obj(); // h4
+v5 = v4;
+v5 = v6;
+v1.h = v1;
+v2.g = v1;
+v4.f = v2;
+v7 = v5.f;
+v9 = v6.f;
+v3 = v2.g;
+v8 = v7.g;
+v10 = v9.g;
+v10 = v10.h;
+    \end{Verbatim}
+
+\end{minipage}
+
+    &
+    \scalebox{0.8}{
+\begin{minipage}{.4\textwidth}
+    \begin{tikzpicture}[node distance=2.0cm] 
+        \node[] (1) {$v5$};
+        \node[] (2) [right of=1] {$v6$}; 
+        \node[] (3) [left of=1] {$v4$};
+        \node[] (4) [left of=3] {$h3$};
+        \node[] (5) [right of=2] {$h4$};
+        \node[] (6) [below of=3] {$v2$};
+        \node[] (7) [left of=6] {$h2$};
+        \node[] (8) [below of=2] {$v7$};
+        \node[] (9) [below of=5] {$v9$};
+        \node[] (10) [below of=6] {$v1$};
+        \node[] (11) [left of=10] {$h1$};
+        \node[] (12) [right of=10] {$v3$};
+        \node[] (13) [below of=8] {$v8$};
+        \node[] (14) [below of=9] {$v10$};
+        \draw[->] (2) -- node[midway, above, sloped] {$alloc$} (5); 
+        \draw[->] (3) -- node[midway, above, sloped] {$alloc$} (4); 
+        \draw[->] (6) -- node[midway, above, sloped] {$alloc$} (7); 
+        \draw[->] (10) -- node[midway, above, sloped] {$alloc$} (11); 
+        \draw[->] (1) -- node[midway, above, sloped] {$assign$} (2); 
+        \draw[->] (1) -- node[midway, above, sloped] {$assign$} (3);
+        \draw[->] (14) to [out=-120, in=-60, looseness=3] node[midway, below] {$load_h$} (14); 
+        \draw[->] (14) -- node[midway, right] {$load_g$} (9);
+        \draw[->] (13) -- node[midway, right] {$load_g$} (8);
+        \draw[->] (12) -- node[midway, right] {$load_g$} (6);
+        \draw[->] (8) -- node[midway, right] {$load_f$} (1);
+        \draw[->] (9) -- node[midway, right] {$load_f$} (2);
+        \draw[->] (3) -- node[midway, right] {$store_f$} (6);
+        \draw[->] (6) -- node[midway, left] {$store_g$} (10);
+        \draw[->] (10) to [out=-60, in=-120, looseness=3] node[midway, below] {$store_h$} (10); 
+    \end{tikzpicture} 
+    \end{minipage}
+    }
+
+\end{tabular}
+
+\end{frame}
+
+\begin{frame}[fragile]
+\transwipe[direction=90]
+\frametitle{Example Graph with PointsTo Edges}
+
+\begin{tabular}{cc}
+    
+    \begin{minipage}{.3\textwidth}
+    \begin{Verbatim}[commandchars=\\\{\}]
+v1 = new Obj(); // h1
+v2 = new Obj(); // h2
+v4 = new Obj(); // h3
+v6 = new Obj(); // h4
+v5 = v4;
+v5 = v6;
+v1.h = v1;
+v2.g = v1;
+v4.f = v2;
+v7 = v5.f;
+v9 = v6.f;
+v3 = v2.g;
+v8 = v7.g;
+v10 = v9.g;
+v10 = v10.h;
+    \end{Verbatim}
+
+\end{minipage}
+
+    &
+    \scalebox{0.8}{
+\begin{minipage}{.4\textwidth}
+    \begin{tikzpicture}[node distance=2.0cm] 
+        \node[] (1) {$v5$};
+        \node[] (2) [right of=1] {$v6$}; 
+        \node[] (3) [left of=1] {$v4$};
+        \node[] (4) [left of=3] {$h3$};
+        \node[] (5) [right of=2] {$h4$};
+        \node[] (6) [below of=3] {$v2$};
+        \node[] (7) [left of=6] {$h2$};
+        \node[] (8) [below of=2] {$v7$};
+        \node[] (9) [below of=5] {$v9$};
+        \node[] (10) [below of=6] {$v1$};
+        \node[] (11) [left of=10] {$h1$};
+        \node[] (12) [right of=10] {$v3$};
+        \node[] (13) [below of=8] {$v8$};
+        \node[] (14) [below of=9] {$v10$};
+        \draw[->] (2) -- node[midway, above, sloped] {$alloc$} (5); 
+        \draw[->] (3) -- node[midway, above, sloped] {$alloc$} (4); 
+        \draw[->] (6) -- node[midway, above, sloped] {$alloc$} (7); 
+        \draw[->] (10) -- node[midway, above, sloped] {$alloc$} (11); 
+        \draw[->] (1) -- node[midway, above, sloped] {$assign$} (2); 
+        \draw[->] (1) -- node[midway, above, sloped] {$assign$} (3);
+        \draw[->] (14) to [out=-120, in=-60, looseness=3] node[midway, below] {$load_h$} (14); 
+        \draw[->] (14) -- node[midway, right] {$load_g$} (9);
+        \draw[->] (13) -- node[midway, right] {$load_g$} (8);
+        \draw[->] (12) -- node[midway, right] {$load_g$} (6);
+        \draw[->] (8) -- node[midway, right] {$load_f$} (1);
+        \draw[->] (9) -- node[midway, right] {$load_f$} (2);
+        \draw[->] (3) -- node[midway, right] {$store_f$} (6);
+        \draw[->] (6) -- node[midway, left] {$store_g$} (10);
+        \draw[->] (10) to [out=-60, in=-120, looseness=3] node[midway, below] {$store_h$} (10); 
+        
+        \draw[dashed,->,red] (3) to [out=135, in=45, looseness=1] (4);
+        \draw[dashed,->,red] (1) to [out=120, in=60, looseness=1] (4);
+        \draw[dashed,->,red] (2) to [out=45, in=135, looseness=1] (5);
+        \draw[dashed,->,red] (1) to [out=60, in=120, looseness=1] (5);
+        \draw[dashed,->,red] (6) to [out=135, in=45, looseness=1] (7);
+        \draw[dashed,->,red] (8) to [out=135, in=45, looseness=1] (7);
+        \draw[dashed,->,red] (10) to [out=135, in=45, looseness=1] (11);
+        \draw[dashed,->,red] (12) to [out=-135, in=-45, looseness=1] (11);
+        \draw[dashed,->,red] (13) to [out=-120, in=-60, looseness=1] (11);
+    \end{tikzpicture} 
+    \end{minipage}
+    }
+
+\end{tabular}
+
+\end{frame}
+
+\begin{frame}
+  \transwipe[direction=90]
+  \frametitle{Algorithms Based on Linear Algebra Operations}
+  \begin{itemize}
+    \item Matrix multiplication based algorithm
+    \begin{itemize}
+        \item Grammar should be converted to a Weak Chomsky Normal Form which significantly increases its size
+        \item The performance of the algorithm depends on the grammar size
+    \end{itemize}
+    \item Kronecker Product based algorithm
+    \begin{itemize}
+        \item Grammar should be converted to a recursive state machine (RSM)
+        \item For the intersection of RSM and a directed labeled graph, they are represented as a composition of adjacency boolean matrices for each label
+    \end{itemize}
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}
+  \transwipe[direction=90]
+  \frametitle{RSM for Field-sensitive Points-to Analysis}
+  \begin{tabular}{|c|c|c|}
+  \hline
+  PointsTo & FlowsTo & Alias \\
+    % Программа & Граф выражений \\
+    
+    \begin{minipage}{.36\textwidth}
+    \scalebox{0.6}{
+    \begin{tikzpicture}[node distance=1.9cm, auto] 
+        \node (q0) [state, initial, initial text = {}] {$q_0$};
+        \node (q1) [state, accepting, below = of q0] {$q_1$};
+        
+        \node (q4) [right = of q0] {$...$};
+        
+        \node (q2) [state, above = of q4] {};
+        \node (q3) [state, right = of q2] {};
+        
+        \node (q5) [state, below = of q4] {};
+        \node (q6) [state, right = of q5] {};
+        
+        \path [-stealth, thick]
+            (q0) edge [loop above]  node[above left] {$assign$}()
+            (q0) edge node[left] {$alloc$} (q1)
+            
+            (q0) edge[bend left] node[below right] {$load_{f_1}$} (q2)
+            (q2) edge node[above] {$Alias$} (q3)
+            (q3) edge node[below right] {$store_{f_1}$} (q0)
+            
+            (q0) edge[bend right] node[above right] {$load_{f_n}$} (q5)
+            (q5) edge node[above] {$Alias$} (q6)
+            (q6) edge node[above right] {$store_{f_n}$} (q0)
+            ;
+    \end{tikzpicture}
+    }
+    \end{minipage}
+
+    &
+\begin{minipage}{.36\textwidth}
+\scalebox{0.6}{
+    \begin{tikzpicture}[node distance=1.9cm] 
+        \node (q0) [state, initial, initial text = {}] {$q_2$};
+        \node (q1) [state, accepting, below = of q0] {$q_3$};
+        
+        \node (q4) [right = of q1] {$...$};
+        
+        \node (q2) [state, above = of q4] {};
+        \node (q3) [state, right = of q2] {};
+        
+        \node (q5) [state, below = of q4] {};
+        \node (q6) [state, right = of q5] {};
+        
+        \path [-stealth, thick]
+            (q0) edge node[left] {$\overline{alloc}$} (q1)
+            (q1) edge [loop below] node[below left] {$\overline{assign}$}()
+            
+            (q1) edge[bend left] node[below right] {$\overline{store_{f_1}}$} (q2)
+            (q2) edge node[above] {$Alias$} (q3)
+            (q3) edge node[below right] {$\overline{load_{f_1}}$} (q1)
+            
+            (q1) edge[bend right] node[above right] {$\overline{store_{f_n}}$} (q5)
+            (q5) edge node[above] {$Alias$} (q6)
+            (q6) edge node[above right] {$\overline{load_{f_n}}$} (q1);
+    \end{tikzpicture} 
+    }
+    \end{minipage}
+    &
+\begin{minipage}{.17\textwidth}
+\scalebox{0.7}{
+    \begin{tikzpicture}[node distance=1.0cm] 
+        \node (q0) [state, initial, initial text = {}] {$q_4$};
+        \node (q1) [state, below = of q0] {$q_5$};
+        \node (q2) [state, accepting, below = of q1] {$q_6$};
+        \path [-stealth, thick]
+            (q0) edge node[right] {$PointsTo$} (q1)
+            (q1) edge node[right] {$FlowsTo$} (q2)
+            ;
+    \end{tikzpicture} 
+    }
+    \end{minipage}
+    \\
+    & & \\
+    \hline
+
+\end{tabular}
+
+\end{frame}
+
+\begin{frame}
+  \transwipe[direction=90]
+  \frametitle{One Terminal, One Non-terminal Representation}
+  \begin{itemize}
+    \item The graph and RSM are represented as adjacency matrices, whose elements are integers
+    \item The high-order bits encode the non-terminal, the low-order bits encode the terminal \\
+  \end{itemize}
+  \centering {
+    \scalebox{0.7}{
+      \begin{tikzpicture}
+        [%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            box/.style={rectangle,draw=black, ultra thick, minimum size=1cm},
+        ]%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        \foreach \x in {0,1,2,3,4,5,6,7,8}
+            \node[box] at (\x,0){};
+        \draw[decorate,decoration={brace, amplitude=0.2cm,mirror},thick] (-.5,-.7) -- node[below]{Non-tetminal} (1.49,-.7);
+        \draw[decorate,decoration={brace, amplitude=0.2cm, mirror},thick] (1.51,-.7) -- node[below]{Terminal} (8.5,-.7);
+      \end{tikzpicture}
+    }
+  }
+  \begin{itemize}
+    \item Operation for Kronecker product
+    \begin{itemize}
+        \item $times(x, y) = (x_{nonterm} = y_{nonterm} \neq 0 \ or\ x_{term} = y_{term} \neq 0)$
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \transwipe[direction=90]
+  \frametitle{Adapting Graph to this Representation}
+  \begin{tabular}{ccc}
+  Edges & New variable & Result \\
+ 
+  \begin{tikzpicture}[node distance=2.0cm] 
+        \node[] (1) {$x$};
+        \node[] (2) [right of=1] {$y$};
+        
+        \draw[->] (1) to [out=45, in=135, looseness=1] node[midway, above] {$...$} (2);
+        \draw[->] (1) to node[midway, below, sloped] {$assign$} (2); 
+  \end{tikzpicture} 
+  &
+  z = y; x = z;
+  & 
+  \begin{tikzpicture}[node distance=2.0cm] 
+        \node[] (1) {$x$};
+        \node[] (2) [right of=1] {$z$};
+        \node[] (3) [right of=2] {$y$};
+        
+        \draw[->] (1) -- node[midway, above, sloped] {$assign$} (2); 
+        \draw[->] (2) -- node[midway, above, sloped] {$assign$} (3); 
+        \draw[->] (1) to [out=45, in=135, looseness=1] node[midway, above] {$...$} (3);
+  \end{tikzpicture} 
+  \\
+  \begin{tikzpicture}[node distance=2.0cm] 
+        \node[] (1) {$x$};
+        \node[] (2) [right of=1] {$y$};
+        
+        \draw[->] (1) to [out=45, in=135, looseness=1] node[midway, above] {$...$} (2);
+        \draw[->] (1) to node[midway, below, sloped] {$store_f$} (2); 
+  \end{tikzpicture} 
+  &
+  z = y; x.f = z;
+  & 
+  \begin{tikzpicture}[node distance=2.0cm] 
+        \node[] (1) {$x$};
+        \node[] (2) [right of=1] {$z$};
+        \node[] (3) [right of=2] {$y$};
+        
+        \draw[->] (1) -- node[midway, above, sloped] {$store_f$} (2); 
+        \draw[->] (2) -- node[midway, above, sloped] {$assign$} (3); 
+        \draw[->] (1) to [out=45, in=135, looseness=1] node[midway, above] {$...$} (3);
+  \end{tikzpicture} 
+  \\
+  \begin{tikzpicture}[node distance=2.0cm] 
+        \node[] (1) {$x$};
+        \node[] (2) [right of=1] {$y$};
+        
+        \draw[->] (1) to [out=45, in=135, looseness=1] node[midway, above] {$...$} (2);
+        \draw[->] (1) to node[midway, below, sloped] {$load_f$} (2); 
+  \end{tikzpicture} 
+  &
+  z = y.f; x = z;
+  & 
+  \begin{tikzpicture}[node distance=2.0cm] 
+        \node[] (1) {$x$};
+        \node[] (2) [right of=1] {$z$};
+        \node[] (3) [right of=2] {$y$};
+        
+        \draw[->] (1) -- node[midway, above, sloped] {$assign$} (2); 
+        \draw[->] (2) -- node[midway, above, sloped] {$load_f$} (3); 
+        \draw[->] (1) to [out=45, in=135, looseness=1] node[midway, above] {$...$} (3);
+  \end{tikzpicture} 
+  \end{tabular}
+\end{frame}
+
+
+\begin{frame}
+  \transwipe[direction=90]
+  \frametitle{Results}
+  \begin{itemize}
+    \item The algorithm based on the Kronecker product has been optimized for the field-sensitive points-to analysis problem 
+    \item The developed algorithm was implemented within the CFPQ\_PyAlgo\footnote{\url{https://github.com/JetBrains-Research/CFPQ_PyAlgo}} framework
+    \item The correctness of the algorithm has been checked on the Dataset\footnote{\url{https://bitbucket.org/jensdietrich/gigascale-pointsto-oopsla2015}}
+  \end{itemize}
+
+  \textbf{Future Work}:
+  \begin{itemize}
+    \item Extend Benchmark Graphalytics\footnote{\url{https://graphalytics.org/}}
+    \begin{itemize}
+        \item Investigate the performance of the developed algorithm
+        \item Compare performance with other CFL-Reachability algorithms 
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+
+\end{document}

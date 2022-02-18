@@ -1,0 +1,59 @@
+\section{Preliminary Evaluation}
+
+The following examples, which are a combination of the implemented functions, are used for the evaluation. 
+The examples are fairly practical, for example, one could see a sequence of element-wise additions in a Luby's maximal independent set algorithm, and masking is a one of key operation in GraphBLAS standard.%~\cite{buluc2017graphblas}.
+
+\vspace{0.5em}
+\hspace{-3.1em}\begin{minipage}[h]{0.48\textwidth}
+  \begin{itemize}
+    \item \verb|addMask m1 m2 m3 = mask (mtxAdd m1 m2) m3|
+    \item \verb|addMap m1 m2 = map f (mtxAdd m1 m2)|
+    \item \verb|seqAdd m1 m2 m3 m4 = mtxAdd (mtxAdd (mtxAdd m1 m2) m3) m4|  
+  \end{itemize}
+\end{minipage}
+~\hspace{0.7em}~\begin{minipage}[h]{0.48\textwidth}
+  \vspace{-2em}
+  \begin{itemize}
+    \item \verb|kronMask m1 m2 m3 = mask (kron m1 m2) m3 |   
+    \item \verb|kronMap m1 m2 = map f (kron m1 m2)|
+  \end{itemize}
+\end{minipage}
+\vspace{0.5em}
+
+\begin{table}
+  \centering    
+  \begin{tabular}{|c|c|c|c|c||c|c|c|c|}
+      \hline
+      \multirow{2}{*}{Function} &  \multicolumn{4}{c||}{Matrix size}  & \multicolumn{2}{c|}{Interpreter}            & Reduceron & FHW\\
+      \cline{2-9}
+                                &   m1 & m2 & m3 & m4                & Red-s & Reads                               & Ticks     & Ticks \\
+      \hline
+      seqAdd   & $64 \times 64$ & $64 \times 64$ & $64 \times 64$ & $64 \times 64$ & 2.7          & 1.9        & 1.8 & 1.4  \\ 
+      addMask  & $64 \times 64$ & $64 \times 64$ & $64 \times 64$ & --             & 2.1          & 1.8        & 1.4 & 1.4  \\ 
+      kronMask & $64 \times 64$ & $2 \times 2$   &$128 \times 128$& --             & 2.2          & 1.9        & 1.4 & 2.7  \\ 
+      addMap   & $64 \times 64$ & $64 \times 64$ & --             & --             & 2.5          & 1.7        & 1.7 & 1.5  \\
+      kronMap  & $64 \times 64$ & $2 \times 2$   & --             & --             & 2.9          & 2.2        & 1.8 & 2.0  \\ 
+      \hline
+      
+  \end{tabular}
+  \caption{Evaluation results: original program to distilled one ratio of measured metrics is presented}
+  \label{tbl:evaluationResults}
+\end{table}
+
+We compare original versions of these functions and distilled ones in three ways.
+First, we use the interpreter of the POT language to measure the number of reductions and memory reads inside \verb|case| expressions.
+We use the simulator shipped with Reduceron to measure the number of clock ticks necessary to evaluate a program, and Vivado's simulator for FHW-compiled programs to measure the number of clock ticks.
+It is worth noting that Reduceron has somewhat fixed clock frequency, while frequency for FHW-generated hardware varies for different input programs. 
+Since we do not have external memory at the moment, and all the data lives inside the generated scheme, the logic is not synthesizable for reasonably sized matrices in the case of FHW.
+We get similar clock frequencies for distilled and non-distilled programs for inputs with smaller matrices and hence assume that clock frequencies are also similar below. 
+Thus, we provide only the number of ticks instead of time.
+
+A set of sparse matrices of appropriate sizes provided at~\cite{Matrices} is used. 
+The matrices are converted into boolean ones since POT language lacks the needed primitives at the moment.
+Average results for several hundreds of different inputs are presented in table~\ref{tbl:evaluationResults}.
+
+We can see that on average distillation provides up to 3 and 2 times improvement in terms of reductions and memory reads respectively for the interpreter. 
+The number of reductions is also considerably reduced for hardware benchmarks. 
+The lack of matches between ticks for FHW and Reduceron is justified by architecture distinction. 
+%Finally, from the last column one could see memory consumption reduction, which supports our approach.
+All this hopefully makes the proposed solution viable, and we look forward to coming up with full-fledged experiments that would target real hardware and real life competitors like C++ implementations.
