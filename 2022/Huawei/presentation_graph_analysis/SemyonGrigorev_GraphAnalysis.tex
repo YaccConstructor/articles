@@ -19,9 +19,12 @@
 \usepackage{fancyvrb}
 \usepackage{hyperref} 
 \usetikzlibrary{calc}
-\usetikzlibrary{shapes,arrows}
+\usetikzlibrary{shapes}
 \usetikzlibrary{arrows,automata}
 \usetikzlibrary{positioning}
+\usetikzlibrary{fit}
+\usetikzlibrary{shapes.callouts}
+\usepackage{xparse}
 
 \usepackage{etoolbox,refcount}
 \usepackage{multicol}
@@ -39,7 +42,6 @@
 
 \newcommand{\ltz}{$< 1$}
 
-
 \tikzset{
     state/.style={
            rectangle,
@@ -50,6 +52,31 @@
            text centered,
            },
 }
+
+\tikzset{
+    invisible/.style={opacity=0,text opacity=0},
+    visible on/.style={alt=#1{}{invisible}},
+    alt/.code args={<#1>#2#3}{%
+      \alt<#1>{\pgfkeysalso{#2}}{\pgfkeysalso{#3}} % \pgfkeysalso doesn't change the path
+    },
+}
+
+\NewDocumentCommand{\mycallout}{r<> O{opacity=0.8,text opacity=1} m m m}{%
+\tikz[remember picture, overlay]\node[align=center, fill=cyan!20, text width=#5cm,
+#2,visible on=<#1>, rounded corners,
+draw,rectangle callout,anchor=pointer,callout relative pointer={(290:0.5cm)}]
+at (#3) {#4};
+}
+
+\NewDocumentCommand{\mycalloutR}{r<> O{opacity=0.8,text opacity=1} m m m}{%
+\tikz[remember picture, overlay]\node[align=center, fill=cyan!20, text width=#5cm,
+#2,visible on=<#1>, rounded corners,
+draw,rectangle callout,anchor=pointer,callout relative pointer={(30:0.8cm)}]
+at (#3) {#4};
+}
+
+
+%callout relative pointer={(230:0.5cm)}]
 
 \newcounter{countitems}
 \newcounter{nextitemizecount}
@@ -79,7 +106,7 @@
 
 \beamertemplatenavigationsymbolsempty
 
-\title[Graph analysis]{Graph analysis}
+\title[Algebraic Path Problems \& GraphBLAS]{Algebraic Path Problems and GraphBLAS: a Way to High-Performance Network Analysis}
 \institute[PL\&T@SPbSU]{
 Saint Petersburg State University
 }
@@ -107,6 +134,130 @@ Saint Petersburg State University
 }
 
 \begin{frame}[fragile]
+  \frametitle{Agenda}  
+  \begin{itemize}
+    \item Algebraic Path Problems
+    \item GraphBLAS
+    \item Our team
+  \end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \frametitle{GraphBLAS API\footnote{\url{https://graphblas.org/}}$^,$\footnote{\url{https://graphblas.org/GraphBLAS-Pointers/}}}
+  \begin{itemize}
+    \item Graph-matrix duality
+    \item Operations over matrices and vectors
+    \begin{itemize}
+      \item Parametrized by semiring-like structures
+      \item Sparse data
+      \item Parallel
+    \end{itemize}
+    \item High-performance implementations
+    \begin{itemize}
+      \item SuiteSparse:GraphBLAS
+      \item GraphBLAST
+      \item Huawei
+      \item \ldots
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+
+
+\begin{frame}[fragile]
+  \frametitle{BFS-like Skeleton}
+
+  \newcommand\colR{\cellcolor{red!20}}
+  \newcommand\colB{\cellcolor{blue!20}}
+  \newcommand\colG{\cellcolor{green!20}}
+
+  \begin{minipage}{0.2\textwidth}
+  \begin{tikzpicture}[shorten >=1pt,auto]
+    \node[state] (q_0)                      {$0$};
+    \node[state] (q_1) [above right=of q_0] {$1$};
+    \node[state,fill=red!20] (q_2) [right=of q_0]       {$2$};
+    \node[state] (q_3) [right=of q_2]       {$3$};
+    \path[->]
+    (q_0) edge  node {a} (q_1)
+    (q_1) edge  node {a} (q_2)
+    (q_2) edge  node {a} (q_0)
+    (q_2) edge[bend left, above]  node {b} (q_3)
+    (q_3) edge[bend left, below]  node {b} (q_2);
+    \end{tikzpicture}
+  \end{minipage}~\pause
+  \tikzmark{xPos}{}
+  \begin{minipage}{0.75\textwidth}    
+    \begin{equation*}
+      \left(\begin{array}{cccc}        
+        0  & 0  & \colR 1 & 0 \\        
+      \end{array}\right)
+      \times    
+      \left(\begin{array}{cccc}        
+        0 & 1 & 0 & 0 \\
+        0 & 0 & 1 & 0 \\
+        \rowcolor{red!20}
+        1 & 0 & 0 & 1 \\
+        0 & 0 & 1 & 0 \\        
+      \end{array}\right)
+      =      
+        \left(\begin{array}{cccc}        
+          \colB 1 & 0  & 0 & \colB 1 \\        
+        \end{array}\right)
+    \end{equation*}
+    \mycallout<2-3>[opacity=1]{$(xPos) + (2.9,0.4)$}{Current front}{2.5}
+    \mycallout<2-3>[opacity=1]{$(xPos) + (5.9,1.1)$}{Adjacency matrix}{3.5}
+    \mycallout<2-3>[opacity=1]{$(xPos) + (9.2,0.4)$}{New front}{2.5}
+    \mycalloutR<2-3>[opacity=1]{$(xPos) + (4.3,0.2)$}{Semiring}{1.5}
+  \end{minipage}
+
+  \pause
+
+  \begin{minipage}{0.2\textwidth}
+    \begin{tikzpicture}[shorten >=1pt,auto]
+      \node[state, fill=blue!20] (q_0)                      {$0$};
+      \node[state] (q_1) [above right=of q_0] {$1$};
+      \node[state, fill=red!20] (q_2) [right=of q_0]       {$2$};
+      \node[state, fill=blue!20] (q_3) [right=of q_2]       {$3$};
+      \path[->]
+      (q_0) edge  node {a} (q_1)
+      (q_1) edge  node {a} (q_2)
+      (q_2) edge  node {a} (q_0)
+      (q_2) edge[bend left, above]  node {b} (q_3)
+      (q_3) edge[bend left, below]  node {b} (q_2);
+      \end{tikzpicture}
+    \end{minipage}~
+    \begin{minipage}{0.75\textwidth}
+    \begin{equation*}
+      \left(\begin{array}{cccc}        
+        \colB 1 & 0  & 0 & \colB 1 \\        
+      \end{array}\right)
+      \times
+      \left(\begin{array}{cccc}        
+        \rowcolor{blue!20}
+        0 & 1 & 0 & 0 \\
+        0 & 0 & 1 & 0 \\        
+        1 & 0 & 0 & 1 \\
+        \rowcolor{blue!20}
+        0 & 0 & 1 & 0 \\        
+      \end{array}\right)
+      =      
+        \left(\begin{array}{cccc}        
+          0 & \colG 1  & \colG 1 & 0 \\        
+        \end{array}\right)
+    \end{equation*}
+
+  \end{minipage}
+
+\end{frame}
+
+%\begin{tikzpicture}
+%  \draw[step=0.5cm,black,very thin] (0,0) grid (5,5);
+%  \fill[blue!15] (0,1) rectangle (1,2);
+%  \draw (3.5,1.5) node{$v_1^0$};
+%\end{tikzpicture}
+
+\begin{frame}[fragile]
   \frametitle{Research areas}  
   \begin{itemize}
     \item High-performance graph analysis
@@ -117,7 +268,6 @@ Saint Petersburg State University
     
     \end{itemize}
 \end{frame}
-
 
 \begin{frame}[fragile]
   \frametitle{Team}  
@@ -153,8 +303,6 @@ Saint Petersburg State University
         \item Algebraic path problem
       \end{AutoMultiColItemize}
 
-      
-
     \end{itemize}
 \end{frame}
 
@@ -169,6 +317,16 @@ Saint Petersburg State University
         \item Fine-grained complexity
         \item Path problems with constraints
         \item Algebraic path problem
+      \end{AutoMultiColItemize}
+
+      \vspace{-0.2cm}
+      \item Egor Orachev
+      \vspace{-0.4cm}
+      \begin{AutoMultiColItemize}
+        \item Master student
+        \item Linear algebra based graph analysis
+        \item GraphBLAS API
+        \item GPGPU programming
       \end{AutoMultiColItemize}
 
       \vspace{-0.2cm}
@@ -325,7 +483,35 @@ Saint Petersburg State University
 \end{frame}
 
 
+\begin{frame}[fragile]
+  \frametitle{Possible Ways for Collaboration}
+    \begin{itemize}
+      \item Algebraic Path Problem framework applicability for network analysis
+      \begin{itemize}        
+        \item Unstructured path problems and the making of semirings (https://link.springer.com/chapter/10.1007/BFb0028261)
+        \item Efficient Algorithms for Path Problems with Gernal Cost Citeria (https://www.semanticscholar.org/paper/Efficient-Algorithms-for-Path-Problems-with-Gernal-Lengauer-Theune/3fd320d97db0a581952d2919587b112f8df57c0b)
+        \item Path Problems in Networks https://www.morganclaypool.com/doi/abs/10.2200/S00245ED1V01Y201001CNT003
+        \item 
 
+        \begin{itemize}
+          \item Length minimality
+          \item Nodes to visit
+          \item \ldots
+        \end{itemize}
+        \item Is it flexible enough?
+      \end{itemize}
+      \item High-performance network analysis
+      \begin{itemize}        
+        \item GraphBLAS-based solution
+        \item Algorithms development and analysis
+        \item Algorithms implementation and evaluation
+      \end{itemize} 
+    \end{itemize}
+\end{frame}
+
+
+
+%How it (may) works
 
 
 
