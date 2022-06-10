@@ -1,0 +1,65 @@
+\section{Testbench}
+
+This section describes the implementation details of the testbench used to perform benchmarking. One part of the testbench is implemented in System Verilog and another part in \textit{TCL} scripting language, which manages simulation. Also, the section describes a small sparse linear algebra library written in \texttt{.pot} language that we used for experiments.
+
+\subsection{SystemVerilog}
+
+Testbench is a generated module that interacts with the wrapper module by providing appropriate inputs to AXI-stream ports of a wrapper. It reads serialized trees from the given files and sequentially transfers nodes to the wrapper module. The file reading is performed in \texttt{initial block}, so it does not take any simulation time.
+
+The generated dataflow circuit may optionally contain profiling registers for counting the number of memory writes or reads, namely the number of cycles \texttt{write\_enable} is \texttt{1} and read's value is valid and consumer's input is ready. These registers are disabled during synthesis.
+
+\subsection{TCL}
+
+It is not possible to pass arguments to SystemVerilog module during simulation, and for this purpose, TCL language is used since a TCL script in its turn may receive any arguments. The script initializes the project and runs the simulation, providing and gathering values of interest. To modify wire values in SystemVerilog testbench \texttt{set\_value} TCL command is used. It is needed to specify file paths to read the input trees from. Unfortunately, SystemVerilog does not support \texttt{set\_value} for string values, thus all files are enumerated and only file number is set. To collect the information about how long data transferring takes, TCL script uses \texttt{add\_condition} command, which queries the current simulation time on the event occurrence. After the simulation is ended, the script queries current simulation time once again and queries the values of profiling registers. It outputs both time and values to the specified \texttt{.yaml} file. Thus the result of any benchmark is stored completely, which makes a basis for future benchmarks. In a similar manner other tasks could be automated using TCL scripting, e.g., synthesis and resource utilization reporting.
+
+
+
+\begin{table}[t!]
+\footnotesize
+\centering
+\begin{tabular}{ |l|l|} 
+\hline
+\rowcolor{LightBlue}
+{Function} & {Description}\\
+\hline
+\multirow{5}{0.6\textwidth}{\mintinline[fontsize=\scriptsize]{Haskell}{mAdd :: (b->Bool) -> (a->a->b) -> QTree a -> QTree a-> QTree b}} & \multirow{5}{0.35\textwidth}{Performs an arbitrary element-wise operation (passed as the 2nd argument),
+between two matrices. The 1st argument defines if the resulting element is zero.
+}\\
+{} & {}\\
+{} & {}\\
+{} & {}\\
+{} & {}\\
+\hline
+\multirow{5}{0.6\linewidth}{\mintinline[fontsize=\scriptsize]{Haskell}{mMask :: QTree a -> MQTree -> QTree a}} & \multirow{5}{0.35\linewidth}{Takes a subset specified in the 2nd argument of the elements in the 1st argument. Mask is also represented as a quadtree, nodes just do not store any values.
+}\\
+{} & {}\\
+{} & {}\\
+{} & {}\\
+{} & {}\\
+\hline
+\multirow{6}{0.6\linewidth}{\mintinline[fontsize=\scriptsize]{Haskell}{kron :: (b->Bool) -> (a->a->b) -> QTree a -> QTree a -> QTree b}} & \multirow{6}{0.35\linewidth}{Performs Kronecker product of two matrices. The 1st argument defines if the resulting element is zero. The 2nd argument defines the operation applied between an element of the 3rd argument and the 4th argument. 
+}\\
+{} & {}\\
+{} & {}\\
+{} & {}\\
+{} & {}\\
+{} & {}\\
+\hline
+\multirow{5}{0.6\linewidth}{\mintinline[fontsize=\scriptsize]{Haskell}{map :: (b->Bool) -> (a->b) -> QTree a -> QTree b}} & \multirow{5}{0.35\linewidth}{Applies a function, specified as the 2nd argument to matrix entries from the 3rd argument. The 1st argument defines if the resulting element is zero.
+}\\
+{} & {}\\
+{} & {}\\
+{} & {}\\
+{} & {}\\
+\hline
+\end{tabular}
+    \caption{Library functions used in evaluation}
+    \label{tab:sparse_linalg}
+\end{table}
+
+\subsection{Sparse linear algebra library}
+
+We also developed a small library of sparse linear algebra routines in \texttt{.pot} language that we used in our experiments. The library follows the API of GraphBLAS and provides functions for matrix-matrix multiplication, element-wise operations, Kronecker product, \texttt{foldr}s and \texttt{map}s, and masking (i.e. taking a matrix's subset). At the moment, we do not focus on matrix-vector operations, hence our library does not express, e.g., finding all shortest paths. However, the functionality is enough to express other useful algorithms, e.g., triangle counting. The key to expressivity is that \texttt{.pot} is a functional language, thus all the functions are parametric with respect to matrix elements operations.
+\texttt{.pot} language does not have any primitives, so passing a matrix could be achieved via emitting Haskell code, or creating a module that contains a proper matrix definition of constructors and importing this module into a program. Such definitions could be obtained via utilities from~\cite{matrix-rep}. Programs could be executed in several ways: by using \texttt{.pot} interpreter, using \texttt{.grin} interpreter, using Haskell emitting, or in hardware simulation.
+
+Function signatures used in the next section are summarized in table~\ref{tab:sparse_linalg}. We choose these functions because we are sure the distiller yields correct and appropriate results for chains of them.
