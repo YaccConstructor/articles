@@ -1,0 +1,229 @@
+\section{Evaluation}
+
+This section describes the methodology and answers the following research questions.
+
+\begin{enumerate}
+    \item Does fusion via distillation give any benefits at the software and hardware levels?
+    \item What are the properties of the generated hardware?
+    \item Does the generated hardware outperform software implementations?
+\end{enumerate}
+
+\subsection{Methodology}
+
+Our focus is on creating a basis for future research and experiments, thus we make our experiments as much reproducible as possible\footnote{\url{https://github.com/sedwards-lab/fhw/tree/sparse-linear-algebra-distillation/examples/QTreeBenchmarks/diploma/verilog-bool-no-nnz-inlined} (online; accessed:
+2022-06-07) Here one could find all the results. For each benchmark all statistics are specified: matrix names, their sizes, collected metrics for both hardware and software benchmarks.}. We benchmarked the following list of chained functions. The choice is prompted by the current state of the distiller: at the moment, it does not successfully distill matrix multiplication. However, the functions are still practical enough, for example, chained addition could be seen in Luby's maximal independent set algorithm and clearly describe the applicability of the proposed approach.
+
+\begin{itemize}
+    \item \mintinline{Haskell}{mAdd (==False) (||) (mAdd (==False) (||) m1 m2) m3}
+    \item \mintinline{Haskell}{mask (mAdd (== False) (||) m2 m3) (m1)}
+    \item \mintinline{Haskell}{map (==Zero) (to_nat) (mAdd (==False) (||) m1 m2}
+    \item \mintinline{Haskell}{map (==Zero) (to_nat) (kron (==False) (&&) m1 m2}
+\end{itemize}
+
+Above, \mintinline{Haskell}{Zero} and \texttt{to\_nat} are corresponding definitions for Peano arithmetics, since the \texttt{.pot} language does not have any primitives. For the same reason, we operated with boolean matrices. Such functions could be abstracted with free variables and then instantiated in the emitted Haskell code. However, to get maximum from distillation, we provided all the information about the functions. 
+
+For these functions, we compared the execution time of distilled and not distilled hardware generated circuits, execution time of original and distilled Haskell code and reference \textit{Suite Sparse}\footnote{\url{https://github.com/DrTimothyAldenDavis/GraphBLAS} (online; accessed:
+2022-06-07), Suite Sparse library sources.}\textsuperscript{,}\footnote{The library also uses different variations of coordinate formats (opaque to the user) and not a quadtree representation.} variants of these functions in C\texttt{++}. Note that SuiteSparse does not support recursive data types, thus only the first two function chains were implemented in SuiteSparse (since Peano number is essentially a linked list). We did not replace Peano numbers with integers, so our experiments could be interpreted easier. For hardware experiments we collected execution time and the number of memory writes and reads, to access how well fusion is performed. For software experiments we only measured the execution time. Also note that we measured only the time, required to execute the lines above, not including any IO, required to get and evaluate function arguments. But in hardware benchmarks we measured the time required to pass arguments into the circuit's memory, because such IO is inevitable. It is tricky to make such measures in Haskell due to laziness, thus the programs were compiled with \texttt{--fno-full-laziness} to turn off memoization. Also all the arguments were forced to normal form via \texttt{force} and \texttt{evaluate}. Haskell programs were compiled\footnote{GHC 8.10.4.} with \texttt{-O2 --fno-full-laziness} and Suite Sparse was compiled with default flags and linked as a shared library to C\texttt{++} code.
+
+We took matrices from SuiteSparse matrix collection with sizes ranging from \texttt{64x64} to \texttt{512x512}. We limited ourselves with such sizes due to the fact that this is the maximum sizes that fit into \texttt{bram} with $2^{16}$ address space. Such number of \texttt{bram} blocks is available only on really expensive FPGA boards, thus in practice sizes would be smaller to achieve better utilization. Once again, it models the situation when data fits into the cache, since \texttt{bram} in our circuits will operate as a cache in real application.
+
+\subsection{Experiments}
+
+Table~\ref{tab:bench_results} shows the results of all execution time benchmarks. To evaluate execution time for hardware simulation, implementation stage was performed to assess the maximum frequency of FPGA device used for synthesis and implementation, and the number of execution cycles was multiplied by the number of nanoseconds a clock cycle takes. The frequencies were equal within the same benchamark set, i.e., frequency was not affected by distillation. We used \texttt{xcu250figd2104-2L} device\footnote{\url{https://www.xilinx.com/products/boards-and-kits/alveo/u250.html}  (online; accessed:
+2022-06-07)} for synthesis and implementation stages. It is not really a casual and affordable chip, but it contains enough \texttt{bram} for our evaluation to see scalability. In the table a median across several benchmarks is shown. 
+
+As it could be seen, distillation steadily increases performance: up to 2x speedup for hardware simulation and up to 3x for software benchmarks. The results are maintained within the borders of the corresponding confidence interval and the borders are not shown for brevity. Hardware speedup is lower due to the different execution semantics, dataflow is not reduction-based and distillation is a reduction-based transformation. Note that generated hardware appears to be less performant than both Haskell and C\texttt{++}, which a bit contradicts the results from~\cite{oldfhw}. For hardware benchmarks \texttt{time (IO)} shows the execution time including the time needed to transfer the data though the arguments, \texttt{time (no IO)} does not include it in its turn. It could be seen that not all the benchmarks are computationally extensive enough to cover memory transferring costs, but for more complex examples the ratio would be better. Since we basically transfer the matrices node by node from a file in the testbench, we have probably the lowest possible latency, and in practice it would be higher if reading from DDR, however the bandwidth could be increased. Noticeably, running times for \texttt{mMaskAdd} for C\texttt{++} and distilled Haskell are similar, which shows that fusion really provides some extra performance: SuiteSparse at the moment does not implement any fusion.
+
+Table~\ref{tab:mem_results} summarizes the ratios between distilled and not distilled hardware circuits memory reads and writes. Since in general case distillation removes extra pattern matching, essentially it saves memory reads and writes. The eventual number of memory reads and writes is implementation dependent, thus the table shows what share of speedup is prompted by saving memory operations. Distillation successfully reduces the number of memory accesses, about 15\% on average. \texttt{mMapKron} has a bit higher ratio due to the fact that \texttt{Nat} numbers require additional memory accesses, since the type is recursive. It could also be seen that a major part of speedups is attributed to saved memory accesses. 
+
+Finally, table~\ref{tab:resource_util} shows device resources utilization ratios between distilled and not distilled hardware circuits and frequencies. Columns are device primitives: registers, lookup tables, \texttt{bram} blocks or multiplexers. Utilization for both types of circuits is below 1\% of available resources on the device, except for the memory. Memory blocks utilization is about 30\% (since we choose larger \texttt{brams} to store larger matrices). Apart from that, distilled circuits could have both higher and lower utilization. Since the hardware generation is primarily syntax-directed it follows from the distilled program structure. For example, distillation might glue two recursive functions into one (in that case, memory utilization would be lower, because each cluster of mutually recursive functions possesses its own heap) or make more recursive functions than in the original program. The frequencies are the same, however, they possibly could be made better with more intelligent buffer allocation.
+
+\subsection{Discussion}
+Answering the research questions above.
+
+\begin{enumerate}
+    \item Fusion gives significant benefits, however at the hardware level the benefits are a bit smaller since hardware semantics is not reduction based. The benefits at the hardware level are mostly determined by the reduced number of memory accesses (each access takes 2 clock cycles). Notably, distilled Haskell implementation of \texttt{mMaskAdd} has similar performance with C\texttt{++}. 
+    \item Device utilization is low, but such circuits could be copied on the same device to provide better utilization and higher parallelism. Resource utilization might be both better and worse after distillation, depending on the transformed program itself since translation is syntax-directed. Frequency could be increased by more intelligent buffering strategy.
+    \item Although we use low-latency design with \texttt{bram}s that take 2 clock cycles per request and transfer matrices from files, which does not have any latency in simulation, we get slower execution time than Haskell and C\texttt{++} counterparts. It could be partly due to excessive buffering performed by FHW at the moment. Also there is no pipelining for recursive calls, i.e. only one set
+of function argument tokens are allowed to enter a tail-recursive function call until a result is finally generated. Further CPS transformation hinders parallelization, which could be made more explicit with SSA. Some other optimizations exist that may significantly influence the performance. Also, since device utilization is about 1\%, such circuits could be copied on one device and provide more parallelism. A more detailed discussion could be found at~\cite{Edwards2019FHWP}.
+\end{enumerate}
+
+Distillation clearly showed its applicability to optimization of sparse linear algebra routines and notably it still could be combined with other techniques, like rewrite rules to achieve better results. High-level synthesis has a room for improvements by increasing pipelining, parallelism and frequency and the generated hardware could be improved from usability perspective: a support for arbitrary sized matrices is desirable. Thus we will focus on these directions. Probably a better solution would be to embed \texttt{.pot} language into e.g. Haskell to leverage its type system (to be able to use some rewrite rules as well), and add support for primitive types and parallel primitives to be able to conduct a more scalable comparison with SuiteSparse (since SuiteSparse is multithreaded). For such embedding different execution models could be implemented, including hardware synthesis, for which SSA form of GRIN looks promising, as well as extra optimizations shipped with GRIN. For hardware synthesis, an interesting direction is achieving predictable results in hardware from certain modifications in software. This property partly holds for the current approach, since the translation is syntax- directed. More information on this could be found at~\cite{predict}.
+
+\pagebreak
+
+\begin{table}[t]
+\scriptsize
+\centering
+\caption*{mAddAdd}
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|} 
+\hline
+\rowcolor{LightBlue}
+\multicolumn{3}{|c|}{Matrices dimensions} & Haskell & Haskell (distilled) & \multicolumn{2}{c|}{FHW} & \multicolumn{2}{c|}{FHW (distilled)} & {C\texttt{++}}\\
+% \rowcolor{LightBlue}
+\hline
+m1 & m2 & m3 & time & time & time (no IO) & time (IO) & time (no IO) & time (IO) & time \\ 
+\hline
+64 & 64 & 64 & 29 us & 20 us & 76 us & 170 us & 64 us & 158 us & 14 us\\ 
+128 & 128 & 128 & 94 & 79 & 146 & 476 & 134 & 469 & 30 \\
+256 & 256 & 256 & 123 & 103 & 202 &  681 & 168 & 662 & 44\\
+512 & 512 & 512 & 219 & 143 & 474 & 1192 & 375 & 1093 & 49\\
+\hline
+\end{tabular}
+
+\caption*{mMaskAdd}
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|} 
+\hline
+\rowcolor{LightBlue}
+\multicolumn{3}{|c|}{Matrices dimensions} & Haskell & Haskell (distilled) & \multicolumn{2}{c|}{FHW} & \multicolumn{2}{c|}{FHW (distilled)} & {C\texttt{++}}\\
+% \rowcolor{LightBlue}
+\hline
+m1 & m2 & m3 & time & time & time (no IO) & time (IO) & time (no IO) & time (IO) & time \\ 
+\hline
+64 & 64 & 64 & 10 us & 7 us & 64 us & 133 us & 46 us & 111 us & 18 us\\ 
+128 & 128 & 128 & 38 & 30 & 118 & 322 & 75 & 292 & 33 \\
+256 & 256 & 256 & 48 & 42 & 168 &  498 & 104 & 456 & 46\\
+512 & 512 & 512 & 126 & 76 & 400 & 762 & 300 & 729 & 65\\
+\hline
+\end{tabular}
+
+\caption*{mMapAdd}
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|} 
+\hline
+\rowcolor{LightBlue}
+\multicolumn{3}{|c|}{Matrices dimensions} & Haskell & Haskell (distilled) & \multicolumn{2}{c|}{FHW} & \multicolumn{2}{c|}{FHW (distilled)} & {C\texttt{++}}\\
+% \rowcolor{LightBlue}
+\hline
+m1 & m2 & m3 & time & time & time (no IO) & time (IO) & time (no IO) & time (IO) & time \\ 
+\hline
+64 & 64 & --- & 45 us & 37 us & 189 us & 253 us & 137 us & 202 us & ---\\ 
+128 & 128 & --- & 162 & 105 & 524 & 685 & 397 & 579 & --- \\
+256 & 256 & --- & 312 & 216 & 1047 &  1360 & 680 & 986 & ---\\
+512 & 512 & --- & 436 & 273 & 1346 & 1776 & 900 & 1330 & ---\\
+\hline
+\end{tabular}
+
+\caption*{mMapKron}
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|} 
+\hline
+\rowcolor{LightBlue}
+\multicolumn{3}{|c|}{Matrices dimensions} & Haskell & Haskell (distilled) & \multicolumn{2}{c|}{FHW} & \multicolumn{2}{c|}{FHW (distilled)} & {C\texttt{++}}\\
+% \rowcolor{LightBlue}
+\hline
+m1 & m2 & m3 & time & time & time (no IO) & time (IO) & time (no IO) & time (IO) & time \\ 
+\hline
+2 & 64 & --- & 64 us & 36 us & 212 us & 242 us & 94 us & 125 us & ---\\ 
+2 & 128 & --- & 137 & 68 & 434 & 502 & 199 & 266 & --- \\
+2 & 256 & --- & 364 & 126 & 1004 &  1188 & 449 & 636 & ---\\
+4 & 128 & --- & 302 & 94 & 694 & 763 & 330 & 401 & ---\\
+\hline
+\end{tabular}
+
+
+
+\caption{Execution time}
+\label{tab:bench_results}
+
+\end{table}
+\begin{table}[h]
+\scriptsize
+\begin{minipage}{0.45\linewidth}
+\centering
+\caption*{mAddAdd}
+\begin{tabular}{|c|c|c|c|c|c|c|} 
+\hline
+\rowcolor{LightBlue}
+\multicolumn{3}{|c|}{Matrices dimensions} & \multicolumn{2}{c|}{Ratio ($\frac{FHW}{FHW_{distilled}}$)}\\
+% \rowcolor{LightBlue}
+\hline
+m1 & m2 & m3 & writes & reads\\ 
+\hline
+64 & 64 & 64 & 1.10 & 1.15\\ 
+128 & 128 & 128 & 1.02 & 1.05\\
+256 & 256 & 256 & 1.03 & 1.06\\
+512 & 512 & 512 & 1.10 & 1.16\\
+\hline
+\end{tabular}
+\end{minipage}
+\begin{minipage}{0.45\linewidth}
+\centering
+\caption*{mMaskAdd}
+\begin{tabular}{|c|c|c|c|c|c|c|} 
+\hline
+\rowcolor{LightBlue}
+\multicolumn{3}{|c|}{Matrices dimensions} & \multicolumn{2}{c|}{Ratio ($\frac{FHW}{FHW_{distilled}}$)}\\
+% \rowcolor{LightBlue}
+\hline
+m1 & m2 & m3 & writes & reads\\ 
+\hline
+64 & 64 & 64 & 1.13 & 1.26\\ 
+128 & 128 & 128 & 1.06 & 1.11\\
+256 & 256 & 256 & 1.08 & 1.09\\
+512 & 512 & 512 & 1.10 & 1.16\\
+\hline
+\end{tabular}
+\end{minipage}
+\begin{minipage}{0.45\linewidth}
+\centering
+\caption*{mMapAdd}
+\begin{tabular}{|c|c|c|c|c|c|c|} 
+\hline
+\rowcolor{LightBlue}
+\multicolumn{3}{|c|}{Matrices dimensions} & \multicolumn{2}{c|}{Ratio ($\frac{FHW}{FHW_{distilled}}$)}\\
+% \rowcolor{LightBlue}
+\hline
+m1 & m2 & m3 & writes & reads\\ 
+\hline
+64 & 64 & --- & 1.10 & 1.21\\ 
+128 & 128 & --- & 1.07 & 1.14\\
+256 & 256 & --- & 1.07 & 1.19\\
+512 & 512 & --- & 1.10 & 1.21\\
+\hline
+\end{tabular}
+\end{minipage}
+\hfill
+\begin{minipage}{0.45\linewidth}
+\centering
+\caption*{mMapKron}
+\begin{tabular}{|c|c|c|c|c|c|c|} 
+\hline
+\rowcolor{LightBlue}
+\multicolumn{3}{|c|}{Matrices dimensions} & \multicolumn{2}{c|}{Ratio ($\frac{FHW}{FHW_{distilled}}$)}\\
+% \rowcolor{LightBlue}
+\hline
+m1 & m2 & m3 & writes & reads\\ 
+\hline
+2 & 64 & --- & 1.71 & 1.88\\ 
+2 & 128 & --- & 1.72 & 1.87\\
+2 & 256 & --- & 1.65 & 1.83\\
+4 & 128 & --- & 1.81 & 1.91\\
+\hline
+\end{tabular}
+\end{minipage}
+
+\caption{Memory accesses}
+\label{tab:mem_results}
+\end{table}
+
+\begin{table}[h]
+\scriptsize
+\centering
+\begin{tabular}{|l|c|c|c|c|c|c|c|c|c|} 
+\hline
+\rowcolor{LightBlue}
+
+{Benchmark} & \multicolumn{8}{c|}{Ratio (${\frac{FHW}{FHW_{distilled}}}$)} & {Frequency}\\
+\hline
+{} & FDRE & LUT3 & LUT6 & LUT5 & LUT4 & LUT2 & RAMB36E2 & MUXF7 & {} \\
+% \rowcolor{LightBlue}
+\hline
+mAddAdd & 0.3 & 0.3 & 0.3 & 0.5 & 0.3 & 0.3 & 0.5 & 0.5 & 200 MHz\\ 
+mMaskAdd & 0.5 & 0.5 & 0.7 & 0.4 & 0.7 & 0.5 & 0.7 & 0.6 & 200 MHz\\
+mMapAdd & 1 & 0.9 & 0.9 & 1.2 & 1 & 1.1 & 1.1 & 1.2 & 200 MHz\\
+mMapKron & 1.5 & 1.5 & 1.3 & 2 & 2 & 1.8 & 1.4 & 1.7 & 200 MHz\\
+\hline
+\end{tabular}
+\caption{Resource utilization}
+\label{tab:resource_util}
+\end{table}
+\pagebreak

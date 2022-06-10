@@ -1,0 +1,50 @@
+\section{Memory system}
+
+Initially, FHW did not support passing arguments to the \texttt{main} function, which meant that all matrices were stored in a program's text. It increased the generated circuit size making it unsynthesizable, and did not allow to calculate all overheads, including memory transferring. This section describes a corresponding workaround, namely, it shows the transition from the listing~\ref{lst:main} and how it was implemented at dataflow and hardware levels.
+
+\begin{listing}[b!]
+\centering
+\begin{minted}{Haskell}
+-- How to get from
+
+main :: QTree Bool
+main = let m_1 = ...
+           m_2 = ... in
+       f m_1 m_2
+       
+-- to
+main :: QTree Bool -> QTree Bool -> QTree Bool
+main m_1 m_2 = f m_1 m_2
+
+
+
+\end{minted}
+\caption{Transition to \texttt{main} function with arguments}
+\label{lst:main}
+\end{listing}
+
+\subsection{Dataflow implementation}
+
+The first step is to compile such programs with \texttt{-fno-do-eta-reduction} GHC flag to prevent GHC from doing \texttt{main = f}, since the \texttt{f} and its mutually recursive functions should be translated as a whole while \texttt{main} function is translated separately. The next step is to enumerate all the arguments to \texttt{main} in order to be able to distinguish the order of arguments of the same type when transferring data. After that, a corresponding fork node is added for each argument that "forks" each argument to the place of its usage, e.g. to the \texttt{f}'s argument.
+
+Memories are implemented as \texttt{bram} nodes in the dataflow. All the writes/reads to the same memory are collected at a corresponding \texttt{merge} actor, which chooses the needed input, and another \texttt{merge} actor chooses whether it is write or read action. The result of read/write is sent to \texttt{demux} node, which routes the result to the caller. A new input to the merge actor is added for each \texttt{main's} argument. Since we do not have any caller in such a case, \texttt{demux}'s output is sent to \texttt{sink} nodes. The only thing that is left is to initialize each memory's pointer. For this purpose, special dataflow \texttt{source} node inputs are added, which initialize memories for each type in \texttt{main}'s arguments, and a \texttt{sink} node is created, which shows the pointer, where the current value is stored at.
+
+\subsection{SystemVerilog implementation}
+
+Modifications from above provided us with three types of \texttt{source} nodes, one to initialize memory pointer, one to provide values to store in memory, and one to finally provide pointers for \texttt{main}'s arguments. These arguments are either scalar values (and, in that case, are not stored in any memory and just flow through dataflow edges) or quadtree node pointers (or quadtree mask pointers). Assuming memory size of $2^{16}$ (it models the situation when data fits into the cache, and currently, FHW supports memory spaces of sizes either $2^8$, $2^{16}$, or $2^{32}$: $2^{16}$ is a tradeoff between matrix sizes and maximum available memory resources on FPGA boards) and that quadtree nodes are represented as the  data type below (\texttt{QError} is needed for error checking), FHW encodes a node in the following manner: first is a valid bit, then an encoding for the node constructor (\texttt{QNone : 00}, \texttt{QVal : 01}, \texttt{QNode : 10}, \texttt{QError : 11}), and then goes either four 16 bit pointers to other nodes (in case the node is \texttt{QNode}) or the encoding for a value (32 bits for integer, for example). For example, \texttt{QVal 4} is encoded as \texttt{0\{61\}100100} (least significant bit is to the right).
+
+\begin{listing}[h!]
+\centering
+\begin{minted}{Haskell}
+
+data QTree a = QNone 
+             | QVal a 
+             | QNode (QTree a) (QTree a) (QTree a) (QTree a) 
+             | QError;
+\end{minted}
+\caption{Quadtree data type}
+\label{lst:qtree}
+\end{listing}
+
+Our trees are complete trees, i.e., every node is saturated (contains four children). To serialize and then deserialize such trees, one stack is sufficient. First, we store reversed post-order tree traversal and pass tree nodes in such order to the corresponding input port of a wrapper for the dataflow module.  We push a pointer for the currently stored node onto the stack (the wrapper takes it from the output port of a \texttt{sink} node added above) then if the input node is \texttt{QNode}, we pop four values from the stack and construct a new \texttt{QNode} with these four pointers in the body, pushing pointer for \texttt{QNode} onto the top. The wrapper then routes this input to the corresponding \texttt{source} node added above. The dataflow network operates under valid/ready protocol, thus we utilize AXI-stream~\cite{axi-stream} protocol to transfer trees into the circuit. The protocol makes it possible to use other predefined blocks in future FPGA design. The wrapper also makes sure that the wrapper's input is of appropriate width for the protocol, extracting the encoded node from more wide representation if needed. The end of each tree is marked with \texttt{tlast}, and the wrapper \texttt{tready} becomes invalid when the last tree arrives (that is why we enumerated the arguments). When all the arguments of all the types arrive, the circuit is finally ready.
+
