@@ -1,0 +1,146 @@
+% Method
+
+В данном разделе представлено подробное описание разработанного алгоритма. Автором предлагается новый алгоритм, основанный на классическом матричном алгоритме обхода в ширину для нескольких стартовых вершин~\cite{method_msbfs}.
+Он использует операции умножения матрицы на матрицу, применение масок к полученному результату для выделения текущего фронта обхода и другие классические матричные операций стандарта GraphBLAS. В конце рассматривается модификация этого алгоритма для решения второй поставленной задачи.
+
+Далее представлено описание алгоритма, решающего первую поставленную задачу.
+
+\subsection{Входные данные}
+    
+Алгоритм принимает на вход граф $\mathcal{G}$, детерминированный конечный автомат $\mathcal{R}$, описывающий регулярную грамматику, и множество начальных вершин $V_{src}$ графа.
+
+Граф $\mathcal{G}$ и автомат $\mathcal{R}$ можно представить в виде булевых матриц смежности. Так, в виде словаря для каждой метки графа заводится булева матрица смежности, на месте $(i, j)$ ячейки которой стоит 1, если $i$ и $j$ вершины графа соединены ребром данной метки. Такая же операция проводится для автомата грамматики $\mathcal{R}$.
+
+Далее, мы оперируем с двумя словарями, где ключом является символ метки ребра графа или символ алфавита автомата, а значением --- соответствующая им булевая матрица.
+
+Для каждого символа из пересечения этих множеств строится матрица $\mathfrak{D}$, как прямая сумма булевых матриц. То есть, строится матрица $\mathfrak{D} = Bool_{\mathcal{R}_a} \bigoplus Bool_{\mathcal{G}_a}$, которая определяется как
+
+\begin{equation}
+\mathfrak{D} = 
+  \left[
+    \begin{matrix}
+        Bool_{\mathcal{R}_a} & 0\\
+        0 & Bool_{\mathcal{G}_a}
+    \end{matrix}
+  \right]
+\end{equation}
+
+Где $\mathcal{R}_{a}$ и $\mathcal{G}_{a}$ матрицы смежности соответствующих символов автомата грамматики $\mathcal{R}$ и графа $\mathcal{G}$ для символа $a \in A_\mathcal{R} \cap A_\mathcal{G}$, $A_\mathcal{R} \cap A_\mathcal{G}$ --- пересечение алфавитов. Такая конструкция позволяет синхронизировать алгоритм обхода в ширину одновременно для графа и грамматики.
+
+Далее вводится матрица $M$, хранящая информацию о фронте обхода. Она нужна для выделения множества пройденных вершин и не допускает зацикливание алгоритма.
+\begin{equation}
+M^{k \times (k + n)} =
+  \left[
+    \begin{matrix}
+        Id_k & Matrix_{k \times n }
+    \end{matrix}
+  \right]
+\end{equation}
+
+Где $Id_k$ --- единичная матрица размера $k$, $k$ --- количество вершин в автомате $\mathcal{R}$, $Matrix_{k \times n }$ --- матрица, хранящая в себе маску пройденных вершин в автомате графа, $n$ --- количество вершин в графе $\mathcal{G}$.
+
+\subsection{Выходные данные}
+
+На выходе строится множество $\mathcal{P}$ пар вершин $(v, w)$ графа $\mathcal{G}$ таких, что вершина $w$ достижима из множества начальных вершин, при этом $v \in V_{src}$, $w \not\in V_{src}$. Это множество представляется в виде матрицы размера $|V|\times|V|$, где $(i,j)$ ячейка содержит 1, если пара вершин с индексами $(i, j) \in \mathcal{P}$.
+
+\subsection{Процесс обхода графа}
+
+Алгоритм обхода заключается в последовательном умножении матрицы $M$ текущего фронта на матрицу $\mathfrak{D}$. В результате чего, находится матрица $M'$ содержащая информацию о вершинах, достижимых на следующем шаге. Далее, с помощью операций перестановки и сложения векторов $M'$ преобразуется к виду матрицы $M$ и присваивается ей. Итерации продолжаются пока $M'$ содержит новые вершины, не содержащиеся в $M$. На листинге~\ref{BFSRPQ1} представлен этот алгоритм.
+
+\begin{algorithm}[t]
+  \caption{Алгоритм достижимости в графе с регулярными ограничениями на основе поиска в ширину, выраженный с помощью операций матричного умножения}\label{BFSRPQ1}
+  \begin{algorithmic}[1]
+    \Procedure{BFSBasedRPQ}{$\mathcal{R}=\langle Q, \Sigma, P, F, q \rangle,\mathcal{G}=\langle V, E, L \rangle, V_{src}$}
+    \State $\mathcal{P}\gets~${Матрица смежности графа}
+    \State $\mathfrak{D}\gets Bool_\mathcal{R} \bigoplus Bool_\mathcal{G}$\Comment{Построение матриц $\mathfrak{D}$}
+    \State $M\gets CreateMasks(|Q|,|V|)$ \Comment{Построение матрицы $M$}
+    \State $M'\gets SetStartVerts(M, V_{src})$  \Comment{Заполнение нач. вершин}
+    
+    \While{Матрица~$M$~меняется}{}
+      \State $M\gets M'\langle\neg M\rangle$\Comment{Применение комплементарной маски}
+      \ForAll{$a\in (\Sigma \cap L)$}
+        \State $M'\gets M~$any.pair$~\mathfrak{D}$
+        \Comment{Матр. умножение в полукольце}
+        \State $M'\gets TransformRows(M')$\label{TransformRows}
+        \Comment{Приведение $M'$ к виду $M$}
+      \EndFor
+        \State {$Matrix\gets extractRightSubMatrix(M')$}
+        \State $V\gets Matrix.reduceVector()$ \Comment{Сложение по столбцам}
+        \For{$k \in 0\dots|V_{src}|-1$}
+            \State $W\gets\mathcal{P}.getRow(k)$
+            \State $\mathcal{P}.setRow(k, V+W)$
+      \EndFor
+    \EndWhile
+    \State \textbf{return} $\mathcal{P}$
+    \EndProcedure
+  \end{algorithmic}
+\end{algorithm}
+
+В алгоритме~\ref{BFSRPQ1}, в~\ref{TransformRows} строке происходит трансформация строчек в матрице $M'$. Это делается для того, чтобы представить полученную во время обхода матрицу $M'$, содержащую новый фронт, в виде матрицы $M$. Для этого требуется так переставить строчки $M'$, чтобы она содержала корректные по своему определению значения. То есть, имела единицы на главной диагонали, а все остальные значения в первых $k$ столбцах были нулями. Подробнее эта процедура описана в листинге~\ref{AlgoTransformRows}.
+
+\begin{algorithm}[H]
+  \caption{Алгоритм трансформации строчек}\label{AlgoTransformRows}
+  \begin{algorithmic}[1]
+    \Procedure{TransformRows}{$M$}
+        \State{$T \gets extractLeftSubMatrix(M)$}
+        \State{$Ix, Iy \gets$ итераторы по индексам ненулевых элементов $T$}
+        \For{$i \in 0\dots|Iy|$}
+            \State{$R\gets M.getRow(Ix[i])$}
+            \State{$M'.setRow(Iy[i], R + M'.getRow(Iy[i]))$}
+        \EndFor
+    \EndProcedure
+  \end{algorithmic}
+\end{algorithm}
+
+\pagebreak
+
+\subsection{Модификации алгоритма}
+
+Рассмотрим $V_{src}$ --- множество начальных вершин, состоящее из $r$ элементов. Для каждой начальной вершины $v_{src}^i \in V_{src}$ отметим соответствующие индексы в матрице $M$ единицами, получив матрицу $M(v_{src}^i)$,  и построим матрицу $\mathfrak{M}$ следующим образом.
+
+\begin{equation}
+\mathfrak{M}^{(k*r) \times (k + n)} =
+  \left[
+    \begin{matrix}
+        M(v_{src}^1) \\
+        M(v_{src}^2) \\ 
+        M(\dots) \\
+        M(v_{src}^r) \\
+    \end{matrix}
+  \right]
+\end{equation}
+
+Матрица $\mathfrak{M}$ собирается из множества матриц $M(v_{src}^i)$ и позволяет хранить информацию о том, из какой начальной вершины достигаются новые вершины во время обхода. 
+
+\begin{algorithm}[t]
+  \caption{Модификация алгоритма для поиска конкретной исходной вершины}\label{BFSRPQ2}
+  \begin{algorithmic}[1]
+    \Procedure{BFSBasedRPQ}{$\mathcal{R}=\langle Q, \Sigma, P, F, q \rangle,\mathcal{G}=\langle V, E, L \rangle, V_{src}$}
+    \State $\mathcal{P}\gets~${Матрица смежности графа}
+    \State $\mathfrak{D}\gets Bool_\mathcal{R} \bigoplus Bool_\mathcal{G}$
+    \State $\mathfrak{M}\gets CreateMasks(|Q|,|V|)$
+    \State $\mathfrak{M}'\gets SetStartVerts(\mathfrak{M}, V_{src})$  
+    
+    \While{Матрица~$\mathfrak{M}$~меняется}{}
+      \State $\mathfrak{M}\gets \mathfrak{M}'\langle\neg\mathfrak{M}\rangle$
+      \ForAll{$a\in (\Sigma \cap L)$}
+        \State $\mathfrak{M}'\gets \mathfrak{M}~$any.pair$~\mathfrak{D}$
+        \ForAll{$M \in \mathfrak{M}'$}
+            \State $M\gets TransformRows(M)$
+        \EndFor
+      \EndFor
+      \ForAll{$M_k \in \mathfrak{M}'$}
+        \State $Matrix\gets extractSubMatrix(M)$
+        \State $V\gets Matrix.reduceVector()$
+        \State $W\gets\mathcal{P}.getRow(k)$
+        \State $\mathcal{P}.setRow(k, V+W)$
+      \EndFor
+    \EndWhile
+    \State \textbf{return} $\mathcal{P}$
+    \EndProcedure
+  \end{algorithmic}
+\end{algorithm}
+
+В листинге~\ref{BFSRPQ2} представлен модифицированный алгоритм. Основное его отличие заключается в том, что для каждой достижимой вершины находится конкретная исходная вершина, из которой начинался обход.
+
+Таким образом, алгоритмы~\ref{BFSRPQ1}~и~\ref{BFSRPQ2} решают сформулированные в пункте \ref{sec:3.3} задачи достижимости.
