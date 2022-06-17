@@ -1,0 +1,377 @@
+\documentclass[aspectratio=169]{beamer}
+\usepackage{beamerthemesplit}
+\usepackage{wrapfig}
+\usetheme{SPbGU}
+\usepackage{pdfpages}
+\usepackage{amsmath}
+\usepackage{cmap} 
+\usepackage[T2A]{fontenc} 
+\usepackage[utf8]{inputenc}
+\usepackage[english,russian]{babel}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{multirow}
+\usepackage[noend]{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usetikzlibrary{shapes,arrows}
+\usepackage{fancyvrb}
+\usepackage{appendixnumberbeamer}
+
+\usepackage{listings}
+\usepackage{color}
+
+\definecolor{bluekeywords}{rgb}{0.13,0.13,1}
+\definecolor{greencomments}{rgb}{0,0.5,0}
+\definecolor{redstrings}{rgb}{0.9,0,0}
+\definecolor{cyantypes}{rgb}{0.18,0.56,0.72}
+
+
+
+\lstset{ %
+  backgroundcolor=\color{white},   % choose the background color
+  basicstyle=\footnotesize,        % size of fonts used for the code
+  breaklines=true,                 % automatic line breaking only at whitespace
+  captionpos=b,                    % sets the caption-position to bottom
+  commentstyle=\color{mygreen},    % comment style
+  escapeinside={\%*}{*)},          % if you want to add LaTeX within your code
+  keywordstyle=\color{blue},       % keyword style
+  stringstyle=\color{mymauve},     % string literal style
+}
+
+\lstdefinelanguage{FSharp}%
+{morekeywords={when, struct, let, new, match, with, rec, open, module, namespace, type, of, member, % 
+and, for, while, true, false, in, do, begin, end, fun, function, return, yield, try, %
+mutable, if, then, else, cloud, async, static, use, abstract, interface, inherit, finally },
+  otherkeywords={ let!, return!, do!, yield!, use!, var, from, select, where, order, by },
+  keywordstyle=\color{bluekeywords},
+  sensitive=true,
+  basicstyle=\ttfamily,
+	breaklines=true,
+  xleftmargin=\parindent,
+  aboveskip=\bigskipamount,
+	tabsize=4,
+  morecomment=[l][\color{greencomments}]{///},
+  morecomment=[l][\color{greencomments}]{//},
+  morecomment=[s][\color{greencomments}]{{(*}{*)}},
+  morestring=[b]",
+  showstringspaces=false,
+  literate={`}{\`}1,
+  stringstyle=\color{redstrings},
+  % new keyword colors
+classoffset=1,
+morekeywords={float32, AtLeastOne, Both, Left, Right, None, Some},
+keywordstyle=\color{cyantypes},
+classoffset=0,
+}
+
+\graphicspath{{pictures/}}
+
+\beamertemplatenavigationsymbolsempty
+
+% То, что в квадратных скобках, отображается внизу по центру каждого слайда. 
+\title[GraphBLAS F\#]{Сложение разреженных матриц с использованием Brahma.FSharp}
+
+% То, что в квадратных скобках, отображается в левом нижнем углу. 
+\institute[СПбГУ]{}
+
+% То, что в квадратных скобках, отображается в левом нижнем углу.
+\author[Кирилл Гарбар]{Кирилл Анатольевич Гарбар, группа 20.Б07-мм}
+
+\begin{document}
+{
+\setbeamertemplate{footline}{}
+% Лого университета или организации, отображается в шапке титульного листа
+\begin{frame}
+  \includegraphics[width=1.4cm]{pictures/SPbGU_Logo.png}
+\vspace{-25pt}
+\hspace{-10pt}
+\begin{center}
+   \begin{tabular}{c}
+        \scriptsize{Санкт-Петербургский государственный университет} \\
+        \ 
+    \end{tabular}
+\titlepage
+\end{center}
+
+\btVFill
+
+{\scriptsize
+  % У научного руководителя должна быть указана научная степень
+   {\bfseries Научный руководитель:} к.ф.-м.н. С.В. Григорьев, доцент кафедры информатики \\  
+}
+\begin{center}
+  \vspace{5pt}
+  \scriptsize{Санкт-Петербург\\
+                 2021}
+  \end{center}
+
+\end{frame}
+}
+
+\begin{frame}[fragile]  
+  \frametitle{Введение}
+  \begin{itemize}
+    \item \textbf{Матрицы и векторы} --- способ параллельной обработки и анализа графов
+    \item Стандарт \textbf{GraphBLAS} определяет строительные блоки алгоритмов над графами на языке линейной алгебры
+    \item \textbf{GraphBLAS-sharp} --- попытка реализовать GraphBLAS на языке \textbf{F\#}
+    \begin{itemize}
+        \item \textbf{Brahma.FSharp} --- транслятор из \textbf{F\#} в \textbf{OpenCL}
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Существующие решения}
+  Критерии сравнения:
+  \begin{itemize}
+    \item Платформа для вычислений
+    \item Язык программирования
+  \end{itemize}
+  \begin{table}
+    \begin{tabular}{c | c | c}
+      Название & CPU/GPU & Язык \\
+      \hline
+      SuiteSparse & Да/Нет & C \\ 
+      GraphBLAST & Нет/Да & C++ \\
+      CUSP & Нет/Да & C++ \\
+      pggraphblas & Да/Нет & C \\
+      GraphBLAS-sharp & Да/Да & F\# \\
+      Math.NET Numerics & Да/Нет & С\# \\
+    \end{tabular}
+  \end{table}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Разреженные матрицы}
+    \begin{center}
+        \begin{pmatrix}
+        1 & 2 & 0 \\
+        0 & 4 & 0 \\
+        0 & 2 & 6 
+        \end{pmatrix}
+    \end{center}
+    \begin{itemize}
+        \item \textbf{COO} --- координатный формат
+        \begin{itemize}
+            \item массив\_значений = [1, 2, 4, 2, 6]
+            \item массив\_номеров\_столбцов = [0, 1, 1, 1, 2]
+            \item массив\_номеров\_строк    = [0, 0, 1, 2, 2]
+        \end{itemize}
+        \item \textbf{CSR} --- Йельский формат
+        \begin{itemize}
+            \item массив\_значений           = [1, 2, 4, 2, 6]
+            \item массив\_номеров\_столбцов = [0, 1, 1, 1, 2]
+            \item сжатый\_массив\_номеров\_строк  = [0, 2, 3]
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Явные и неявные нули}
+    \begin{center}
+        \begin{pmatrix}
+        None & 2 & 0 \\
+        4 & None & None \\
+        None & 2 & None \\
+        \end{pmatrix}
+    \end{center}
+    \begin{itemize}
+        \item Пример(как происходит в \textbf{SuiteSparse}) --- в результате операций над матрицей взешенного графа в одной из ячеек оказалось нулевое значение. Возможно два варианта: 
+        \begin{itemize}
+            \item 0 --- вес ребра графа --- \textbf{явный ноль}.
+            \item 0 --- отсутвтвие ребра между вершинами, в таком случае 0 следует удалить --- \textbf{неявный ноль}
+        \end{itemize}
+        \item Решения
+        \begin{itemize}
+            \item Явная фильтрация --- неудобно, непроизводительно
+            \item \textbf{Option} типы
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+% Обязательный слайд: четкая формулировка цели данной работы и постановка задачи
+% Описание выносимых на защиту результатов, процесса или особенностей их достижения и т.д.
+\begin{frame}
+  \frametitle{Постановка задачи}
+  \textbf{Целью} работы является реализация операций разреженной линейной алгебры для \textbf{GraphBLAS-sharp} с использованием \textbf{Brahma.FSharp}
+
+  \textbf{Поставленные задачи}:
+  \begin{itemize}
+    \item Реализовать поэлементное сложение разреженных матриц, представленных в \textbf{CSR} формате
+    \item Реализовать поддержку \textbf{option} типов в операции сложения элементов матриц, а также добавить возможность сложения матриц разного типа.
+    \item Произвести сравнение производительности с \textbf{SuiteSpase} и \textbf{CUSP}, а также с уже реализованным сложением в координатном формате и с математической библиотекой \textbf{Math.NET Numerics}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Поэлементное сложение матриц в CSR формате}
+
+    \begin{itemize}
+        \item Представить матрицу в координатном формате
+        \begin{itemize}
+            \item Построить массив номеров строк по сжатому массиву номеров строк
+        \end{itemize}
+        \item Произвести поэлементное сложение матриц в координатном формате
+        \item Представить результирующую матрицу в \textbf{CSR} формате
+        \begin{itemize}
+            \item Построить битмап уникальных вхождений в массив номеров строк
+            \item Посчитать количество ненулевых элементов в каждой строке
+            \item C помощью префиксной суммы, по массиву, полученному в прошлом пункте, получить сжатый массив номеров строк
+        \end{itemize}
+    \end{itemize}
+    
+\end{frame}
+
+\begin{frame}{Option типы и сложение матриц разных типов}
+
+    \begin{itemize}
+        \item Слияние значений из обеих матриц
+        \begin{itemize}
+            \item Вместо слияния в один массив распределить элементы по двум
+            \item Создать соответствующий битмап принадлежности элемента к левой или правой матрице
+        \end{itemize}
+        \item Поэлементное сложение
+        \begin{itemize}
+            \item Если есть пара элементов --- произвести сложение
+            \item Иначе, сложить элемент из одной матрицы с нулём другой матрицы
+        \end{itemize}
+        \item Фильтрация нулей
+        \begin{itemize}
+            \item \textbf{Some value} --- положить в результирующий массив
+            \item \textbf{None} --- игнорировать
+        \end{itemize}
+    \end{itemize}
+    
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Гибкость полученного решения}
+    Написав соответствующую бинарную операцию, можно выразить:
+\begin{itemize}
+    \item Поэлементное сложение
+    \item Поэлементное умножение --- в \textbf{SuiteSparse} для этого написан отдельный алгоритм
+    \item Операции, использующие матрицу как маску
+\end{itemize}
+
+\begin{lstlisting}[caption={Операция поэлементного умножения в GraphBLAS-sharp},label={lst:ewisemul},language=FSharp, basicstyle=\small]
+let float32Mul =
+    fun (values: AtLeastOne<float32, float32>) ->
+        let res =
+            match values with
+            | Both (f, s) -> f * s
+            | _ -> 0f
+        if res = 0f then None else Some res
+\end{lstlisting}
+
+\end{frame}
+
+\begin{frame}
+  \frametitle{Постановка эксперимента}
+  \begin{itemize}
+    \item \textbf{BenchmarkDotNet}
+    \item \textbf{SpBench}
+    \item Matrix Market format
+    \item \textbf{Intel Core i7-4790 CPU}, \textbf{3.60GHz}, 4 cores, \textbf{8 threads}, \textbf{32GB} DDR4 RAM, \textbf{GTX 2070}
+    \begin{table}[h]
+\center{}
+
+\begin{tabular}{ | c || c | c | c | }
+\hline
+Название & Размер & \begin{tabular}[c]{@{}l@{}} Количество\\элементов\end{tabular} & Заполненность\\ \hline
+\hline
+wing & 62 032 & 243 088 & 0,0063\%\\ \hline
+luxembourg\_osm & 114 599 & 119 666 & 0,0009\%\\ \hline
+amazon0312 & 400 727 & 3 200 440 & 0,0019\%\\ \hline
+amazon-2008 & 735 323 & 5 158 388 & 0,0009\%\\ \hline
+web-Google & 916 428 & 5 105 039 & 0,0001\%\\ \hline
+webbase-1M & 1 000 005 & 3 105 536 & 0,0003\%\\ \hline
+cit-Patents & 3 774 768 & 16 518 948 & 0,0001\%\\ \hline
+\end{tabular}
+
+\caption{Матрицы, на которых производилось сравнение}
+\label{matrices}
+\end{table}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Сравнение с SuiteSparse, CUSP и Math.NET}
+\begin{table}
+\centering
+\begin{tabular}{|c||c|c|c|c|}
+\hline
+Название            & GraphBLAS-sharp & SuiteSparse & CUSP & Math.NET Numerics       \\
+\hline
+\hline
+wing            & $1,8 \pm 0,1$      & $1,9\pm 0,1$   & $0,5\pm 0,2$ &  $5,5\pm 0,2$ \\
+\hline
+luxembourg\_osm & $2,9 \pm 0,3$      & $1.9\pm 0,5$   & $0,5\pm 0,1$  & $286,2\pm 2,2$ \\
+\hline
+amazon0312      & $17,0 \pm 0,8$      & $28,9\pm 0,2$  & $2,8\pm 0,1$  & $-$\\
+\hline
+amazon-2008     & $12,2 \pm 0,8$     & $50,1\pm 2,4$  & $3,5\pm 0,1$  & $-$\\
+\hline
+web-Google      & $18,4 \pm 0,6$     & $58.8\pm 0,7$  & $3,6\pm 0,1$  & $-$\\
+\hline
+webbase-1M      & $70,7 \pm 1,0$      & $72,9\pm 0,4$  & $24,6\pm 2,1$ & $-$\\
+\hline
+cit-Patents     & $54,6 \pm 1,2$      & $157,4\pm 1,2$ & $8,5\pm 1,2$  & $-$\\     
+\hline
+\end{tabular}
+\caption{Результаты сравнения библиотек на сложение в CSR формате, GTX 2070, среднее $\pm$ стандартное отклонение, мс. Отсутствие данных означает, что среднее время превышает 100 секунд}
+\label{platform-comparison}
+\end{table}
+
+\end{frame}
+
+\begin{frame}
+  \frametitle{Сравнение поэлементного умножения в GraphBLAS-sharp и SuiteSparse}
+\begin{table}
+\centering
+\begin{tabular}{|c||c|c|}
+\hline
+Название            & GraphBLAS-sharp CSR & SuiteSparse    \\
+\hline
+\hline
+wing            & $2,5 \pm 0,4$      & $1,0 \pm 0,1$ \\
+\hline
+luxembourg\_osm & $2,6 \pm 0,3$       & $1,4 \pm 0,3$ \\
+\hline
+amazon0312      & $13,0 \pm 1,0$     & $23,0 \pm 0,9$ \\
+\hline
+amazon-2008     & $9,1 \pm 0,8$    & $35,2 \pm 4,0$ \\
+\hline
+web-Google      & $14,7 \pm 0,8$      & $43,9 \pm 0,2$  \\
+\hline
+webbase-1M      & $55,4 \pm 1,2$      & $31,0 \pm 1,6$ \\
+\hline
+cit-Patents     & $47,9 \pm 0,9$      & $107,9 \pm 0,4$  \\     
+\hline
+\end{tabular}
+\caption{Сравнение результатов поэлементного умножения матриц, GTX 2070, среднее $\pm$ стандартное отклонение, мс.}
+\label{mult-comparison}
+\end{table}
+
+\end{frame}
+
+\begin{frame}
+  \frametitle{Выводы}
+  \begin{itemize}
+    \item Достигнута приемлемая производительность, несмотря на реализацию на \textbf{F\#} вместо \textbf{C/C++}
+    \item Операция сложения достаточно гибкая, чтобы с её помощью произвести другие поэлементные операции, такие как поэлементное умножение
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Результаты}
+  \begin{itemize}
+    \item Реализовано поэлементное сложение разреженных матриц, представленных в \textbf{CSR} формате
+    \item Реализована поддержка \textbf{option} типов в операции сложения элементов матриц, а также добавлена возможность сложения матриц разного типа
+    \item Произведено сравнение производительности с \textbf{SuiteSpase} и \textbf{CUSP}, а также с уже реализованным сложением в координатном формате и с математической библиотекой \textbf{Math.NET Numerics}
+  \end{itemize}
+  Репозиторий с реализацией: \textbf{https://github.com/YaccConstructor/GraphBLAS-sharp/tree/net5} \\
+  Имя пользователя: \textbf{kirillgarbar}
+\end{frame}
+
+\end{document}
