@@ -1,64 +1,93 @@
 \section{Design Principles}
 
-In this work we are focused on making development process easier and safer by using !!!. 
-Automate optimization.
-Accurate type-level encoding of domain: monoids, semirings.
+Basic principles of proposed design described in this section.
+Here we will use .NET-like style for generic types: $\texttt{Type}_1\langle\texttt{Type}_2\rangle$ means that the type $\texttt{Type}_1$ is generic and $\texttt{Type}_2$ is a type parameter.
 
-Monoids and semirings are closed under operations. 
-Thus, in contrast with GraphBLAS API, all operations in semirings and monoids have the following type: $t \to t \to t$ (instead of $t_1 \to t_2 \to t_3$ as proposed in the GraphBLAS specification).  
-It makes our definition less flexible, but allows one to generalize some operations, such as closure of relation.
-We realize, that in some cases such restrictive constrains are not required.
-Namely, definition of matrix multiplication does not requires a semiring, it just requires two operations $\oplus$ and $\otimes$ with following types: $\otimes: t_1 \to t_2 \to t_3$, $\oplus: t_3 \to t_3 \to t_3 $. 
-But formally, a set with such operations is not a semiring.
-We think that such case should be investigated separately from semirings, because additional guaranties provided by semirings may be used for code simplification and optimization.
-For example, it may help to solve a problem with explicit zeros\footnote{Discussion on zeros removing \url{!!!}. Access date: 12.01.2021. } because we should explicitly specify conversion from one semiring to another if required.  
+\subsection{Types of graphs, matrices, and operations}
 
-Matrices and vectors are equipped with monoid or semiring.
-Explicit type conversions. 
-Can be automatically removed in some cases during translation time.
+Suppose one have an edge-labelled graph $G$ where labels have type $\texttt{T}_{\texttt{lbl}}$. 
+Suppose also one declare a generic type $\texttt{Matrix} \langle \texttt{T} \rangle$ to use this type for graph representation where type parameter \texttt{T} is a type of matrix cell. 
+It is obvious that type of cell of adjacency matrix of graph $G$ should a special type which has only two values: some value of type $\texttt{T}_{\texttt{lbl}}$ or special value \texttt{Nothing}.
+This idea can be naturally expressed using discriminated unions (or sum types) which actively used not only in functional languages such as F\#, OCalm, or Haskell, but also in TypeScript etc. 
+Moreover, the described case is widely used and there is a standard type in almost all languages which supports discriminated unions: $\texttt{Option} \langle \texttt{T} \rangle$ in F\# or OCaml, or $\texttt{Maybe} \langle \texttt{T} \rangle$ in Haskell. 
+In F\# this type defined as presented in listing~\ref{lst:optionType}.
 
-We propose to generate OpenCL c code in running time as a way to solve problems with generics: with strong typing all type information become known and can be used to generate kernels for specific types.
-Moreover, running time code generation is a way to apply advances optimization techniques, such as partial evaluation (or code specialization), which can improve performance of generated code when part of input parameter of kernel becomes known prior its generation~\cite{10.1145/3332466.3374507}.
-
-The example of \texttt{Min-Plus} semiring definition is provided in listing~\ref{lst_example}.
-Type is defined using discriminated unions (line 1): new set can contains both floats, marked with  \texttt{R} and a special value \texttt{Infinity}.
-Thus floats are extended with infinity as required for accurate definition of \texttt{Min-Plus} semiring.
-Semiring definition (lines 3--21) includes definition of zero (idenity), operations $\oplus$ (lines 8--13) and $\otimes$ (lines 14--19), !!!!
-
-
-\begin{listing}
-\begin{minted}
-[
-frame=lines,
-fontsize=\footnotesize,
-framesep=2mm,
-linenos,
-autogobble,
-numbersep=4pt
-]
-{fsharp}
-type RInfinity = R of float | Infinity
-
-[<Struct>]
-type MinPlusSemiring = 
-   MinPlusSemiring of RInfinity
-with
-   static member Zero = MinPlusSemiring Infinity
-   static member (+) 
-      (MinPlusSemiring x, MinPlusSemiring y) = 
-          match x, y with
-          | R x, R y -> System.Math.Min(x,y) |> R
-          | _        -> Infinity 
-          |> MinPlusSemiring
-   static member (*) 
-      (MinPlusSemiring x, MinPlusSemiring y) = 
-          match x, y with
-          | R x, R y -> x + y |> R
-          | _        -> Infinity 
-          |> MinPlusSemiring
-   static member op_Implicit (MinPlusSemiring src) = 
-      src
+\begin{listing}[h]
+\begin{minted}{fsharp}
+type Option<T> =
+| None
+| Some of T
 \end{minted}
-\caption{Example om \texttt{Min-Plus} semiring definition}
-\label{lst_example}
+\caption{\texttt{Option} type definition}
+\label{lst:optionType}
+\end{listing}
+
+
+Thus, to represent the graph $G$ as a matrix one should use an instance of $\texttt{Matrix} \langle \texttt{Option}\langle \texttt{T}_{\texttt{lbl}} \rangle \rangle $  of generic type $\texttt{Matrix}\langle \texttt{T} \rangle$.
+This way we can explicitly separate non-zero and zero cells in terms of sparse matrix: non-zero cells are cells with value \texttt{Some(x)} for which \texttt{x} should be stored, and zero cells are cells with value \texttt{None}.
+
+In these settings, natural type for binary operation is $$\texttt{Option}\langle T_1 \rangle \to \texttt{Option}\langle T_2 \rangle \to \texttt{Option}\langle T_3 \rangle.$$ But this type is not restrictive enough: it allows one to define operation which returns some non-zero (\texttt{Some(x)}) value for two zeroes (\texttt{None}-s), while we expect that $$\texttt{None op None = None}$$ for any operation \texttt{op}.   
+
+To solve this problem one can introduce additional constraints, but such constraints can not be expressed in F\#.
+An alternative solution is to introduce a type $\texttt{AtLeastOne} \langle T_1, T_2 \rangle$ as presented in listing~\ref{lst:AtLeastOneType}. This type is less flexible (for example it disallows one to apply operation partially) but is explicitly shows that we expect that at least one argument of operation should be non-zero. 
+
+\begin{listing}[h]
+    \begin{minted}{fsharp}
+    type AtLeastOne<T1,T2> =
+    | Both of T1 * T2
+    | Left of T1
+    | Right of T2
+    \end{minted}
+    \caption{\texttt{AtLeastOne} type definition}
+    \label{lst:AtLeastOneType}
+\end{listing}
+
+Finally in this settings operations should have the following type: $$\texttt{AtLeastOne} \langle T_1, T_2 \rangle \to \texttt{Option}\langle T_3 \rangle.$$
+This type disallows one to build non-zero value from two zeroes, and explicitly shows whether result should be stored or not.
+Thus, proposed typing scheme solves problem of explicit and implicit zeroes.
+Moreover it allows to generalize element-wise operations.
+For example, binary operations for element-wise addition, element-wise multiplication, and even for masking can be specified as presented in listings~\ref{lst:opIntAdd}, \ref{lst:opIntMult}, \ref{lst:opMask} respectively.
+
+\begin{listing}[h]
+    \begin{minted}{fsharp}
+    let op_int_add args =
+    match args with
+    | Both (x, y) -> 
+        ler res = x + y 
+        if res = 0 
+        then None 
+        else Some res 
+    | Left x -> Some x
+    | Right y -> Some y
+    \end{minted}
+    \caption{An example of element-wise addition operation definition}
+    \label{lst:opIntAdd}
+\end{listing}
+
+\begin{listing}[h]
+        \begin{minted}{fsharp}
+        let op_int_mult args =
+        match args with
+        | Both (x, y) -> 
+            ler res = x * y 
+            if res = 0 
+            then None 
+            else Some res 
+        | Left x -> None
+        | Right y -> None
+        \end{minted}
+        \caption{An example of element-wise multiplication operation definition}
+        \label{lst:opIntMult}
+\end{listing}
+
+\begin{listing}[h]
+    \begin{minted}{fsharp}
+    let op_mask args =
+    match args with
+    | Both (x, y) -> Some x
+    | Left x -> None
+    | Right y -> None
+    \end{minted}
+    \caption{An example of masking operation definition}
+    \label{lst:opMask}
 \end{listing}
