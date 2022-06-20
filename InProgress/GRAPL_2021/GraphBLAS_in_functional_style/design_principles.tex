@@ -2,8 +2,9 @@
 
 Basic principles of proposed design described in this section.
 Here we will use .NET-like style for generic types: $\texttt{Type}_1\langle\texttt{Type}_2\rangle$ means that the type $\texttt{Type}_1$ is generic and $\texttt{Type}_2$ is a type parameter.
+Also we use F\#-like type notations and syntax in our examples.
 
-\subsection{Types of graphs, matrices, and operations}
+\subsection{Types of Graphs, Matrices, and Operations}
 
 Suppose one have an edge-labelled graph $G$ where labels have type $\texttt{T}_{\texttt{lbl}}$. 
 Suppose also one declare a generic type $\texttt{Matrix} \langle \texttt{T} \rangle$ to use this type for graph representation where type parameter \texttt{T} is a type of matrix cell. 
@@ -42,7 +43,7 @@ An alternative solution is to introduce a type $\texttt{AtLeastOne} \langle T_1,
     \label{lst:AtLeastOneType}
 \end{listing}
 
-Finally in this settings operations should have the following type: $$\texttt{AtLeastOne} \langle T_1, T_2 \rangle \to \texttt{Option}\langle T_3 \rangle.$$
+Finally in this settings binary operations should have the following type: $$\texttt{AtLeastOne} \langle T_1, T_2 \rangle \to \texttt{Option}\langle T_3 \rangle.$$
 This type disallows one to build non-zero value from two zeroes, and explicitly shows whether result should be stored or not.
 Thus, proposed typing scheme solves problem of explicit and implicit zeroes.
 Moreover it allows to generalize element-wise operations.
@@ -91,3 +92,30 @@ For example, binary operations for element-wise addition, element-wise multiplic
     \caption{An example of masking operation definition}
     \label{lst:opMask}
 \end{listing}
+
+\subsection{Operations Over Matrices and Vectors}
+
+GraphBLAS API introduces \textbf{monoid} and \textbf{semiring} abstraction to specify element-wise operations for functions over matrices and vector.
+We propose to use binary operations instead as a parameters for functions over matrices and vectors. 
+Using proposed types we always know that identity is always \texttt{None}, so we do not need specify identity separately as a part of semiring or monoid.
+Additionally, we often do not require operations actually satisfy semiring or monoid properties, so usage of correctly typed functions should be more clear and less confusing than usage of mathematical object in non-convenient settings.
+
+So, for example function for matrix-matrix multiplication should has the following type:
+\begin{alignat*}{2}
+    \texttt{mXm} & : & \\ 
+        &   & \texttt{mlt: AtLeastOne} \langle T_1, T_2 \rangle \to \texttt{Option} \langle T_3 \rangle \\
+        & \to & \texttt{add: AtLeastOne} \langle T_3, T_3 \rangle \to \texttt{Option} \langle T_3 \rangle \\
+        & \to & \texttt{m}_1: \texttt{Matrix} \langle \texttt{Option} \langle T_1\rangle \rangle \\
+        & \to & \texttt{m}_2: \texttt{Matrix} \langle \texttt{Option} \langle T_2 \rangle \rangle \\
+        & \to & \texttt{result}: \texttt{Matrix} \langle \texttt{Option} \langle T_3\rangle \rangle
+\end{alignat*}
+
+In this settings we can predefine a set of widely used binary operations, and allows user to specify own ones, and combine all of them freely and safely.
+
+
+\subsection{Fusion [in progress]}
+
+Runtime metaprogramming allows us to implement runtime fusion for kernels: having an expression over matrices and vectors we can build an optimized F\# function from predefined building blocs, and after that translate this optimized version to OpenCL C.
+
+This allows us to define \textbf{mask} as a partial case of generic element-wise function (respective operation is presented in listing~\ref{lst:opMask}), not an optional parameter of other functions.
+This makes API more homogeneous and clear. 
