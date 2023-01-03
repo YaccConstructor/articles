@@ -30,6 +30,7 @@ This way we can explicitly separate non-zero and zero cells in terms of sparse m
 In these settings, natural type for binary operation is $$\texttt{Option}\langle T_1 \rangle \to \texttt{Option}\langle T_2 \rangle \to \texttt{Option}\langle T_3 \rangle.$$ But this type is not restrictive enough: it allows one to define operation which returns some non-zero (\texttt{Some(x)}) value for two zeroes (\texttt{None}-s), while we expect that $$\texttt{None op None = None}$$ for any operation \texttt{op}.   
 
 To solve this problem one can introduce additional constraints, but such constraints can not be expressed in F\#.
+Actually, one need more power type system whish supports dependetn types.
 An alternative solution is to introduce a type $\texttt{AtLeastOne} \langle T_1, T_2 \rangle$ as presented in listing~\ref{lst:AtLeastOneType}. This type is less flexible (for example it disallows one to apply operation partially) but is explicitly shows that we expect that at least one argument of operation should be non-zero. 
 
 \begin{listing}[h]
@@ -95,22 +96,23 @@ let op_mask args =
 
 \subsection{Operations Over Matrices and Vectors}
 
-GraphBLAS API introduces \textbf{monoid} and \textbf{semiring} abstraction to specify element-wise operations for functions over matrices and vector.
+GraphBLAS API introduces \textbf{monoid} and \textbf{semiring} abstraction to specify element-wise operations for functions over matrices and vectors.
 We propose to use binary operations instead as a parameters for functions over matrices and vectors. 
 Using proposed types we always know that identity is always \texttt{None}, so we do not need specify identity separately as a part of semiring or monoid.
 Additionally, we often do not require operations actually satisfy semiring or monoid properties, so usage of correctly typed functions should be more clear and less confusing than usage of mathematical object in non-convenient settings.
 
-So, for example function for matrix-matrix multiplication should has the following type:
+For example, function for matrix-matrix multiplication should has the following type:
 \begin{alignat*}{2}
     \texttt{mXm} & : & \\ 
-        &   & \texttt{mlt: AtLeastOne} \langle T_1, T_2 \rangle \to \texttt{Option} \langle T_3 \rangle \\
-        & \to & \texttt{add: AtLeastOne} \langle T_3, T_3 \rangle \to \texttt{Option} \langle T_3 \rangle \\
+        &   & \texttt{ mlt: AtLeastOne} \langle T_1, T_2 \rangle \to \texttt{Option} \langle T_3 \rangle \\
+        & \to & \texttt{ add: AtLeastOne} \langle T_3, T_3 \rangle \to \texttt{Option} \langle T_3 \rangle \\
         & \to & \texttt{m}_1: \texttt{Matrix} \langle \texttt{Option} \langle T_1\rangle \rangle \\
         & \to & \texttt{m}_2: \texttt{Matrix} \langle \texttt{Option} \langle T_2 \rangle \rangle \\
         & \to & \texttt{result}: \texttt{Matrix} \langle \texttt{Option} \langle T_3\rangle \rangle
 \end{alignat*}
 
 In this settings we can predefine a set of widely used binary operations, and allows user to specify own ones, and combine all of them freely and safely.
+Moreover, this way allows one to introduce monoids and semirings as an additional level of abstraction if necessary.
 
 
 \subsection{Fusion [in progress]}
