@@ -1,26 +1,15 @@
 \section{Evaluation}
 
-While our implementation is on very early stage, we cannot evaluate it on well-known linear algebra based algorithms. 
-But in order to demonstrate applicability of proposed solutions we evaluate element-wise matrix-matrix operations. 
+While our project\footnote{GraphBLAS\# project page: \url{https://github.com/YaccConstructor/GraphBLAS-sharp}.} is in a very early stage we implemented and evaluated only generic matrix-matrix element-wise function \texttt{map2} to demonstrate that the proposed solution may provide not only a way to an expressive compact high-level API, but also a way to its high-performance implementation. This function implemented for matrices in CSR format. We use Brahma.FSharp to support GPGPUs.  
 
+We evaluate \texttt{map2} function parameterized by two operations: \texttt{op\_int\_add} (listing~\ref{lst:opIntAdd}) to get element-wise addition in terms of GraphBLAS API, and \texttt{op\_int\_mult} (listing~\ref{lst:opIntMult}) to get element-wise multiplication.
+
+\subsection{Environment}
 We perform our experiments on the PC with Ubuntu 18.04 installed and with the following hardware configuration: !!! CPU, !!! RAM, !!!GPGPU with !!!!.
 
-our solution on CPU and GPGPU.
-For comparison we choose the following libraries.
+For comparison we choose a SuiteSparse:GraphBLAS as a reference CPU implementation of GraphBLAS API, and CUSP\footnote{Cusp is a CUDA-based library for sparse linear algebra and graph computations: \url{https://cusplibrary.github.io/}.} as a most stable GPGPU implementation of generic sparse linear algebra.
 
-\begin{itemize}
-\item SuiteSparse:GraphBLAS as a reference CPU implementation of GraphBLAS API.
-\item GraphBLAST as a most stable GPGPU implementation of GraphBLAS API.
-\end{itemize}
-
-
-\subsection {Dataset}
-
-For evaluation we select a set of matrices from SuiteSparse matrix collection collection\footnote{SuiteSparse matrix collection: \url{https://sparse.tamu.edu/}.}
-To simplify evaluation of element-wise operations over matrices with different structure we precompute square of each matrix. 
-Characteristics of selected matrices are presented in table~\ref{matrices}.
-
-\begin{table}[h]
+\begin{table}[H]
     \centering
     \caption{Matrices for evaluation}
     \label{matrices}  
@@ -38,27 +27,24 @@ Characteristics of selected matrices are presented in table~\ref{matrices}.
     \end{tabular}
 \end{table}
 
-We evaluate our generic element-wise function parameterized by two operations: \texttt{op\_int\_add} (listing~\ref{lst:opIntAdd}) to get element-wise addition in terms of GraphBLAS API, and \texttt{op\_int\_mult} (listing~\ref{lst:opIntMult}) to get element-wise multiplication.
 
+\subsection {Dataset}
+
+For evaluation we select a set of matrices from SuiteSparse matrix collection\footnote{SuiteSparse matrix collection: \url{https://sparse.tamu.edu/}.}
+To simplify evaluation of element-wise operations over matrices with different structure we precompute square of each matrix. 
+Characteristics of selected matrices are presented in table~\ref{matrices}.
 
 \subsection{Evaluation Results}
-
-To benchmark .NET-based implementation we use \textit{BenchmarkDotNet}\footnote{\textit{BenchmarkDotNet}: \url{https://benchmarkdotnet.org/}. Access date: 12.06.2022.} which allows one to automate benchmarking process for .NET platform.
-We run each function XXX times, !!!
-Time is measured in milliseconds.
-
-Results of performance evaluation are presented in tables~\ref{add-comparison} and~\ref{mult-comparison}.
-
 
 \begin{table*}[h]
     \centering    
     \caption{Evaluation results for element-wise operations, time in ms}    
-    \label{add-comparison}
-    \begin{tabular}{|c|c|c|c|c||c|c|}
+    \label{perf-comparison}
+    \begin{tabular}{|c||c|c|c|c||c|c|}
     \hline
-    \multirow{3}{*}{Matrix} & \multicolumn{4}{|c||}{Elemint-wise addition} & \multicolumn{2}{|c|}{Elemint-wise multiplication}\\    
+    \multirow{3}{*}{Matrix} & \multicolumn{4}{c||}{Elemint-wise addition} & \multicolumn{2}{c|}{Elemint-wise multiplication}\\    
     \cline{2-7}        
-    & \multicolumn{2}{|c|}{GraphBLAS-sharp} & \multirow{2}{*}{SuiteSparse} & \multirow{2}{*}{CUSP} & \multirow{2}{*}{GraphBLAS-sharp} & \multirow{2}{*}{SuiteSparse}        \\
+    & \multicolumn{2}{c|}{GraphBLAS-sharp} & \multirow{2}{*}{SuiteSparse} & \multirow{2}{*}{CUSP} & \multirow{2}{*}{GraphBLAS-sharp} & \multirow{2}{*}{SuiteSparse}        \\
     &No \texttt{AtLeastOne}&\texttt{AtLeastOne}& & & &\\ 
     \hline
     \hline
@@ -79,11 +65,13 @@ Results of performance evaluation are presented in tables~\ref{add-comparison} a
     \end{tabular}    
 \end{table*}
 
+To benchmark .NET-based implementation we use \textit{BenchmarkDotNet}\footnote{\textit{BenchmarkDotNet}: \url{https://benchmarkdotnet.org/}. Access date: 12.06.2022.} which allows one to automate benchmarking process for .NET platform.
+We run each function XXX times, !!!
+Time is measured in milliseconds. The time to prepare data and initially transfer it to GPU is not included.
 
-We can see, that for element-wise addition our implementation slower than SuiteSparse:GraphBLAS for small matrices (\textbf{luxembourg\_osm}) and up to 4 times faster for big matrices.
+Results of performance evaluation are presented in table~\ref{perf-comparison}.
+We can see, that for element-wise addition our implementation slower than SuiteSparse:GraphBLAS for small matrices (\textbf{luxembourg\_osm}) and up to 4 times faster for big matrices. !!! CUSP !!!
 For element-wise multiplication results are almost similar except matrix \textbf{webbase-1M} for which our implementation slower than SuiteSparse:GraphBLAS while this matrix contains big number of non-zero values.
 
-Comparison between original element-wise addition over primitive types, without \texttt{AtLeasOne} and generalized version which uses \texttt{AtLeastOne} type is presented in table~\ref{option-noOption-comparison}.
-We can see, that more complex data types and element-wise operations do not poor performance of matrix-matrix operations. We think that the reason of such behavior is that data transfer dominates arithmetic computations.
-
-
+Comparison between original element-wise addition over primitive types, without \texttt{AtLeasOne} and generalized version which uses \texttt{AtLeastOne} type is also presented in table~\ref{perf-comparison}.
+We can see, that more complex data types and element-wise operations do not poor performance of matrix-matrix operations. The reason for such behavior is that data transfer dominates arithmetic computations for sparse matrices processing, and the proposed abstraction does not increase the memory footprint.
