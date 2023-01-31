@@ -6,11 +6,11 @@ Also we use F\#-like type notations and syntax in our examples.
 
 \subsection{Types tor Graphs, Matrices, and Operations}
 
-Suppose one have an edge-labelled graph $G$ where labels have type $\texttt{T}_{\texttt{lbl}}$. 
-Suppose also one declare a generic type $\texttt{Matrix} \langle \texttt{T} \rangle$ to use this type for graph representation where type parameter \texttt{T} is a type of matrix cell. 
+Suppose one has an edge-labeled graph $G$ where labels have type $\texttt{T}_{\texttt{lbl}}$.
+Suppose also one declares a generic type $\texttt{Matrix} \langle \texttt{T} \rangle$ to use this type for graph representation where type parameter \texttt{T} is a type of matrix cell.
 It is obvious that type of cell of adjacency matrix of graph $G$ should a special type which has only two values: some value of type $\texttt{T}_{\texttt{lbl}}$ or special value \texttt{Nothing}.
-This idea can be naturally expressed using discriminated unions (or sum types) which actively used not only in functional languages such as F\#, OCalm, or Haskell, but also in TypeScript, Swift and other popular languages. 
-Moreover, the described case is widely used and there is a standard type in almost all languages which supports discriminated unions: $\texttt{Option} \langle \texttt{T} \rangle$ in F\# or OCaml, or $\texttt{Maybe} \langle \texttt{T} \rangle$ in Haskell. 
+This idea can be naturally expressed using discriminated unions (or sum types) which actively used not only in functional languages such as F\#, OCalm, or Haskell, but also in TypeScript, Swift and other popular languages.
+Moreover, the described case is widely used and there is a standard type in almost all languages which supports discriminated unions: $\texttt{Option} \langle \texttt{T} \rangle$ in F\# or OCaml, or $\texttt{Maybe} \langle \texttt{T} \rangle$ in Haskell.
 In F\# this type defined as presented in listing~\ref{lst:optionType}.
 
 \begin{listing}[h]
@@ -23,13 +23,13 @@ type Option<T> = None | Some of T
 
 
 Thus, to represent the graph $G$ as a matrix one should use an instance of $\texttt{Matrix} \langle \texttt{Option}\langle \texttt{T}_{\texttt{lbl}} \rangle \rangle $  of generic type $\texttt{Matrix}\langle \texttt{T} \rangle$.
-This way we can explicitly separate cells which should be stored and which does not: for cells with value \texttt{Some(x)} \texttt{x} should be stored, and for cells with value \texttt{None} should not be stored. Note that there is no storage and data transfer overhead in this solution: one can use any format for sparse matrices and store only $\texttt{T}_{\texttt{lbl}}$ values as usual.
+This way we can explicitly separate cells which should be stored and which do not: for cells with value \texttt{Some(x)} \texttt{x} should be stored, and for cells with value \texttt{None} should not be stored. Note that there is no storage and data transfer overhead in this solution: one can use any format for sparse matrices and store only $\texttt{T}_{\texttt{lbl}}$ values as usual.
 
-In these settings, natural type for binary operation is $$\texttt{Option}\langle T_1 \rangle \to \texttt{Option}\langle T_2 \rangle \to \texttt{Option}\langle T_3 \rangle.$$ But this type is not restrictive enough: it allows one to define operation which returns some non-zero (\texttt{Some(x)}) value for two zeroes (\texttt{None}-s), while we expect that $$\texttt{None op None = None}$$ for any operation \texttt{op}.   
+In these settings, natural type for binary operation is $$\texttt{Option}\langle T_1 \rangle \to \texttt{Option}\langle T_2 \rangle \to \texttt{Option}\langle T_3 \rangle.$$ But this type is not restrictive enough: it allows one to define operation which returns some non-zero (\texttt{Some(x)}) value for two zeroes (\texttt{None}-s), while we expect that $$\texttt{None op None = None}$$ for any operation \texttt{op}.  
 
 To solve this problem one can introduce additional type-level constraints, but such constraints can not be expressed in F\#.
-Actually, one need more power type system whish supports dependetn types.
-An alternative solution is to introduce a type $\texttt{AtLeastOne} \langle T_1, T_2 \rangle$ as presented in listing~\ref{lst:AtLeastOneType}. This type is less flexible (for example it disallows one to apply operation partially) but is explicitly shows that we expect that at least one argument of operation should be non-zero. 
+Actually, one needs more power type system which supports dependent types.
+An alternative solution is to introduce a type $\texttt{AtLeastOne} \langle T_1, T_2 \rangle$ as presented in listing~\ref{lst:AtLeastOneType}. This type is less flexible (for example it disallows one to apply operation partially) but it explicitly shows that we expect that at least one argument of operation should be non-zero.
 
 \begin{listing}[h]
     \begin{minted}{fsharp}
@@ -43,8 +43,8 @@ An alternative solution is to introduce a type $\texttt{AtLeastOne} \langle T_1,
 \end{listing}
 
 Finally in this settings binary operations should have the following type: $$\texttt{AtLeastOne} \langle T_1, T_2 \rangle \to \texttt{Option}\langle T_3 \rangle.$$
-This type disallows one to build non-zero value from two zeroes, and explicitly shows whether result should be stored or not.
-Thus, proposed typing scheme solves the \textit{problem of explicit and implicit zeroes}.
+This type disallows one to build a non-zero value from two zeroes, and explicitly shows whether the result should be stored or not.
+Thus, the proposed typing scheme solves the \textit{problem of explicit and implicit zeroes}.
 Moreover it allows one to generalize element-wise operations.
 For example, binary operations for element-wise addition, element-wise multiplication, and even for masking can be described as presented in listings~\ref{lst:opIntAdd}, \ref{lst:opIntMult}, \ref{lst:opMask} respectively.
 
@@ -89,9 +89,9 @@ let op_mask args =
 \subsection{Operations Over Matrices and Vectors}
 
 GraphBLAS API introduces \textbf{monoid} and \textbf{semiring} abstraction to specify element-wise operations for functions over matrices and vectors.
-We propose to use binary operations instead as a parameters for functions over matrices and vectors. 
-Using proposed types we always know that identity is always \texttt{None}, so we do not need specify identity separately as a part of semiring or monoid.
-Additionally, applications often do not require operations actually satisfy semiring or monoid properties, so usage of correctly typed functions should be more clear and less confusing than usage of mathematical object in non-convenient settings.
+We propose to use binary operations instead as parameters for functions over matrices and vectors.
+Using proposed types we always know that identity is always \texttt{None}, so we do not need to specify identity separately as a part of semiring or monoid.
+Additionally, applications often do not require operations that actually satisfy semiring or monoid properties, so usage of correctly typed functions should be more clear and less confusing than usage of mathematical objects in non-convenient settings.
 
 For example, function for element-wise matrix-matrix operations\footnote{We name it \texttt{map2} to be consistent with similar functions over standard collections.} should has the following type:
 \begin{alignat*}{2}
@@ -102,13 +102,13 @@ For example, function for element-wise matrix-matrix operations\footnote{We name
         & \to & \texttt{result}: \texttt{Matrix} \langle \texttt{Option} \langle T_3\rangle \rangle
 \end{alignat*}
 
-In this settings we can predefine a set of widely used binary operations, and allow user to specify own ones, and combine all of them freely and safely.
-Moreover, this way allows one to introduce monoids and semirings as an additional level of abstraction if necessary. This way we can simplify core API: one should implement a relatively small set of high-order generic functions that unify functions from existing API.  
-
+In these settings we can predefine a set of widely used binary operations, and allow users to specify their own ones, and combine all of them freely and safely.
+Moreover, this way allows one to introduce monoids and semirings as an additional level of abstraction. This way we can simplify core API: one should implement a relatively small set of high-order generic functions that unify functions from existing API. 
 
 \subsection{Fusion}
 
 \textit{Kernels fusion} is a way to reduce memory allocation for intermediate data structures and it is an important part of GraphBLAS-inspired way to high-performance graph analysis~\cite{10.1145/3466795}. Runtime metaprogramming allows us to implement runtime fusion for kernels: having an expression over matrices and vectors we can build an optimized F\# function from predefined building blocs, and after that translate this optimized version to OpenCL C.
 
 While it is unlikely possible to implement general fusion, it should be possible to provide fusion for a fixed set of operations. This way it is important to minimize API which can be done using high-level abstractions as shown before. This allows us to define \textbf{mask} as a partial case of generic element-wise function (respective operation is presented in listing~\ref{lst:opMask}), not an optional parameter of other functions.
-This makes API more homogeneous and clear. 
+This makes API more homogeneous and clear.
+ 
