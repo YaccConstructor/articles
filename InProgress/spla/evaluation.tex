@@ -10,48 +10,60 @@ In general, these evaluation intentions are summarized in the following research
     \item[\textbf{RQ1}] What is the performance of the proposed solution relative to existing tools for both CPU and GPU analysis?
     
     \item[\textbf{RQ2}] What is the portability of the proposed solution with respect to various device vendors and OpenCL runtimes?
+
+    \item[\textbf{RQ3}] What is the performance of the proposed solution in the CPU vs. integrated GPU comparison mode?
 \end{itemize}
 
 \subsection{Evaluation Setup}
 
-For evaluation, we use a PC with Ubuntu 20.04 installed, which has 3.40Hz Intel Core i7-6700 4-core CPU, DDR4 64Gb RAM, Intel HD Graphics 530 integrated GPU, and Nvidia GeForce GTX 1070 dedicated GPU with 8Gb on-board VRAM. 
-Host programs were compiled with GCC v9.3.0. Programs using CUDA were compiled with GCC v8.4.0 and Nvidia NVCC v10.1.243.
+\textbf{For evaluation of RQ1}, we use a PC with Ubuntu 20.04 installed, which has 3.40Hz Intel Core i7-6700 4-core CPU, DDR4 64Gb RAM, Intel HD Graphics 530 integrated GPU, and Nvidia GeForce GTX 1070 dedicated GPU with 8Gb on-board VRAM. 
+\textbf{For evaluation of RQ2}, we use a PC with Ubuntu 22.04 installed, which has 4.70Hz AMD Ryzen 9 7900x 12-core CPU, DDR4 128 GB RAM, AMD GFX1036 integrated GPU, and either Intel Apc A770 flux dedicated GPU with 8GB on-board VRAM or AMD Radeon Vega Frontier Edition dedicated GPU with 16GB on-board VRAM.
+\textbf{For evaluation of RQ3}, the first PC with Intel CPU and embedded GPU and the second PC with AMD CPU and embedded GPU are used.
+
+Programs using CUDA were compiled with GCC v8.4.0 and Nvidia NVCC v10.1.
 Release mode and maximum optimization level were enabled for all tested programs. 
 Data loading time, preparation, format transformations, and host-device initial communications are excluded from time measurements. 
-All tests are averaged across 10 runs.
-Additional warm-up run for each test execution is excluded from measurements.
+All tests are averaged across 10 runs. The deviation of measurements does not exceed the threshold of 10 percent. Additional warm-up run for each test execution is excluded from measurements.
 
 \subsection{Graph Algorithms}
 
-For preliminary study \textit{breadth-first search} (BFS) and \textit{triangles counting} (TC) algorithms were chosen, since they allow analyse the performance of \textit{vxm} and \textit{mxm} operations, rely heavily on \textit{masking}, and utilize \textit{reduction} or \textit{assignment}. 
-BFS implementation utilizes automated vector storage sparse-to-dense switch and only \textit{push optimization}. 
-TC implementation uses masked \textit{mxm} of source lower-triangular matrix multiplied by itself with second transposed argument.
+For preliminary study \textit{breadth-first search} (BFS), \textit{single-source shortest paths} (SSSP), \textit{page rank} (PR) and \textit{triangles counting} (TC) algorithms were chosen.
+Implementation of those algorithms is used from official examples packages of tested libraries with default parameters. Compared tools are allowed to make any optimizations as long as the result remains correct.
+The first vertex in the graph is chosen as a source for BFS and SSSP traversal for all tested tools and devices.
 
 \subsection{Dataset}
 
-Nine matrices were selected from the Sparse Matrix Collection at University of Florida~\cite{dataset:10.1145/2049662.2049663}. 
+Thirteen matrices with graph data were selected from the Sparse Matrix Collection at University of Florida~\cite{dataset:10.1145/2049662.2049663}. 
 Information about graphs is summarized in Table~\ref{dataset:info}. 
 All datasets are converted to undirected graphs. 
-Self-loops and duplicated edges are removed.
+Self-loops and duplicated edges are removed. For SSSP weights are initialized using pseudo-random generator with uniform $[0, 1]$ distribution of floating-point values.
+Average, sd and max metrics relate to out degree property of the vertices. 
+Graphs are divided roughly into two groups: relatively dense and relatively sparse.
+Graphs are sorted in the order of increasing number of vertices within each group.
 
 \begin{table}[tbp]
 \caption{Dataset description.} 
 \begin{center}
     \rowcolors{2}{black!2}{black!10}
-    \begin{tabular}{|l|r|r|r|}
+    \begin{tabular}{|l|r|r|r|r|r|}
     \hline
-    Dataset & Vertices  & Edges & Max Degree \\
+    Graph&Vertices&Edges&Avg&Sd&Max\\
     \hline
     \hline
-    coAuthorsCiteseer & 227.3K &   1.6M &    1372 \\
-    coPapersDBLP      & 540.4K &  30.4M &    3299 \\
-    hollywood-2009    &   1.1M & 113.8M &  11,467 \\
-    roadNet-CA        &   1.9M &   5.5M &      12 \\
-    com-Orkut         &     3M &   234M &   33313 \\
-    cit-Patents       &   3.7M &  16.5M &     793 \\
-    rgg\_n\_2\_22\_s0 &   4.1M &  60.7M &      36 \\
-    soc-LiveJournal   &   4.8M &  68.9M &  20,333 \\
-    indochina-2004    &   7.5M & 194.1M & 256,425 \\
+    coAuthorsCit&227.3K&1.6M&7.2&10.6&1.4K\\
+    coPapersDBLP&540.5K&30.5M&56.4&66.2&3.3K\\
+    amazon2008&735.3K&7.0M&9.6&7.6&1.1K\\
+    hollywood2009&1.1M&112.8M&98.9&271.9&11.5K\\
+    comOrkut&3.1M&234.4M&76.3&154.8&33.3K\\
+    citPatents&3.8M&33.0M&8.8&10.5&793.0\\
+    socLiveJournal&4.8M&85.7M&17.7&52.0&20.3K\\
+    indochina2004&7.4M&302.0M&40.7&329.6&256.4K\\
+    \hline
+    belgiumosm&1.4M&3.1M&2.2&0.5&10.0\\
+    roadNetCA&2.0M&5.5M&2.8&1.0&12.0\\
+    rggn222s0&4.2M&60.7M&14.5&3.8&36.0\\
+    rggn223s0&8.4M&127.0M&15.1&3.9&40.0\\
+    roadcentral&14.1M&33.9M&2.4&0.9&8.0\\
     \hline
     \end{tabular}
     \label{dataset:info}
@@ -60,69 +72,192 @@ Self-loops and duplicated edges are removed.
 
 \subsection{Results Summary}
 
-Table~\ref{results} presents results of the evaluation and compares the performance of Spla against other tools on different execution platforms.
-Tools are grouped by the type of device for the execution, where either Nvidia or Intel device is used. 
-Cell left empty if tested tool failed to analyze graph due to \textit{out of memory} exception.
+Table~\ref{rq1_table} presents results of the evaluation and compares the performance of Spla against other Nvidia GPU tools and uses as a baseline LaGraph CPU tool. 
+Table~\ref{rq2_table} presents result of the portability analysis of the proposed solution. It depicts runtime timings of the proposed solution on discrete GPUs of distinct vendors.
+Cell left empty with \textit{none} if tested tool failed to analyze graph due to \textit{out of memory} exception.\\
 
-In general, Spla BFS shows acceptable performance, especially on graphs with large vertex degrees, such as soc-LiveJournal and com-Orkut.
-On graphs roadNet-CA and rgg it has a significant performance drop due to the nature of underlying algorithms and data structures. 
-Firstly, the library utilizes immutable data buffers. Thus, iteratively updated dense vector of reached vertices must be copied for each modification, which dominates the performance of the library on a graph with a large search depth. 
-Secondly, Spla BFS does not utilize \textit{pull optimization}, which is critical in a graph with a relatively small search frontier and with a large number of reached vertices. 
+% In general, Spla BFS shows acceptable performance, especially on graphs with large vertex degrees, such as socLiveJournal and comOrkut.
+% On graphs roadNetCA and rgg it has a significant performance drop due to the nature of underlying algorithms and data structures. 
+% Firstly, the library utilizes immutable data buffers. Thus, iteratively updated dense vector of reached vertices must be copied for each modification, which dominates the performance of the library on a graph with a large search depth. 
+% Secondly, Spla BFS does not utilize \textit{pull optimization}, which is critical in a graph with a relatively small search frontier and with a large number of reached vertices. 
 
-Spla TC has a good performance on GPU, which is better in all cases than reference SuiteSparse solution. 
-But in most tests GPU competitors, especially Gunrock, show smaller processing times. 
-GraphBLAST shows better performance as well. 
-The library utilizes a masked SpGEMM algorithm, the same as in GraphBLAST, but without \textit{identity} element to fill gaps. 
-Library explicitly stores all non-zero elements, and uses mask to reduce only non-zeros while evaluating dot products of rows and columns. 
-What causes extra divergence inside work groups. 
+% Spla TC has a good performance on GPU, which is better in all cases than reference SuiteSparse solution. 
+% But in most tests GPU competitors, especially Gunrock, show smaller processing times. 
+% GraphBLAST shows better performance as well. 
+% The library utilizes a masked SpGEMM algorithm, the same as in GraphBLAST, but without \textit{identity} element to fill gaps. 
+% Library explicitly stores all non-zero elements, and uses mask to reduce only non-zeros while evaluating dot products of rows and columns. 
+% What causes extra divergence inside work groups. 
 
-On Intel device Spla shows better performance compared to SuiteSparse on com-Orkut, cit-Patents, and soc-LiveJournal. 
-A possible reason is the large lengths of processed rows and columns in the product of matrices.
-So, even embedded GPUs can improve the performance of graph analysis in some cases. 
+% On Intel device Spla shows better performance compared to SuiteSparse on comOrkut, citPatents, and socLiveJournal. 
+% A possible reason is the large lengths of processed rows and columns in the product of matrices.
+% So, even embedded GPUs can improve the performance of graph analysis in some cases. 
 
-Gunrock shows nearly the best average performance due to its specialized and optimized algorithms.
-Also, it has good time characteristics on a mentioned earlier roadNet-CA and rgg in BFS algorithm. 
-GraphBLAST follows Gunrock and shows good performance as well. 
-But it runs out of memory on two significantly large graphs con-Orkut and indochina-2004. 
-Spla does not rut out of memory on any test due to the simplified storage scheme.
+% Gunrock shows nearly the best average performance due to its specialized and optimized algorithms.
+% Also, it has good time characteristics on a mentioned earlier roadNetCA and rgg in BFS algorithm. 
+% GraphBLAST follows Gunrock and shows good performance as well. 
+% But it runs out of memory on two significantly large graphs con-Orkut and indochina2004. 
+% Spla does not rut out of memory on any test due to the simplified storage scheme.
 
 \begin{table}[tbp]
-\caption{Graph algorithms evaluation results.\\Time in milliseconds (lower is better).} 
+\caption{Performance comparison of the proposed solution.\\Time in milliseconds (lower is better).} 
 \begin{center}
-    \begin{tabular}{|l|r|r|r|r|r|}
+    \begin{tabular}{|l|r|r|r|r|}
     \hline
-    \multirow{2}{*}{Dataset} & \multicolumn{3}{c|}{Nvidia} & \multicolumn{2}{c|}{Intel} \\
-    \cline{2-6}
-    & GR & GB & SP & SS & SP \\
+    Dataset & GB & GR & LG & SP \\
     \hline
     \hline
-    \multicolumn{6}{|c|}{BFS} \\
+    \multicolumn{5}{|c|}{BFS} \\
     \hline
-    \rowcolor{black!10} hollywood-2009    &  20.3 &  82.3 &   36.9 &   23.7 &   303.4 \\
-    \rowcolor{black!2 } roadNet-CA        &  33.4 & 130.8 & 1456.4 &  168.2 &   965.6 \\
-    \rowcolor{black!10} soc-LiveJournal   &  60.9 &  80.6 &   90.6 &   75.2 &  1206.3 \\
-    \rowcolor{black!2 } rgg\_n\_2\_22\_s0 &  98.7 & 414.9 & 4504.3 & 1215.7 & 15630.1 \\
-    \rowcolor{black!10} com-Orkut         & 205.2 & -- -- &  117.9 &   43.2 &   903.6 \\
-    \rowcolor{black!2 } indochina-2004    &  32.7 & -- -- &  199.6 &  227.1 &  2704.6 \\
-    \hline
-    \hline
-    \multicolumn{6}{|c|}{TC} \\
-    \hline
-    \rowcolor{black!10} coAuthorsCiteseer &   2.1 &    2.0 &    9.5 &    17.5 &    64.9 \\
-    \rowcolor{black!2 } coPapersDBLP      &   5.7 &   94.4 &  201.9 &   543.1 &  1537.8 \\
-    \rowcolor{black!10} roadNet-CA        &  34.3 &    5.8 &   16.1 &    47.1 &   357.6 \\
-    \rowcolor{black!2 } com-Orkut         & 218.1 & 1583.8 & 2407.4 & 23731.4 & 15049.5 \\
-    \rowcolor{black!10} cit-Patents       &  49.7 &   52.9 &   90.6 &   698.3 &   684.1 \\
-    \rowcolor{black!2 } soc-LiveJournal   &  69.1 &  449.6 &  673.9 &  4002.6 &  3823.9 \\
+    \rowcolor{black!10} coAuthorsCit&5.0&1.9&6.3&6.9\\
+    \rowcolor{black!2 } coPapersDBLP&19.9&4.5&18.0&11.5\\
+    \rowcolor{black!10} amazon2008&8.3&3.3&20.4&8.1\\
+    \rowcolor{black!2 } hollywood2009&64.3&20.3&23.4&20.3\\
+    \rowcolor{black!10} belgiumosm&200.6&84.4&138.0&181.2\\
+    \rowcolor{black!2 } roadNetCA&116.3&32.4&168.2&101.7\\
+    \rowcolor{black!10} comOrkut& none&205.0&40.6&53.2\\
+    \rowcolor{black!2 } citPatents&30.6&41.3&115.9&35.1\\
+    \rowcolor{black!10} rggn222s0&367.3&95.9&1228.1&415.3\\
+    \rowcolor{black!2 } socLiveJournal&63.1&61.0&75.5&57.1\\
+    \rowcolor{black!10} indochina2004& none&33.3&224.6&328.7\\
+    \rowcolor{black!2 } rggn223s0&615.3&146.2&2790.0&754.9\\
+    \rowcolor{black!10} roadcentral&1383.4&243.8&1951.0&710.2\\
     \hline
     \hline
-    \multicolumn{6}{l}{Tools: Gunrock (GR), GraphBLAST (GB), SuiteSparse (SS), Spla (SP).} \\
+    \multicolumn{5}{|c|}{SSSP} \\
+    \hline
+    \rowcolor{black!10} coAuthorsCit&14.7&2.1&38.9&10.3\\
+    \rowcolor{black!2 } coPapersDBLP&118.6&5.6&92.2&25.7\\
+    \rowcolor{black!10} amazon2008&43.4&4.0&90.0&21.7\\
+    \rowcolor{black!2 } hollywood2009&404.3&24.6&227.7&57.5\\
+    \rowcolor{black!10} belgiumosm&650.2&81.1&1359.8&240.9\\
+    \rowcolor{black!2 } roadNetCA&509.7&32.4&1149.3&147.9\\
+    \rowcolor{black!10} comOrkut& none&219.0&806.5&241.0\\
+    \rowcolor{black!2 } citPatents&226.9&49.8&468.5&129.3\\
+    \rowcolor{black!10} rggn222s0&21737.8&101.9&4808.8&865.4\\
+    \rowcolor{black!2 } socLiveJournal&346.4&69.2&518.0&189.5\\
+    \rowcolor{black!10} indochina2004& none&40.8&821.9&596.6\\
+    \rowcolor{black!2 } rggn223s0&59015.7&161.1&11149.9&1654.8\\
+    \rowcolor{black!10} roadcentral&13724.8&267.0&25703.4&1094.3\\
+    \hline
+    \hline
+    \multicolumn{5}{|c|}{PR} \\
+    \hline
+    \rowcolor{black!10} coAuthorsCit&1.6&10.0&24.3&3.2\\
+    \rowcolor{black!2 } coPapersDBLP&17.6&120.2&297.6&6.1\\
+    \rowcolor{black!10} amazon2008&5.2&40.6&89.8&5.5\\
+    \rowcolor{black!2 } hollywood2009&62.9&559.5&1111.2&32.4\\
+    \rowcolor{black!10} belgiumosm&4.4&22.9&167.6&9.4\\
+    \rowcolor{black!2 } roadNetCA&6.6&37.7&225.8&19.6\\
+    \rowcolor{black!10} comOrkut& none&2333.6&5239.0&103.3\\
+    \rowcolor{black!2 } citPatents&27.0&686.1&1487.0&38.3\\
+    \rowcolor{black!10} rggn222s0&45.2&320.0&563.5&26.6\\
+    \rowcolor{black!2 } socLiveJournal& none&445.9&2122.5&112.0\\
+    \rowcolor{black!10} rggn223s0& none&662.7&1155.6&103.4\\
+    \rowcolor{black!2 } roadcentral& none&408.8&2899.9&172.0\\
+    \hline
+    \hline
+    \multicolumn{5}{|c|}{TC} \\
+    \hline
+    \rowcolor{black!10} coAuthorsCit&2.3&2.0&17.3&3.0\\
+    \rowcolor{black!2 } coPapersDBLP&105.2&5.3&520.8&128.4\\
+    \rowcolor{black!10} amazon2008&11.2&3.9&73.9&10.8\\
+    \rowcolor{black!2 } roadNetCA&6.5&32.4&46.0&7.7\\
+    \rowcolor{black!10} comOrkut&1776.9&218.0&23103.8&2522.0\\
+    \rowcolor{black!2 } citPatents&65.5&49.7&675.0&54.5\\
+    \rowcolor{black!10} socLiveJournal&504.3&69.2&3886.7&437.8\\
+    \rowcolor{black!2 } rggn222s0&73.2&101.3&484.5&77.7\\
+    \rowcolor{black!10} rggn223s0&151.4&158.9&1040.1&204.2\\
+    \rowcolor{black!2 } roadcentral&42.6&259.3&425.3&52.7\\
+    \hline
+    \hline
+    \multicolumn{5}{l}{GraphBLAST (GB), Gunrock (GR), LaGraph (LG), Spla (SP).} \\
     \end{tabular}
-    \label{results}
+    \label{rq1_table}
 \end{center}
 \end{table}
- 
-\subsection{Comparison with CUDA-based Frameworks}
-\subsection{Portability}
-\subsection{Comparison with CPU Frameworks}
-\subsubsection{Embedded GPUs}
+
+\begin{table}[tbp]
+\caption{Portability of the proposed solution.\\Time in milliseconds (lower is better).} 
+\begin{center}
+    \begin{tabular}{|l|r|r|r|}
+    \hline
+    Dataset & Intel Arc & AMD Vega & Nvidia Gfx\\
+    \hline
+    \hline
+    \multicolumn{4}{|c|}{BFS} \\
+    \hline
+    \rowcolor{black!10} coAuthorsCit&12.8&8.3&6.9\\
+    \rowcolor{black!2 } coPapersDBLP&10.8&14.9&11.5\\
+    \rowcolor{black!10} amazon2008&12.3&12.6&8.1\\
+    \rowcolor{black!2 } hollywood2009&15.3&26.7&20.3\\
+    \rowcolor{black!10} belgiumosm&627.5&292.4&181.2\\
+    \rowcolor{black!2 } roadNetCA&265.5&259.8&101.7\\
+    \rowcolor{black!10} comOrkut&33.2&63.6&53.2\\
+    \rowcolor{black!2 } citPatents&21.0&30.3&35.1\\
+    \rowcolor{black!10} rggn222s0&825.3&1259.7&415.3\\
+    \rowcolor{black!2 } socLiveJournal&43.0&85.8&57.1\\
+    \rowcolor{black!10} indochina2004&220.6&573.4&328.7\\
+    \rowcolor{black!2 } rggn223s0&1245.5&2519.6&754.9\\
+    \rowcolor{black!10} roadcentral&1864.9&1680.8&710.2\\
+    \hline
+    \hline
+    \multicolumn{4}{|c|}{SSSP} \\
+    \hline
+    \rowcolor{black!10} coAuthorsCit&18.3&10.4&10.3\\
+    \rowcolor{black!2 } coPapersDBLP&22.9&27.7&25.7\\
+    \rowcolor{black!10} amazon2008&23.4&22.2&21.7\\
+    \rowcolor{black!2 } hollywood2009&44.6&56.2&57.5\\
+    \rowcolor{black!10} belgiumosm&1085.9&454.8&240.9\\
+    \rowcolor{black!2 } roadNetCA&447.3&422.5&147.9\\
+    \rowcolor{black!10} comOrkut&79.7&111.5&241.0\\
+    \rowcolor{black!2 } citPatents&49.8&78.4&129.3\\
+    \rowcolor{black!10} rggn222s0&1378.8&924.3&865.4\\
+    \rowcolor{black!2 } socLiveJournal&82.7&120.7&189.5\\
+    \rowcolor{black!10} indochina2004&366.2&519.0&596.6\\
+    \rowcolor{black!2 } rggn223s0&1880.2&1201.4&1654.8\\
+    \rowcolor{black!10} roadcentral&3176.3&2848.8&1094.3\\
+    \hline
+    \hline
+    \multicolumn{4}{|c|}{PR} \\
+    \hline
+    \rowcolor{black!10} coAuthorsCit&3.9&1.0&3.2\\
+    \rowcolor{black!2 } coPapersDBLP&5.7&6.1&6.1\\
+    \rowcolor{black!10} amazon2008&25.2&4.0&5.5\\
+    \rowcolor{black!2 } hollywood2009&22.6&32.4&32.4\\
+    \rowcolor{black!10} belgiumosm&10.2&7.1&9.4\\
+    \rowcolor{black!2 } roadNetCA&10.8&15.7&19.6\\
+    \rowcolor{black!10} comOrkut&31.9&46.6&103.3\\
+    \rowcolor{black!2 } citPatents&12.3&21.3&38.3\\
+    \rowcolor{black!10} rggn222s0&13.4&22.4&26.6\\
+    \rowcolor{black!2 } socLiveJournal&210.0&64.2&112.0\\
+    \rowcolor{black!10} rggn223s0&38.6&57.2&103.4\\
+    \rowcolor{black!2 } roadcentral&57.9&89.6&172.0\\
+    \hline
+    \hline
+    \multicolumn{4}{|c|}{TC} \\
+    \hline
+    \rowcolor{black!10} coAuthorsCit&4.6&2.2&3.0\\
+    \rowcolor{black!2 } coPapersDBLP&57.6&106.2&128.4\\
+    \rowcolor{black!10} amazon2008&6.9&8.5&10.8\\
+    \rowcolor{black!2 } roadNetCA&5.4&5.4&7.7\\
+    \rowcolor{black!10} comOrkut&1533.5&3267.6&2522.0\\
+    \rowcolor{black!2 } citPatents&25.9&39.8&54.5\\
+    \rowcolor{black!10} socLiveJournal&280.6&420.3&437.8\\
+    \rowcolor{black!2 } rggn222s0&21.0&57.8&77.7\\
+    \rowcolor{black!10} rggn223s0&56.7&123.2&204.2\\
+    \rowcolor{black!2 } roadcentral&14.5&34.6&52.7\\
+    \hline
+    \hline
+    \multicolumn{4}{l}{Distinct devices. Performance in not for comparison.} \\
+    \end{tabular}
+    \label{rq2_table}
+\end{center}
+\end{table}
+
+\textit{RQ1. What is the performance of the proposed solution relative to existing tools for both CPU and GPU analysis?}\\
+
+\textit{RQ2. What is the portability of the proposed solution with respect to various device vendors and OpenCL runtimes?}\\
+
+\textit{RQ3. What is the performance of the proposed solution in the CPU vs. embedded GPU comparison mode?}\\
+
+
