@@ -1,61 +1,101 @@
 \section{Proposed Solution Description}
 
-Blah-blah-blah...
+This section describes the high-level details of the proposed solution. 
+It highlights the design principles, high-level architecture of the solution, data storage representation, operations, and also shows differences from the GraphBLAS API.
 
 \subsection{Design Principles}
 
-SPLA library is designed the way to maximize potential library performance, simplify its implementation and extensions, and to provided the end-user verbose, but effective interface allowing customization and precise control over operations execution. These ideas are captured in the following principles.
+Spla library is designed the way to maximize potential library performance, simplify its implementation and extensions, and to provided the end-user verbose, but effective interface allowing customization and precise control over operations execution. 
+These ideas are captured in the following principles.
 
 \begin{itemize}
-    \item \textit{DAG-based expressions}. User constructs a computational expression from basic nodes and uses oriented edges to describe data dependencies between these nodes. 
-    \item \textit{Automated hybrid-storage format}. Library uses internally specialized preprocessing to format data and automate its sharing between computational nodes.
-    \item \textit{Automated scheduling}. Computational work is automatically scheduled between available threads and nodes for execution. Scheduling order, dependencies, and granularity are defined from DAG expression, submitted by a user.
-    \item \textit{Customization of primitive types and operations}. Underlying primitives types and functions can be customized by user. The customization process does not require library re-compilation. 
+    \item \textit{Optional acceleration}. Library is designed in a way, that GPU acceleration is fully optional part. Library can perform computations using standard CPU pipeline. If GPU is supported, library can offload a part of a work for accelerator. Multiple acceleration backend can be presented in the system.
+    \item \textit{User-defined functions}. The user can create custom element-by-element functions to parameterize operations. Custom functions can be used for both CPU and GPU execution.
+    \item \textit{Predefined scalar data types}. The library provides a set of built-in scalar data types that have a natural one-to-one relationship with native GPU built-in types. Data storage is transparent. The library interprets the data as POD-structures. The user can interpret individual elements as a sequence of bytes of a fixed size.
+    \item \textit{Hybrid-storage format}. The library automates the process of data storage and preprocessing. It supports several data formats, chooses the best one depending on the situation.
     \item \textit{Exportable interface}. The library has a C++ interface with an automated reference-counting and with no-templates usage. It can be wrapped by C99 compatible API and exported to other languages, for example, in a form of a Python package.
 \end{itemize}
 
 \subsection{Architecture Overview}
 
-Library general execution architecture is depicted in Fig.~\ref{fig:architecture}. As an input library accepts expression composed in the form of a DAG.
-Nodes represent fundamental operations, such as vector-matrix multiplication. 
-Links describe dependencies between nodes.
-Expression execution is \textit{asynchronous}. 
-User can block and wait until its completion, or without blocking probe the expression until it is either \textit{completed} or \textit{aborted}. 
+The general idea of the proposed solution is depicted in Fig.~\ref{fig:design}. 
+The core of the library and its main part is the CPU, which is the master node and controls all calculations. 
+It is responsible for storing data, maintaining a registry with algorithms, and scheduling operations to perform. 
+In this paradigm, the GPU is an optional backend for acceleration, implemented through a special interface. 
+It can optionally store data in a specific format. 
+The CPU can offload the calculation of a part of the operations to the GPU, if the corresponding operation is supported by the given accelerator.
 
-Expression is transformed into a task graph. 
-The task graph is submitted for execution to the task manager. 
-Each task is processed by specialized \textit{NodeProcessor}, capable of processing a particular node type.
-Each task, when executed, is split dynamically into a set of parallel sub-tasks. 
-Each sub-task is processed by specialized \textit{Algorithm}, which is capable of processing input blocks of matrices or vectors in particular storage formats with a specific set of options. \textit{NodeProcessor} and \textit{Algorithm} are selected at runtime from a registry using properties and arguments of the expression. 
-Thus, it allows precise processing and optimization of edge-cases.
-
-The granularity level of sub-tasks is defined by the structure of underlying processed primitives. 
-The target device for execution is automatically assigned for the sub-task based on expression and node parameters. 
-Currently, the fixed assignment is supported.
+The reason for this is that the CPU and GPU are inherently asymmetric in nature. 
+The GPU is a purely dependent device that must be controlled from the outside. In addition, access to data on the GPU and their storage is carried out differently due to the peculiarities of the execution of kernels. 
+Also, video memory is many times more expensive and it is available many times less. 
+Therefore, RAM is a cache for VRAM, and data duplication can be neglected. 
+In the end, the explicit separation of the CPU model from the GPU of the backend gives modularity. 
+This can be used not only to support different GPU technologies, but also to integrate multiple GPUs or distributed processing in the future.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.95\linewidth]{architecture.png}
-\caption{Library expression processing architecture.}
-\label{fig:architecture}
+\includegraphics[width=1.0\linewidth]{figures/design_idea.png}
+\caption{Proposed solution general design idea.}
+\label{fig:design}
 \end{figure}
     
-\subsection{Containers}
+\subsection{Data Containers}
 
 Library provides general \textit{M-by-N Matrix}, \textit{N Vector} and \textit{Scalar} data containers.
-Underlying primitives types are specified by \textit{Type} object. 
-Primitives are stored in a hybrid storage in a form of two- or one- dimensional blocks' grid for matrices and vectors respectively. 
-Each block is empty (not stored) or stores some data in any format. Blocks are immutable, they can be safely shared across computational units.
+Underlying primitive scalar types are specified by \textit{Type} object. 
+Single vertex or matrix is stored in specialized storage container. An example of the single vector storage is depicted in Fig.~\ref{fig:vec_storage}. 
 
-Currently, COO/CSR blocks for matrices and COO/Dense blocks for vectors a are supported. Format choice is motivated by its simplicity and ease of implementation. 
-Other formats, such as CSC, DCSR, ELL, etc., can be added to the library by the implementation of formats conversion or by the specialization of \textit{Algorithm} for a specific format.
+The storage is responsible for keeping data in multiple different formats at the same time. 
+Each format is best suited for a specific type of task and requested on demand. 
+Frequent insertion or deletion requires key-value storage. 
+Mathematical operations use sparse or dense formats. 
+GPU operations require separate format with a copy of the data resident in video memory.
+
+Data transformation from one format to another is carried out using a special rules graph shown in Fig.~\ref{fig:vec_tsf}. 
+The directed edges in this graph indicate the conversion rule. 
+The graph must be connected, and any vertex is reachable. 
+An example of the data transformation process is depicted in Fig.~\ref{fig:vec_exmp}. 
+If no valid the it is initialized as empty. 
+Otherwise, for a requested format the best path of convertation is obtained. Currently, the shortest on is used. 
+Weight assignment to rules can potentially be used to prioritize convertation and reduce the cost for some formats. 
+
+Currently, several storage formats are supported. 
+There is dictionary of keys for vector and matrix (DoK), list of coordinates (COO), dense vector, list of lists (LIL) and compressed sparse rows (CSR) matrix formats.  
+Other formats, such as CSC, DCSR, ELL, etc., can be added to the library by the implementation of formats conversion and by the specialization of operations for a specific format.
+
+\begin{figure}[b]
+\centering
+\includegraphics[width=1.0\linewidth]{figures/vector_storage.png}
+\caption{Vector primitive storage. Stores the same data potentially in multiple different formats. Some slots can be empty.}
+\label{fig:vec_storage}
+\end{figure}
+
+\begin{figure}[]
+\centering
+\includegraphics[width=1.0\linewidth]{figures/storage_transformation_graph.png}
+\caption{Vector storage transformation graph. The graph defines how data can be obtained from one format in another.}
+\label{fig:vec_tsf}
+\end{figure}
+
+\begin{figure}[]
+\centering
+\includegraphics[width=1.0\linewidth]{figures/storage_transformation.png}
+\caption{Vector storage transformation process. Green is valid format. Red is requested format. No highlight is currently invalid format.}
+\label{fig:vec_exmp}
+\end{figure}
 
 \subsection{Algebraic Operations}
 
-Library supports all commonly used linear algebra operations, such as \textit{mxm}, \textit{vxm}, \textit{eadd}, \textit{reduce}, \textit{transpose}. 
-Other operations are coming soon since the library is still in development.
-Interface of operations is designed \textit{similar} to GraphBLAS. 
-It supports \textit{masking}, \textit{accum} of the result, \textit{add} and \textit{mult} user-functions specification, and \textit{descriptor} object for additional operation tweaking.
+Library provides a number of commonly used operations, such as \textit{vxm}, \textit{mxv}, \textit{mxmT}, \textit{element-wise add}, \textit{assign}, \textit{map}, \textit{reduce}, etc.
+Other operations can be added on demand.
+Interface of operations is inspired by GraphBLAS standard. 
+It supports \textit{masking}, parametrization by \textit{binary mult} and \textit{binary add} functions, \textit{select} for filtering and mask application, \textit{unary op} for values transformation, and \textit{descriptor} object for additional operation tweaking.
 
-\subsection{Differences with GraphBLAS C API standard}
-To be clear...
+\subsection{Differences with GraphBLAS standard}
+
+To be clear, the proposed solution is not an implementation of GraphBLAS C or C++ API. 
+The design of the library uses only the concepts described in the standard. 
+However, in the proposed solution, the signatures and semantics of some of the operations have been changed. 
+The API has been made more verbose and explicit. 
+In particular, the handling of \textit{zero} elements and \textit{masking} are made cleaner for the end user. The library interprets data simply as collections of bytes, without mathematical semantics and identity elements.
+Identity element must be explicitly passed by the user where required.
