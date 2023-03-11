@@ -18,7 +18,7 @@ In general, these evaluation intentions are summarized in the following research
 
 \textbf{For evaluation of RQ1}, we use a PC with Ubuntu 20.04 installed, which has 3.40Hz Intel Core i7-6700 4-core CPU, DDR4 64Gb RAM, Intel HD Graphics 530 integrated GPU, and Nvidia GeForce GTX 1070 dedicated GPU with 8Gb on-board VRAM. 
 \textbf{For evaluation of RQ2}, we use a PC with Ubuntu 22.04 installed, which has 4.70Hz AMD Ryzen 9 7900x 12-core CPU, DDR4 128 GB RAM, AMD GFX1036 integrated GPU, and either Intel Apc A770 flux dedicated GPU with 8GB on-board VRAM or AMD Radeon Vega Frontier Edition dedicated GPU with 16GB on-board VRAM.
-\textbf{For evaluation of RQ3}, the first PC with Intel CPU and embedded GPU and the second PC with AMD CPU and embedded GPU are used.
+\textbf{For evaluation of RQ3}, the first PC with Intel CPU and integrated GPU and the second PC with AMD CPU and integrated GPU are used.
 
 Programs using CUDA were compiled with GCC v8.4.0 and Nvidia NVCC v10.1.
 Release mode and maximum optimization level were enabled for all tested programs. 
@@ -29,17 +29,20 @@ All tests are averaged across 10 runs. The deviation of measurements does not ex
 
 For preliminary study \textit{breadth-first search} (BFS), \textit{single-source shortest paths} (SSSP), \textit{page rank} (PR) and \textit{triangles counting} (TC) algorithms were chosen.
 Implementation of those algorithms is used from official examples packages of tested libraries with default parameters. Compared tools are allowed to make any optimizations as long as the result remains correct.
-The first vertex in the graph is chosen as a source for BFS and SSSP traversal for all tested tools and devices.
+The graph vertex with index 1 is set as the initial traversal vertex in the algorithms BFS and SSSP for all tested instruments and all tested devices.
 
 \subsection{Dataset}
 
 Thirteen matrices with graph data were selected from the Sparse Matrix Collection at University of Florida~\cite{dataset:10.1145/2049662.2049663}. 
-Information about graphs is summarized in Table~\ref{dataset:info}. 
+Information about graphs is summarized in Table~\ref{dataset:info}.
+Average, sd and max metrics relate to out degree property of the vertices. 
 All datasets are converted to undirected graphs. 
 Self-loops and duplicated edges are removed. For SSSP weights are initialized using pseudo-random generator with uniform $[0, 1]$ distribution of floating-point values.
-Average, sd and max metrics relate to out degree property of the vertices. 
-Graphs are divided roughly into two groups: relatively dense and relatively sparse.
-Graphs are sorted in the order of increasing number of vertices within each group.
+Graphs are roughly divided into two groups. 
+
+The first group represents relatively dense graphs, where the number of edges per node is sufficient on average to effectively load the GPU with useful work. 
+The second group represents relatively sparse graphs, where the average vertex degree is below the typical GPU vector register size, and the search depth reaches hundreds of hoops. 
+Graphs are sorted in ascending order by the number of vertices within each group.
 
 \begin{table}[tbp]
 \caption{Dataset description.} 
@@ -181,7 +184,7 @@ Cell left empty with \textit{none} if tested tool failed to analyze graph due to
 \begin{center}
     \begin{tabular}{|l|r|r|r|}
     \hline
-    Dataset & Intel Arc & AMD Vega & Nvidia Gfx\\
+    Dataset & Intel Arc & AMD Vega & Nvidia Gtx\\
     \hline
     \hline
     \multicolumn{4}{|c|}{BFS} \\
@@ -251,6 +254,84 @@ Cell left empty with \textit{none} if tested tool failed to analyze graph due to
     \multicolumn{4}{l}{Distinct devices. Performance in not for comparison.} \\
     \end{tabular}
     \label{rq2_table}
+\end{center}
+\end{table}
+
+\begin{table}[tbp]
+\caption{Integrated GPU mode performance comparison of the proposed solution. Time in milliseconds (lower is better).} 
+\begin{center}
+    \begin{tabular}{|l|r|r|r|r|}
+    \hline
+    \multirow{2}{*}{Dataset} & \multicolumn{2}{c|}{Intel} & \multicolumn{2}{c|}{AMD} \\
+    \cline{2-5}
+    & LG & SP & LG & SP \\
+    \hline
+    \hline
+    \multicolumn{5}{|c|}{BFS} \\
+    \hline
+    \rowcolor{black!10} coAuthorsCit&7.5&26.3&3.9&18.2\\
+    \rowcolor{black!2 } coPapersDBLP&18.7&57.3&12.0&54.9\\
+    \rowcolor{black!10} amazon2008&24.6&65.0&13.5&40.0\\
+    \rowcolor{black!2 } hollywood2009&23.8&100.1&14.8&86.6\\
+    \rowcolor{black!10} belgiumosm&131.4&536.0&60.0&527.6\\
+    \rowcolor{black!2 } roadNetCA&173.2&461.8&100.8&339.7\\
+    \rowcolor{black!10} comOrkut&41.6&341.4&25.2&269.4\\
+    \rowcolor{black!2 } citPatents&126.9&371.6&61.3&217.7\\
+    \rowcolor{black!10} rggn222s0&1288.0&1959.9&644.6&1821.7\\
+    \rowcolor{black!2 } socLiveJournal&75.0&429.8&41.6&301.6\\
+    \rowcolor{black!10} indochina2004&228.5&1424.8&137.0&1445.1\\
+    \rowcolor{black!2 } rggn223s0&2850.8&3647.2&1403.9&3701.3\\
+    \rowcolor{black!10} roadcentral&2087.8&3196.3&767.2&2670.3\\
+    \hline
+    \hline
+    \multicolumn{5}{|c|}{SSSP} \\
+    \hline
+    \rowcolor{black!10} coAuthorsCit&40.5&42.5&29.2&40.5\\
+    \rowcolor{black!2 } coPapersDBLP&92.9&141.8&48.9&181.6\\
+    \rowcolor{black!10} amazon2008&97.4&114.4&48.3&131.3\\
+    \rowcolor{black!2 } hollywood2009&236.7&337.9&93.8&507.4\\
+    \rowcolor{black!10} belgiumosm&1383.2&854.3&588.9&845.7\\
+    \rowcolor{black!2 } roadNetCA&1174.2&721.7&712.7&482.9\\
+    \rowcolor{black!10} comOrkut&822.9&1420.5&214.8&1699.5\\
+    \rowcolor{black!2 } citPatents&488.3&669.4&171.4&897.3\\
+    \rowcolor{black!10} rggn222s0&4919.1&5928.3&2845.6&4952.9\\
+    \rowcolor{black!2 } socLiveJournal&534.7&1007.7&185.3&1205.1\\
+    \rowcolor{black!10} indochina2004&837.1&3708.3&345.5&3971.8\\
+    \rowcolor{black!2 } rggn223s0&11375.6&11567.8&6099.6&9899.7\\
+    \rowcolor{black!10} roadcentral&26314.1&4887.0&7867.2&3102.0\\
+    \hline
+    \hline
+    \multicolumn{5}{|c|}{PR} \\
+    \hline
+    \rowcolor{black!10} coAuthorsCit&25.3&5.0&17.6&5.9\\
+    \rowcolor{black!2 } coPapersDBLP&302.3&26.2&154.5&39.0\\
+    \rowcolor{black!10} amazon2008&93.0&17.5&36.0&22.4\\
+    \rowcolor{black!2 } hollywood2009&1109.8&179.9&531.7&300.7\\
+    \rowcolor{black!10} belgiumosm&178.9&35.0&45.1&29.4\\
+    \rowcolor{black!2 } roadNetCA&236.9&86.9&67.6&86.2\\
+    \rowcolor{black!10} comOrkut&4458.5&531.9&959.6&701.4\\
+    \rowcolor{black!2 } citPatents&1559.9&159.8&277.4&195.7\\
+    \rowcolor{black!10} rggn222s0&576.7&145.9&275.1&270.2\\
+    \rowcolor{black!2 } socLiveJournal&2181.0&449.7&520.5&630.9\\
+    \rowcolor{black!10} rggn223s0&1187.0&309.3&617.2&605.3\\
+    \rowcolor{black!2 } roadcentral&2995.8&461.4&993.7&409.8\\
+    \hline
+    \hline
+    \multicolumn{5}{|c|}{TC} \\
+    \hline
+    \rowcolor{black!10} coAuthorsCit&17.3&8.3&5.2&28.3\\
+    \rowcolor{black!2 } coPapersDBLP&534.1&604.2&129.4&1682.3\\
+    \rowcolor{black!10} amazon2008&75.4&34.5&22.2&126.6\\
+    \rowcolor{black!2 } belgiumosm&28.1&23.4&11.3&67.8\\
+    \rowcolor{black!10} roadNetCA&47.7&35.2&21.5&105.6\\
+    \rowcolor{black!2 } citPatents&693.1&247.6&170.5&589.3\\
+    \rowcolor{black!10} rggn222s0&495.2&481.3&177.7&1218.1\\
+    \rowcolor{black!2 } roadcentral&438.8&355.8&176.6&679.7\\
+    \hline
+    \hline
+    \multicolumn{5}{l}{LaGraph (LG), Spla (SP).} \\
+    \end{tabular}
+    \label{rq3_table}
 \end{center}
 \end{table}
 
