@@ -27,11 +27,17 @@ Gpu: 	AMD GFX1036 (gfx1036, LLVM 15.0.3, DRM 3.48, 5.19.0-35-generic)
 
 - integrated intel gpu and cpu [spla, lagraph] [all]
 
-	intel_emb_all.csv
-	intel_emb_tool.csv
+	intel_cpu_int_all.csv
+	intel_cpu_int_tool.csv
 
-- integrated amd gpu and cpu [spla, lagraph] [all]
+- integrated amd gpu [spla] [all]
 
-	amd_emb_all.csv
-	amd_emb_tool.csv
+	amd_int_all.csv
+	amd_int_tool.csv
+
+
+- amd cpu only [spla, lagraph] [all]
+
+	amd_cpu_all.csv
+	amd_cpu_tool.csv
 	
