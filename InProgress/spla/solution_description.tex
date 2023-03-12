@@ -5,11 +5,11 @@ It highlights the design principles, high-level architecture of the solution, da
 
 \subsection{Design Principles}
 
-Spla library is designed the way to maximize potential library performance, simplify its implementation and extensions, and to provided the end-user verbose, but effective interface allowing customization and precise control over operations execution. 
+Spla library is designed the way to maximize potential library performance, simplify its implementation and extensions, and to provide the end-user verbose, but expressive interface allowing customization and precise control over operations execution. 
 These ideas are captured in the following principles.
 
 \begin{itemize}
-    \item \textit{Optional acceleration}. Library is designed in a way, that GPU acceleration is fully optional part. Library can perform computations using standard CPU pipeline. If GPU is supported, library can offload a part of a work for accelerator. Multiple acceleration backend can be presented in the system.
+    \item \textit{Optional acceleration}. Library is designed in a way, that GPU acceleration is fully plugable and optional part. Library can perform computations using standard CPU pipeline. If GPU acceleration is presented, library can offload a part of a work for it. It allows both no-trivial processing of the data on the CPU only, as well as possibility to integrate different backends in the future.  
     \item \textit{User-defined functions}. The user can create custom element-by-element functions to parameterize operations. Custom functions can be used for both CPU and GPU execution.
     \item \textit{Predefined scalar data types}. The library provides a set of built-in scalar data types that have a natural one-to-one relationship with native GPU built-in types. Data storage is transparent. The library interprets the data as POD-structures. The user can interpret individual elements as a sequence of bytes of a fixed size.
     \item \textit{Hybrid-storage format}. The library automates the process of data storage and preprocessing. It supports several data formats, chooses the best one depending on the situation.
@@ -26,10 +26,10 @@ It can optionally store data in a specific format.
 The CPU can offload the calculation of a part of the operations to the GPU, if the corresponding operation is supported by the given accelerator.
 
 The reason for this is that the CPU and GPU are inherently asymmetric in nature. 
-The GPU is a purely dependent device that must be controlled from the outside. In addition, access to data on the GPU and their storage is carried out differently due to the peculiarities of the execution of kernels. 
-Also, video memory is many times more expensive and it is available many times less. 
+The end-user uses CPU side API. Thus, some preprocessing on the CPU side must be always done in the majority of cases. In addition, access to data on the GPU and their storage is carried out differently due to the peculiarities of the execution of kernels. 
+Also, VRAM is more expensive and has less capacity than RAM.
 Therefore, RAM is a cache for VRAM, and data duplication can be neglected. 
-In the end, the explicit separation of the CPU model from the GPU of the backend gives modularity. 
+In the end, the explicit separation of the CPU side from the GPU of the backend gives the modularity. 
 This can be used not only to support different GPU technologies, but also to integrate multiple GPUs or distributed processing in the future.
 
 \begin{figure}[t]
@@ -43,21 +43,20 @@ This can be used not only to support different GPU technologies, but also to int
 
 Library provides general \textit{M-by-N Matrix}, \textit{N Vector} and \textit{Scalar} data containers.
 Underlying primitive scalar types are specified by \textit{Type} object. 
-Single vertex or matrix is stored in specialized storage container. An example of the single vector storage is depicted in Fig.~\ref{fig:vec_storage}. 
+Single vector or matrix data is stored in specialized multi-format storage container. An example of the single vector storage is depicted in Fig.~\ref{fig:vec_storage}. 
 
 The storage is responsible for keeping data in multiple different formats at the same time. 
 Each format is best suited for a specific type of task and requested on demand. 
-Frequent insertion or deletion requires key-value storage. 
-Mathematical operations use sparse or dense formats. 
-GPU operations require separate format with a copy of the data resident in video memory.
+Key-value dictionary suites well frequent insertion, query or deletion operations, when memory usage and response time are critical. 
+Mathematical operations perform better with compacted sequential lists of values since they have more friendly cache behaviour. 
+GPU operations require separate format with a copy of the data resident in VRAM.
 
 Data transformation from one format to another is carried out using a special rules graph shown in Fig.~\ref{fig:vec_tsf}. 
 The directed edges in this graph indicate the conversion rule. 
-The graph must be connected, and any vertex is reachable. 
+The graph must the single strongly connected component. 
 An example of the data transformation process is depicted in Fig.~\ref{fig:vec_exmp}. 
-If no valid the it is initialized as empty. 
-Otherwise, for a requested format the best path of convertation is obtained. Currently, the shortest on is used. 
-Weight assignment to rules can potentially be used to prioritize convertation and reduce the cost for some formats. 
+For a requested format the best path of convertation is obtained. Currently, the shortest one is used. 
+Weight assignment to rules can potentially be used to prioritize convertations and reduce the cost of transformation for some formats. 
 
 Currently, several storage formats are supported. 
 There is dictionary of keys for vector and matrix (DoK), list of coordinates (COO), dense vector, list of lists (LIL) and compressed sparse rows (CSR) matrix formats.  
@@ -98,4 +97,4 @@ The design of the library uses only the concepts described in the standard.
 However, in the proposed solution, the signatures and semantics of some of the operations have been changed. 
 The API has been made more verbose and explicit. 
 In particular, the handling of \textit{zero} elements and \textit{masking} are made cleaner for the end user. The library interprets data simply as collections of bytes, without mathematical semantics and identity elements.
-Identity element must be explicitly passed by the user where required.
+Identity element must be explicitly passed by the user where required. It allows to make the memory usage predictable and the result of each operation clear to the end user without internal implicit storage manipulations.
