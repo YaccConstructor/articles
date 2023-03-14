@@ -1,11 +1,51 @@
 \section{Background of Study}
 
+This section provides a brief overview of existing solutions for graph analysis on both CPU and GPU, and also describes the concepts of the GraphBLAS standard, highlighting some of its shortcomings and limitations on the way to a full-fledged GPU implementation.
+
 \subsection{Related Work}
-Related work, existing solutions, systems.  
 
-\subsection{GraphBLAS}
-GrpahBLAS API.
-Discussion of drawbacks of current design and implementation.
+There is a number of graph processing frameworks for a both CPU and GPU analysis. A greate survey of such frameworks is done by Batari et al.~\cite{article:batarfi_survey_graphs} and Shi et al.~\cite{article:shi_survey_graphs}. From an conceptual perspective, this frameworks can be roughly divided into three categories: vertex-centric, edge-centric, linear algebra-based.
 
-\subsection{GPU computations}
-Technologies, problems, challenges, architectures.
+Large-scale graph processing frameworks for multi-core CPUs, distributed memory CPUs systems, and GPUs, accordingly to a Batari et al.~\cite{article:batarfi_survey_graphs} and Shi et al.~\cite{article:shi_survey_graphs} survey, can be classified into following categories.
+
+\textit{Vertex-centric}. Introduces in Pregel~\cite{article:pregel} framework, vertex-centric model is based on a parallel processing of a graph vertices. The whole process is divided into iterations, where active vertices do a actual processing and send messages.  
+
+\textit{Edge-centric}. Edge-centric model focuses on edges processing rather then vertices. It is first introduced in X-Stream~\cite{article:xstream} project. This model streams edges of the graphs and allows to effectively process them. 
+
+\textit{Linear-algebra based}. Linear algebra based frameworks for a graph processing originate from a CombinationalBLAS~\cite{article:combblas} project. Linear algebra approach relies on the fact, that the graph traversal can be represented as matrix-vector multiplication. The graph analysis community has formalized this method in a GraphBLAS~\cite{7761646} standard, which provides linear algebra primitives in a form of C API. This standard has a number of implementations, including the reference implementation SuiteSparse~\cite{10.1145/3322125}, GBTL~\cite{7529957}, Huawei GraphBLAS implementation~\cite{article:hu_graphblas_impl}, GraphBLAST~\cite{yang2019graphblast}, etc.
+
+\subsection{GraphBLAS concepts}
+
+GraphBLAS standard~\cite{7761646} is a mathematical notation translated into a C API. This standard provides linear algebra building blocks for the implementation of graph algorithms in terms of operations over matrices and vectors. Essential parts of this standard are described below.
+
+\textit{Data containers}. Primary data containers in this standard are general M by N matrix and M vector of values, as well as a scalar value. Containers are parameterised by the type of stored elements. Matrix is used to represent the adjacency matrix of the graph. Vector is used to store a set of active vertices for traversal purposes. 
+
+\textit{Algebraic structure}. Algebraic structures are called semiring and monoid, where two or one operation is provided respectively with some semantic requirements. These structures are adapted for a sparse graph analysis, so their mathematical properties differ a bit from those, which are stated in classical algebra. These structures define the element-wise operations, which work with elements in vector and matrix containers. 
+
+\textit{Operations.} GraphBLAS provides a number of commonly used linear algebra operations, such as \textit{mxv} and \textit{mxm}, element-wise multiplication, etc. Also, there are some extra operations, such as filtering, selection using predicate, reduction of matrix to vector or of vector to scalar, etc.
+
+\textit{Programming constructs}. GraphBLAS provides extra objects, which are required for practical algorithms implementation, such a mask. Masking allows to use structure of matrix or vector to filter result and reduce amount of computations.
+
+\textit{Algorithms.} Using GraphBLAS constructs it is possible with little effort to write generalized graph analysis algorithms, such as breadth-first search, single-source shortest path, triangles counting, connected components, etc.All of them have a linear-algebra based formulation, described by Gábor et al.~\cite{szarnyas2021lagraph}.
+
+\subsection{GraphBLAS limitations}
+
+Although GraphBLAS is mature standard with a number of implementation, it has some limitations and shortcomings, discussed in a talk given by Gilbert~\cite{talk:graphblas_did_wrong}. Most notable issues are explained in the next paragraphs. 
+ 
+\textit{Complicated API}. GraphBLAS standard declares a very verbose and complex API for implementation. This API consists of a C header file, which counts more than 12 thousand lines of a code, which must be implemented and tested. Implementation of a such API is a challenging task. Declared API has a lot of hidden states, invariants, C-specifics, what makes the efficient implementation complex and error prone.
+
+\textit{C-oriented}. GraphBLAS standard is initially oriented on a C99 compatible API due to some technical and performance considerations. Standard does not considers any high-level built-in package for a more streamlined work with API.
+
+\textit{Imperative interface}. GraphBLAS-like API provides an imperative interface. The user is supposed to define the algorithms as simple sequence of procedures calls, where operations are executed one after another. This approach simplifies user experience at the cost of the performance. Some algorithms have non-trivial data dependencies, have some steps, which can be done in parallel. Thus, the library must have enough information about algorithm structure in order to execute in the most efficient way.
+
+\textit{Lack of interoperability}. GraphBLAS declares opaque objects with are hidden from the user structure. It is not possible to somehow extend or interact with an existing standard implementation. However, practical tasks may required integration of existing formats, storage into a library for practical analysis. 
+
+\textit{Little introspection}. GraphBLAS declares a very limited functionality to inspect structure, state, type, behaviour, performance, correctness, progress of library primitives and operations. It is not feasible to build production-ready data-analysis platform without these features, which are common for all modern DBMS.
+
+\textit{Implicit zeros}. GraphBLAS standard tries to use a mix of math and engineering concepts to address the values storage model. As the result, this model is to complex and not obvious for both mathematicians and programmers. Thus, inaccurate storage manipulations may cause a sufficient memory usage increase in your application even if you precisely follow the standard.
+
+\textit{Inflexible masking}. GraphBLAS standard provides an ability to apply a mask to filter out result matrices or vectors. However, rules for selecting values from a mask are implicit and rely on selecting raw zero values, like in a C program. This mechanism is not configurable.
+
+\textit{Templates usage}. There is a number of libraries which implement GraphBLAS in a form of C++ interface. These libraries heavily rely on a template meta programming for a generalization of a processed data. This approach simplifies implementation of the library. Auxiliary code is generated by the compiler. However, template-based approach requires the whole project recompilation for each executable and for any change of a user code.
+
+\textit{No GPU support}. GraphBLAS has no fully-featured implementation with GPU support. The primary reason for this is the complexity of the standard. There is a number of attempts to adopt GraphBLAS for a GPU analysis. But, most of them are focused only on Nvidia platform, what limits the portability of the potential solution.
