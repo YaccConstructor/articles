@@ -4,19 +4,25 @@ This section provides a brief overview of existing solutions for graph analysis 
 
 \subsection{Related Work}
 
-There is a number of graph processing frameworks for a both CPU and GPU analysis. A greate survey of such frameworks is done by Batari et al.~\cite{article:batarfi_survey_graphs} and Shi et al.~\cite{article:shi_survey_graphs}. From an conceptual perspective, this frameworks can be roughly divided into three categories: vertex-centric, edge-centric, linear algebra-based.
+There is a number of graph processing frameworks for a both CPU and GPU analysis. A great survey of such frameworks is done by Batari et al.~\cite{article:batarfi_survey_graphs} and Shi et al.~\cite{article:shi_survey_graphs}. Problems, addressed by those graph processing frameworks on a GPUs, can be categorized into the following major aspects: data layout, memory access patter, workload mapping and graph programming model. While all of them are important for a high-performance analysis, the latter is what the user directly encounters when solving applied problems. A flexible, expressive, and at the same time efficient for implementation graph programming model is one of the determining factors for the widespread use of the framework.
 
-\textit{Vertex-centric}. Introduces in Pregel~\cite{article:pregel} framework, vertex-centric model is based on a parallel processing of a graph vertices. The whole process is divided into iterations, where active vertices do a actual processing and send messages.  
+Existing GPUs frameworks typically adopt vertex-centric model, where computation is defined as a series of user functions, executed over vertices in some parallel fashion. Thus, this model falls into two variations further into subcategories: gather-apply-scatter (GAS) and bulk synchronous parallel (BSP). 
 
-\textit{Edge-centric}. Edge-centric model focuses on edges processing rather then vertices. It is first introduced in X-Stream~\cite{article:xstream} project. This model streams edges of the graphs and allows to effectively process them. 
+\textit{GAS model}. Such frameworks as CuSha~\cite{10.1145/2600212.2600227}, MapGraph~\cite{10.1145/2621934.2621936/MapGraph} adopt GAS model. 
+Accordingly to the name, the computation in GAS model consists of three phases, were each phase performs some vertex processing by user-defined functions, while the framework controls the overall phases execution. This model allows to abstract the need of explicit synchronizations, what simplifies analysis and ensures correctness. However, this approach has a GPU cost on performance which is not negligible.
 
-\textit{Linear-algebra based}. Linear algebra based frameworks for a graph processing originate from a CombinationalBLAS~\cite{article:combblas} project. Linear algebra approach relies on the fact, that the graph traversal can be represented as matrix-vector multiplication. The graph analysis community has formalized this method in a GraphBLAS~\cite{7761646} standard, which provides linear algebra primitives in a form of C API. This standard has a number of implementations, including the reference implementation SuiteSparse~\cite{10.1145/3322125}, GBTL~\cite{7529957}, Huawei GraphBLAS implementation~\cite{article:hu_graphblas_impl}, GraphBLAST~\cite{yang2019graphblast}, etc.
+\textit{BSP model}. Medusa~\cite{6497047/Medusa}, Gunrock~\cite{7967137} use BSP model. In this model the computation is divided into a series of supper steps, where within each step local computation occurs with message passing. This model allows local computations, local memory usage, reduces synchronization and kernel launch overhead, but may suffer from workload imbalance among threads in super step. Gunrock, one of the fastest programmable frameworks for GPU graphs analysis~\cite{article:shi_survey_graphs},  has solved this issue introducing several workload mapping techniques. This improvement allows to achieve great speedup in alwost all algorithms. However, Gunrock is Cuda-oriented framework with relatively low-level API, which requires a significant programming effort to implement a particular algorithm for analysis.
+
+The another programming model is linear-algebra based. This model was first introduced in CombinationalBLAS by Buluç et al.~\cite{article:combblas}. This model allows to define graph algorithms using linear algebra operations over matrices and vectors with some custom user-define element-wise operations. This allows to express complex computations in few lines of code without significant performance sacrifice, What makes it is promising for implementation. 
+
+The research community formalized linear algebra based model in a form of GraphBLAS standard~\cite{7761646}, which has a number of implementations for CPUs, such as high-performance SuiteSparse library~\cite{10.1145/3322125}, and some adaptations for a GPUs analysis. GraphBLAST~\cite{yang2019graphblast} is GraphBLAS-inspired a template-based Nvidia Cuda library for high-performance analysis, which is still in development.
+GBTL-CUDA~\cite{7529957} is a GraphBLAS-like framework for GPUs  focused on programming language research, API formalization and correctness rather than high performance. 
 
 \subsection{GraphBLAS concepts}
 
 GraphBLAS standard~\cite{7761646} is a mathematical notation translated into a C API. This standard provides linear algebra building blocks for the implementation of graph algorithms in terms of operations over matrices and vectors. Essential parts of this standard are described below.
 
-\textit{Data containers}. Primary data containers in this standard are general M by N matrix and M vector of values, as well as a scalar value. Containers are parameterised by the type of stored elements. As an example, matrix can be used to represent the adjacency matrix of the graph. Vector can be used to store a set of active vertices for traversal purposes. 
+\textit{Data containers}. Data containers in this standard are general M by N matrix and M vector of values, as well as a scalar value. Containers are parameterised by the type of stored elements. As an example, matrix can be used to represent the adjacency matrix of the graph. Vector can be used to store a set of active vertices for traversal purposes. 
 
 \textit{Algebraic structure}. Algebraic structures are called semiring and monoid, where two or one operation is provided respectively with some semantic requirements. These structures are adapted for containers, so their mathematical properties differ a bit from those, which are stated in classical algebra. These structures define the element-wise operations, which work with elements in vector and matrix containers. 
 
@@ -30,11 +36,9 @@ GraphBLAS standard~\cite{7761646} is a mathematical notation translated into a C
 
 Although GraphBLAS is mature standard with a number of implementation, it has some limitations and shortcomings, discussed in a talk given by Gilbert~\cite{talk:graphblas_did_wrong}. Some of them are explained in the next paragraphs. 
 
-\textit{C-oriented}. GraphBLAS standard is initially oriented on a C99 compatible API due to some technical and performance considerations. Standard does not considers any high-level built-in package for a more streamlined work with API.
-
 \textit{Lack of interoperability}. GraphBLAS declares opaque objects with are hidden from the user structure. It is not possible to somehow extend or interact with an existing standard implementation. However, practical tasks may required integration of existing formats, storage into a library for practical analysis. 
 
-\textit{Little introspection}. GraphBLAS declares a very limited functionality to inspect structure, state, type, behaviour, performance, correctness, progress of library primitives and operations. It is not feasible to build production-ready data-analysis platform without these features, which are common for all modern DBMS.
+\textit{Little introspection}. GraphBLAS declares a very limited functionality to inspect structure, state, type, behaviour, performance, correctness, progress of library primitives and operations. It is not feasible to build production-ready data-analysis platform without these features, which are common for all modern DBMS and data analysis frameworks.
 
 \textit{Implicit zeros}. GraphBLAS standard tries to use a mix of math and engineering concepts to address the values storage model. As the result, this model is to complex and not obvious for both mathematicians and programmers. Thus, inaccurate storage manipulations may cause a sufficient memory usage increase in your application even if you precisely follow the standard.
 
