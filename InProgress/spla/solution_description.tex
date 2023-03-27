@@ -6,22 +6,22 @@ It highlights the design principles, high-level architecture of the solution, da
 \subsection{Design Principles}
 
 Spla library aims to address some of GraphBLAS standard limitations.
-It is designed the way to maximize potential library performance, to simplify its implementation and extensions, and to provide the end-user verbose, but expressive interface allowing customization and precise control over operations execution. 
+It is designed the way to maximize potential library performance, to simplify its implementation and extension, and to provide the end-user verbose, but expressive interface allowing customization and precise control over operations execution. 
 These ideas are captured in the following principles.
 
 \begin{itemize}
     \item \textit{Optional acceleration}. Library is designed in a way, that GPU acceleration is fully plugable and optional part. Library can perform computations using standard CPU pipeline. If GPU acceleration is presented, library can offload a part of a work for it. It allows both non-trivial processing of the data on the CPU only, as well as possibility to integrate different backends in the future.  
-    \item \textit{User-defined functions}. The user can create custom element-by-element functions to parameterize operations. Custom functions can be used for both CPU and GPU execution.
+    \item \textit{User-defined functions}. The user can create custom element-wise functions to parameterize operations. Custom functions can be used for both CPU and GPU execution.
     \item \textit{Predefined scalar data types}. The library provides a set of built-in scalar data types that have a natural one-to-one relationship with native GPU built-in types. Data storage is transparent. The library interprets the data as POD-structures. The user can interpret individual elements as a sequence of bytes of a fixed size.
     \item \textit{Hybrid-storage format}. The library automates the process of data storage and preprocessing. It supports several data formats, chooses the best one depending on the situation.
-    \item \textit{Exportable interface}. The library has a C++ interface with an automated reference-counting and with no-templates usage. It can be wrapped by C99 compatible API and exported to other languages, for example, in a form of a Python package.
-    \item \textit{Introspection}. Each library class instantiates into a first-class object. Such objects can be saved, manipulated, passed as arguments and returned as function results. Parameterization types of containers can be inspected, as well as declared user functions.
+    \item \textit{Exportable interface}. The library has a C++ interface with an automated reference-counting and with no-templates usage. It is compiled into a shared library. The interface is wrapped by C99 compatible API and exported to other languages, for example, in a form of a Python package.
+    \item \textit{Introspection}. Each library class instantiates into a first-class object. Such objects can be captured, manipulated, passed as arguments and returned as function results. Parameterization types of containers can be inspected, as well as declared user functions.
 \end{itemize}
 
 \subsection{Architecture Overview}
 
 The general idea of the proposed solution is depicted in Fig.~\ref{fig:design}. 
-The core of the library and its main part is the CPU, which is the master node and controls all calculations. 
+The core of the library and its main part is the CPU, which is the master node which controls all computations. 
 It is responsible for storing data, maintaining a registry with algorithms, and scheduling operations to perform. 
 In this paradigm, the GPU is an optional backend for acceleration, implemented through a special interface. 
 It can optionally store data in a specific format. 
@@ -53,14 +53,14 @@ Key-value dictionary suites well frequent insertion, query or deletion operation
 Mathematical operations perform better with compacted sequential lists of values since they have more friendly cache behaviour. 
 GPU operations require separate format with a copy of the data resident in VRAM.
 
-The storage and particular format can be inspected using array primitive. It allows to get the view of an existing CPU or GPU buffer without actual copy, or initialize matrix or vector in particular format from existing arrays, which may be created and filled by user code. Array also gives an ability to acquire raw pointer to memory or GPU buffer handler, what can be used for interoperability and seamless integration into user data pipeline.
+The storage and particular format can be inspected using array primitive. It allows one to get the view of an existing CPU or GPU buffer without actual copy, or initialize matrix or vector in particular format from existing arrays, which may be created and filled by user code. Also array gives an ability to acquire raw pointer to memory or GPU buffer handler, what can be used for interoperability and seamless integration into user data pipeline.
 
-Data transformation from one format to another is carried out using a special rules graph shown in Fig.~\ref{fig:vec_tsf}. 
+Data transformation from one format to another is carried out using a special rules graph. Example graph for a vector storage is shown in Fig.~\ref{fig:vec_tsf}. 
 The directed edges in this graph indicate conversion rules. 
 The graph must be the single strongly connected component. 
 An example of the data transformation process is depicted in Fig.~\ref{fig:vec_exmp}. 
 For a requested format the best path of convertation is obtained. Currently, the shortest one is used. 
-Weight assignment to rules can potentially be used to prioritize convertations and reduce the cost of transformation for some formats. 
+Weight assignment to rules can potentially be used to prioritize convertations for some formats. 
 
 Currently, several storage formats are supported. 
 There is dictionary of keys for vector and matrix (DoK), list of coordinates (COO), dense vector, list of lists (LIL) and compressed sparse rows (CSR) matrix formats.  
@@ -97,8 +97,8 @@ It supports \textit{masking}, parametrization by \textit{binary mult} and \texti
 \subsection{Differences with GraphBLAS standard}
 
 To be clear, the proposed solution is not an implementation of GraphBLAS C or C++ API. 
-The design of the library uses only the concepts described in the standard. 
-However, in the proposed solution, the signatures and semantics of some of the operations have been changed. 
+The design of the library uses only the concepts described by the standard. 
+Thus, the signatures and semantics of some of the operations have been changed in the proposed solution. 
 The API has been made more verbose and explicit. 
-In particular, the handling of \textit{zero} elements and \textit{masking} are made cleaner for the end user. The library interprets data simply as collections of bytes, without mathematical semantics and identity elements.
+In particular, the handling of \textit{zero} elements and \textit{masking} are made cleaner for the end user. The library interprets data simply as collections of bytes, without mathematical semantics.
 Identity element must be explicitly passed by the user where required. Mask applied using separate user-defined predicate for selection. Special fill value used for sparse-dense convertations. It allows to make the memory usage predictable and the result of each operation clear to the end user without internal implicit storage manipulations.
