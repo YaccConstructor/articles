@@ -1,0 +1,690 @@
+\chapter{A Kronecker Product-Based CFPQ Algorithm}\label{ch:ch4}
+%В данной главе изложен алгоритм поиска путей в графе с заданными КС-ограничениями, который не требуют трансформации входной КС-грамматики, а также использует операции линейной алгебры для задач достижимости, поиска одного пути и поиска всех путей. Также сформулированы и доказаны утверждения о корректности и временной сложности полученного алгоритма. Кроме того, приведены детали реализаций алгоритма, а также его работа продемонстрирована на примере.
+In this chapter, we present a Kronecker product-based algorithm that does not require a transformation of the input context-free grammar and solves CFPQ problem with the reachability, the single-path, and the all-path query semantics. Also, the correctness and time complexity of the obtained algorithm are formulated and proved. In addition, the implementation details are given, as well as a step-by-step demonstration of the proposed algorithm.
+
+\section{Algorithm Construction}\label{sec:ch4/sect1}
+%В данном разделе изложен процесс построения алгоритма поиска путей в графе с заданными КС-ограничениями с использованием произведения Кронекера.
+In this section, we describe the process of constructing a Kronecker product-based CFPQ algorithm.
+
+%Пусть дан входной помеченный граф $\mathcal{G} = \langle V, E, L\rangle$ и входной КС-язык в качестве ограничений на пути в нём. Применимость матриц для описания графов уже была показана в предыдущей главе, однако для входных КС-ограничений в предложенных алгоритмах необходимо строить КС-грамматику и приводить её в нормальную форму. Такое преобразование грамматики может привести как минимум к квадратичному увеличению её размера~\cite{hopcroft2001introduction}. Особенностью алгоритма, предлагаемого в данной главе является использование рекурсивных автоматов для описания входных КС-ограничений без необходимости трансформации КС-грамматики.
+Suppose that an input labeled graph $\mathcal{G} = \langle V, E, L \rangle$ is given, as well as an input CFL that is used as path constraints. The applicability of matrices to describe graphs has already been shown in the previous chapter. However, for the input context-free path constraints in the proposed algorithm it is necessary to build a CFG and transform it into the WCNF. Such a transformation of the grammar can lead to at least a quadratic increase in its size~\cite{hopcroft2001introduction}. However, the algorithm proposed in this chapter uses recursive automata to describe the input context-free path constraints and does not require a transformation of the CFG.
+
+%Известно, что любая КС-грамматика может быть представлена с помощью рекурсивного автомата~\cite{alur2005analysis}. В свою очередь рекурсивный автомат, как и конечный автомат, может быть представлен в виде графа. Поэтому КС-ограничения также могут быть выражены с помощью таких объектов линейной алгебры, как матрицы. В таком случае, задачу поиска путей в графе с заданными КС-ограничениями можно решить с помощью нахождения пересечения рекурсивного автомата, соответствующего КС-ограничениям, и конечного автомата, соответствующего входному графу. Предлагаемый алгоритм основан на обобщении алгоритма пересечения конечных автоматов. Как было показано в~\cref{sec:ch2/sec2} для ограничений в виде регулярного языка, вычислять пересечение автоматов можно с помощью произведения Кронекера, применённого к матрицам из булевых декомпозициий матриц смежности для графовых представлений этих автоматов. Таким образом, используя операцию произведения Кронекера $\times$, определённую над полукольцом $\langle \{0, 1\}, \vee, \wedge, 0 \rangle$ с логическими операциями конъюнкции и дизъюнкции, а также с помощью операций $\bigvee$ поэлементной дизъюнкции булевых матриц, будет построена матрица, описывающая пересечение рекурсивного автомата для КС-ограничений и конечного автомата для входного графа. Однако такой рекурсивный автомат может содержать на переходах нетерминальные символы, которые имеют специальную логику рекурсивных вызовов, что требует добавления отдельного шага~--- вычисления транзитивного замыкания построенной матрицы для обработки этих символов. После вычисления транзитивного замыкания, в граф могут быть добавлены новые дуги $(i, A, j)$ при обнаружении пути $i\pi j$, для которого $A \Rightarrow_G \lambda(\pi)$. После обновления графа процесс повторяется до сходимости.
+It is known that any CFG can be represented by a recursive automaton~\cite{alur2005analysis}. In turn, the recursive automaton can be represented as a graph. Therefore, context-free path constraints can be expressed in terms of linear algebra objects such as matrices. In this case, a CFPQ problem can be solved by finding the intersection of the recursive automaton corresponding to the context-free path constraints and the finite automaton corresponding to the input graph. The proposed algorithm is based on a generalization of the FSA intersection algorithm. As shown in section~\ref{sec:ch2/sec2}, the intersection of automata can be calculated using the Kronecker product applied to matrices from Boolean decompositions of adjacency matrices for graph representations of these automata. Thus, using the Kronecker product operation $\times$ and the element-wise addition operation $\bigvee$ defined over the semiring $\langle \{0, 1\}, \vee, \wedge, 0 \rangle$, a matrix will be constructed that describes the intersection of the recursive automaton for the context-free constraints and the finite automaton for the input graph. However, such a recursive automaton may contain transitions with nonterminal symbols that have a special logic of recursive calls, which requires the addition of a separate step~--- calculation of the transitive closure of the constructed matrix for processing these symbols. After calculating the transitive closure, new edges $(i, A, j)$ can be added to the graph when a path $i\pi j$ is found for which $A \Rightarrow_G \lambda(\pi)$. After updating the graph, the process is repeated until convergence.
+
+%Описанный алгоритм поиска путей в графе с заданными КС-ограничениями, использующий произведение Кронекера, представлен на листинге~\ref{lst:tensor_cfpq}. Ключевая идея алгоритма заключается в итеративном вычислении произведения Кронекера для булевой декомпозиции матриц смежности $\mathcal{M}_1$ рекурсивного автомата и булевой декомпозиции матриц смежности $\mathcal{M}_2$ входного графа с последующим вычислением транзитивного замыкания результирующей матрицы. Наиболее трудоёмкими этапами в предложенном алгоритме являются вычисления произведения Кронекера и транзитивного замыкания. Кроме того, в предложенном алгоритме используется функция $\textit{getNonterminals}$, которая по двум состояниям автомата $R$ возвращает множество нетерминальных символов, которые присутствуют в данном автомате на переходах между этими состояниями.
+The described Kronecker product-based CFPQ algorithm is shown in the Listing~\ref{lst:tensor_cfpq}. The key idea of the algorithm is to iteratively calculate the Kronecker product for the Boolean decomposition of the adjacency matrices $\mathcal{M}_1$ of the recursive automaton and the Boolean decomposition of the adjacency matrices $\mathcal{M}_2$ of the input graph, followed by computing the transitive closure of the resulting matrix. The most time-consuming steps in the proposed algorithm are the calculation of the Kronecker product and the transitive closure. In addition, the proposed algorithm uses the $\textit{getNonterminals}$ function, which returns the set of nonterminal symbols of recursive automaton transitions between given two states.
+
+\begin{algorithm}[h]
+\begin{algorithmic}[1]
+\floatname{algorithm}{Listing}
+\footnotesize
+\caption{A Kronecker product-based CFPQ algorithm}
+\label{lst:tensor_cfpq}
+\Function{KroneckerBasedCFPQ}{$\mathcal{G} = \langle V, E, L \rangle$, $G=\langle N, \Sigma, P, S \rangle$}
+    % Input data preparation
+   \State{$n \gets$ |V|}
+    \State{$R \gets$ a recursive automaton for grammar $G$ with $m$ states}
+    \State{$\mathcal{M}_1 \gets$ the Boolean decomposition of the adjacency matrix for $R$ with matrix sizes $m \times m$}
+    \State{$\mathcal{M}_2 \gets$ the Boolean decomposition of the adjacency matrix for $\mathcal{G}$  with matrix sizes $n \times n$}
+    %\State{$M_3 \gets$ The empty matrix}
+    \State{$C_3, M_3 \gets$ empty matrices of size $m n \times m n$}
+    % Eps-transition handling for graph
+    \For{$q \in \{0,\ldots, m - 1\}$}
+        \For{$A \in \textit{getNonterminals}(R, q, q)$}
+            \For{$i \in \{0,\ldots, n - 1\}$}
+                \State{$\mathcal{M}_2^A[i, i] \gets 1$}
+            \EndFor
+        \EndFor
+    \EndFor
+    \While{any matrix in $\mathcal{M}_2$ is changing}
+        \State{$M_3 \gets \bigvee_{M^A \in \mathcal{M}_1 \times \mathcal{M}_2} M^A$}
+        \Comment{Kronecker product}
+        \State{$C_3 \gets \textit{transitiveClosure}(M_3)$}
+        \Comment{Transitive closure calculation}
+        \For{$(i, j)\ |\ C_3[i, j] = 1$}
+                \State{$q_1, q_2 \gets \textit{getStates}(i, j, n)$}
+                \State{$x, y \gets \textit{getCoordinates}(i, j, n)$}
+                \For{$A \in \textit{getNonterminals}(R, q_1, q_2)$}
+                    \State{$\mathcal{M}_2^A[x,y] \gets 1$}
+                \EndFor
+        \EndFor
+    \EndWhile
+\State \Return $\mathcal{M}_2, M_3$
+\EndFunction
+% \Function{add}{$C, C', i, j$}
+%     \State{$C'[i,j] \gets {1}$}
+%     \For{$(u,v) \mid C[u,i] = C[j,v] = 1, C[u,j] = C[u,v] = 0$}
+%         \State{$C'[u,v] \gets {1}$}
+%     \EndFor
+%     \State \Return{$C'$}
+% \EndFunction
+\Function{getStates}{$i, j, n$}
+\Comment{Obtaining state numbers of the automaton $R$ by cell indices in the matrix $C_3$}
+    \State \Return{$\left\lfloor{i / n}\right\rfloor, \left\lfloor{j / n}\right\rfloor$}
+\EndFunction
+\Function{getCoordinates}{$i, j, n$}
+\Comment{Obtaining vertex numbers of graph $\mathcal{G}$ by cell indices in the matrix $C_3$}
+    \State \Return{$i \bmod n, j \bmod n$}
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+%Результатом работы алгоритма, представленного на листинге~\ref{lst:tensor_cfpq}, является булева декомпозиция матриц смежности $\mathcal{M}_2$ входного графа с добавленными дугами с нетерминальными символами в качестве меток, которые описывают достижимость вершин в соответствии с заданными КС-ограничениями, а также матрица $M_3$, которая содержит необходимую информацию для восстановления всех искомых путей. Далее покажем как предложенный алгоритм позволяет решать задачи поиска путей в графе с заданными КС-ограничениями.
+The result of the algorithm shown in the Listing~\ref{lst:tensor_cfpq} is a Boolean decomposition $\mathcal{M}_2$ of adjacency matrices of the input graph with added edges with nonterminal symbols as labels that describe the reachability of vertices in accordance with the given context-free constraints, as well as the matrix $M_3$, which contains the necessary information to extract all the desired paths. Next, we will show how the proposed algorithm allows one to solve CFPQ problem.
+
+\paragraph{Reachability.} %Данная задача может быть решена с использованием множества матриц $\mathcal{M}_2$. А именно, в графе $\mathcal{G}$ существует путь из вершины $i$ в вершину $j$, удовлетворяющий заданным КС-ограничениям, только если $\mathcal{M}_2^S[i, j] = 1$.
+This problem can be solved using the set of matrices $\mathcal{M}_2$. Namely, in the graph $\mathcal{G}$ there exists a path from the vertex $i$ to the vertex $j$ that satisfies the given context-free constraints only if $\mathcal{M}_2^S[i, j] = 1$ .
+
+\paragraph{Single-path and all-path.} %Решить данные задачи можно с помощью матрицы $M_3$, которая для любого нетерминального символа $A \in N$ и для любой пары вершин $(i,j)$ содержит достаточно информации для восстановления всех путей $i \pi j$ таких, что $A \Rightarrow_G \lambda(\pi)$. Поэтому на листинге~\cref{lst:tensor_extract_all} представлен алгоритм восстановления всех путей в графе, соответствующих заданным КС-ограничениям. Стоит также отметить, что  представленный алгоритм восстановления путей основан на методе поиска в ширину, применённом на графе, соответствующем матрице транзитивного замыкания $M_3$. А так как для данного метода обхода графа известен алгоритм~\cite{kepner2011graph}, использующий операции линейной алгебры, то именно такие операции могут быть использованы для при реализации функции $BFS$ обхода в ширину, которая возвращает пути из выделенной начальной вершины в конечную. Однако количество таких путей может быть бесконечным, поэтому при реализации функции $BFS$ необходимо вычислять множество таких путей <<лениво>>. Кроме того, для ограничения количества восстановленных путей в графе, возвращаемых алгоритмом, используется параметр $k$. При этом возвращаются $k$ найденных путей с номерами вершин, образующих лексикографически наименьшие последовательности. Таким образом, предложенный алгоритм позволяет восстанавливать любое количество путей, удовлетворяющих заданным КС-ограничениям.
+CFPQ problem with these path query semantics can be solved using the matrix $M_3$ that for any nonterminal symbol $A \in N$ and for any pair of vertices $(i, j)$ contains enough information to construct all paths $i \pi j$ such that $A \Rightarrow_G \lambda(\pi)$. Therefore, the Listing~\ref{lst:tensor_extract_all} presents an algorithm for recovering all paths in the graph that correspond to the given context-free constraints. It is also worth noting that the presented path extraction algorithm is based on the breadth-first search method applied on the graph corresponding to the matrix $M_3$. And since the algorithm~\cite{kepner2011graph} is known for this graph traversal method, which uses linear algebra operations, then these operations can be used to implement the $BFS$ traversal function, which returns paths from the selected initial vertex to the final vertex. However, the number of such paths can be infinite, so when implementing the $BFS$ function it is necessary to use lazy computations. In addition, the parameter $k$ is used to limit the number paths in the graph returned by the algorithm. This algorithm returns $k$ of found paths with numbers of vertices that form the lexicographically smallest sequences. Thus, the proposed algorithm allows one to extract any number of paths that satisfy the given context-free constraints.
+
+\begin{algorithm}
+	\floatname{algorithm}{Listing}
+	\begin{algorithmic}[1]
+	    \footnotesize
+		\caption{All paths extraction algorithm for the Kronecker product-based CFPQ algorithm}
+		\label{lst:tensor_extract_all}
+		\State{$\mathcal{M}_2 \gets $ the Boolean decomposition of the resulting adjacency matrix of the algorithm in the Listing~\ref{lst:tensor_cfpq}}
+		\State{$M_3 \gets $ the resulting matrix $M_3$ of the algorithm in the Listing~\ref{lst:tensor_cfpq}}
+		\State{$R \gets$ a recursive automaton for the input context-free constraints}
+		\State{$\mathcal{M}_1 \gets $ the Boolean decomposition of the adjacency matrix for $R$}
+		
+		\Function{ExtractAllPaths}{$v_s, v_f, A, k$}
+		\State{$q_A^0 \gets$ the initial state of the automaton for the nonterminal $A$}
+		\State{$F_A \gets$ the final states of the automaton for the nonterminal $A$}
+		\State{$\textit{paths} \gets \bigcup\limits_{q_A^f \in F_A} \Call{BFS}{M_3, (q_A^0, v_s), (q_A^f, v_f)}$}
+		\State{$\textit{resultPaths} \gets \emptyset$}
+		\For{$\textit{path} \in \textit{paths}$}
+		\State{$\textit{currentPaths} \gets \emptyset$}
+		\For{$((s_i, v_i), (s_j, v_j)) \in \textit{path}$}
+		\State{$\textit{newEdges} \gets  \{(v_i, t, v_j) \mid M_2^t[v_i, v_j] \wedge M_1^t[s_i, s_j]\}$}
+		\State{$\textit{currentPaths} \gets \textit{currentPaths} \cdot \textit{newEdges}$}
+		\Comment{Path concatenation}
+		\State{$k' \gets k - |\textit{resultPaths}| - |\textit{currentPaths}|$}
+		\State{$\textit{newSubPaths} \gets  \bigcup_{\{N \mid  M_2^N[v_i, v_j]  \wedge M_1^N[s_i, s_j]\}} \Call{ExtractAllPaths}{v_i, v_j, N, k'}$}
+		\State{$\textit{currentPaths} \gets \textit{currentPaths} \cdot \textit{newSubPaths}$}
+		\Comment{Path concatenation}
+		\EndFor
+		\State{$\textit{resultPaths} \gets \textit{resultPaths} \cup \textit{currentPaths}$}
+		\If{$|\textit{resultPaths}| \geq k$}
+		\State \Return $\Call{TopK}{\textit{resultPaths}}$
+		\EndIf
+		\EndFor
+
+		\State \Return $\textit{resultPaths}$
+		\EndFunction
+		
+		\Function{TopK}{$\textit{paths}$}
+		\Comment{Choice of $k$ paths}
+		\State{$\textit{kPaths} \gets k$ paths from $\textit{paths}$ with the smallest vertex numbers in lexicographic order}
+		\State \Return $\textit{kPaths}$
+		\EndFunction
+
+	\end{algorithmic}
+\end{algorithm}
+
+%Таким образом, алгоритмы представленные на листингах~\ref{lst:tensor_cfpq} и \ref{lst:tensor_extract_all} позволяют решить задачу поиска одного и задачу поиска всех путей в графе с заданными КС-ограничениями с использованием операции произведения Кронекера.
+Thus, the algorithms presented in the Listings~\ref{lst:tensor_cfpq} and \ref{lst:tensor_extract_all} allow one to solve the CFPQ problem with the all-path query semantics using the Kronecker product.
+
+
+\section{Correctness of the Algorithm}\label{sec:ch4/sect2}
+%В данном разделе сформулированы и доказаны утверждения о корректности и завершаемости изложенного алгоритма.
+In this section, we formulate and prove statements about the correctness and termination of the described algorithm.
+
+%Для доказательства завершаемости представленного алгоритма поиска путей в графе с заданными КС-ограничениями будет использовано определённое в разделе~\ref{sec:ch3/sect2} отношение частичного порядка $\preceq_{\textit{rel}}$ на элементах использованного булевого полукольца $\langle \{0, 1\}, \vee, \wedge, 0 \rangle$. Сперва докажем теорему о монотонности алгоритма, представленного на листинге~\ref{lst:tensor_cfpq}. Далее для любых допустимых индексов $(i, j)$ и для любого нетерминала $A \in N$, будем использовать следующие обозначения:
+To prove the termination of the presented CFPQ algorithm, we will use the partial order relation $\preceq_{\textit{rel}}$ defined in section~\ref{sec:ch3/sect2} on the elements of the used Boolean semiring $\langle \{0, 1\}, \vee, \wedge, 0 \rangle$. First, we prove the theorem on the monotonicity of the algorithm presented in the Listing~\ref{lst:tensor_cfpq}. Further, for any indices $(i, j)$ and for any nonterminal $A \in N$, we will use the following notation:
+\begin{itemize}
+    \item $\mathcal{M}_2^{A, 0}[i, j]$, $M_3^{0}[i, j]$, and $C_3^{0}[i, j]$ for values in cells $\mathcal{M}_2^{A}[i, j]$, $M_3[i, j]$, and $C_3[i, j]$ after matrix initialization in lines 2--10 of the algorithm shown in the Listing~\ref{lst:tensor_cfpq};
+    \item $\mathcal{M}_2^{A, k}[i, j]$, $M_3^{k}[i, j]$, and $C_3^{k}[i, j]$ for values in cells $\mathcal{M}_2^{A}[i, j]$, $M_3[i, j]$, and $C_3[i, j]$ after $k$ iterations of the loop in lines 11--18, for $k \geq 1$.
+\end{itemize}
+
+\begin{theorem}[Algorithm monotonicity]\label{thm:monotone_tensor}
+	Suppose that $\mathcal{G} = \langle V, E, L \rangle$ is the input graph and $G = \langle N, \Sigma, P, S \rangle$ is the input CFG for the algorithm presented in the Listing~\ref{lst:tensor_cfpq}. Then for any indices $(i, j)$ and for any nonterminal $A \in N$, the values in the cells $\mathcal{M}_2^{A}[i, j]$, $M_3[i, j]$, and $C_3[i, j]$ increase monotonically according to the partial order relation $\preceq_{\textit{rel}}$.
+\end{theorem}
+\begin{proof}
+%Необходимо доказать, что для любого $k \geq 1$, $\mathcal{M}_2^{A, k - 1}[i, j] \preceq_{\textit{rel}} \mathcal{M}_2^{A, k}[i, j]$,  $M_3^{k - 1}[i, j] \preceq_{\textit{rel}} M_3^{k}[i, j]$ и $C_3^{k - 1}[i, j] \preceq_{\textit{rel}} C_3^{k}[i, j]$. Для $k = 1$ данное утверждение верно, так как все элементы матриц $M_3$ и $C_3$ равны $\bot = 0$, а значения элементов матриц $\mathcal{M}_2^{A}$ могут изменится лишь в строке 18 с 0 на 1. Для $k > 1$ данное утверждение верно, так как по свойствам определённых операций произведения Кронекера и транзитивного замыкания изменения некоторых значений элементов матриц $\mathcal{M}_2^{A, k - 1}$ с 0 на 1 могут привести только к таким же изменениям для некоторых элементов матриц $M_3^{k - 1}$ и $C_3^{k - 1}$, что доказывает утверждение теоремы.
+It is necessary to prove that for any $k \geq 1$, $\mathcal{M}_2^{A, k - 1}[i, j] \preceq_{\textit{rel}} \mathcal{M}_2^{A, k}[i, j]$,  $M_3^{k - 1}[i, j] \preceq_{\textit{rel}} M_3^{k}[i, j]$, and $C_3^{k - 1}[i, j] \preceq_{\textit{rel}} C_3^{k}[i, j]$. For $k = 1$ this statement is correct since all elements of the matrices $M_3$ and $C_3$ are equal to $\bot = 0$, and the values of the elements of the matrices $\mathcal{M}_2^{A}$ can change only in the line 18 from 0 to 1. For $k > 1$ this statement is correct since, by the properties of the defined Kronecker product and transitive closure operations, changes in some values of the elements of the matrices $\mathcal{M}_2^{A, k - 1}$ from 0 to 1 can only lead to the same changes for some elements of the matrices $M_3^{k - 1}$ and $C_3^{k - 1}$. This proves the statement of the theorem.
+\end{proof}
+
+%Следствием доказанной теоремы является следующая теорема о конечности алгоритма, представленного на листинге~\ref{lst:tensor_cfpq}.
+A consequence of the proved theorem is the following theorem on the termination of the algorithm presented in the Listing~\ref{lst:tensor_cfpq}.
+
+\begin{theorem}[Algorithm termination]\label{thm:finite_tensor}
+	The algorithm shown in the Listing~\ref{lst:tensor_cfpq} terminates in a finite number of steps.
+\end{theorem}
+\begin{proof}
+%По теореме~\ref{thm:monotone_tensor}, значения в ячейках матриц из множества $\mathcal{M}_2^{A}$ монотонно возрастают. А так как матрицы и множества возможных значений элементов этих матриц конечны, то алгоритм, представленный на листинге~\ref{lst:tensor_cfpq} завершается за конечное число шагов.
+According to the theorem~\ref{thm:monotone_tensor}, the values in the cells of the matrices from the set $\mathcal{M}_2^{A}$ increase monotonically. And since the matrices and the sets of possible values of the elements of these matrices are finite, the algorithm presented in the Listing~\ref{lst:tensor_cfpq} terminates in a finite number of steps.
+\end{proof}
+
+%Кроме того, с помощью рассуждений, аналогичных рассуждениям в доказательствах леммы~\ref{lemma:correct_mtx} и теоремы~\ref{thm:correct_mtx}, может быть доказана следующая теорема.
+Moreover, using arguments similar to those in the proofs of the lemma~\ref{lemma:correct_mtx} and the theorem~\ref{thm:correct_mtx}, the following theorem can be proved.
+
+\begin{theorem}[Algorithm correctness]\label{thm:correct_tensor}
+	%Пусть $\mathcal{G} = \langle V, E, L \rangle$~--- входной граф и $G = \langle N, \Sigma, P, S \rangle$~--- входная КС-грамматика для алгоритма, представленного на листинге~\ref{lst:tensor_cfpq}. Тогда для любой пары вершин $(i, j)$ графа $\mathcal{G}$, для любого нетерминала $A \in N$, значение в ячейке $\mathcal{M}_2^{A, k}[i, j] = 1$ только если существует путь $i \pi j$ такой, что $A \Rightarrow_G \lambda(\pi)$.
+	Suppose that $\mathcal{G} = \langle V, E, L \rangle$ is the input graph and $G = \langle N, \Sigma, P, S \rangle$ is the input CFG for the algorithm presented in the Listing~\ref{lst:tensor_cfpq}. Then for any pair of vertices $(i, j)$ of the graph $\mathcal{G}$, for any nonterminal $A \in N$, the value in the cell $\mathcal{M}_2^{A, k}[i, j] = 1$ only if there exists a path $i \pi j$ such that $A \Rightarrow_G \lambda(\pi)$.
+\end{theorem}
+\begin{proof}
+%По индукции на минимальные высоты деревьев вывода, соответствующих рассматриваемым путям в графе.
+By induction on the minimum heights of the derivation trees corresponding to visited paths in the graph.
+\end{proof}
+
+%Следствием теоремы~\ref{thm:correct_tensor} является корректность матрицы $M_3$, возвращаемой алгоритмом из листинга~\ref{lst:tensor_cfpq} и описывающей пересечение конечного автомата для входного графа и рекурсивного автомата для входных КС-ограничений. Таким образом, корректен и предложенный алгоритм восстановления всех путей в графе, основанный на обходе в ширину матрицы $M_3$, что отображено в следующей теореме.
+A consequence of the theorem~\ref{thm:correct_tensor} is the correctness of the $M_3$ matrix returned by the algorithm from the Listing~\ref{lst:tensor_cfpq} that describing the intersection of a finite automaton for the input graph and a recursive automaton for the input context-free constraints. Thus, the proposed algorithm for extracting all paths in a graph, based on a breadth-first search of the matrix $M_3$, is also correct, which is shown in the following theorem.
+
+\begin{theorem}[Correctness of the path extraction algorithm]\label{thm:correct_extraction_single_all_tensor}
+	%Пусть $\mathcal{G} = \langle V, E, L \rangle$~--- входной граф, $G = \langle N, \Sigma, P, S \rangle$~--- входная КС-грамматика и $(\mathcal{M}_2, M_3)$~--- результат, возвращаемый алгоритмом, представленным на листинге~\ref{lst:tensor_cfpq}. Тогда для любой пары вершин $(i, j)$ и любого нетерминала $A \in N$ алгоритм, представленный на листинге~\ref{lst:tensor_extract_all} построит множество из заданного количества путей $i \pi j$ таких, что существует дерево вывода для строки $\lambda(\pi)$ из нетерминала $A$ грамматики $G$, если такие пути существуют.
+	Suppose that $\mathcal{G} = \langle V, E, L \rangle$ is the input graph, $G = \langle N, \Sigma, P, S \rangle$ is the input CFG, and $(\mathcal{M}_2, M_3)$ is the result returned by the algorithm shown in the Listing~\ref{lst:tensor_cfpq}. Then, for any pair of vertices $(i, j)$ and any nonterminal $A \in N$, the algorithm presented in the Listing~\ref{lst:tensor_extract_all} will construct a set of the given number of paths $i \pi j$ such that there exists a derivation tree for the string $\lambda(\pi)$ and the nonterminal $A$ of the grammar $G$, if such paths exist.
+\end{theorem}
+
+\section{Time Complexity of the Algorithm}\label{sec:ch4/sect3}
+%В данном разделе представлена оценка временной сложности предложенного алгоритма.
+In this section, we present the worst-case time complexity of the proposed algorithm.
+
+We assume that all operations on matrix elements are computed in $O(1)$ elementary operations. In addition, we estimate the worst-case number of elementary operations needed to compute operations on Boolean matrices as:
+\begin{itemize}
+    \item $O(n^2)$~--- for the element-wise addition operation $\bigvee$ of two Boolean matrices of size $n \times n$,
+    \item $O(m^2n^2)$~--- for the Kronecker product operation $\times$ of two Boolean decompositions of the adjacency matrix of size $m \times m$ and the adjacency matrix of size $n \times n$,
+    \item $O(n^3\log n)$~--- for the transitive closure of a Boolean matrix of size $n \times n$.
+\end{itemize}
+
+Note that calculating the transitive closure of a Boolean matrix in such number of elementary operations can be done using the repeated squaring technique~\cite{baras2010path}.
+
+%Тогда справедлива следующая оценка временной сложности предложенного в этой главе алгоритма поиска путей в графе с заданными КС-ограничениями.
+Then the following theorem on the time complexity of the CFPQ algorithm proposed in this chapter is correct.
+
+\begin{theorem}[The time complexity of the Kronecker product-based CFPQ algorithm]\label{thm:time_tns}
+	Suppose that $\mathcal{G} = \langle V, E, L \rangle$ is the input graph, $G =\langle N, \Sigma, P, S \rangle$ is the input CFG, and $R$ is the recursive automaton for the grammar $G$ with a set of states $Q$. Then for the algorithm presented in the Listing~\ref{lst:tensor_cfpq} has the following worst-case time complexity: $O(|N||Q|^3|V|^5 \log (|Q||V|))$.
+\end{theorem}
+\begin{proof}
+%В строках 7--10 алгоритма для каждого состояния $q$ производится чтение значений в ячейках $[q, q]$ в $|N|$ булевых матрицах размера $m \times m$ с помощью функции $\textit{getNonterminals}$, а затем для каждого полученного нетерминала $A$ и каждой вершины графа $i$ производится запись в ячейку $[i, i]$ соответствующей булевой матрицы. Поэтому в этих строках производится $O( m|N|(\textit{Read}(m) + n \textit{Write}(n) )$ элементарных операций.
+In lines 7--10 of the algorithm, for each state $q$ the values in cells $[q, q]$ are read in $|N|$ Boolean matrices of size $|Q| \times |Q|$ using the function $\textit{getNonterminals}$, and then for each resulting nonterminal $A$ and each vertex $i$ of the graph, a write operation is made in the cell $[i, i]$ of the corresponding Boolean matrix. Therefore $O(|N||Q||V|)$ elementary operations are performed in these lines.
+
+%Далее рассмотрим цикл в строках 11--18. Алгоритм продолжает вычисления пока любая матрица из множества $\mathcal{M}_2$ меняется. Всего матриц в этом множестве, которые могут меняться~--- $|N|$ (они соответствуют нетерминальным символам грамматики $G$) и каждая из них имеет $n^2$ элементов. На каждой итерации могут измениться лишь некоторые нулевые значения ячеек этих матриц на значение 1. Поэтому максимальное количество итераций рассматриваемого цикла может быть достигнуто в случае, когда за каждую итерацию цикла изменяется значение лишь одной ячейки в одной матрице. Таким образом, максимальным количеством итераций рассматриваемого цикла является $|N|n^2$. А на каждой итерации производится: вычисление произведения Кронекера за $\textit{KR}(m, n)$ операций; вычисление поэлементной дизъюнкции получившихся булевых матриц, соответствующих общим символам автомата и графа, а также нетерминальным символам, за $|((\Sigma \cap Q) \cup N)| \textit{MA}(mn)$ операций; вычисление транзитивного замыкания булевой матрицы размера $mn \times mn$ за $\textit{TR}(mn)$ операций; и вычисления цикла в строках 14--18 за $mn (\textit{Read}(mn) + |N| (\textit{Read}(m) + \textit{Write}(n)))$ операций.
+Next, consider the loop in lines 11--18. The algorithm continues calculations until any matrix from the set $\mathcal{M}_2$ changes. The total number of matrices in this set that can be changed is $|N|$ (they correspond to nonterminal symbols of the grammar $G$) and each of them has $|V|^2$ elements. At each iteration, only some zero values of the cells of these matrices can change to the value 1. Therefore, the maximum number of iterations of the discussed loop can be achieved in the case when the value of only one cell in one matrix changes for each iteration. Thus, the maximum number of iterations of the discussed loop is $|N||V|^2$. And at each iteration, the following is performed: calculation of the Kronecker product in $O(|Q|^2|V|^2)$ operations; calculation of the element-wise addition of the resulting Boolean matrices in $O(|Q|^2|V|^2)$ operations; computing the transitive closure of a Boolean matrix of size $|Q||V| \times |Q||V|$ in $O(|Q|^3|V|^3 \log (|Q||V|))$ operations; and calculations in lines 14--18 in $O(|N||Q||V|)$ operations. The most time-consuming is the computation of the transitive closure of a Boolean matrix of size $|Q||V| \times |Q||V|$, so the algorithm will terminate in $O(|N|||V|^2 (|Q|^3|V|^3 \log (|Q||V|)))$. From this we obtain the stated worst-case time complexity of the algorithm presented in the Listing~\ref{lst:tensor_cfpq}.
+\end{proof}
+
+Note that the given time complexity of the algorithm presented in the Listing~\ref{lst:tensor_cfpq} can be significantly improved for sparse graphs. It is also possible to apply a fast transitive closure computation by using the incremental dynamic transitive closure technique~\cite{ibaraki1983line}. The key idea of this approach is to recalculate reachability information only for those vertices that become reachable after insertion of a certain edge in a graph.
+
+%В данной работе временная сложность алгоритма, представленного на листинге~\ref{lst:tensor_extract_all}, не приводится, так как она зависит от конкретной реализации функции $\textit{BFS}$.
+In this work, the time complexity of the algorithm presented in the Listing~\ref{lst:tensor_extract_all} is not given since it depends on the specific implementation of the $\textit{BFS}$ function.
+
+\section{An Example}\label{sec:ch4/sect4}
+%В данном разделе работа изложенного алгоритма продемонстрирована на примере, основанном на КС-языке $\mathcal{L} = \{a^nb^n \mid n \geq 1\}$. Рассмотрим граф $\mathcal{G}_1$, изображённый на~\cref{fig:example_graph}. Для алгоритма, изложенного в предыдущей главе было необходимо представить входные КС-ограничения в виде КС-грамматики в нормальной форме. Пример такой грамматики для языка $\mathcal{L}$ был рассмотрен в разделе~\ref{sec:ch3/sect4}. Однако для алгоритма, представленного на листинге~\ref{lst:tensor_cfpq}, приведение в нормальную форму необязательно. Поэтому рассмотрим грамматику с меньшим количеством правил и нетерминальных символов. Правила вывода такой КС-грамматики $G$ имеют следующий вид.
+In this section, a step-by-step demonstration of the proposed algorithm is provided using the example based on the CFL $\mathcal{L} = \{a^nb^n \mid n \geq 1\}$. Consider the graph $\mathcal{G}_1$ shown in Figure~\ref{fig:example_graph}. For the algorithm presented in the previous chapter it was necessary to represent the input context-free constraints using a CFG in the WCNF. An example of such a grammar for the language $\mathcal{L}$ was discussed in section~\ref{sec:ch3/sect4}. However, for the algorithm shown in the Listing~\ref{lst:tensor_cfpq} it is not necessary to transform the grammar to a normal form. Therefore, consider a grammar with fewer derivation rules and nonterminal symbols. The derivation rules for such a CFG $G$ are as follows.
+	\[
+	\begin{array}{rccl}
+	0: & S & \rightarrow & \text{\emph{a}} \ S \ \text{\emph{b}} \\
+	1: & S & \rightarrow & \text{\emph{a}} \ \text{\emph{b}} \\
+	
+	\end{array}
+	\]
+
+%Предложенный на листинге~\ref{lst:tensor_cfpq} алгоритм использует представление КС-грамматики в виде рекурсивного автомата. Такой автомат $R = \langle \{a, b\}, \{S\}, S, \{C_S\}\rangle$ для КС-грамматики $G$ представлен на~\cref{example:automata}.
+The algorithm proposed in the Listing~\ref{lst:tensor_cfpq} uses the representation of the CFG as a recursive automaton. Such an automaton $R = \langle \{a, b\}, \{S\}, S, \{C_S\}\rangle$ for the CFG $G$ is presented in Figure~\ref{example:automata}.
+
+%Меткой стартового автомата в $C_S$ является стартовый нетерминал грамматики $S$, начальным состоянием этого автомата является состояние $q_S^0$, а множеством конечных состояний~--- $\{ q_S^3 \}$. Алгоритм будет использовать булевы декомпозиции $\mathcal{M}_1$ и $\mathcal{M}_2$ матриц смежности рекурсивного автомата и входного графа. Для более компактно представления в данном примере будем использовать сами матрицы смежности $M_1$ и $M_2$ для автомата $R$ и графа $\mathcal{G}_1$, которые выглядят следующим образом (нулевые значения пропущены):
+The label of the starting automaton $C_S$ is the starting nonterminal $S$ of the grammar, the initial state of this automaton is the state $q_S^0$, and the set of final states is $\{ q_S^3 \}$. The algorithm will use Boolean decompositions of $\mathcal{M}_1$ and $\mathcal{M}_2$ adjacency matrices of the recursive automaton and the input graph. For a more compact representation in this example, we will use the adjacency matrices $M_1$ and $M_2$ for the automaton $R$ and the graph $\mathcal{G}_1$, which look like this (zero values are omitted):
+    $$
+    M_1 =
+    \begin{pmatrix}
+    . & \{a\} & . & .     \\
+    . & . & \{S\} & \{b\} \\
+    . & . & . & \{b\}     \\
+    . & . & . & .
+    \end{pmatrix}
+    ,~~~~~
+    M_2^0 =
+    \begin{pmatrix}
+    . & \{a\} & . & .     \\
+    . & . & \{a\} & .     \\
+    \{a\} & . & . & \{b\} \\
+    . & . & \{b\} & .
+    \end{pmatrix}.
+    $$ 
+
+%В строках 7--10 алгоритм рассматривает все $\varepsilon$-переходы в автомате $R$ и добавляет в матрицу $M_2$ информацию о пустых путях в графе. Однако в рассматриваемом примере рекурсивный автомат не содержит $\varepsilon$-переходов, поэтому в этих строках матрица $M_2$ не изменится.
+In lines 7--10 the algorithm uses all $\varepsilon$-transitions in the automaton $R$ and adds information about empty paths in the graph to the matrix $M_2$. However, in the used example the recursive automaton does not contain $\varepsilon$-transitions, so the matrix $M_2$ does not change in these lines.
+
+%Далее алгоритм выполняет цикл в строках 11--18 пока матрица $M_2$ изменяется. Приведём значения матриц $M_2$, $M_3$ и $C_3$ на каждой итерации алгоритма. На первой итерации цикла вычисляется произведение Кронекера $M_3^1 = M_1 \times M_2^0$ и транзитивное замыкание $C_3^1$, которые выглядят следующим образом (новые ненулевые значения выделены).
+Next, the algorithm loops through lines 11--18 while the $M_2$ matrix changes. We present the values of the matrices $M_2$, $M_3$, and $C_3$ at each iteration of the algorithm. At the first iteration of the loop, the Kronecker product $M_3^1 = M_1 \times M_2^0$ and the transitive closure $C_3^1$ are calculated as follows (new nonzero values are highlighted).
+
+%\begin{figure}
+    {\scriptsize
+    \renewcommand{\arraystretch}{0.6}
+    \centering
+    $$
+    M_3^1 =\left(
+    \begin{array}{c c c c | c c c c | c c c c | c c c c }
+    . & . & . & .  &  . & 1 & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & 1 & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  1 & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & 1   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & .   \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & 1   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    \end{array}
+    \right)
+    $$
+    $$
+    C_3^1 =
+    \left(
+    \begin{array}{c c c c | c c c c | c c c c | c c c c }
+    . & . & . & .  &  . & 1 & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & 1 & .  &  . & . & . & .  &  . & . & . & \cellcolor{lightgray}\textbf{1} \\
+    . & . & . & .  &  1 & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .
+    \end{array}
+    \right)
+    $$
+    }
+    %\caption{The first iteration tensor product and transitive closure evaluation for example query}
+    %\label{example:iteration1eval}
+%\end{figure}
+
+%Note here that the dimension $n$ of the matrix $M_3$ equals 16, and this value is constant in time of the algorithm execution.
+
+%После вычисления транзитивного замыкания ячейка $C_3^1[1, 15]$ содержит ненулевое значение. Для того чтобы понять, что это означает для исходного графа $\mathcal{G}_1$ и рекурсивного автомата $R$, разберём используемые в алгоритме функции $\textit{getStates}$ и $\textit{getCoordinates}$. С помощью функции $\textit{getStates}$ вычисляются значения состояний $q_1$ и $q_2$ рекурсивного автомата, которые соответствуют некоторому найденному пути в графе. Для вычисления $x$ и $y$~--- начальной и конечной вершин этого пути, используется функция $\textit{getCoordinates}$. Затем в матрицу $M_2$ добавляется информация о том, что существует путь в графе из вершины $x$ в вершину $y$, метки на дугах которого образуют слово, выводимое из некоторого нетерминала на переходах из состояния $q_1$ в состояние $q_2$ рекурсивного автомата. Например, после первой итерации новое ненулевое значение в ячейке $C_3^1[1, 15]$ матрицы $C_3^1$ означает следующее.
+After computing the transitive closure, the cell $C_3^1[1, 15]$ contains a nonzero value. In order to understand what this means for the original input graph $\mathcal{G}_1$ and the recursive automaton $R$, we analyze the $\textit{getStates}$ and $\textit{getCoordinates}$ functions used in the algorithm. Using the $\textit{getStates}$ function, the values of the states $q_1$ and $q_2$ of the recursive automaton are calculated, which correspond to some found path in the graph. To calculate the initial and final vertices of this path $x$ and $y$ the $\textit{getCoordinates}$ function is used. Then, information is added to the matrix $M_2$ that there is a path in the graph from the vertex $x$ to the vertex $y$, the labels on the edges of which form a word derived from some nonterminal on transitions from the state $q_1$ to the state $q_2$ of the recursive automaton. For example, after the first iteration a new nonzero value in cell $C_3^1[1, 15]$ of matrix $C_3^1$ means the following.
+\begin{itemize}
+    \item The states of the automaton are $q_1 = 0$ and $q_2 = 3$ since the cell $C_3^1[1, 15]$ is in the upper right block of the matrix $C_3$ with the block coordinates $(0, 3)$.
+    \item The vertices $x = 1$ and $y = 3$ since the cell $C_3^1[1, 15]$ has exactly these coordinates inside its block.
+    \item The $\textit{getNonterminals}$ function returns the set $\{S\}$ since it is the only nonterminal on transitions from the state $0$ to the state $3$ of the recursive automaton $R$.
+    \item Thus, there is a path in the graph from the vertex $1$ to the vertex $3$, the edge labels of which form a word derivable from the nonterminal $S$.
+\end{itemize}
+
+%В результате на первой итерации цикла в ячейку $M_2^1[1, 3]$ добавляется нетерминал $S$. Обновлённая матрица $M_2$ и соответствующий обновлённый граф представлены на~\cref{example:iteration1res}.
+As a result, at the first iteration of the loop the nonterminal $S$ is added to the cell $M_2^1[1, 3]$. The updated matrix $M_2$ and the corresponding updated graph are presented in Figure~\ref{example:iteration1res}.
+
+\begin{figure}[h]
+    \begin{subfigure}[]{0.5\textwidth}
+    \centering
+    $$
+    M_2^1 =
+    \begin{pmatrix}
+    . & \{a\} & . & .     \\
+    . & . & \{a\} & \{\textbf{S}\} \\
+    \{a\} & . & . & \{b\} \\
+    . & . & \{b\} & .
+    \end{pmatrix}
+    $$
+    \end{subfigure}
+    \begin{subfigure}[]{0.4\textwidth}
+    \centering
+    \begin{tikzpicture}[shorten >=1pt,auto]
+           \node[state] (q_0)                      {$0$};
+           \node[state] (q_1) [above right=of q_0] {$1$};
+           \node[state] (q_2) [right=of q_0]       {$2$};
+           \node[state] (q_3) [right=of q_2]       {$3$};
+            \path[->]
+            (q_0) edge  node {a} (q_1)
+            (q_1) edge  node {a} (q_2)
+            (q_1) edge[bend left, above]  node {\textbf{S}} (q_3)
+            (q_2) edge  node {a} (q_0)
+            (q_2) edge[bend left, above]  node {b} (q_3)
+            (q_3) edge[bend left, below]  node {b} (q_2);
+    \end{tikzpicture}
+    \end{subfigure}
+    \caption{The updated matrix $M_2$ and the corresponding updated graph after the first iteration of the algorithm}
+    \label{example:iteration1res}
+\end{figure}
+
+
+%На второй итерации цикла вычисленные матрицы $M_3^2$ и $C_3^2$ выглядят следующим образом:
+At the second iteration of the loop, we obtain the following matrices $M_3^2$ and $C_3^2$:
+
+{
+\scriptsize
+    \renewcommand{\arraystretch}{0.6}
+    \centering
+    $$
+    M_3^2 =
+    \left(
+    \begin{array}{c c c c | c c c c | c c c c | c c c c }
+    . & . & . & .  &  . & 1 & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & 1 & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  1 & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .           &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & \cellcolor{lightgray}\textbf{1}  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .           &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .           &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .   \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .
+    \end{array}
+    \right)
+    $$
+    $$
+    C_3^2 =
+    \left(
+    \begin{array}{c c c c | c c c c | c c c c | c c c c }
+    . & . & . & .  &  . & 1 & . & .  &  . & . & . & \cellcolor{lightgray}\textbf{1}  &  . & . & \cellcolor{lightgray}\textbf{1} & . \\
+    . & . & . & .  &  . & . & 1 & .  &  . & . & . & .  &  . & . & . & 1 \\
+    . & . & . & .  &  1 & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & 1  &  . & . & \cellcolor{lightgray}\textbf{1} & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .
+    \end{array}
+    \right).
+    $$
+}
+%listed in Figure~\ref{example:iteration2eval}.
+
+%Новые ненулевые значения матрицы $C_3^2$ появились в ячейках $[0, 11]$, $[0, 14]$ и $[5, 14]$. Однако только ячейка с индексом $[0, 14]$ соответствует состояниям $q_1$ и $q_2$ автомата, между которыми есть хотя бы один переход по нетерминальному символу. Поэтому только значение в ячейке $[5, 14]$ повлияет на обновление матрицы $M_2$. Обновлённая матрица $M_2$ и соответствующий обновлённый граф после второй итерации представлены на~\cref{example:iteration2res}.
+New nonzero values of the $C_3^2$ matrix appeared in the cells $[0, 11]$, $[0, 14]$, and $[5, 14]$. However, only the cell with the index $[0, 14]$ corresponds to the states $q_1$ and $q_2$ of the automaton, between which there is at least one transition with a nonterminal symbol. Therefore, only the value in the cell $[5, 14]$ will affect the update of the $M_2$ matrix. The updated matrix $M_2$ and the corresponding updated graph after the second iteration are presented in Figure~\ref{example:iteration2res}.
+
+\begin{figure}
+    \begin{subfigure}[]{0.5\textwidth}
+    \centering
+    $$
+    M_2^2 =
+    \begin{pmatrix}
+    .     & \{a\} & \{\textbf{S}\} & .     \\
+    .     & .     & \{a\} & \{S\} \\
+    \{a\} & .     & .     & \{b\} \\
+    .     & .     & \{b\} & .
+    \end{pmatrix}
+    $$
+    \end{subfigure}
+    \begin{subfigure}[]{0.4\textwidth}
+    \centering
+    \begin{tikzpicture}[shorten >=1pt,auto]
+           \node[state] (q_0)                      {$0$};
+           \node[state] (q_1) [above right=of q_0] {$1$};
+           \node[state] (q_2) [right=of q_0]       {$2$};
+           \node[state] (q_3) [right=of q_2]       {$3$};
+            \path[->]
+            (q_0) edge  node {a} (q_1)
+            (q_1) edge  node {a} (q_2)
+            (q_1) edge[bend left, above]  node {S} (q_3)
+            (q_2) edge  node {a} (q_0)
+            (q_0) edge[bend right, below]  node {\textbf{S}} (q_2)
+            (q_2) edge[bend left, above]  node {b} (q_3)
+            (q_3) edge[bend left, below]  node {b} (q_2);
+    \end{tikzpicture}
+    \end{subfigure}
+    \caption{The updated matrix $M_2$ and the corresponding updated graph after the second iteration}
+    \label{example:iteration2res}
+\end{figure}
+
+%Матрицы $M_2$ и $C_3$, вычисленные на оставшихся итерациях цикла, представлены на~\cref{example:iteration3to6res} и на~\cref{example:iteration3to6eval}. В данном примере номер последней итерации цикла~--- 7, на которой в матрицу $M_2$ не добавляется новых ненулевых значений и алгоритм выходит из цикла.
+The matrices $M_2$ and $C_3$ calculated on the remaining iterations of the loop are presented in Figures~\ref{example:iteration3to6res} and~\ref{example:iteration3to6eval}. In this example, the number of the last loop iteration is 7, at which no new nonzero values are added to the matrix $M_2$ and the algorithm terminates.
+
+
+\begin{figure}[ht]
+    \centering
+    $$
+    M_2^3 =
+    \begin{pmatrix}
+    .     & \{a\} & \{S\} & .       \\
+    .     & .     & \{a\} & \{S\}   \\
+    \{a\} & .     & .     & \{b, \textbf{S}\} \\
+    .     & .     & \{b\} & .
+    \end{pmatrix}
+    M_2^4 =
+    \begin{pmatrix}
+    .     & \{a\} & \{S\}   & .       \\
+    .     & .     & \{a, \textbf{S}\} & \{S\}   \\
+    \{a\} & .     & .       & \{b, S\} \\
+    .     & .     & \{b\}   & .
+    \end{pmatrix}
+    $$
+    $$
+    M_2^5 =
+    \begin{pmatrix}
+    .     & \{a\} & \{S\}   & \{\textbf{S}\}   \\
+    .     & .     & \{a, S\} & \{S\}   \\
+    \{a\} & .     & .       & \{b, S\} \\
+    .     & .     & \{b\}   & .
+    \end{pmatrix}
+    M_2^6 =
+    \begin{pmatrix}
+    .     & \{a\} & \{S\}   & \{S\}   \\
+    .     & .     & \{a, S\} & \{S\}   \\
+    \{a\} & .     & \{\textbf{S}\}   & \{b, S\} \\
+    .     & .     & \{b\}   & .
+    \end{pmatrix}
+    $$
+    \caption{Updated matrix $M_2$ for algorithm iterations from 3 to 6}
+    \label{example:iteration3to6res}
+\end{figure}
+
+%Изначальный граф и граф со всеми добавленными дугами после работы алгоритма представлен на~\cref{example:input_and_result}.
+The original graph and the resulted graph with all the added edges are shown in Figure~\ref{example:input_and_result}.
+
+\begin{figure}[h]
+        \centering
+        \begin{subfigure}{.48\textwidth}
+        \begin{center}
+        \begin{tikzpicture}[shorten >=1pt,auto]
+           \node[state] (q_0)                      {$0$};
+           \node[state] (q_1) [above right=2cm and 1.5cm of q_0] {$1$};
+           \node[state] (q_2) [right=1.5cm of q_0]       {$2$};
+           \node[state] (q_3) [right= 1.5cm of q_2]       {$3$};
+            \path[->]
+            (q_0) edge  node {a} (q_1)
+            (q_1) edge  node {a} (q_2)
+            (q_2) edge  node {a} (q_0)
+            (q_2) edge[bend left, above]  node {b} (q_3)
+            (q_3) edge[bend left, below]  node {b} (q_2);
+        \end{tikzpicture}
+        \caption{The initial input graph $\mathcal{G}_1$}
+        \label{input:graph}
+        \end{center}
+        \end{subfigure}
+        \begin{subfigure}{.48\textwidth}
+        \begin{center}
+        \begin{tikzpicture}[shorten >=1pt,auto]
+        \node[state] (q_0)                      {$0$};
+        \node[state] (q_1) [above right=2cm and 1.5cm of q_0] {$1$};
+        \node[state] (q_2) [right=1.5cm of q_0]       {$2$};
+        \node[state] (q_3) [right= 1.5cm of q_2]       {$3$};
+          \path[->]
+            (q_0) edge  node {a} (q_1)
+            (q_1) edge  node {a,\textbf{S}} (q_2)
+            (q_2) edge[bend right, above]  node {a} (q_0)
+            (q_2) edge[loop right]  node {\textbf{S}} (q_2)
+            (q_1) edge[bend left, above]  node {\textbf{S}} (q_3)
+            (q_0) edge[bend right, above]  node {\textbf{S}} (q_2)
+            (q_2) edge[bend left, above]  node {b,\textbf{S}} (q_3)
+            (q_0) edge[bend right, below]  node {\textbf{S}} (q_3)
+            (q_3) edge[bend left, below]  node {b} (q_2);
+    \end{tikzpicture}
+    \caption{The resulting graph}
+    \label{example:result}
+    \end{center}
+    \end{subfigure}
+    \caption{The initial input graph $\mathcal{G}_1$ and the graph corresponding to the resulting Boolean decomposition of the adjacency matrix $\mathcal{M}_2$}
+    \label{example:input_and_result}
+
+\end{figure}
+
+\begin{figure}[ht]
+    \scriptsize
+    \renewcommand{\arraystretch}{0.6}
+    \centering
+    $$
+    C_3^3 =
+    \left(
+    \begin{array}{c c c c | c c c c | c c c c | c c c c }
+    . & . & . & .  &  . & 1 & . & .  &  . & . & . & 1  &  . & . & 1 & . \\
+    . & . & . & .  &  . & . & 1 & .  &  . & . & . & .  &  . & . & . & 1 \\
+    . & . & . & .  &  1 & . & . & .  &  . & . & \cellcolor{lightgray}\textbf{1} & .  &  . & . & . & \cellcolor{lightgray}\textbf{1} \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & 1 & .  &  . & . & . & \cellcolor{lightgray}\textbf{1} \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & 1  &  . & . & 1 & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .
+    \end{array}
+    \right)
+    $$
+    $$
+    C_3^4 =
+    \left(
+    \begin{array}{c c c c | c c c c | c c c c | c c c c }
+    . & . & . & .  &  . & 1 & . & .  &  . & . & . & 1  &  . & . & 1 & . \\
+    . & . & . & .  &  . & . & 1 & .  &  . & . & . & \cellcolor{lightgray}\textbf{1}  &  . & . & \cellcolor{lightgray}\textbf{1} & 1 \\
+    . & . & . & .  &  1 & . & . & .  &  . & . & 1 & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & 1 & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & 1  &  . & . & 1 & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & 1  &  . & . & \cellcolor{lightgray}\textbf{1} & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .
+    \end{array}
+    \right)
+    $$
+    $$
+    C_3^5 =
+    \left(
+    \begin{array}{c c c c | c c c c | c c c c | c c c c }
+    . & . & . & .  &  . & 1 & . & .  &  . & . & \cellcolor{lightgray}\textbf{1} & 1  &  . & . & 1 & \cellcolor{lightgray}\textbf{1} \\
+    . & . & . & .  &  . & . & 1 & .  &  . & . & . & 1  &  . & . & 1 & 1 \\
+    . & . & . & .  &  1 & . & . & .  &  . & . & 1 & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & 1 & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & 1 & 1  &  . & . & 1 & \cellcolor{lightgray}\textbf{1} \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & 1  &  . & . & 1 & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .
+    \end{array}
+    \right)
+    $$
+    $$
+    C_3^6 =
+    \left(
+    \begin{array}{c c c c | c c c c | c c c c | c c c c }
+    . & . & . & .  &  . & 1 & . & .  &  . & . & 1 & 1  &  . & . & 1 & 1 \\
+    . & . & . & .  &  . & . & 1 & .  &  . & . & . & 1  &  . & . & 1 & 1 \\
+    . & . & . & .  &  1 & . & . & .  &  . & . & 1 & \cellcolor{lightgray}\textbf{1}  &  . & . & \cellcolor{lightgray}\textbf{1} & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & 1 & 1  &  . & . & \cellcolor{lightgray}\textbf{1} & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & 1 & 1  &  . & . & 1 & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & 1  &  . & . & 1 & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & 1 \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & 1 & . \\
+    \hline
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & . \\
+    . & . & . & .  &  . & . & . & .  &  . & . & . & .  &  . & . & . & .
+    \end{array}
+    \right)
+    $$
+    \caption{The transitive closure matrix $C_3$ on iterations of the algorithm from 3 to 6}
+    \label{example:iteration3to6eval}
+\end{figure}
+
+%Результатом работы алгоритма, представленного на листинге~\ref{lst:tensor_cfpq}, являются матрицы $M_2$ и $M_3$. В матрице $M_2$ содержится вся информация о достижимости в графе в соответствии с заданными КС-ограничениями, которая отображена на~\cref{example:result}. А последнее значение матрицы $M_3$ содержит информацию, достаточную для восстановления всех искомых путей.
+The result of the algorithm shown in the Listing~\ref{lst:tensor_cfpq} is the matrices $M_2$ and $M_3$. The matrix $M_2$ contains all information about the reachability in the graph in accordance with the given context-free constraints, and is shown in Figure~\ref{example:result}. And the matrix $M_3$ contains information sufficient to extract all the desired paths.
+
+\clearpage
+
+
+\section{Implementation}\label{sec:ch4/sect5}
+%В данном разделе приведены детали реализации полученного алгоритма поиска путей в графе с заданными КС-ограничениями с использованием произведения Кронекера.
+In this section, we present the implementation details for the obtained Kronecker product-based CFPQ algorithm.
+
+%При реализации предложенного алгоритма также учитывались особенности реальных графов. В данном случае остаются применимы рассуждения из раздела~\cref{sec:ch3/sect5}, в результате которых был сделан выбор использовать параллельные вычисления и разреженный формат для хранения матриц.
+The properties of real graphs were taken into account. In this case, the arguments from the section~\ref{sec:ch3/sect5} remain applicable, as a result of which the choice was made to use parallel computing and a sparse format for storing matrices.
+
+%В предложенном алгоритме используется операция произведения Кронекера над булевыми матрицами, а также операция вычисления транзитивного замыкания матрицы. Алгоритм был реализован на CPU с использованием библиотеки SuiteSparse:GraphBLAS и на GPU с использованием библиотеки cuBool, в которых реализована операция произведения Кронекера и транзитивное замыкание может быть вычислено с использованием серии умножений булевых матриц (возведения матрицы $M_3$ в некоторую степень). В результате были получены следующие реализации:
+The proposed algorithm uses the Kronecker product over Boolean matrices, as well as the operation of calculating the transitive closure of a matrix. The algorithm was implemented on the CPU using the SuiteSparse:GraphBLAS library and on the GPU using the cuBool library, in which the Kronecker product operation is implemented and the transitive closure can be calculated using a series of Boolean matrix multiplications (squaring the matrix $M_3$). As a result, the following implementations were obtained:
+\begin{itemize}
+    \item $\textit{KronAll}_{\textit{CPU}}$~--- a \texttt{Python} implementation using the pygraphblas package, which is a wrapper for the SuiteSparse:GraphBLAS library;
+    \item $\textit{KronAll}_{\textit{GPU}}$~--- a \texttt{Python} implementation using the pycubool package, which is a wrapper for the cuBool library.
+\end{itemize}
+
+%Стоит отметить, что предложенный алгоритм позволяет построить матрицы, которые содержат в себе информацию, достаточную для восстановления всех путей в графе, соответствующих заданным КС-ограничениям. Ответ на задачу достижимости может быть получен с использованием матриц $\mathcal{M}_2$, вычисленных с использованием разработанных реализаций. Для задач поиска одного и всех путей был реализован алгоритм восстановления искомых путей, представленный на листинге~\ref{lst:tensor_extract_all}, по информации, содержащейся в матрицах $\mathcal{M}_2$ и $M_3$.
+Note that the proposed algorithm allows one to construct matrices that contain information sufficient to construct any given number of paths that correspond to the given context-free path constraints. The answer to the reachability problem can be obtained using the $\mathcal{M}_2$ matrices computed by developed implementations. For the single-path and the all-path query semantics, the algorithm for the desired paths extraction presented in Listing~\ref{lst:tensor_extract_all} was implemented using the information contained in the matrices $\mathcal{M}_2$ and $M_3$.
+
+%Реализации $\textit{KronAll}_{\textit{CPU}}$ и $\textit{KronAll}_{\textit{GPU}}$ также находятся в открытом доступе в рамках платформы $\textit{CFPQ\_PyAlgo}\footnote{Платформа CFPQ\_PyAlgo: https://github.com/JetBrains-Research/CFPQ\_PyAlgo (дата обращения: 14.01.2022).}$.
+Implementations $\textit{KronAll}_{\textit{CPU}}$ and $\textit{KronAll}_{\textit{GPU}}$ are available as part of the $\textit{CFPQ\_PyAlgo}$ platform.
+
+\clearpage

@@ -1,0 +1,1037 @@
+\chapter{Background}\label{ch:ch1}
+%В данной главе введены основные термины и определения, используемые в работе, а также приводится формальная постановка задач поиска путей в графе с заданными КС-ограничениями и рассматриваются существующие алгоритмы для их решения. Кроме того, рассматриваются основные идеи использования методов линейной алгебры для решения задач анализа графов, а также существующие библиотеки линейной алгебры, которые могут быть использованы для получения соответствующих высокопроизводительных реализаций.
+In this chapter, we introduce the main terms and definitions used in the work, provide a formal statement of CFPQ problem, and consider existing CFPQ algorithms. In addition, the main ideas of using linear algebra methods for solving graph analysis problems are considered, as well as existing linear algebra libraries that can be used to obtain the corresponding high-performance implementations.
+
+\section{Basic Concepts of the Linear Algebra}\label{sec:ch1/sec1}
+%В данном разделе вводится ряд обозначений и определений линейной алгебры, используемых в работе.
+In this section, we introduce a number of terms and definitions of the linear algebra used in the work.
+
+%\begin{definition}[Алгебраическая структура]
+%\emph{Алгебраическая структура}~--- это непустое множество $\mathcal{S}$ (носитель) с заданным набором операций и отношений (сигнатурой), которое удовлетворяет некоторой системе аксиом.
+%\end{definition}
+\begin{definition}[An algebraic structure]
+An \emph{algebraic structure} consists of a nonempty set $\mathcal{S}$ (a domain), a collection of operations on $\mathcal{S}$ of finite arity (typically binary operations), and a finite set of axioms.
+\end{definition}
+
+%Далее приведём определения таких алгебраических структур, как полугруппа, моноид, группа и полукольцо.
+Next, we provide definitions for such algebraic structures as semigroups, monoids, groups, and semirings.
+
+%\begin{definition}[Полугруппа]
+%Множество $\mathcal{S}$ с заданной на нём бинарной операцией $\circ : \mathcal{S} \times \mathcal{S} \to \mathcal{S}$ называется \emph{полугруппой} и обозначается $\langle \mathcal{S}, \circ \rangle$, если выполнена следующая аксиома.
+%\begin{itemize}
+%    \item Ассоциативность: $\forall (a, b, c\in \mathcal{S})\colon (a\circ b)\circ c = a\circ (b \circ c)$.
+%\end{itemize}
+%\end{definition}
+\begin{definition}[A semigroup]
+The set $\mathcal{S}$ with the binary operation $\circ: \mathcal{S} \times \mathcal{S} \to \mathcal{S}$ defined on it is called a \emph{semigroup} and denoted by $\langle \mathcal{S}, \circ \rangle$ if the following axiom holds.
+\begin{itemize}
+    \item Associativity: $\forall (a, b, c\in \mathcal{S})\colon (a\circ b)\circ c = a\circ (b \circ c)$.
+\end{itemize}
+\end{definition}
+
+%\begin{definition}[Моноид]
+%	\emph{Моноидом} $\langle \mathcal{S}, \circ, \mathbb{0} \rangle$ называется такая полугруппа с некоторым выделенным элементом $\mathbb{0}$, что выполняется следующая аксиома.
+%	\begin{itemize}
+%    \item Наличие нейтрального элемента $\mathbb{0}$: $\forall a\in \mathcal{S}\colon (\mathbb{0} \circ a = a \circ \mathbb{0} = a)$.
+%    \end{itemize}
+%\end{definition}
+\begin{definition}[A monoid]
+	A \emph{monoid} $\langle \mathcal{S}, \circ, \mathbb{0} \rangle$ is a semigroup with element $\mathbb{0} \in \mathcal{S}$ such that the following axiom holds.
+	\begin{itemize}
+    \item Identity (neutral) element $\mathbb{0}$: $\forall a\in \mathcal{S}\colon (\mathbb{0} \circ a = a \circ \mathbb{0} = a)$.
+    \end{itemize}
+\end{definition}
+
+%\begin{definition}[Группа]
+%Непустое множество $\mathcal{S}$ с заданной на нём бинарной операцией $\circ: {\mathcal{S}} \times {\mathcal{S}} \to {\mathcal{S}}$ и нейтральным элементом $\mathbb{0} \in \mathcal{S}$ называется \emph{группой} $\langle \mathcal{S} ,\circ, \mathbb{0} \rangle$, если оно является моноидом с дополнительным требованием наличия обратных элементов. 
+%\begin{itemize}
+%\item Наличие обратного элемента: $ \forall a\in \mathcal{S}\quad \exists a^{-1}\in \mathcal{S}\colon (a \circ a^{-1}=a^{-1} \circ a = \mathbb{0})$.
+%\end{itemize}
+%\end{definition}
+\begin{definition}[A group]
+A nonempty set $\mathcal{S}$ with a binary operation $\circ: {\mathcal{S}} \times {\mathcal{S}} \to {\mathcal{S}}$ is called a \emph{group} $\langle \mathcal{S}, \circ, \mathbb{0} \rangle$ if it is a monoid with identity element $\mathbb{0}$ and an additional requirement for the existence of inverse elements.
+\begin{itemize}
+\item Inverse elements: $ \forall a\in \mathcal{S}\quad \exists a^{-1}\in \mathcal{S}\colon (a \circ a^{-1}=a^{-1} \circ a = \mathbb{0})$.
+\end{itemize}
+\end{definition}
+
+%\begin{definition}[Полукольцо]
+%
+%Непустое множество $\mathcal{S}$ с двумя бинарными операциями $\oplus \colon \mathcal{S} \times \mathcal{S} \to \mathcal{S}$ (часто называют сложением) и $\otimes \colon \mathcal{S} \times \mathcal{S} \to \mathcal{S}$ (часто называют умножением), а также выделенными нейтральными элементами $\mathbb{0}, \mathbb{1} \in \mathcal{S}$ называется \emph{полукольцом} $\langle \mathcal{S}, \oplus, \otimes, \mathbb{0}, \mathbb{1} \rangle$, если выполнены следующие условия.
+%\begin{enumerate}
+%
+%\item $\langle \mathcal{S}, \oplus, \mathbb{0} \rangle$~--- это коммутативный моноид, нейтральным элементом которого является $\mathbb{0}$, и при этом  для любых $a, b, c \in \mathcal{S}$ имеем:
+%\begin{itemize}
+%	\item $(a \oplus b) \oplus c = a \oplus (b \oplus c),$
+%	\item $\mathbb{0} \oplus a = a \oplus \mathbb{0} = a,$
+%	\item $a \oplus b = b \oplus a.$
+%\end{itemize}
+%
+%\item $\langle \mathcal{S}, \otimes, \mathbb{1} \rangle$~--- это моноид, нейтральным элементом которого является  $\mathbb{1}$, и при этом для любых $a, b, c \in \mathcal{S}$ справедливо следующее:
+%\begin{itemize}
+%	\item $(a \otimes b) \otimes c = a \otimes (b \otimes c),$
+%    \item $\mathbb{1} \otimes a = a \otimes \mathbb{1} = a.$
+%\end{itemize}
+%
+%\item Операция $\otimes$ является дистрибутивной слева и справа относительно операции $\oplus$, т.е. выполняется следующее:
+%\begin{itemize}
+%	\item $a \otimes (b \oplus c) = (a \otimes b) \oplus (a \otimes c),$
+%    \item $(a \oplus b) \otimes c = (a \otimes c) \oplus (b \otimes c).$
+%\end{itemize}
+%
+%
+%\item Элемент $\mathbb{0}$ является \textit{аннигилятором} для операции $\otimes$, т.е. имеем:
+%\begin{itemize}
+%	\item $\forall a \in \mathcal{S}: \mathbb{0} \otimes a = a \otimes \mathbb{0} = \mathbb{0}.$
+%\end{itemize}
+%
+%\end{enumerate}
+%
+%Если операция $\otimes$ коммутативна, то говорят о коммутативном полукольце.
+%
+%\end{definition}
+\begin{definition}[A semiring]
+
+Nonempty set $\mathcal{S}$ with two binary operations $\oplus$ (often called addition) and $\otimes$ (often called multiplication) is called a \emph{semiring} $\langle \mathcal{S}, \oplus, \otimes, \mathbb{0} \rangle$ if the following axioms hold.
+\begin{enumerate}
+
+\item $\langle \mathcal{S}, \oplus, \mathbb{0} \rangle$ is a commutative monoid, i.e. for any $a, b, c \in \mathcal{S}$ we have:
+\begin{itemize}
+	\item $(a \oplus b) \oplus c = a \oplus (b \oplus c),$
+	\item $\mathbb{0} \oplus a = a \oplus \mathbb{0} = a,$
+	\item $a \oplus b = b \oplus a.$
+\end{itemize}
+
+\item $\langle \mathcal{S}, \otimes, \mathbb{1} \rangle$ is a monoid with some neutral element $\mathbb{1} \in \mathcal{S}$, and $\mathbb{0}$ is $\textit{absorbing}$ for $\otimes$, i.e. for any $a, b, c \in \mathcal{S}$ the following axioms hold:
+\begin{itemize}
+	\item $(a \otimes b) \otimes c = a \otimes (b \otimes c),$
+    \item $\mathbb{1} \otimes a = a \otimes \mathbb{1} = a,$
+    \item $\mathbb{0} \otimes a = a \otimes \mathbb{0} = \mathbb{0}.$
+\end{itemize}
+
+\item $\otimes$ distributes over $\oplus$:
+\begin{itemize}
+	\item $a \otimes (b \oplus c) = (a \otimes b) \oplus (a \otimes c),$
+    \item $(a \oplus b) \otimes c = (a \otimes c) \oplus (b \otimes c).$
+\end{itemize}
+
+\end{enumerate}
+
+ If the operation $\otimes$ is commutative, then this algebraic structure is called a commutative semiring.
+
+\end{definition}
+
+%Кроме того, на носителях введённых алгебраических структур может быть задано отношение частичного порядка, которое определяется следующим образом.
+In addition, on the domains of the introduced algebraic structures, a partial order relation can be specified, which is defined as follows.
+
+%\begin{definition}[Отношение частичного порядка]
+%Бинарное отношение $\preceq$ на множестве $\mathcal{S}$ называется \textit{отношением частичного порядка}, если для любых $a, b, c \in \mathcal{S}$ выполнены следующие условия.
+%\begin{itemize}
+%	\item Рефлексивность: $a \preceq a$.
+%    \item Антисимметричность: eсли $a \preceq b$ и $b \preceq a$, то $a = b$. 
+%    \item Транзитивность: если $a \preceq b$ и $b \preceq c$, то $a \preceq c$. 
+%\end{itemize}
+%\end{definition}
+\begin{definition}[A partial order relation]
+A binary relation $\preceq$ on a set $\mathcal{S}$ is called a \textit{partial order relation} if the following conditions are satisfied for any $a, b, c \in \mathcal{S}$.
+\begin{itemize}
+	\item Reflexivity: $a \preceq a$.
+    \item Antisymmetry: if $a \preceq b$ and $b \preceq a$ then $a = b$. 
+    \item Transitivity: if $a \preceq b$ and $b \preceq c$ then $a \preceq c$. 
+\end{itemize}
+\end{definition}
+
+%Далее введём понятия матрицы и вектора, а также определим некоторые операции над ними.
+Next, we introduce the concepts of a matrix and a vector, and also define some operations on them.
+
+%\begin{definition}[Матрица]
+%Предположим, что имеется некоторая алгебраическая структура с носителем $\mathcal{S}$. Тогда \emph{матрицей} будем называть прямоугольный массив размера $n\times m, n > 0, m > 0$, заполненный элементами из $\mathcal{S}$. Говорят, что $n$~--- это \emph{высота} матрицы или количество строк в ней, а $m$~--- \emph{ширина} матрицы или количество столбцов.
+%\end{definition}
+\begin{definition}[A matrix]
+Assume that there is some algebraic structure with set $\mathcal{S}$ as domain. Then a \emph{matrix over this algebraic structure} is a rectangular array of size $n\times m, n > 0, m > 0$ filled with elements from the set $\mathcal{S}$. Such matrix has $n$ rows and $m$ columns, while $n$ and $m$ are called its dimensions.
+\end{definition}
+
+%При доступе к элементам матрицы используются индексы. Индексация (нумерация) ведётся с левого верхнего угла, первым указывается строка элемента, вторым~--- его столбец. В работе будет использоваться индексация строк и столбцов, начинающаяся с нуля. Так, например, $M[0, 0]$~--- элемент матрицы, находящийся на пересечении верхней строки и левого столбца матрицы $M$.
+Indexes are used to access matrix elements. Indexing in matrices starts from the upper left corner, the element's row is indicated first and its column is indicated second. In this thesis, we will use indexing of rows and columns starting from zero. For example, $M[0, 0]$ is a matrix element located at the intersection of the top row and left column of the matrix $M$.
+
+%\begin{definition}[Вектор]
+%\emph{Вектором} будем называть матрицу, хотя бы один из размеров которой равен единице. Если единице равна высота матрицы, то это \textit{вектор-строка}, если же единице равна ширина матрицы, то это \textit{вектор-столбец}.
+%\end{definition}
+\begin{definition}[A vector]
+If a matrix has only one row or only one column it is called a \emph{vector}. A matrix having only one row is called a \textit{row vector}, and a matrix having only one column is called a \textit{column vector}.
+\end{definition}
+
+%\begin{definition}[Скалярная операция]
+%Пусть $\langle \mathcal{S}, \circ \rangle$ является полугруппой, $M_{n \times m}$~--- это матрица над этой полугруппой, $x \in \mathcal{S}$.
+%Тогда результатом применения операции
+%$
+%scalar(M, x, \circ)  
+%$
+%является матрица
+%$
+%P_{n \times m}
+%$
+%такая, что $P[i, j] = M[i, j] \circ x$, а
+%$
+%scalar(x, M, \circ) = P_{n \times m}
+%$
+%, где $P[i, j] = x \circ M[i, j]$.
+%
+%\end{definition}
+\begin{definition}[A scalar multiplication]
+For a semigroup $\langle \mathcal{S}, \circ \rangle$, the matrix $M_{n \times m}$ over this semigroup, and for $x \in \mathcal{S}$, the result of applying the operation
+$
+scalar(M, x, \circ)  
+$
+is a matrix
+$
+P_{n \times m}
+$
+such that $P[i, j] = M[i, j] \circ x$, and
+$
+scalar(x, M, \circ) = P_{n \times m}
+$
+ where $P[i, j] = x \circ M[i, j]$.
+
+\end{definition}
+
+\begin{definition}[Element-wise operations]
+
+For a semiring $\langle \mathcal{S}, \oplus, \otimes, \mathbb{0} \rangle$, and matrices $M_{n \times m}$, $N_{n \times m}$ of the same size over this semiring, the result of applying the \textit{element-wise addition} operation $\bigoplus$ is a matrix
+$
+P_{n \times m}= M \bigoplus N
+$
+such that $P[i, j] = M[i, j] \oplus N[i, j]$. And the result of applying the \textit{element-wise multiplication} operation $\bigotimes$ is a matrix
+$
+P_{n \times m}= M \bigotimes N
+$
+such that $P[i, j] = M[i, j] \otimes N[i, j]$.
+
+\end{definition}
+
+%\begin{definition}[Умножение матриц]\label{def:MxM}
+%
+%Пусть $\langle \mathcal{S}, \oplus, \otimes, \mathbb{0}, \mathbb{1} \rangle$ является полукольцом, а $M_{n \times m}$ и $ N_{m \times k}$~--- это две матрицы над этим полукольцом.
+%Тогда матрица
+%$
+%P_{n \times k}= M \cdot N
+%$
+%определяется как $P[i, j] = \bigoplus_{0 \leq l < m} M[i, l] \otimes N[l, j]$.
+%
+%\end{definition}
+\begin{definition}[A matrix multiplication]\label{def:MxM}
+
+For a semiring $\langle \mathcal{S}, \oplus, \otimes, \mathbb{0} \rangle$, and matrices $M_{n \times m}$, $N_{m \times k}$ over this semiring, the matrix
+$
+P_{n \times k}= M \cdot N
+$
+defined as $P[i, j] = \bigoplus_{0 \leq l < m} M[i, l] \otimes N[l, j]$.
+
+\end{definition}
+
+%\begin{definition}[Произведение Кронекера]
+%
+%\label{def:kron}
+%Пусть $\langle \mathcal{S}, \circ \rangle$~--- полугруппа, $M_{m \times n}$ и $N_{p \times q}$~--- две матрицы над этой полугруппой.
+%Тогда \textit{произведение Кронекера} или тензорное произведение матриц $M$ и $N$~--- это следующая блочная матрица $C$ размера $mp \times nq$.
+%$$
+%C = M \times N =
+%\begin{pmatrix}
+%scalar(M[0, 0], N, \circ)   & \cdots & scalar(M[0, n - 1], N, \circ)   \\
+%\vdots                   & \ddots & \vdots       \\
+%scalar(M[m - 1, 0], N, \circ) & \cdots & scalar(M[m - 1, n - 1], N, \circ)
+%\end{pmatrix}
+%$$
+%
+%\end{definition}
+\begin{definition}[The Kronecker product]
+
+\label{def:kron}
+For a semigroup $\langle \mathcal{S}, \circ \rangle$, and matrices $M_{m \times n}$, $N_{p \times q}$ over this semigroup, the \textit{Kronecker product} of the matrices $M$ and $N$ is the following block matrix $C$ of size $mp \times nq$.
+$$
+C = M \times N =
+\begin{pmatrix}
+scalar(M[0, 0], N, \circ)   & \cdots & scalar(M[0, n - 1], N, \circ)   \\
+\vdots                   & \ddots & \vdots       \\
+scalar(M[m - 1, 0], N, \circ) & \cdots & scalar(M[m - 1, n - 1], N, \circ)
+\end{pmatrix}
+$$
+
+\end{definition}
+
+
+\section{Basic Concepts of the Graph Theory}\label{sec:ch1/sec2}
+%В данном разделе вводится ряд обозначений, а также представляется основная информация из теории графов.
+In this section, we introduce a number of terms and definitions of the graph theory used in the work.
+
+%\begin{definition}[Граф]  
+%	\textit{Граф} $\mathcal{G} = \langle V, E, L \rangle$, где $V$~--- конечное множество вершин, $E$~--- конечное множество дуг, т.ч. $E \subseteq V \times L \times V$, $L$~--- конечное множество меток на дугах.
+%\end{definition}
+\begin{definition}[A graph]  
+	A \textit{graph} $\mathcal{G}$ is a tuple $\langle V, E, L \rangle$ where $V$ is a finite set of vertices, $E \subseteq V \times L \times V$ is a finite set of labeled edges, and $L$ is a finite set of edge labels.
+\end{definition}
+
+%В дальнейшем речь будет идти о конечных ориентированных помеченных графах. Будем использовать термин \textit{граф} подразумевая именно конечный ориентированный помеченный граф, если только не оговорено противное.
+Further in the work, we will use the term \textit{graph} meaning just a finite labeled directed graph, unless otherwise stated.
+
+%Также будем считать, что все вершины пронумерованы подряд, начиная с нуля. То есть, с каждой вершиной ассоциируется некоторое неотрицательное целое число из отрезка $[0, |V| - 1]$, где $|V|$~--- количество вершин графа.
+For simplicity, we assume that the vertices are natural numbers ranging from 0 to $|V| - 1$ where $|V|$ is a number of graph vertices.
+
+%\begin{example}[Пример графа и его графического представления]
+%	Пусть дан следующий граф: $$\mathcal{G}_1 = \langle \{0, 1, 2, 3\}, \{(0, a, 1), (1, a, 2), (2, a, 0), (0, b, 3), (3, b, 0)\}, \{a, b\} \rangle.$$
+%	Графическое представление графа $\mathcal{G}_1$ показано на~\cref{fig:example_graph}.
+%\end{example}
+\begin{example}[An example of a graph]
+	The graph $$\mathcal{G}_1 = \langle \{0, 1, 2, 3\}, \{(0, a, 1), (1, a, 2), (2, a, 0), (0, b, 3), (3, b, 0)\}, \{a, b\} \rangle$$ is presented in Figure~\ref{fig:example_graph}.
+\end{example}
+
+\begin{figure}
+	\begin{center}
+		\begin{tikzpicture}[on grid, auto]
+		\node[state] (q_0)   {$1$};
+		\node[state] (q_1) [above right=1.4cm and 1.0cm of q_0] {$2$};
+		\node[state] (q_2) [right=2.0cm of q_0] {$0$};
+		\node[state] (q_3) [right=2.0cm of q_2] {$3$};
+		\path[->]
+		(q_0) edge  node {a} (q_1)
+		(q_1) edge  node {a} (q_2)
+		(q_2) edge  node {a} (q_0)
+		(q_2) edge[bend left, above]  node {b} (q_3)
+		(q_3) edge[bend left, below]  node {b} (q_2);
+		\end{tikzpicture}
+	\end{center}
+	\caption{An example of a graph}
+	\label{fig:example_graph}
+\end{figure}
+
+%\begin{definition}[Дуга]
+%	\textit{Дуга} ориентированного помеченного графа $\mathcal{G} = \langle V, E, L \rangle$~--- это упорядоченная тройка $e = (v_i, l, v_j) \in V \times L \times V$.
+%\end{definition}
+\begin{definition}[An edge]
+	\textit{Edge} of a labeled directed graph $\mathcal{G} = \langle V, E, L \rangle$ is an ordered triple $e = (v_i, l, v_j) \in V \times L \times V$.
+\end{definition}
+
+%\begin{example}[Пример дуг графа]
+%	$(0, a, 1)$ и $(3, b, 0)$~--- это дуги графа $\mathcal{G}_1$. При этом, $(3, b, 0)$ и $(0, b, 3)$~--- это разные дуги, что видно из~\cref{fig:example_graph}.
+%\end{example}
+\begin{example}[An example of graph edges]
+	$(0, a, 1)$ and $(3, b, 0)$ are the edges of the graph $\mathcal{G}_1$ presented in Figure~\ref{fig:example_graph}. At the same time, $(3, b, 0)$ and $(0, b, 3)$ are distinct edges.
+\end{example}
+
+\begin{definition}[Multiple edges]
+	Two distinct edges $e_1 = (u_1, l_1, v_1)$ and $e_2 = (u_2, l_2, v_2)$ of a labeled directed graph $\mathcal{G} = \langle V, E, L \rangle$ are called \textit{multiple} if $u_1 = u_2$ and $v_1 = v_2$.
+\end{definition}
+
+%\begin{definition}[Путь]
+%	\textit{Путём} $\pi$ в графе $\mathcal{G}$ будем называть последовательность дуг такую, что для любых двух последовательных дуг $e_1=(u_1, l_1, v_1)$ и $e_2=(u_2, l_2, v_2)$ в этой последовательности, конечная вершина первой дуги является начальной вершиной второй, то есть $v_1 = u_2$. Будем обозначать путь из вершины $v_0$ в вершину $v_n$ следующим образом: $$v_0 \pi v_n = e_0, e_1, \dots, e_{n - 1} = (v_0, l_0, v_1), (v_1, l_1, v_2), \dots, (v_{n - 1}, l_n, v_n).$$
+%\end{definition}
+\begin{definition}[A path]
+	A \textit{path} $\pi$ in a graph $\mathcal{G}$ is a sequence of labeled edges such that for any two successive edges $e_1=(u_1, l_1, v_1)$ and $e_2=(u_2, l_2, v_2)$ in this sequence, the end vertex of the first edge is the start vertex of the second one, i.e. $v_1 = u_2$. We will denote the path from $v_0$ to $v_n$ as follows: $$v_0 \pi v_n = e_0, e_1, \dots, e_{n - 1} = (v_0, l_0, v_1), (v_1, l_1, v_2), \dots, (v_{n - 1}, l_n, v_n).$$
+\end{definition}
+
+\begin{definition}[A cycle]
+	A \textit{cycle} is a path $\pi$ in a graph $\mathcal{G}$ such that its initial and final vertices are equal, and all edges of this path are distinct.
+\end{definition}
+
+In this work, we assume that for the set $L$ of edge labels the concatenation operation $(\cdot): L^* \times L^* \to L^*$ is always defined. The concatenation operation will often be omitted: $l_1 \cdot l_2 = l_1l_2$.
+
+%\begin{definition}[Слово, образованное путём]
+%	\textit{Слово, образованное путём} $\pi = (v_0, l_0, v_1),(v_1, l_1, v_2),\dots,(v_{n - 1}, l_n, v_n)$,  будем обозначать как слово $\lambda(\pi) = l_0 l_1 \ldots l_n$, которое является конкатенацией меток всех дуг данного пути слева направо.
+%\end{definition}
+\begin{definition}[The word formed by a path]
+	We will denote the \textit{word formed by a path} $\pi = (v_0, l_0, v_1), (v_1, l_1, v_2), \dots, (v_{n - 1}, l_n, v_n)$ as the word $\lambda(\pi) = l_0 l_1 \ldots l_n$ obtained by concatenating edge labels along the path.
+\end{definition}
+
+%\begin{example}[Пример путей графа]
+%	$(0, a, 1),(1, a, 2) = 0 \pi_1 2$~--- путь из вершины 0 в вершину 2 в графе $\mathcal{G}_1$.
+%	При этом, $(0, a, 1),(1, a, 2),(2, b, 3),(3, b, 2) = 0 \pi_2 2$~--- это тоже путь из вершины 0 в вершину 2 в графе $\mathcal{G}_1$, но он не равен $0 \pi_1 2$. Причем, $\lambda(\pi_1) = aa$ и $\lambda(\pi_2) = aabb$.
+%\end{example}
+\begin{example}[An example of paths]
+	$(0, a, 1), (1, a, 2) = 0 \pi_1 2$ is a path from the vertex 0 to the vertex 2 in the graph $\mathcal{G}_1$.
+	At the same time, $(0, a, 1), (1, a, 2), (2, b, 3), (3, b, 2) = 0 \pi_2 2$ is also a path from the vertex 0 to the vertex 2 in this graph, although it is different from the path $0 \pi_1 2$. Moreover, $\lambda(\pi_1) = aa$ and $\lambda(\pi_2) = aabb$.
+\end{example}
+
+We also define the notion of a negative cycle for weighted graphs that associate each edge with a real number. Such graphs form a partial case of labeled graphs.
+
+\begin{definition}[A negative cycle]
+	A \textit{negative cycle} in a finite weighted graph $\mathcal{G} = \langle V, E, \mathbb{R} \rangle$ is a cycle with a negative sum of edge weights.
+\end{definition}
+
+%Кроме того, нам потребуется отношение, отражающее факт существования пути между двумя вершинами.
+In addition, we will use a relation that reflects the fact that there is a path between two vertices.
+
+%\begin{definition}[Отношение достижимости] \label{def:reach}
+%	\textit{Отношение достижимости} в графе:
+%	$(v_i, v_j) \in P \iff \exists v_i \pi v_j$.
+%\end{definition}
+\begin{definition}[The reachability] \label{def:reach}
+	The \textit{reachability} is a binary relation $P$ over the graph vertices, where:
+	$(v_i, v_j) \in P \iff \exists v_i \pi v_j$.
+\end{definition}
+
+%Также определим понятие матрицы смежности, что позволит использовать один из распространённых способов для представления графов в виде матриц.
+We also define the concept of an adjacency matrix that is one of the common matrix representation of graphs.
+
+%\begin{definition}[Матрица смежности]
+%	\textit{Матрица смежности} графа $\mathcal{G}=\langle V, E, L \rangle$~--- это квадратная матрица $M$ размера $n \times n$, где $|V| = n$ и ячейки которой содержат множества.
+%	При этом $l \in M[i, j] \iff \exists e = (i, l, j) \in E$.
+%\end{definition}
+\begin{definition}[An adjacency matrix]
+	An \textit{adjacency matrix} $M$ of the graph $\mathcal{G}=\langle V, E, L \rangle$ is a square matrix of size $n \times n$, where $|V| = n$, and its cells contain sets of the edge labels. Specifically, $l \in M[i, j] \iff \exists e = (i, l, j) \in E$.
+\end{definition}
+
+%Заметим, что наше определение матрицы смежности отличается от классического, в котором матрица отражает лишь факт наличия хотя бы одной дуги и, соответственно, является булевой. Для краткости значение булевой переменной $true$ будем обозначать единицей, а $false$~--- нулём. То есть $M[i, j] = 1 \iff \exists e = (i,\_, j) \in E$.
+Note that our definition of the adjacency matrix differs from the classical one, in which the matrix is Boolean and reflects only the fact of the presence of at least one edge.
+
+\begin{example}[An example of a graph and its adjacency matrix]
+    \label{example:adj}
+	An example of a labeled graph is shown below.
+	\begin{center}
+		\begin{tikzpicture}[shorten >=1pt,on grid,auto]
+		\node[state] (q_0)   {$1$};
+		\node[state] (q_1) [above right = 1.4cm and 1cm of q_0] {$2$};
+		\node[state] (q_2) [right = 2cm of q_0] {$0$};
+		\node[state] (q_3) [right = 2cm of q_2] {$3$};
+		\path[->]
+		(q_0) edge  node {a} (q_1)
+		(q_1) edge  node {a} (q_2)
+		(q_2) edge  node {a} (q_0)
+		(q_2) edge[bend left = 20]  node {a} (q_3)
+		(q_2) edge[bend left = 60]  node {b} (q_3)
+		(q_3) edge[bend left, below]  node {b} (q_2);
+		\end{tikzpicture}
+	\end{center}
+	
+	The adjacency matrix for this graph is the following.
+	$$
+	M = \begin{pmatrix}
+	\varnothing   & \{a\}       & \varnothing & \{a,b\} \\
+	\varnothing   & \varnothing & \{a\}       & \varnothing \\
+	\{a\}         & \varnothing & \varnothing & \varnothing \\
+	\{b\}  & \varnothing & \varnothing        & \varnothing
+	\end{pmatrix}
+	$$
+\end{example}
+
+Such adjacency matrices can be represented as a set of Boolean matrices. For brevity, the value $true$ of the Boolean variable will be denoted by 1, and the value $false$~--- by 0.
+
+%\begin{definition}[Булева декомпозиция матрицы смежности]
+%	\textit{Булева декомпозиция матрицы смежности} $M$ графа $\mathcal{G}=\langle V, E, L \rangle$~--- это множество булевых матриц $\mathcal{M} = \{M^l \mid l \in L, M^l[i, j] = 1 \iff l \in M[i, j]\}$.
+%\end{definition}
+\begin{definition}[The Boolean decomposition of an adjacency matrix]
+	The \textit{Boolean decomposition of an adjacency matrix} $M$ of the graph $\mathcal{G}=\langle V, E, L \rangle$ is the set of Boolean matrices $\mathcal{M} = \{M^l \mid l \in L, M^l[i, j] = 1 \iff l \in M[i, j]\}$.
+\end{definition}
+
+\begin{example}[The Boolean decomposition of the matrix $M$ from example~\ref{example:adj}]
+	The Boolean decomposition $\mathcal{M}$ consists of matrices $M^a$ and $M^b$.
+	$$
+	M^a = \begin{pmatrix}
+	0 & 1 & 0 & 1 \\
+	0 & 0 & 1 & 0 \\
+	1 & 0 & 0 & 0 \\
+	0 & 0 & 0 & 0
+	\end{pmatrix}
+	$$
+	
+	$$
+	M^b = \begin{pmatrix}
+	0 & 0 & 0 & 1 \\
+	0 & 0 & 0 & 0 \\
+	0 & 0 & 0 & 0 \\
+	1 & 0 & 0 & 0
+	\end{pmatrix}
+	$$
+\end{example}
+
+
+%\begin{definition}[Произведение Кронекера двух графов]
+%	Пусть даны два помеченных графа $\mathcal{G}_1=\langle V_1, E_1, L_1 \rangle$ и $\mathcal{G}_2=\langle V_2, E_2, L_2 \rangle$. Тогда \textit{произведение Кронекера двух графов} $\mathcal{G}_1$ и $\mathcal{G}_2$~--- это граф $\mathcal{G} = \mathcal{G}_1 \times \mathcal{G}_2 = \langle V, E, L \rangle$, где
+%	\begin{itemize}
+%	    \item $V = V_1 \times V_2$,
+%	    \item $E = \{((u, v), l, (p, q)) \mid (u, l, p) \in E_1 \wedge (v, l, q) \in E_2\}$,
+%	    \item $L = L_1 \cap L_2$.
+%	\end{itemize}
+%\end{definition}
+\begin{definition}[The Kronecker product of two graphs]
+	For two labeled graphs $\mathcal{G}_1=\langle V_1, E_1, L_1 \rangle$ and $\mathcal{G}_2=\langle V_2, E_2, L_2 \rangle$, the \textit{Kronecker product of graphs} $\mathcal{G}_1$ and $\mathcal{G}_1$ is a graph $\mathcal{G} = \mathcal{G}_1 \times \mathcal{G}_2 = \langle V, E, L \rangle$ where
+	\begin{itemize}
+	    \item $V = V_1 \times V_2$,
+	    \item $E = \{((u, v), l, (p, q)) \mid (u, l, p) \in E_1 \wedge (v, l, q) \in E_2\}$,
+	    \item $L = L_1 \cap L_2$.
+	\end{itemize}
+\end{definition}
+
+%Из этого определения, а также из определения~\ref{def:kron} следует, что результатом произведения Кронекера матриц смежности двух графов $\mathcal{G}_1$ и $\mathcal{G}_2$, определённого для некоторой полугруппы, является матрица смежности произведения Кронекера этих графов $\mathcal{G}_1 \times \mathcal{G}_2$. В такой полугруппе носителем является множество всех подмножеств множества меток $L_1$, объединённое с множеством всех подмножеств множества меток $L_2$, а бинарной операцией~--- операция пересечения множеств $\cap$.
+From this definition, as well as from the definition~\ref{def:kron}, it follows that the Kronecker product of the adjacency matrices of the graphs $\mathcal{G}_1$ and $\mathcal{G}_2$ defined for the semigroup $\langle 2^{L_1} \cup 2^{L_2}, \cap \rangle$, is the adjacency matrix of the Kronecker product $\mathcal{G}_1 \times \mathcal{G}_2$ of these graphs. Here $2^L$ is the set of all subsets of a set $L$.
+
+\section{Basic Concepts of the Formal Language Theory}\label{sec:ch1/sec3}
+%В данном разделе вводится ряд обозначений, а также представляется основная информация из теории формальных языков.
+In this section, we introduce a number of terms and definitions of the formal language theory used in the work.
+
+%\begin{definition}[Алфавит]
+%	\textit{Алфавит} $\Sigma$~--- это конечное множество некоторых элементов. Элементы этого множества будем называть \textit{символами}.
+%\end{definition}
+\begin{definition}[An alphabet]
+	An \textit{alphabet} $\Sigma$ is a nonempty set of \textit{symbols} (also called \textit{terminal symbols} or \textit{terminals}).
+\end{definition}
+
+%Будем считать, что над алфавитом $\Sigma$ всегда определена операция конкатенации $(\cdot): \Sigma^* \times \Sigma^* \to \Sigma^*$.
+%При записи выражений символ точки (обозначение операции конкатенации) часто будем опускать: $a \cdot b = ab$.
+%In this work, we assume that over the alphabet $\Sigma$ the concatenation operation $(\cdot): \Sigma^* \times \Sigma^* \to \Sigma^*$ is always defined.
+%When writing expressions, the concatenation operation will often be omitted: $a \cdot b = ab$.
+
+We also assume that the concatenation operation $(\cdot) : \Sigma^* \times \Sigma^* \to \Sigma^*$ is always defined for the alphabet $\Sigma$.
+
+%\begin{definition}[Слово]
+%	\textit{Слово} над алфавитом $\Sigma$~--- это конечная конкатенация символов алфавита $\Sigma$: $w = a_0 \cdot a_1 \cdot \ldots \cdot a_m$, где $w$~--- слово для любых $a_i \in \Sigma$.
+%\end{definition}
+\begin{definition}[A word]
+	A \textit{word} (also called \textit{string}) over the alphabet $\Sigma$ is a finite sequence of concatenated symbols: $w = a_0 \cdot a_1 \cdot \ldots \cdot a_m$ where $w$ is a word, for all $a_i \in \Sigma$.
+\end{definition}
+
+%\begin{definition}[Длина слова]
+%	Пусть $w = a_0 \cdot a_1 \cdot \ldots \cdot a_m$~--- слово над алфавитом $\Sigma$.
+%	Будем называть $m + 1$ \textit{длиной слова} и обозначать как $|w|$. Кроме того, для обозначения пустого слова будем использовать символ $\varepsilon$, где $|\varepsilon| = 0$.
+%\end{definition}
+\begin{definition}[Word length]
+	For a word $w = a_0 \cdot a_1 \cdot \ldots \cdot a_m$ over the alphabet $\Sigma$, the \textit{length} $|w|$ of this word is a number of symbols in the sequence, i.e. $|w| = m + 1$. In addition, the empty word will be denoted by $\varepsilon$ where $|\varepsilon| = 0$.
+\end{definition}
+
+%\begin{definition}[Язык]
+%	\textit{Язык} над алфавитом $\Sigma$~--- это множество слов над алфавитом $\Sigma$.
+%\end{definition}
+\begin{definition}[A language]
+	A \textit{language} over an alphabet $\Sigma$ is a set of words over this alphabet.
+\end{definition}
+
+%В качестве примера простейших языков можно привести  язык чисел в двоичной системе счисления $\{0, 1, 10, 11, 100 \dots\}$, а также язык всех правильных скобочных последовательностей $\{(), (()), ()(), (())(), \dots\}$.
+As an example of languages, one can cite the language of all binary numbers $\{0, 1, 10, 11, 100 \dots\}$, as well as the Dyck language of all balanced words of square brackets $\{[~], [~[~]~], [~][~], [~[~]~]~[~], \dots\}$.
+
+%Любой язык над алфавитом $\Sigma$ является подмножеством $\Sigma^*$~--- множества всех слов над алфавитом $\Sigma$. Заметим, что язык может является бесконечным множеством.
+Any language over the alphabet $\Sigma$ is a subset of $\Sigma^*$~--- the set of all words over this alphabet. Note that a language may be an infinite set.
+
+%\begin{definition}[Формальная грамматика]
+%	\textit{Формальная грамматика} $G$~--- это четвёрка $\langle \Sigma, N, P, S \rangle$:  
+%	\begin{itemize}
+%		\item $\Sigma$ обозначает конечный алфавит терминальных символов или терминалов, 
+%		\item $N$~--- алфавит нетерминальных символов или нетерминалов, $\Sigma \cap N=\varnothing$, 
+%		\item $P$~--- конечное подмножество множества $( \Sigma^* \cdot N \cdot (\Sigma \cup N)^* ) \times ( (\Sigma \cup N)^+ \cup \{\varepsilon\} )$,  
+%		
+%		\item $S$~--- стартовый символ грамматики, $S  \in N$. 
+%	\end{itemize}
+%\end{definition}
+\begin{definition}[A formal grammar]
+	A \textit{formal grammar} $G$ is a tuple $\langle \Sigma, N, P, S \rangle$ where:  
+	\begin{itemize}
+		\item $\Sigma$ is a finite set of terminal symbols (or terminals), 
+		\item $N$ is a finite set of \textit{nonterminal symbols} (or \textit{nonterminals}), and $\Sigma \cap N=\varnothing$, 
+		\item $P$ is a finite subset of the set $( \Sigma^* \cdot N \cdot (\Sigma \cup N)^* ) \times ( (\Sigma \cup N)^+ \cup \{\varepsilon\} )$,  
+		
+		\item $S \in N$ is the start nonterminal. 
+	\end{itemize}
+\end{definition}
+
+%Элемент $(a, b) \in P$ называется правилом вывода и записывается так: $a \rightarrow b$. При этом $a$ называется левой частью правила, а $b$~--- правой частью. Левая часть любого правила из $P$ обязана содержать хотя бы один нетерминал.
+The element $(a, b) \in P$ is called the \textit{derivation rule} and is written as follows: $a \rightarrow b$. In this case, $a$ is called the \textit{left-hand side} of the rule, and $b$~--- the \textit{right-hand side}. The left-hand side of any rule in $P$ must contain at least one nonterminal.
+
+%\begin{definition}[Вывод цепочки $w$ в грамматике $G$]    
+%Цепочка $w_2 \in  ( \Sigma \cup  N )^*$ \textit{непосредственно выводима} из цепочки   $w_1 \in ( \Sigma \cup N )^+$ в грамматике $G=\langle \Sigma, N, P, S \rangle$  (обозначается  $w_1 \rightarrow_G w_2$ ), если  $w_1 = x_1 \cdot y \cdot x_2, w_2 = x_1 \cdot z \cdot x_2$, где $x_1, x_2, z \in   (\Sigma \cup N )^*, y \in  (\Sigma \cup N )^+$ и правило вывода  $y \rightarrow z$  содержится в $P$. Индекс $G$ в обозначении $\rightarrow_G$ обычно опускают, если $G$ понятна из контекста.
+%	
+%Цепочка $w_2 \in  (\Sigma \cup  N )^*$  \textit{выводима} из цепочки  $w_1 \in (\Sigma \cup  N)^+$ в грамматике $G$  (обозначается  $w_1 \Rightarrow_G w_2$ ), если существуют цепочки $z_0, z_1, \cdots, z_n  (n \geq 0)$ такие, что $w_1 = z_0 \rightarrow z_1 \rightarrow ... \rightarrow z_n = w_2$ . При этом последовательность $z_0, z_1, ..., z_n$ называется выводом длины $n$.
+%\end{definition}
+\begin{definition}[A derivation of a word]    
+We use the notation $w_1 \rightarrow_G w_2$ to denote that a sequence of symbols $w_2 \in  ( \Sigma \cup  N )^*$ can be derived from a sequence $w_1 \in  ( \Sigma \cup  N )^+$ where $w_1 = x_1 \cdot y \cdot x_2, w_2 = x_1 \cdot z \cdot x_2$ for some $x_1, x_2, z \in   (\Sigma \cup N )^*$ and $y \in  (\Sigma \cup N )^+$, and there is a derivation rule $(y \rightarrow z)$ in this grammar. The index $G$ in the notation $\rightarrow_G$ can be omitted if the grammar is clear from the context.
+
+Also, we use the notation $w_1 \Rightarrow_G w_2$ to denote, that there are sequences $z_0, z_1, \ldots, z_n  (n \geq 0)$ such that $w_1 = z_0 \rightarrow z_1 \rightarrow \ldots \rightarrow z_n = w_2$.
+\end{definition}
+
+%\begin{definition}[Язык, порождаемый грамматикой]  
+%	Язык, \textit{порождаемый} грамматикой $G = \langle \Sigma, N, P, S \rangle$~--- это множество $L(G)  = \{ w \in \Sigma^*~|~S \Rightarrow w \}$.
+%\end{definition}
+\begin{definition}[A language generated by a grammar]  
+	A language \textit{generated} by a grammar $G = \langle \Sigma, N, P, S \rangle$ is a set of words $\mathcal{L}(G)  = \{ w \in \Sigma^*~|~S \Rightarrow w \}$.
+\end{definition}
+
+%Важными классами языков, порождаемых формальными грамматиками, являются регулярные и контекстно-свободные языки~\cite{aho1973theory}. Одним из распространённых способов описания регулярных языков (порождаемых регулярными грамматиками) является их задание с использованием регулярных выражений.
+The regular and the context-free languages are important classes of languages generated by formal grammars~\cite{aho1973theory}. One common way to describe the regular languages (generated by the regular grammars) is to specify them using the regular expressions.
+
+%\begin{definition}[Регулярное выражение]
+%Цепочка символов $R$ называется \textit{регулярным выражением} над алфавитом $\Sigma$, если её структура соответствует одному из следующих пунктов:
+%\begin{itemize}
+%    \item $a$, где $a \in \Sigma$;
+%    \item $\varepsilon$, где $\varepsilon$~--- пустая строка;
+%    \item $\varnothing$ (соответствует пустому языку);
+%    \item $R_1 \mid R_2$ (дизъюнкция), где $R_1$ и $R_2$ являются регулярными выражениями;
+%    \item $R_1 \cdot R_2$ (конкатенация), где $R_1$ и $R_2$ являются регулярными выражениями;
+%    \item $(R_1)^*$ (звезда Клини), где $R_1$~--- это регулярное выражение.
+%\end{itemize}
+%\end{definition}
+\begin{definition}[A regular expression]
+A sequence of symbols $R$ is called a \textit{regular expression} over an alphabet $\Sigma$ if its structure matches one of the following:
+\begin{itemize}
+    \item $a$ where $a \in \Sigma$;
+    \item $\varepsilon$ where $\varepsilon$ is an empty word;
+    \item $\varnothing$ (corresponds to the empty language);
+    \item $R_1 \mid R_2$ (the disjunction) where $R_1$ and $R_2$ are regular expressions;
+    \item $R_1 \cdot R_2$ (the concatenation) where $R_1$ and $R_2$ are regular expressions;
+    \item $(R_1)^*$ (the Kleene star) where $R_1$ is a regular expression.
+\end{itemize}
+\end{definition}
+
+%Например, регулярное выражение $R = a \cdot (b)^*$ над алфавитом $\Sigma = \{a, b\}$ описывает язык, состоящий из слов, которые начинаются с символа $a$ с последующим некоторым (ноль или больше) количеством символов $b$.
+For example, the regular expression $R = a \cdot (b)^*$ over the alphabet $\Sigma = \{a, b\}$ describes a language consisting of words that begin with the symbol $a$ followed by some (zero or more) number of symbols $b$.
+
+%\begin{definition}[Конечный автомат]
+%\textit{Детерминированный конечный автомат без $\varepsilon$-переходов} $T$~--- пятёрка $\langle \Sigma, Q, Q_s, Q_f, \delta \rangle$:
+%\begin{itemize}
+%    \item $\Sigma$~--- алфавит входных символов,
+%    \item $Q$~--- конечное множество состояний,
+%    \item $q_s \in Q$~--- начальное состояние,
+%    \item $Q_f \subseteq Q$~--- множество конечных состояний,
+%    \item $\delta: Q \times \Sigma \to Q$~--- функция переходов.
+%\end{itemize}
+%\end{definition}
+\begin{definition}[A deterministic finite automaton]
+A \textit{deterministic finite automaton} (DFA) $T$ without $\varepsilon$-transitions is a tuple $\langle \Sigma, Q, Q_s, Q_f, \delta \rangle$ where:
+\begin{itemize}
+    \item $\Sigma$ is a finite alphabet of input symbols,
+    \item $Q$ is a finite set of states,
+    \item $q_s \in Q$ is the start (or initial) state,
+    \item $Q_f \subseteq Q$ is a set of final states,
+    \item $\delta: Q \times \Sigma \rightharpoonup Q$ is a partial transition function.
+\end{itemize}
+\end{definition}
+
+%Известно, что любое регулярное выражение может быть выражено с помощью детерминированного конечного автомата без $\varepsilon$-переходов~\cite{hopcroft2001introduction}. Кроме того, конечный автомат $T = \langle \Sigma, Q, q_s, Q_f, \delta \rangle$ естественным образом может быть представлен в виде помеченного графа $\mathcal{G} = \langle V, E, L \rangle$, где $V = Q$, $L = \Sigma$, $E = \{(q_i, l, q_j) \mid \delta(q_i, l) = q_j\}$ и некоторые вершины помечены как начальное или конечные состояния. Таким образом, матрица смежности такого графового представления и, соответственно, её булева декомпозиция содержат в себе информацию о функции переходов $\delta$.
+It is known that any regular expression can be expressed using a deterministic finite automaton without $\varepsilon$-transitions~\cite{hopcroft2001introduction}. Moreover, the finite deterministic automaton $T = \langle \Sigma, Q, q_s, Q_f, \delta \rangle$ can be naturally represented as a labeled graph $\mathcal{G} = \langle V, E, L \rangle$ where $V = Q$, $L = \Sigma$, $E = \{(q_i, l, q_j) \mid \delta(q_i, l) = q_j\}$, and some vertices are labeled as initial or final states. Thus, the adjacency matrix of such a graph representation contain information about the transition function $\delta$.
+
+\begin{example}[A graph representation example for the regular expression $a \cdot (b)^*$] The graph vertex corresponding to the initial state of the DFA will be marked with the word \textit{start}, and the vertices corresponding to the final states will be marked with a double circle. In this example, the vertex 0 corresponds to the initial state, and the vertex 1 corresponds to the final state.
+    $$
+    \centering
+    \begin{tikzpicture}[shorten >=1pt,auto]
+       \node[state, initial] (q_0)                      {$0$};
+       \node[state, accepting] (q_1) [right=of q_0] {$1$};
+       \path[->]
+        (q_0) edge  node {a} (q_1)
+        (q_1) edge[loop above]  node {b} (q_1)
+        ;
+    \end{tikzpicture}
+    $$
+\end{example}
+
+%\begin{definition}[Пересечение конечных автоматов]\label{def:FAintersection}
+%Пусть даны два конечных автомата 
+%$T_1 = \langle \Sigma, Q^1, q_s^1, Q_f^1, \delta^1 \rangle$ и $T_2 = \langle \Sigma, Q^2, q_s^2, Q_f^2, \delta^2 \rangle$. Тогда \textit{пересечением} этих двух автоматов является новый конечный автомат $T = \langle \Sigma, Q, q_s, Q_f, \delta \rangle$ такой, что:
+%\begin{itemize}
+%    \item $Q = Q^1 \times Q^2$;
+%    \item $q_s = \langle q_s^1, q_s^2 \rangle$;
+%    \item $Q_f = Q_f^1 \times Q_f^2$;
+%    \item $\delta: Q \times \Sigma \to Q$;
+%    $\delta (\langle q_1, q_2 \rangle, s) = \langle q_1', q_2' \rangle$, если $\delta(q_1, s)=q_1'$ и $\delta(q_2, s)=q_2'$.
+%\end{itemize}
+%\end{definition}
+\begin{definition}[DFA intersection]\label{def:FAintersection}
+For two DFAs $T_1 = \langle \Sigma, Q^1, q_s^1, Q_f^1, \delta^1 \rangle$ and $T_2 = \langle \Sigma, Q^2, q_s^2, Q_f^2, \delta^2 \rangle$ be given, the \textit{intersection} of these two automata is the new DFA $T = \langle \Sigma, Q, q_s, Q_f, \delta \rangle$ such that:
+\begin{itemize}
+    \item $Q = Q^1 \times Q^2$;
+    \item $q_s = \langle q_s^1, q_s^2 \rangle$;
+    \item $Q_f = Q_f^1 \times Q_f^2$;
+    \item $\delta: Q \times \Sigma \rightharpoonup Q$;
+    \item $\delta (\langle q_1, q_2 \rangle, s) = \langle q_1', q_2' \rangle$ if $\delta(q_1, s)=q_1'$ and $\delta(q_2, s)=q_2'$.
+\end{itemize}
+\end{definition}
+
+%Согласно~\cite{hopcroft2001introduction} конечный автомат $T$, являющийся пересечением конечных автоматов $T_1$ и $T_2$ распознаёт язык $L_1 \cap L_2$, где $L_1$~--- язык, распознаваемый автоматом $T_1$, а $L_2$~--- язык, распознаваемый автоматом $T_2$. Кроме того, построение пересечения двух конечных автоматов может быть проведено с использованием булевой декомпозиции матриц смежности графовых представлений этих автоматов.
+According to~\cite{hopcroft2001introduction}, the DFA $T$, which is the intersection of the DFAs $T_1$ and $T_2$, recognizes the language $L_1 \cap L_2$ where $L_1$ is the language recognized by the automaton $T_1$, and $L_2$ is the language recognized by the automaton $T_2$. In addition, the intersection of two DFAs can be described using the adjacency matrices of these automata graph representations.
+
+%\begin{definition}[Произведение Кронекера булевых декомпозиций матриц смежности]\label{def:FAkron}
+%Пусть дана полугруппа $\langle \{0, 1\}, \wedge \rangle$ с логической операцией конъюнкции и пусть $\mathcal{M}_1$ и $\mathcal{M}_2$~--- булевы декомпозиции матриц смежности графовых представлений конечных автоматов $T_1 = \langle \Sigma, Q^1, q_s^1, Q_f^1, \delta^1 \rangle$ и $T_2 = \langle \Sigma, Q^2, q_s^2, Q_f^2, \delta^2 \rangle$. Тогда в соответствии с заданной полугруппой \textit{произведение Кронекера булевых декомпозиций матриц смежности двух конечных автоматов} $\mathcal{M}_1 \times \mathcal{M}_2 = \{M^a_1 \times M^a_2 \mid a \in \Sigma\}$.
+%\end{definition}
+\begin{definition}[The Kronecker product of two Boolean matrix decompositions]\label{def:FAkron}
+For a semigroup $\langle \{0, 1\}, \wedge \rangle$, and  Boolean decompositions $\mathcal{M}_1$ and $\mathcal{M}_2$ of adjacency matrices corresponding to graph representations of DFAs $T_1 = \langle \Sigma, Q^1, q_s^1, Q_f^1, \delta^1 \rangle$ and $T_2 = \langle \Sigma, Q^2, q_s^2, Q_f^ 2, \delta^2 \rangle$, the \textit{Kronecker product of Boolean decompositions} of this matrices is the $\mathcal{M}_1 \times \mathcal{M}_2 = \{M^a_1 \times M^a_2 \mid a \in \Sigma\}$.
+\end{definition}
+
+%The definitions~\ref{def:FAintersection} and \ref{def:FAkron} imply the validity of the following theorem.
+According to~\cite{rivera2017euro}, the following theorem holds.
+
+%\begin{theorem}[Пересечение конечных автоматов и произведение Кронекера]\label{thm:FAintersection_and_kron}
+ %Пусть $T$~--- пересечение конечных автоматов $T_1$ и $T_2$. Пусть $\mathcal{M}$, $\mathcal{M}_1$ и $\mathcal{M}_2$~--- булевы декомпозиции матриц смежности графовых представлений конечных автоматов $T$, $T_1$ и $T_2$. Тогда $\mathcal{M} = \mathcal{M}_1 \times \mathcal{M}_2$.
+%\end{theorem}
+\begin{theorem}[Intersection of two DFAs and the Kronecker product]\label{thm:FAintersection_and_kron}
+For the intersection $T$ of DFAs $T_1$ and $T_2$, and Boolean decompositions $\mathcal{M}$, $\mathcal{M}_1$, and $\mathcal{M}_2$ of adjacency matrices corresponding to graph representations of DFAs $T$, $T_1$, and $T_2$, the following holds: $\mathcal{M} = \mathcal{M}_1 \times \mathcal{M}_2$.
+\end{theorem}
+ 
+%Таким образом, функция переходов пересечения двух конечных автоматов может быть вычислена с использованием ряда произведений Кронекера над булевыми матрицами.
+Thus, the transition function of DFAs intersection can be computed using a series of Kronecker products over Boolean matrices.
+
+%Другим важным классом формальных языков, обобщающим класс регулярных языков, являются контекстно-свободные (КС) языки, порождаемые грамматиками следующего вида.
+Another important class of formal languages that generalizes the class of the regular languages is the context-free languages (CFLs) generated by grammars of the following form.
+
+%\begin{definition}[Контекстно-свободная грамматика]
+%	\textit{Контекстно-свободная (КС) грамматика} $G$~--- это четвёрка $\langle \Sigma, N, P, S \rangle$, где 
+%	\begin{itemize}
+%		\item $\Sigma$ обозначает конечный алфавит терминальных символов, 
+%		\item $N$~--- алфавит нетерминальных символов, $\Sigma \cap N=\varnothing$, 
+%		\item $P$~--- конечное подмножество множества $N \times ( (\Sigma \cup N)^+ \cup \{\varepsilon\} )$,  
+%		\item $S$~--- стартовый символ грамматики, $S  \in N$. 
+%	\end{itemize}
+%\end{definition}
+\begin{definition}[A context-free grammar]
+	A \textit{context-free grammar} (CFG) $G$ is a tuple $\langle \Sigma, N, P, S \rangle$ where 
+	\begin{itemize}
+		\item $\Sigma$ is a finite set of terminals, 
+		\item $N$ is a finite set of nonterminals, and $\Sigma \cap N=\varnothing$, 
+		\item $P$ is a finite subset of the set $N \times ( (\Sigma \cup N)^+ \cup \{\varepsilon\} )$,  
+		\item $S \in N$ is the start nonterminal. 
+	\end{itemize}
+\end{definition}
+
+%Для представления вывода цепочки в КС-грамматиках обычно используют деревья вывода.
+To represent the derivation of a word in a CFG, the derivation trees are usually used.
+
+\begin{definition}[A derivation tree]
+	A \textit{derivation tree} for a word $w \in \Sigma^*$ and a CFG $G=\langle \Sigma, N, P, S \rangle$ is an ordered rooted tree with the following properties.
+	\begin{itemize}
+		\item The root is labeled by $S$.
+		
+		\item If its internal node is labeled by $A \in N$, and $X_1, \ldots , X_k \in \Sigma \cup N$ are labels of this node children from left to right then the rule $A \rightarrow X_1 \ldots X_k \in P$.
+		
+		\item If its internal node is labeled by $A \in N$, and $\varepsilon$ is the label of the only child of this node then the rule $A \rightarrow \varepsilon \in P$.
+		
+		\item The word $w = a_1 \ldots a_m$ where $a_1, \ldots , a_m \in \Sigma \cup \{\varepsilon\} $ are the labels of all leaves of this tree from left to right.
+		
+	\end{itemize}
+\end{definition}
+
+%Часто, для алгоритмов, использующих КС-грамматики, важно, чтобы она находилась в некоторой нормальной форме. Примером является нормальная форма следующего вида, которая будет в дальнейшем использоваться в данной работе.
+Often the algorithms that use a CFG require it to be in some normal form. Further in this work, we will use the following normal form.
+
+%\begin{definition}[Нормальная форма КС-грамматики]
+%	Будем говорить, что КС-грамматика $G = \langle \Sigma, N, P, S \rangle$ находится в \textit{нормальной форме}, если множество $P$ содержит только правила следующих двух видов:
+%	\begin{itemize}
+%		\item $A \rightarrow a$, где $A \in N$ и $a \in (\Sigma \cup \{\varepsilon\})$;
+%		\item $A \rightarrow B C$, где $A, B, C \in N$.
+%	\end{itemize}
+%\end{definition}
+\begin{definition}[A context-free grammar in the weak Chomsky normal form]
+	We say that a CFG $G = \langle \Sigma, N, P, S \rangle$ is in the \textit{weak Chomsky normal form (WCNF)} if the set $P$ contains only rules of the following two types:
+	\begin{itemize}
+		\item $A \rightarrow a$ where $A \in N$ and $a \in (\Sigma \cup \{\varepsilon\})$;
+		\item $A \rightarrow B C$ where $A, B, C \in N$.
+	\end{itemize}
+\end{definition}
+
+%Стоит отметить, что описанная нормальная форма КС-грамматики отличается от нормальной формы Хомского~\cite{chomsky1959certain}, в которой не допускаются правила вида $A \rightarrow \varepsilon$ для всех нетерминалов $A$, кроме стартового $S$. Однако это ограничение не является существенным для использования в данной работе. 
+Note that the described normal form of a CFG differs from the classical Chomsky normal form~\cite{chomsky1959certain}, in which rules of the form $A \rightarrow \varepsilon$ are not allowed for all nonterminals $A$, except for the start nonterminal $S$. However, this limitation is not essential for use in this work, so the more general normal form will be used.
+
+%В то время, как регулярное выражение может быть записано в виде конечного автомата, любая КС-грамматика может быть выражена с помощью рекурсивного автомата~\cite{alur2005analysis}.
+While a regular expression can be written as a DFA, any CFG can be expressed as a recursive automaton~\cite{alur2005analysis}.
+
+\begin{definition}[A recursive automaton]
+A \textit{recursive automaton} $R$ is a tuple $\langle \Sigma, B, m, \{C_i\}_{i \in B} \rangle$ where:
+\begin{itemize}
+    \item $\Sigma$ is a finite alphabet of input symbols,
+    \item $B$ is a finite set of automata labels,
+    \item $m \in B$ is the label of the initial automata,
+    \item $C_i =  \langle \Sigma \cup B, Q_i, q_s^i, Q^i_f, \delta_i \rangle$ is a set of automata such that:
+\begin{itemize}
+    \item $\Sigma \cup B$ is a set of transition symbols where $\Sigma \cap B = \varnothing$;
+    \item $Q_i$ is a finite set of automata states where $Q_i \cap Q_j = \varnothing$, $\forall i \neq j$;
+    \item $q_s^i$ is the initial state of automata $C_i$;
+    \item $Q_f^i \subseteq Q_i$ is a set of final states,
+    \item $\delta_i: Q_i \times (\Sigma \cup B) \rightharpoonup Q_i$ is a partial transition function.
+\end{itemize}
+\end{itemize}
+\end{definition}
+
+%Рекурсивные автоматы в свою очередь могут быть представлены в виде графов или матриц смежности этих графов~\cite{alur2005analysis}. Таким образом, любой КС-язык может быть описан с использованием таких объектов линейной алгебры, как матрицы.
+The recursive automata, in turn, can be represented as graphs or adjacency matrices for these graphs~\cite{alur2005analysis}.
+
+\begin{example}[An example of a graph representation of a recursive automaton for a CFG generating the CFL $\mathcal{L} = \{a^nb^n \mid n \geq 1\}$] For a CFG $G$ we have the following derivation rules.
+	\[
+	\begin{array}{rccl}
+	0: & S & \rightarrow & \text{\emph{a}} \ S \ \text{\emph{b}} \\
+	1: & S & \rightarrow & \text{\emph{a}} \ \text{\emph{b}} \\
+	
+	\end{array}
+	\]
+	Then the recursive automaton $R = \langle \{a, b\}, \{S\}, S, \{C_S\}\rangle$ for the CFG $G$ is presented in Figure~\ref{example:automata}. We will indicate the automata labels in the upper left corner. In this example, the recursive automaton contains only one finite automaton $C_S$ with label $S$ corresponding to the start nonterminal.
+	
+\begin{figure}[h]
+    \begin{tikzpicture}[shorten >=1pt,auto]
+        \node[state, initial] (q_0)   {$q_S^0$};
+        \node[state] (q_1) [right=of q_0] {$q_S^1$};
+        \node[state] (q_2) [right=of q_1] {$q_S^2$};
+        \node[state, accepting] (q_3) [right=of q_2] {$q_S^3$};
+        \path[->]
+            (q_0) edge node {a} (q_1)
+            (q_1) edge node {S} (q_2)
+            (q_2) edge node {b} (q_3)
+            (q_1) edge [bend left, above]  node {b} (q_3);
+        \node (box) [draw=black, fit= (q_0) (q_1) (q_2) (q_3), inner sep=0.75cm, label=An automaton $C_S$ for the nonterminal $S$] {};
+        \node[draw=black, anchor=north west] at (box.north west) {$S$};
+    \end{tikzpicture}
+    \centering
+    \caption{Recursive automaton $R$ for the CFG $G$}
+    \label{example:automata}
+\end{figure}
+
+\end{example}
+
+Thus, any CFL can be described using such linear algebra objects as matrices.
+
+\section{A Formal Statement of the CFPQ Problem}\label{sec:ch1/sec4}
+%Для исследования применимости методов линейной алгебры к задачам поиска путей в графе с заданными КС-ограничениями необходимо сначала ввести формальную постановку этих задач. В данном разделе вводится формальная постановка для трёх основных типов таких задач.
+To study the applicability of linear algebra methods to CFPQ problem, we must first introduce a formal statement of this problem. In this section, a formal statement is introduced for three main types of such a problem.
+
+%В этих задачах на вход подаётся помеченный граф $\mathcal{G} = \langle V, E, L \rangle$ и КС-язык $\mathcal{L}$. Выходом является информация о путях $\pi$ входного графа $\mathcal{G}$ таких, что $\lambda(\pi) \in \mathcal{L}$. Вид запрашиваемой информации зависит от типа решаемой задачи. Выделяют три типичных задачи поиска путей в графе:
+In this problem, we have a labeled graph $\mathcal{G} = \langle V, E, L \rangle$ and a CFL $\mathcal{L}$ as input. The result is information about paths $\pi$ of the graph $\mathcal{G}$ such that $\lambda(\pi) \in \mathcal{L}$. The type of required information (also called the \textit{query semantics}) depends on the type of a CFPQ problem being solved. There are three typical query semantics:
+
+\begin{itemize}
+\item the reachability,
+\item the single-path,
+\item the all-path.
+\end{itemize}
+
+%Ниже представлена формальная постановка для каждой из этих задач.
+A formal statement of CFPQ problem with these query semantics is the following.
+
+%\textbf{Задача достижимости.} Пусть даны помеченный граф $\mathcal{G} = \langle V, E, L \rangle$ и КС-язык $\mathcal{L}$. Необходимо найти все пары вершин $i, j \in V$, между которыми существует хотя бы один путь $\pi$ такой, что $\lambda(\pi) \in \mathcal{L}$, то есть вычислить следующее множество: $$\{(i, j) \mid i, j \in V, \exists i \pi j, \lambda(\pi) \in \mathcal{L}\}.$$
+\textbf{Reachability.} For a labeled graph $\mathcal{G} = \langle V, E, L \rangle$ and a CFL $\mathcal{L}$, it is necessary to find all pairs of vertices $i, j \in V$, between which there is at least one path $\pi$ such that $\lambda(\pi) \in \mathcal{L}$. In other words, it is necessary to construct the following set: $$\{(i, j) \mid i, j \in V, \exists i \pi j, \lambda(\pi) \in \mathcal{L}\}.$$
+
+%\textbf{Поиск одного пути.} Пусть даны помеченный граф $\mathcal{G} = \langle V, E, L \rangle$ и КС-язык $\mathcal{L}$. Необходимо для всех пар вершин $i, j \in V$ предоставить один путь $\pi$ такой, что $\lambda(\pi) \in \mathcal{L}$, если такой путь существует.
+\textbf{Single-path.} For a labeled graph $\mathcal{G} = \langle V, E, L \rangle$, a CFL $\mathcal{L}$, and for all pairs of vertices $i, j \in V$, it is necessary to provide one path $\pi$ such that $\lambda(\pi) \in \mathcal{L}$ if such a path exists.
+
+%\textbf{Поиск всех путей.} Пусть даны помеченный граф $\mathcal{G} = \langle V, E, L \rangle$ и КС-язык $\mathcal{L}$. Необходимо для всех пар вершин $i, j \in V$ предоставить любое конечное заданное количество путей $\pi$ таких, что $\lambda(\pi) \in \mathcal{L}$, если существует такое количество путей.
+\textbf{All-path.} For a labeled graph $\mathcal{G} = \langle V, E, L \rangle$, a CFL $\mathcal{L}$ be given, and for all pairs of vertices $i, j \in V$, it is necessary to provide any finite given number of paths $\pi$ such that $\lambda(\pi) \in \mathcal{L}$ if there are such a number of paths.
+
+%Проиллюстрируем постановки данных задач на небольшом графе с использованием классического КС-языка $\mathcal{L} = \{a^nb^n \mid n \geq 1\}$, который не может быть описан с помощью регулярного выражения и который используется для нахождения вершин в графе, находящихся на одном уровне иерархии~\cite{abiteboul1995foundations}.
+We illustrate the formulations of CFPQ problem on a small graph using the classical CFL $\mathcal{L} = \{a^nb^n \mid n \geq 1\}$ that cannot be described using a regular expression and is used for finding vertices in a graph that are at the same level of the hierarchy~\cite{abiteboul1995foundations}.
+
+%Пусть имеется графовая база данных или любой другой объект, который может быть представлен в виде графа. Тогда КС-язык $\mathcal{L}$ может быть использован для выявления схожих вершин в этом графе. Для графовых баз данных такая задача нацелена на поиск всех вершин, находящихся на одинаковом уровне иерархии. Например, рассмотрим небольшой граф с двумя циклами, представленный на рисунке~\cref{fig:example_graph}. Один из циклов имеет три дуги с метками $a$, другой~--- две дуги с метками $b$. Оба цикла имеют общую вершину с номером $0$.
+Suppose that there be a graph database or any other object that can be represented as a graph. Then the CFL $\mathcal{L}$ can be used to identify similar vertices in this graph. For graph databases, this problem is aimed at finding all vertices that are at the same level of the hierarchy. For example, consider the small two-cycle graph shown in Figure~\ref{fig:example_graph}. One of the cycles has three edges labeled by $a$, the other cycle has two edges labeled by $b$. Both cycles have a shared vertex $0$.
+
+%Пусть результатом решения задачи достижимости с заданными КС-ограничениями является множество пар вершин $R$. Тогда, например, пара вершин $(0, 0) \in R$, так как существует путь из вершины $0$ в вершину $0$, образующий строку \mbox{$w = aaaaaabbbbbb = a^6b^6 \in \mathcal{L}$}.
+Suppose that the result of solving the CFPQ problem with the reachability query semantics and with given CFL is the set $R$ of pairs of vertices. Then, for example, the pair of vertices $(0, 0) \in R$ since there is a path from the vertex $0$ to the vertex $0$ forming the string \mbox{$w = aaaaaabbbbbb = a^6b^6 \in \mathcal{L}$}.
+
+%Результат решения задачи поиска одного пути в графе с заданными КС-ограничениями также содержит по одному примеру пути искомого вида между каждой парой вершин $(i,  j) \in R$. Например, если мы хотим предоставить доказательство существования пути искомого вида между вершинами $0$ и $0$, то в результат может быть добавлен путь $\pi = (0, a, 1), (1, a, 2), (2, a, 0), (0, a, 1), (1, a, 2), (2, a, 0), (0, b, 3), (3, b, 0), (0, b, 3), (3, b, 0),\\(0, b, 3), (3, b, 0)$ для пары $(0, 0) \in R$, где $\lambda(\pi) = a^6b^6 \in \mathcal{L}$.
+The result of solving the CFPQ problem with the single-path query semantics also contains one example of a path of the desired form for each pair of vertices $(i, j) \in R$. For example, if we want to provide a proof of the existence of a path of the desired form between the vertices $0$ and $0$, then to the result can be added the path $\pi = (0, a, 1), (1, a, 2), (2, a, 0), (0, a, 1), (1, a, 2), (2, a, 0), (0, b, 3), (3, b, 0), (0, b, 3), (3, b, 0),\\(0, b, 3), (3, b, 0)$ for the pair $(0, 0) \in R$ where $\lambda(\pi) = a^6b^6 \in \mathcal{L}$.
+
+%Результат решения задачи поиска всех путей в графе с заданными КС-ограничениями должен содержать все пути искомого вида между каждой парой вершин $(i, j) \in R$. Например, для пары вершин $(0, 0) \in R$ должны быть представлены пути $0\pi_k 0$, где $\lambda(\pi_k) = a^{6k}b^{6k}$ для всех $k \geq 1$. Множество всех путей может быть бесконечным, поэтому необходимо либо представить данное множество в виде некоторой конечной структуры, либо иметь алгоритм генерации $k$ путей для каждой пары вершин и для любого $k \geq 1$.
+The result of solving the CFPQ problem with the all-path query semantics contains all paths of the desired form between vertices $(i, j) \in R$. For example, for a pair of vertices $(0, 0) \in R$, paths $0\pi_k 0$ should be returned where $\lambda(\pi_k) = a^{6k}b^{6k}$ for all $k \geq 1$. The set of all paths can be infinite, so it is necessary either to describe this set using some finite structure, or to have an algorithm for generating $k$ such paths for each pair of vertices and for any $k \geq 1$.
+
+\section{Existing CFPQ Algorithms}\label{sec:ch1/sec5}
+%В данном разделе рассмотрены основные существующие алгоритмы поиска путей в графе с  КС-ограничениями. Все рассматриваемые алгоритмы требуют выразить заданные КС-ограничения в виде КС-грамматики, поэтому будем считать, что на вход алгоритмы получают помеченный граф $\mathcal{G} = \langle V, E, L \rangle$ и КС-грамматику $G = \langle \Sigma, N, P, S \rangle$.
+In this section, the main existing CFPQ algorithms are considered. All the algorithms require that the given path constraints are expressed in the form of a context-free grammar. Thus, we assume that an input labeled graph $\mathcal{G} = \langle V, E, L \rangle$ and a CFG $G = \langle \Sigma, N, P, S \rangle$ be given.
+
+%\textbf{Алгоритмы для произвольных графов с произвольными КС-ограничениями.}  Существует ряд алгоритмов для задачи достижимости с заданными КС-ограничениями, основанных на различных алгоритмах синтаксического анализа. Так, например, Джелле Хеллингс в работе~\cite{hellings2014conjunctive} предложил алгоритм с временной сложностью $O(|N||E| + (|N||V|)^3)$, основанный на алгоритме синтаксического анализа CYK. Кроме того, в работе~\cite{zhang2016context} была получена реализация этого алгоритма для анализа RDF данных. Кроме того, существуют работы~\cite{medeiros2018efficient} и \cite{santos2018bottom}, в которых для решения задачи достижимости с заданными КС-ограничениями использовались LL и LR алгоритмы синтаксического анализа~\cite{aho1973theory}. Для алгоритма в работе~\cite{medeiros2018efficient}, основанного на LL алгоритме, также известна временная сложность в худшем случае: $O(|V|^3 |P|)$. С практической точки зрения, в работе~\cite{kuijpers2019experimental} было проведено исследование, в котором сравнивались реализации основных существующих алгоритмов для задачи достижимости с заданными КС-ограничениями. Это исследование показало, что существующие решения недостаточно производительны для использования на практике.
+\textbf{Algorithms for arbitrary graphs and arbitrary context-free grammars.} There is a number of the CFPQ algorithms for the reachability query semantics based on various parsing techniques. For example, Jelle Hellings in his work~\cite{hellings2014conjunctive} proposed a CFPQ algorithm based on the CYK parsing algorithm. This CFPQ algorithm has the $O(|N||E| + (|N||V|)^3)$ time complexity. Also, in the work~\cite{zhang2016context}, an implementation of this algorithm was obtained for the RDF analysis. In addition, there are works~\cite{medeiros2018efficient} and \cite{santos2018bottom}, in which LL and LR parsing algorithms~\cite{aho1973theory} were used to solve this problem. For the algorithm in the work~\cite{medeiros2018efficient}, the worst-case time complexity is also known: $O(|V|^3 |P|)$. From a practical point of view, in the work~\cite{kuijpers2019experimental} an experimental study of the main existing CFPQ algorithms was provided. This study showed that the existing solutions are not performant enough to be used in practice.
+
+%Кроме того, Джелле Хеллингс в работе~\cite{hellings2020explaining} предложил алгоритм поиска одного пути в графе с заданными КС-ограничениями. Для этого строится так называемая <<аннотированная>> грамматика, которая является конечной структурой, содержащей в себе информацию обо всех искомых путях графа. Далее используются результаты из теории формальных языков для нахождения кратчайшей строки, порождаемой КС-грамматикой. Для каждой пары вершин такие строки используются для нахождения кратчайшего пути между ними, удовлетворяющего заданным КС-ограничениям. Нахождение таких путей решает поставленную задачу поиска одного пути. Временная сложность предложенного алгоритма~--- $O(|N||V|^2(|N||V|^2log(|N||V|^2) + |P|(|V|^3 + |E|)) + L)$, где $L$~--- сумма длин найденных кратчайших путей в графе.
+In addition, Jelle Hellings proposed a CFPQ algorithm for the single-path query semantics~\cite{hellings2020explaining}. In this algorithm, the so-called annotated grammar is built, which is a finite structure containing information about all required paths. Further, the formal language theory results are used to find the shortest string generated by this grammar. For each pair of vertices, such strings are used to find the shortest path between them that satisfies the given path constraints. Finding such paths solves the CFPQ problem with the single-path query semantics. Time complexity of the proposed algorithm is $$O(|N||V|^2(|N||V|^2log(|N||V|^2) + |P|(|V|^3 + | E|)) + L)$$ where $L$ is the sum of the lengths of the found shortest paths.
+
+%Также существует ряд алгоритмов~\cite{grigorev2017context, verbitskaia2015relaxed, verbitskaia2018parser} поиска всех путей в графе с заданными КС-ограничениями, основанных на алгоритмах синтаксического анализа GLL~\cite{scott2010gll} и GLR~\cite{scott2007brnglr}. В предложенных алгоритмах для хранения информации об искомых путях используется конечное представления леса разбора SPPF~\cite{tomita1984lr}. В дальнейшем эта структура используется для генерации любого количества путей, удовлетворяющих заданным КС-ограничениям. Кроме того, для алгоритма, предложенного в работе~\cite{grigorev2017context} известна временная сложность построения такого леса разбора SPPF в худшем случае: $O(|V|^3 \max_{v \in V} deg^+(v))$, где $deg^+(v)$~--- количество исходящих дуг из вершины $v$. Также существует работа~\cite{hellings2015querying}, в которой Хеллингс аналогично задаче поиска одного пути с заданными КС-ограничениями строит <<аннотированную>> грамматику. Однако построенная грамматика уже содержит всю необходимую информацию обо всех путях в графе, удовлетворяющих заданным КС-ограничениям. Затем эта грамматика может быть использована для генерации искомых путей в графе. Временная сложность построения такой грамматики~--- $O(|N||E| + (|N||V|)^3)$, однако сложность генерации искомых строк пока что мало исследована.
+Also, there is a number of the CFPQ algorithms~\cite{grigorev2017context, verbitskaia2015relaxed, verbitskaia2018parser} for the all-path query semantics based on the parsing algorithms GLL~\cite{scott2010gll} and GLR~\cite{scott2007brnglr}. In the proposed algorithms, the SPPF~\cite{tomita1984lr} used to store information about all paths found. This structure is used to generate any number of paths that satisfy the given constraints. In addition, for the algorithm proposed in~\cite{grigorev2017context}, the worst-case time complexity of building such an SPPF is $O(|V|^3 \max_{v \in V} deg^+(v))$ where $deg^+(v)$ is the number of outgoing edges from a vertex $v$. The annotated grammar constructed by Hellings~\cite{hellings2015querying} can be also used to generate the required paths. The time complexity of constructing such a grammar is $O(|N||E| + (|N||V|)^3)$, but the complexity of generating the required paths has not yet been studied enough.
+
+\textbf{Algorithms for partial cases of CFPQ problem.} Reps et al.~\cite{horwitz1995demand,reps1998program,reps1995precise} proposed the CFPQ framework with the reachability query semantics for interprocedural program analysis. Later, CFPQ problem has been used to formulate a variety of static analysis problems, such as points-to and alias analyses~\cite{chatterjee2017optimal,dietrich2015giga,lu2013incremental,sridharan2005demand,yan2011demand,zheng2008demand}, data-dependence analysis~\cite{chatterjee2017optimal}, type inference analysis~\cite{milanova2014cfl}, type-based flow analysis~\cite{rehof2001type}, etc. In these works, graphs built from programs are analyzed using a certain CFL as path constraints. An example of such a language is the Dyck language~\cite{reps1998program} (the language of the balanced bracket sequences). Therefore, the proposed algorithms are designed to solve a particular case of CFPQ problem.
+
+%Другим примером алгоритма для решения частного случая задачи достижимости с заданными КС-ограничениями является алгоритм, предложенный Филипом Брэдфордом в работе~\cite{bradford2017efficient} и основанный на алгоритме синтаксического анализа CYK. Этот алгоритм имеет временную сложность в худшем случае $O(|V|^{\omega} log^3 |V|)$, где $\omega$~--- наилучший показатель степени для оценки временной сложности умножения двух матриц размера $n \times n$. Стоит отметить, что алгоритм был также сформулирован с использованием методов линейной алгебры, однако он предназначен только для частного случая КС-ограничений, выраженных с помощью языка Дика.
+Another example of an algorithm for solving a particular case of CFPQ problem is the matrix-based algorithm proposed by Philip Bradford in~\cite{bradford2017efficient}. This algorithm has a worst-case time complexity $O(|V|^{\omega} log^3 |V|)$ where $\omega$ is the best exponent for estimating the time complexity of multiplying two matrices of size $n \times n$. Note that this algorithm was formulated using linear algebra methods, however, it can be used only for a partial case of the context-free path constraints expressed by the Dyck language with one type of brackets.
+
+In addition, the CFPQ problem was used in~\cite{miao2019understanding} for a data provenance via graph segmentation. In this work, a graph is queried using a certain CFL that cannot be described by regular expressions, and can be viewed as a palindrome language~\cite{hopcroft2001introduction}. For such a CFL and for CFPQ problem with the reachability query semantics and with fixed set of final vertices $V_{dst}$, the linear algorithm was proposed assuming that $|V_{dst}|$ is a constant.
+
+\section{Graph Analysis Using Linear Algebra}\label{sec:ch1/sec6}
+%В данном разделе представлены основные идеи использования методов линейной алгебры для решения задач анализа графов, а также подход к решению задач поиска путей в графах, основанный на этих идеях.
+This section is devoted to the main ideas of using linear algebra methods for solving graph analysis problems, as well as to the approach to solve path querying problems that is based on these ideas.
+
+\subsection{Main Ideas}
+%В последнее время многие задачи анализа графов решают с использованием методов линейной алгебры, что, в свою очередь, позволяет использовать имеющиеся средства распараллеливания, например, для умножения матриц, добиваясь эффективной реализации данных алгоритмов на GPU. При этом, как правило, берётся готовый алгоритм, решающий нужную задачу, и далее этот алгоритм переводится на язык линейной алгебры. Для выполнения этого <<перевода>> можно выделить следующие шаги.
+Recently, many graph analysis problems have been solved using linear algebra methods, which, in turn, allows one to use the available parallelization tools, for example, for matrix multiplication, achieving efficient implementation of these algorithms on GPU. In this case, the existing algorithm that solves the desired problem is translated into the language of linear algebra. To accomplish this translation, the following steps can be distinguished.
+
+%\begin{enumerate}
+%    \item Представление основных сущностей алгоритма~--- графа, множества рассматриваемых на текущей итерации вершин и пр.~--- в виде объектов линейной алгебры, т.е. матриц и векторов. 
+%    \item Выбор процедуры обхода графа в виде набора операций над объектами линейной алгебры.
+%    \item Реализация семантической части алгоритма в виде модификации выбранных операций над объектами линейной алгебры. При этом используются дополнительные алгебраические структуры (полугруппы, моноиды, полукольца и пр), над которыми строятся объекты линейной алгебры.
+%\end{enumerate}
+\begin{enumerate}
+    \item A representation of the main entities of the algorithm (the graph, the set of vertices visited at the current iteration, etc.) using linear algebra objects, i.e. using matrices and vectors. 
+    \item A choice of the graph traversal procedure, and its formulation using a set of operations on linear algebra objects.
+    \item An implementation of the semantic part of the algorithm by a modification of the selected linear algebra operations. In this case, various algebraic structures (semigroups, monoids, semirings, etc.) are used to define such linear algebra operations.
+\end{enumerate}
+
+%Ключевым является выбор объектов для представления информации о графах. Например, сам граф можно описать матрицей смежности, а строка/столбец этой матрицы описывает  исходящие/входящие дуги вершины, задаваемой номером строки/столбца.
+The choice of objects to represent information about graphs is very important. For example, the graph itself can be described by an adjacency matrix, and the row/column of this matrix describes the outgoing/incoming edges of the vertex specified by the row/column number.
+
+%После выбора подходящих объектов важно определить процедуру обхода графа. По сути, этот процесс заключается в рассмотрении всех необходимых путей, и различные методы обхода графов предлагают различный порядок рассмотрения вершин, дуг и путей графа, иными словами имеют различные шаблоны доступа к данным. При удачном выборе процедуры обхода графа и, соответственно, шаблона доступа к данным в линейной алгебре могут найтись операции над выбранными объектами, имеющие схожий или совпадающий шаблон. Тогда сам процесс обхода графа и рассмотрения различных путей может быть проведен с помощью этих операций.
+After selecting suitable objects, it is important to define a graph traversal procedure. In essence, this process consists of traversing all the necessary paths. The different graph traversal methods offer a different order of visiting vertices, edges, and paths in the graph. In other words, these traversals have different data access patterns. For the selected objects, there can be linear algebra operations that have a similar or matching data access pattern. Then the process of graph traversing can be formulated using these operations.
+
+%Однако, если мы решаем не просто задачу о достижимости одной вершины из другой, то кроме обхода графа необходимо ещё выполнить определённые действия при обходе, например, вычисление некоторой информации о рассматриваемых путях или проверку путей на соответствие некоторым ограничениям в зависимости от поставленной задачи (поиск кратчайших путей, простых путей, поиск путей с заданными КС-ограничениями и т.д.). Эти действия могут быть реализованы дополнительно, однако некоторые операции линейной алгебры могут быть модифицированы с целью выполнения всех необходимых для решения поставленной задачи действий. Поэтому целесообразно исследовать возможность таких модификации для операций, которые соответствуют выбранной процедуре обхода графа.
+However, if one is solving not just the reachability problem then it is also necessary to perform certain actions in the graph traversing process. For example, calculating some information about the visited paths or checking paths for compliance with certain constraints depending on the problem (search for the shortest paths, simple paths, search for paths with given context-free constraints, etc.). These actions can be implemented additionally, however, some operations of linear algebra can be modified in order to perform all necessary actions. %Therefore, it is advisable to explore the possibility of such modifications for operations that correspond to the chosen graph traversal procedure.
+
+%Например, на листинге~\ref{lst:bford1} представлен псевдокод алгоритма Беллмана-Форда~\cite{bellman1958routing,ford2015flows} поиска кратчайших расстояний во взвешенном графе без кратных дуг (т.е. дуг имеющих одинаковые начальную и конечную вершины) с множеством вершин $V$, множеством дуг $E$, функции весов $W$ и выделенной стартовой вершиной $s \in V$. При условии отсутствия отрицательных циклов (т.е. циклов, сумма весов дуг которых отрицательна) во входном графе данный алгоритм возвращает кратчайшие расстояния от стартовой вершины до всех остальных.
+For example, the Bellman-Ford~\cite{bellman1958routing,ford2015flows} algorithm is presented in Listing~\ref{lst:bford1}. This algorithm finds the shortest distances in a weighted graph without multiple edges with the set of vertices $V$, a set of edges $E$, a weight function $W$, and a distinguished starting vertex $s \in V$. If there are no negative cycles in the input graph then this algorithm returns the shortest distances from the starting vertex to all the others.
+
+\begin{algorithm}
+  \floatname{algorithm}{Listing}
+\begin{algorithmic}[1]
+\caption{The Bellman-Ford algorithm}
+\label{lst:bford1}
+\Function{Bellman-Ford}{$V$ is a set of vertices, $E$ is a set of edges, $W$ is a weight function, $s$ is the start vertex}
+    \State{$d \gets$ the shortest distances from the vertex $s$ to all the others}
+    %\State{$\pi \gets$ список, который будет использоваться для хранения предыдущих вершин в кратчайших путях}
+    \ForAll{$v \in V$}
+         \State {$d(v) \gets \infty$}
+     %    \State {$\pi(v) \gets$ NIL}
+    \EndFor
+    \State{$d(s) \gets 0$}
+    \Comment{\text{The distance to the start vertex}}
+    \For{$k = 1$ \textbf{to} $N - 1$ }
+        \If {$d(v) > d(u) + W(u, v)$}
+            \State {$d(v) \gets d(u) + W(u, v)$}
+      %      \State {$\pi(v) \gets u$}
+        \EndIf
+    \EndFor
+    \ForAll{$(u, v) \in E$}
+         \If {$d(v) > d(u) + W(u, v)$}
+            \State \Return \text{“A negative-weight cycle exists.”}
+        \EndIf
+    \EndFor
+    \State \Return $d$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+%Этот алгоритм может быть переведён на язык линейной алгебры следующим образом. Граф был представлен в виде матрицы смежности, а для хранения расстояний от стартовой вершины $s$ до всех остальных вершин использовать вектор $d$. Заметим, что из-за отсутствия кратных дуг в графе элементами матрицы смежности являются множества, состоящие не более чем из одного вещественного числа. Поэтому для удобства преобразуем матрицу смежности и будем рассматривать матрицу $A$ с элементами~--- вещественными числами или специальными элементами $\infty$, обозначающими отсутствие дуги между двумя вершинами. Процедура обхода графа задаётся с помощью умножения вектора на матрицу, как это представлено в листинге~\ref{lst:bford2}. В представленном обходе графа весь процесс поиска путей сводится к вычислению ряда таких умножений $d \cdot A$ в строке 5. Однако для решения задачи поиска кратчайших путей необходимо задать дополнительные действия в процессе обхода графа. Для этого операция умножения вектора на матрицу  переопределяется с использованием такой алгебраической структуры, как полукольцо  $\langle \mathbb{R} \cup \{\infty\}, min, +, \infty, 0 \rangle$, которое позволяет вместо привычной операции сложения элементов матриц и векторов использовать операцию взятия минимума, а вместо операции умножения этих элементов использовать операцию сложения вещественных чисел. При использовании этого полукольца операция $min$ позволяет из нескольких альтернативных путей между двумя вершинами выбирать тот, который имеет меньшую длину, а операция $+$ позволяет вычислять длины рассматриваемых путей, как суммы длин их подпутей.
+According to~\cite{kepner2011graph}, this algorithm can be translated into the language of linear algebra as follows. The graph is represented as an adjacency matrix, and the vector $d$ is used to store the distances from the starting vertex $s$ to all other vertices. Note that due to the absence of multiple edges in the graph, the elements of the adjacency matrix are sets consisting of at most one real number. Therefore, for convenience, we transform the adjacency matrix and use the matrix $A$ with elements~--- real numbers or special element $\infty$ denoting the absence of an edge between two vertices. The graph traversal procedure is specified by multiplying a vector by a matrix, as shown in Listing~\ref{lst:bford2}. In the presented graph traversal, the entire process of finding paths is reduced to calculating a series of such multiplications $d \cdot A$ in the line 5. However, to solve the problem of finding the shortest paths, additional actions must be specified in the process of traversing the graph. To do this, the operation of multiplying a vector by a matrix is redefined using such an algebraic structure as the semiring $\langle \mathbb{R} \cup \{\infty\}, min, +, \infty \rangle$, which allows one to use the minimum operation as the addition, and use the addition of real numbers as the multiplication operation. The operation $min$ is used to calculate the length of a shorter path between two vertices, and the operation $+$ allows one to calculate the lengths of visited paths as the sum of the lengths of their subpaths.
+
+\begin{algorithm}
+  \floatname{algorithm}{Listing}
+\begin{algorithmic}[1]
+\caption{The graph traversal for the algebraic Bellman-Ford algorithm}
+\label{lst:bford2}
+\Function{Algebraic-Bellman-Ford}{$A$ is an adjecency matrix, $s$ is the start vertex}
+    \State{$d \gets$ vector of the shortest distances from the vertex $s$ to all the others with all elements equal to $\infty$}
+    \State{$d(s) \gets 0$}
+    \Comment{\text{The distance to the start vertex}}
+    \For{$k = 1$ \textbf{to} $N - 1$ }
+        \State{$d \gets d \cdot A$}
+        \Comment{\text{Vector-matrix multiplication}}
+    \EndFor
+    \If {$d \neq d \cdot A$}
+        \State \Return \text{“A negative-weight cycle exists.”}
+    \EndIf
+    \State \Return $d$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+%Таким образом,  удачный выбор объектов линейной алгебры, процедуры обхода графа и дополнительных действий в процессе этого обхода позволяют строить алгоритмы для решения задач анализа графов с помощью операций  линейной алгебры.
+Thus, suitable linear algebra objects, the graph traversal procedures, and the additional actions in the process of this traversal make it possible to construct algorithms for solving graph analysis problems using the linear algebra operations.
+
+\subsection{Algebraic Path Problems}
+The ideas presented in the previous section formed the basis of the approach called \textit{algebraic path problems}~\cite{rote1990path}. The essence of this approach is to construct a semiring for solving the path querying problem, and this semiring allows one to use algebraic operations to calculate the necessary information about required paths. More formally, for a graph $\mathcal{G} = \langle V, E, L \rangle$, a semiring $\langle \mathcal{S}, \oplus, \otimes, \mathbb{0} \rangle$ is constructed, in which $L \subseteq \mathcal{S}$ and which allows one to reduce the original graph analysis problem to the calculation of values $$d_{i,j} = \bigoplus \{\lambda_{algebraic}(\pi) \mid \pi~\text{--- a path from the vertex $i$ to the vertex $j$}\}$$ for all $i, j \in V$. Specifically, for the path $\pi = (v_0, l_0, v_1), (v_1, l_1, v_2), \ldots, (v_{n - 1}, l_n, v_n)$ we have $\lambda_{algebraic}(\pi) = (\ldots (l_0 \otimes l_1) \otimes l_2) \ldots ) \otimes l_n.$
+
+%Такие значения могут быть вычислены с использованием метода Гаусса~\cite{rote1985systolic, tarjan1981fast, tarjan1981unified}, на основе алгоритмов анализа графов Флойда и Уоршалла~\cite{fletcher1980more, floyd1962algorithm, warshall1962theorem}, или с использованием умножения матриц~\cite{aho1974design, cormen2009introduction}. Временная сложность алгоритмов, использующих умножение матриц, составляет $\Theta(|V|^3 log(|V|) (T_{\otimes} + T_{\oplus}))$, а временная сложность всех остальных упомянутых алгоритмов~--- $O(|V|^3(T_{\otimes} + T_{\oplus}) + |V|^2 T_*)$. Здесь $T_{\otimes}$, $T_{\oplus}$ и $T_*$~--- временная сложность вычисления операций $s_1 \otimes s_2$, $s_1 \oplus s_2$ и $s^*$ для всех $s, s_1, s_2 \in \mathcal{S}$. Кроме того, существуют некоторые алгоритмы, специализированные для решения частных случаев этой задачи. Например, рассмотренный алгоритм на листинге~\ref{lst:bford2} является результатом применения подхода \textit{Algebraic Path Problem}, в котором вычисление значений $d_{i,j}$ производятся только для фиксированной начальной вершины $i$.
+Such values can be calculated using the Gauss-Jordan elimination~\cite{rote1985systolic, tarjan1981fast, tarjan1981unified}, using the Floyd-Warshall algorithm~\cite{fletcher1980more, floyd1962algorithm, warshall1962theorem}, and using matrix multiplication~\cite{aho1974design, cormen2009introduction}. The time complexity of algorithms that use matrix multiplication is $\Theta(|V|^3 log(|V|) (T_{\otimes} + T_{\oplus}))$, and the time complexity of all the other mentioned algorithms is $O(|V|^3(T_{\otimes} + T_{\oplus}) + |V|^2 T_*)$. Here $T_{\otimes}$, $T_{\oplus}$ and $T_*$ is the time complexity of computing the operations $s_1 \otimes s_2$, $s_1 \oplus s_2$ and $s^*$ for all $s, s_1, s_2 \in \mathcal{S}$. In addition, there are some algorithms specialized for solving partial cases of this problem. For example, the algorithm presented in Listing~\ref{lst:bford2} is the result of applying the \textit{algebraic path problems} approach where $d_{i,j}$ values are calculated only for a fixed initial vertex $i$.
+
+%Следует отметить, что требование ассоциативности операции $\otimes$ и дистрибутивности $\otimes$ относительно $\oplus$ исключает возможность применения данного подхода для многих задача анализа графов, например, для задачи поиска кратчайшего пути с дополнительными модификаторами~\cite{gondran1984graphs} или для задачи подсчёта количества путей~\cite{baras2010path}. Не смотря на то, что для некоторых задач анализа графов удалось обойти данное ограничение~\cite{lengauer1991unstructured, tarjan1981unified}, для задач поиска путей в графе заданными КС-ограничениями до сих пор таких исследований не проводилось.
+%Note that for some graph analysis problems a suitable semiring has not been found yet. For example, for the problem of finding shortest paths with discounting~\cite{gondran1984graphs} or for the task of counting the number of paths~\cite{baras2010path}. Despite the fact that for some graph analysis problems it was possible to bypass this limitation~\cite{lengauer1991unstructured, tarjan1981unified}, for the CFPQ problems this have not yet been done.
+
+Leslie Valiant~\cite{valiant1975general} showed how the parsing of CFLs can be done using matrix operations modified with algebraic structures similar to semirings but without the associativity of the multiplication operation. Thus, it may be possible to use ideas similar to the ideas of the \textit{algebraic path problems} approach to solve CFPQ problem.
+
+\section{Existing Linear Algebra Libraries}\label{sec:ch1/sec7}
+ %Одной из причин использования методов линейной алгебры в задачах анализа графов является наличие большого количества высокопроизводительных библиотек линейной алгебры, позволяющих получать хорошие практические результаты для этих задач. Стоит отметить такие библиотеки, как cuBLAS, cuSPARSE, cuBool, m4ri, Scipy.
+ One of the reasons for using linear algebra methods in graph analysis problems is the existence of a large number of high-performance linear algebra libraries that allow one to obtain good practical results for these problems. For example, there are such linear algebra libraries as cuBLAS, cuSPARSE, cuBool, m4ri, Scipy, and CUSP$\footnote{Linear algebra library CUSP provides a flexible, high-level interface for manipulating sparse matrices and solving sparse linear systems on GPU: http://cusplibrary.github.io/ (date of access: 14.01.2022).}$.
+ 
+ %При построении алгоритма анализа графов с использованием методов линейной алгебры требуется, во-первых, создать необходимые объекты линейной алгебры (матрицы смежности, вектора) и, во-вторых, использовать библиотечные функции для эффективного вычисления необходимых операций над созданными объектами. Тип данных, используемых в матрицах и векторах зависит от поставленной задачи анализа графов. Часто, для решения задачи достаточно использовать булевы матрицы и вектора (например, для решения задачи достижимости или для обхода графа в ширину) или такие объекты с более сложным типом данных могут быть выражены с помощью набора булевых матриц и векторов. Например, матрица с конечными множествами в качестве элементов может быть выражена с помощью её булевой декомпозиции. Поэтому наличие в выбранной библиотеке линейной алгебры эффективной реализации операций над булевыми матрицами и векторами крайне важно для большинства задач анализа графов. Однако, если поставленную задачу не удаётся свести к вычислению операций над набором булевых матриц и векторов, то необходимо использовать эти объекты линейной алгебры с пользовательским типом данных, а в используемых библиотеках должна быть возможность вычислять операции над ними. Такая ситуация возникает при решении более сложных задач анализа графов, например, поиске всех путей в графе с некоторыми ограничениями.
+ In order to implement a linear algebra based graph analysis algorithm, it is necessary to create the linear algebra objects (adjacency matrices, vectors) and to use library functions to perform efficient calculation of algebraic operations on the created objects. The data type used in matrices and vectors depends on the graph analysis problem. Often, it is sufficient to use Boolean matrices and vectors to solve a problem (for example, to solve a reachability problem). Also, some matrices with a more complex data type can be expressed using a set of Boolean matrices. For example, a matrix with finite sets as elements can be expressed using its Boolean decomposition. Therefore, the presence in the chosen linear algebra library of an efficient implementation of operations on Boolean matrices and vectors is extremely important for many graph analysis problems. However, if the problem cannot be reduced to the calculation of operations on a set of Boolean matrices and vectors, then it is necessary to use linear algebra objects with a user-defined data type, and the libraries used should be able to calculate operations on them. This situation arises when solving more complex graph analysis problems, for example, finding all paths in a graph with some constraints.
+ 
+ %Для получения высокопроизводительных реализаций при выборе библиотеки линейной алгебры необходимо учитывать особенности используемых данных и выбранных операций. Например, основные операции над матрицами и векторами могут быть эффективно вычислены с использованием параллельных вычислительных систем (на CPU, GPU, с использованием распределённых вычислений и т.д.). Кроме того, данные на практике разрежены, поэтому важно иметь возможность вычислять операции над разреженными матрицами и векторами в выбранной библиотеке.
+ To obtain high-performance implementations it is necessary to take into account the properties of the data and the selected operations used. For example, basic operations on matrices and vectors can be efficiently computed using parallel computing systems (on the CPU, GPU, using distributed computations, etc.). In addition, real data are sparse in practice, so it is important to be able to compute operations on sparse matrices and vectors in the chosen library.
+ 
+ %Таким образом, можно выделить следующие критерии, которые могут быть использованы при выборе библиотеки линейной алгебры для получения высокопроизводительной реализации алгоритма анализа графов:
+ Thus, we can distinguish the following criteria that can be used when choosing a linear algebra library to obtain a high-performance implementation of the graph analysis algorithm:
+ 
+ \begin{itemize}
+     \item implemented operations on Boolean matrices/vectors,
+     \item the ability to use user-defined data types and operations on them,
+     \item parallel computing,
+     \item working with sparse matrices/vectors.
+ \end{itemize}
+ 
+ %Все перечисленные критерии были учтены при создании Айдыном Булуком, Бенджамином Броком (Benjamin Brock), Тимоти Мэттсоном (Timothy Mattson) и другими стандарта GraphBLAS~\cite{graphblas}, определяющего базовые <<строительные блоки>> для алгоритмов анализа графов в терминах линейной алгебры. Этот стандарт разрабатывался с 2013 года и был впервые опубликован в мае 2017 года. Для реализации выбранного алгоритма анализа графов можно воспользоваться любой из существующих реализаций стандарта GraphBLAS (SuiteSparse:GraphBLAS, IBM GraphBLAS$\footnote{IBM GraphBLAS~--- реализация стандарта GraphBLAS на языке Си++: https://github.com/IBM/ibmgraphblas (дата обращения: 14.01.2022).}$, GBTL$\footnote{GBTL~--- ещё одна реализация стандарта GraphBLAS на языке Си++: https://github.com/cmu-sei/gbtl (дата обращения: 14.01.2022).}$ (GraphBLAS Template Library), GraphBLAST$\footnote{GraphBLAST~--- реализация стандарта GraphBLAS на GPU с использованием платформы CUDA: https://github.com/gunrock/graphblast (дата обращения: 14.01.2022).}$). Однако наиболее проработанными и оптимизированными являются реализации SuiteSparse:GraphBLAS на CPU и GraphBLAST~--- на GPU.
+ All of these criteria were taken into account when Aydin Bulu\c{c}, Benjamin Brock, Timothy Mattson, and others created the GraphBLAS~\cite{graphblas} standard that defines the basic building blocks for graph analysis algorithms in terms of linear algebra. This standard has been in development since 2013 and was first published in May 2017. To implement the selected graph analysis algorithm, one can use any of the existing implementations of the GraphBLAS standard (SuiteSparse:GraphBLAS~\cite{suitesparse1,suitesparse2,suitesparse3}, IBM GraphBLAS$\footnote{IBM GraphBLAS is a \texttt{C++} implementation of the GraphBLAS standard: https://github.com/IBM/ibmgraphblas (date of access: 14.01.2022).}$, GBTL$\footnote{GBTL is another \texttt{C++} implementation of the GraphBLAS standard: https://github.com/cmu-sei/gbtl (date of access: 14.01.2022).}$ (GraphBLAS Template Library), GraphBLAST$\footnote{GraphBLAST is an implementation of the GraphBLAS standard on the GPU using the CUDA platform: https://github.com/gunrock/graphblast (date of access: 14.01.2022).}$~\cite{graphblast1}). However, the most stable and optimized are the CPU implementation SuiteSparse:GraphBLAS and the GPU implementation GraphBLAST.
+ 
+%В стандарте GraphBLAS используются разреженные форматы для хранения матриц (СSR, CSC, COO)~\cite{graphblas}, а также алгебраические структуры, с помощью которых можно модифицировать операции над матрицами и векторами. При применении подхода \textit{Algebraic Path Problem} необходимо использовать полукольца и стандарт GraphBLAS предоставляет такую возможность. Однако стоит отметить, что в стандарте GraphBLAS на используемые алгебраические структуры накладываются более слабые требования, что позволяет использовать структуры более общего вида, чем полукольца. Например, в рамках стандарта возможно создать алгебраическую структуру и с её помощью определить операцию умножения матриц с разными типами данных, что невозможно сделать используя полукольца. Также в стандарте GraphBLAS имеется множество встроенных бинарных операций, из которых могут быть составлены различные алгебраические структуры. Например, может быть составлено полукольцо $\langle \mathbb{R} \cup \{\infty\}, min, +, \infty, 0 \rangle$, которое было использовано для алгоритма Беллмана-Форда в листинге~\ref{lst:bford2}. Таким образом, этот алгоритм может быть реализован с использованием стандарта GraphBLAS. Однако в том случае, если для выбранного алгоритма анализа графов не подходит ни одна из встроенных в стандарт алгебраических структур, то также существует возможность создавать собственные (пользовательские) структуры, описывая тип данных, бинарные операции, а также соответствующие нейтральные элементы. Всё это делает использование реализаций стандарта GraphBLAS при реализации алгоритмов анализа графов удобным, а код реализации~--- компактным.
+The GraphBLAS standard uses sparse formats for storing matrices (CSR, CSC, COO)~\cite{graphblas}, as well as algebraic structures that can be used to modify operations on matrices and vectors. When applying the \textit{algebraic path problems} approach, it is necessary to use semirings and the GraphBLAS standard provides such an opportunity. However, it should be noted that the GraphBLAS standard imposes weaker requirements on the used algebraic structures, which allows one to use structures of a more general form than semirings. For example, within the framework of the standard, it is possible to create an algebraic structure and use it to define the operation of multiplying matrices with different data types that cannot be done using semirings. Also in the GraphBLAS standard there are many built-in binary operations from which various algebraic structures can be composed. For example, the standard has the built-in semiring $\langle \mathbb{R} \cup \{\infty\}, min, +, \infty \rangle$ that was used for the Bellman-Ford algorithm in Listing~\ref{lst:bford2}. However, if none of the built-in algebraic structures is suitable for the selected graph analysis algorithm then it is also possible to create your own (user-defined) structures, describing the data type, binary operations, and also the corresponding neutral elements.
+
+%Характеристики всех перечисленных библиотек линейной алгебры в соответствии с выбранными критериями представлены в~\cref{tab:LAlibraries}.
+The characteristics of all the listed linear algebra libraries according to the selected criteria are presented in Table~\ref{tab:LAlibraries}.
+
+\begin{table} [htbp]
+    \centering
+    \begin{threeparttable}% выравнивание подписи по границам таблицы
+        \caption{The characteristics of existing linear algebra libraries}\label{tab:LAlibraries}%
+        \begin{tabular}{| p{5.1cm} || p{2.2cm} | p{3cm} | p{2.2cm} | p{2.2cm}l |}
+            \hline
+            \hline
+            A library   & \centering Boolean data type & \centering User-defined data type & \centering  Parallel computing & \centering  Sparse matrices/ \\ vectors &\\
+            \hline
+            cuBLAS & \centering	- & \centering -	 & \centering GPU	 & \centering -	 & \\
+            cuSPARSE & \centering -	 & \centering -	 & \centering GPU	 & \centering +	 & \\
+            cuBool & \centering	 + & \centering	- & \centering GPU	 & \centering +	 & \\
+            CUSP & \centering	 + & \centering	+ & \centering GPU	 & \centering +	 & \\
+            m4ri & \centering +	 & \centering -	 & \centering CPU	 & \centering -	 & \\
+            Scipy & \centering +	& \centering -	 & \centering -	 & \centering +	 & \\
+            SuiteSparse:GraphBLAS & \centering +& \centering +	 & \centering CPU	 & \centering	+ & \\
+            IBM GraphBLAS & \centering +	 & \centering +	 & \centering CPU	 & \centering +	 & \\
+            GBTL & \centering + & \centering -	 & \centering	CPU & \centering +	 & \\
+            GraphBLAST & \centering +	 & \centering -	 & \centering GPU	 & \centering +	 & \\
+            \hline
+            \hline
+        \end{tabular}
+    \end{threeparttable}
+\end{table}
+
+
+
+%Таким образом, для получения высокопроизводительных реализаций алгоритмов, предлагаемых в данной диссертации, на основе параллельных вычислений на CPU и с возможностью использовать пользовательские типы данных целесообразно использовать реализацию SuiteSparse:GraphBLAS или реализацию IBM GraphBLAS стандарта GraphBLAS. Однако в данной работе сделан выбор в пользу SuiteSparse:GraphBLAS, так как эта реализация является наиболее стабильной и оптимизированной. Для вычисления операций над разреженными булевыми матрицами и векторами на GPU рекомендуется использовать библиотеку cuBool или GraphBLAST.
+Thus, to obtain high-performance parallel CPU implementations of the algorithms proposed in this thesis with the ability to use user-defined data types it is advisable to use the SuiteSparse:GraphBLAS implementation or the IBM GraphBLAS implementation of the GraphBLAS standard. However, in this work, we chose SuiteSparse:GraphBLAS since this implementation is the most stable and optimized. The operations on sparse Boolean matrices and vectors can be computed on GPU using the libraries cuBool, GraphBLAST, and CUSP.
+
+
+%Операции над матрицами и соответсвующие им трансформации графов. Транспонирование, поэлементное сложение/умножение, обычное умножение?
+
+%Таблица стандартных полуколец в GraphBLAS?
+
+%Таблица классических алгоритмов на графах с классической и матричными сложностями?
+
+%Графовая база данных RedisGraph?
+%RedisGraph~--- графовая база данных. Разреженные матрицы, их формат. Выразительность языка запросов.
+
+%Набор данных CFPQ\_data?
+%Созданный датасет. Описать какие графы RDF и запросы к ним. Таблица.
+
+\section{Summary}\label{sec:ch1/sec8}
+%На основе проведённого обзора можно сделать следующие выводы.
+Based on the provided background the following conclusions can be drawn.
+\begin{itemize}
+	\item The CFPQ problem is relevant in various areas~--- in graph databases, bioinformatics, in static program analysis, etc.
+	
+	\item The linear algebra methods can be used for obtaining high-performance implementations of graph analysis algorithms.
+
+	\item Currently, no research has been conducted on the application of linear algebra methods to solving CFPQ problem.
+\end{itemize}
+
+%Выполненный обзор также позволяет выявить следующие подходы, технологии и средства, которые целесообразно использовать для решения задач поиска путей в графе с заданными КС-ограничениями.
+The provided background also allows us to identify the following approaches, technologies, and tools that are appropriate to use to solve CFPQ problem.
+
+\begin{itemize}
+    \item The ideas of the \textit{algebraic path problems} approach can be used to solve CFPQ problem, but it is necessary to use more general algebraic structures than the semirings.
+    \item For CFPQ problem it is possible to use linear algebra objects not only for representing graphs, but also for the context-free constraints.
+    \item For the efficient analysis of real graphs it is necessary to use parallel computations and sparse matrix formats.
+	\item It is advisable to use the GraphBLAS standard that allows one to use user-defined data types for matrices and vectors, as well as to obtain high-performance implementations of graph analysis algorithms using operations on such matrices and vectors.
+	\item For obtaining parallel CPU implementations of graph analysis algorithms, one can use the SuiteSparse:GraphBLAS implementation of the GraphBLAS standard. And for obtaining such implementations on GPU, the cuBool, GraphBLAST, and CUSP linear algebra libraries can be used.
+\end{itemize}
+
+
+\FloatBarrier

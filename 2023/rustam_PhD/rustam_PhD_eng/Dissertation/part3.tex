@@ -1,0 +1,729 @@
+\chapter{A Matrix-Based CFPQ Algorithm}\label{ch:ch3}
+%В данной главе изложен алгоритм, полученный в результате применения подхода из предыдущей главы для решения задачи достижимости, поиска одного и поиска всех путей в графе с заданными КС-ограничениями с использованием операций умножения матриц. Также сформулированы и доказаны утверждения о корректности и временной сложности полученного алгоритма. Кроме того, приведены детали реализаций алгоритма, а также его работа продемонстрирована на примере.
+In this chapter, we present a matrix-based algorithm constructed by applying the approach from the previous chapter to solve CFPQ problem with the reachability, the single-path, and the all-path query semantics. Also, the correctness and time complexity of the obtained algorithm are formulated and proved. In addition, the details of the implementation of the algorithm are given, as well as a step-by-step demonstration of the proposed algorithm.
+\section{Algorithm Construction}\label{sec:ch3/sect1}
+%В данном разделе изложен процесс построения алгоритма поиска путей в графе с заданными КС-ограничениями с использованием операций умножения матриц.
+This section describes the process of constructing a CFPQ algorithm using matrix multiplication operations.
+
+%Пусть дан входной помеченный граф $\mathcal{G} = \langle V, E, L\rangle$ и входной КС-язык в качестве ограничений на пути в нём. Сперва необходимо выбрать объекты линейной алгебры для представления информации о графе. Применимость таких объектов линейной алгебры, как матрицы в задачах анализа графов давно известна. Поэтому для представления входного графа будем использовать его матрицу смежности, в ячейках $(i, j)$ которой будет содержаться информация о дугах между вершиной $i$ и вершиной $j$. Входной КС-язык будем описывать КС-грамматикой $G = \langle \Sigma, N, P, S \rangle$ в нормальной форме, которая, как мы увидим, будет удобна для дальнейшего построения алгебраических структур с операциями, учитывающими заданные КС-ограничения в процессе поиска путей в графе. Затем матрицу смежности необходимо инициализировать, включив в неё информацию о заданных ограничениях. Для описания связи найденных путей в графе с заданными КС-ограничениями будут использоваться нетерминальные символы грамматики $G$. Таким образом, в процессе работы предлагаемый алгоритм для всех рассматриваемых путей $\pi$ будет выяснять из каких нетерминалов $A$ выводится строка $\lambda(\pi)$. Поэтому для инициализации матрицы смежности входного графа будут рассмотрены все дуги с метками $a \in \Sigma \cap L$ и соответствующие им правила вида $A \rightarrow a$. Таким образом, будут рассмотрены все пути графа длины 1, но также необходимо рассмотреть пустые пути, при условии наличия в грамматике $G$ правил вида $A \rightarrow \varepsilon$. Поэтому для каждого такого правила и для каждой вершины i графа $\mathcal{G}$ в матрицу будет записана информация о наличии пустого пути $\pi$ из вершины i в вершину i такого, что строка $\lambda(\pi)$ выводится из нетерминала $A$.
+For an input labeled graph $\mathcal{G} = \langle V, E, L\rangle$ and an input CFL, first, it is necessary to select linear algebra objects to represent information about the graph. The applicability of such objects of linear algebra as matrices in graph analysis problems is well known. Therefore, to represent the input graph, we will use its adjacency matrix, the cells $(i, j)$ of which will contain information about the edges between the vertex $i$ and the vertex $j$. The input CFL will be described by the CFG $G = \langle \Sigma, N, P, S \rangle$ in the WCNF, which, as we will see, will be convenient for further construction of algebraic structures with operations that take into account the given context-free constraints while traversing the graph. Then the adjacency matrix must be initialized to include information about the given constraints. To describe the connection of the found paths in a graph with given constraints, nonterminal symbols of the grammar $G$ will be used. Thus, the proposed algorithm finds paths $\pi$ that form a string $\lambda(\pi)$ that can be derived from some nonterminal $A$ of the CFG $G$. Therefore, to initialize the adjacency matrix of the input graph, we will visit all edges with labels $a \in \Sigma \cap L$ and all corresponding derivation rules of the form $A \rightarrow a$. Thus, all paths of length 1 will be visited, but it is also necessary to store information about empty paths using rules of the form $A \rightarrow \varepsilon$ in the grammar $G$. Therefore, for each such rule and for each vertex $i$ of the graph $\mathcal{G}$, the matrix will contain information about existence of an empty path $\pi$ from the vertex $i$ to the vertex $i$ such that the string $\lambda(\pi)$ can be derived from the nonterminal $A$.
+
+%Далее опишем процедуру обхода графа, вычисляющую транзитивное замыкание инициализированной матрицы. Такое транзитивное замыкание может быть вычислено с использованием известной техники~\cite{baras2010path}, в которой производится серия умножений матрицы смежности на себя. Это позволит обойти граф и рассмотреть все необходимые для анализа графа пути. Остаётся лишь переопределить операцию умножения таких матриц, чтобы, во-первых, в процессе обхода графа рассматриваемые пути проверялись на соответствие входным КС-ограничениям, а, во-вторых, вычислялась вся необходимая информация для решения поставленной задачи достижимости, поиска одного или поиска всех путей в графе. Для проверки путей на соответствие входным КС-ограничениям будут использованы правила вида $A \rightarrow B C$, где $A,B,C \in N$. В правой части таких правил имеется лишь конкатенация двух нетерминалов, что в процессе вывода строки в грамматике соответствует конкатенации двух подстрок. Аналогично, в процессе анализа графа правила такого вида соответствуют конкатенации двух коротких путей $i \pi_1 k$ и $k \pi_2 j$, где $B \Rightarrow_G \lambda(\pi_1)$ и $C \Rightarrow_G \lambda(\pi_2)$. В таком случае, для пути $i\pi j$, полученного в результате такой конкатенации мы можем утверждать, что $A \Rightarrow_G \lambda(\pi)$. Таким образом, процесс обхода графа $\mathcal{G}$ будет неразрывно связан с процессом вывода строк в грамматике $G$, образованных рассмотренными путями графа. И, наконец, чтобы вычислялась вся необходимая информация для решения поставленной задачи поиска путей в графе, построим алгебраическую структуру $\langle \textit{MatrixElements}, \oplus, \otimes, \bot \rangle$, где:
+Next, we describe a graph traversal procedure that computes the transitive closure of an initialized matrix. Such a transitive closure can be computed using the known technique~\cite{baras2010path}, which performs a series of multiplications of the adjacency matrix by itself. This allows one to traverse the graph and to visit all the paths necessary for graph analysis. It remains only to redefine the matrix multiplication in order to check paths for compliance with the input context-free path constraints. Also, all the necessary to solve the given CFPQ problem information must be calculated. The rules of the form $A \rightarrow B C$ where $A, B, C \in N$ will be used to check the paths for compliance with the input constraints. On the right side of such rules there is only a concatenation of two nonterminals that corresponds to the concatenation of two substrings. Similarly, in the process of graph analysis, rules of this type correspond to the concatenation of two paths $i \pi_1 k$ and $k \pi_2 j$ where $B \Rightarrow_G \lambda(\pi_1)$ and $C \Rightarrow_G \lambda(\pi_2)$. In this case, for the path $i \pi j$ resulting from such a concatenation, we can say that $A \Rightarrow_G \lambda(\pi)$. Thus, the process of traversing the graph $\mathcal{G}$ will be closely related to the process of strings derivation formed by the visited paths. And, finally, in order to calculate all the necessary information for solving a CFPQ problem we construct the algebraic structure $\langle \textit{MatrixElements}, \oplus, \otimes, \bot \rangle$ where:
+\begin{itemize}
+    \item $\textit{MatrixElements}$ is a set containing all possible values of the elements of the discussed matrices;
+    \item $\oplus$ is the operation of adding matrix elements, which will be used when aggregating information about several paths in a graph between the same vertices;
+    \item $\otimes$ is the operation of multiplying matrix elements, which will be used when aggregating information about two paths that can be concatenated into one longer path;
+    \item $\bot$ is an neutral element for the addition operation that will denote the absence of the desired paths for a particular pair of vertices.
+\end{itemize}
+
+%Тогда используя построенную алгебраическую структуру определим операцию умножения матриц \mbox{$a \cdot b = c$}, где $a$ и $b$~--- матрицы подходящих размеров с элементами из множества $\textit{MatrixElements}$, как $$c_{i, j} = \bigoplus^{n}_{k=1}{a[i, k] \otimes b[k, j]}.$$ Кроме того, для агрегации информации о путях из двух матриц одинакового размера определим операцию $\bigoplus$ поэлементного сложения элементов этих двух матриц. Также на этапе инициализации необходимо определить элементы, используемые для описания информации о путях длины 0 и 1. Так как значения этих элементов зависят от поставленной задачи поиска путей в графе, то обозначим их, как $\alpha^0_{i, j}, \alpha^1_{i, j} \in \textit{MatrixElements}$, для каждой пары вершин $(i, j)$.
+Then, using the constructed algebraic structure, we define the matrix multiplication operation \mbox{$a \cdot b = c$} where $a$ and $b$ are matrices of suitable sizes with elements from the set $\textit{MatrixElements}$ as $$c_{i, j} = \bigoplus^{n}_{k=1}{a[i, k] \otimes b[k, j]}.$$ Also, for matrices of the same size, we use the element-wise addition operation $\bigoplus$ defined over constructed algebraic structure. At the initialization stage, it is necessary to determine the elements used to describe information about paths of length 0 and 1. Since the values of these elements depend on the particular CFPQ problem, we denote them as $\alpha^0_{i, j}, \alpha^1_{i, j} \in \textit{MatrixElements}$ for each pair of vertices $(i, j)$.
+
+%Таким образом, на листинге~\ref{lst:mtx_cfpq} представлен алгоритм поиска путей в графе с заданными КС-ограничениями, использующий операции умножения матриц. Представленный алгоритм принимает на вход граф и КС-ограничения уже выраженные в виде КС-грамматики в нормальной форме. Стоит отметить, что вместо одной матрицы информация о путях в графе хранится в множестве матриц $T$, состоящем из $|N|$ матриц $T^A$ по одной на каждый нетерминальный символ $A \in N$. В таком случае в ячейку $T^A[i, j]$ записывается информация о найденных путях в графе из вершины $i$ в вершину $j$, образующих строки, выводимые из нетерминала $A$ в грамматике $G$. Данная идея схожа с идеей использования булевой декомпозиции матрицы смежности, однако получаемые матрицы $T^A$ будут булевыми только для задачи достижимости. В итоге, предложенный алгоритм решает поставленную задачу поиска путей в графе $\mathcal{G}$ с заданными КС-ограничениями, так как вся необходимая информация о путях из вершины $i$ в вершину $j$, удовлетворяющих заданным КС-ограничениям в виде грамматики $G = \langle \Sigma, N, P, S\rangle$, будет записана в ячейку $T^S[i, j]$.
+Thus, in Listing~\ref{lst:mtx_cfpq} we present a matrix-based CFPQ algorithm. The presented algorithm takes as input a graph and the context-free path constraints already expressed in the form of a CFG in the WCNF. Note that the information about the paths in the graph is stored in the set $T$ of matrices, which consists of $|N|$ matrices $T^A$, one for each nonterminal symbol $A \in N$. In this case, the cell $T^A[i, j]$ contains information about the found paths in the graph from the vertex $i$ to the vertex $j$ forming strings derived from the nonterminal $A$ in the grammar $G$. This idea is similar to the idea of using the Boolean decomposition of the adjacency matrix, however, the resulting matrices $T^A$ will be Boolean only for the reachability problem. As a result, the proposed algorithm solves the stated CFPQ problem since all the necessary information about the paths from the vertex $i$ to the vertex $j$ that satisfy the given constraints will be written in cell $T^S[i, j]$.
+
+
+\begin{algorithm}
+	\begin{algorithmic}[1]
+		\floatname{algorithm}{Listing}
+		\caption{A matrix-based CFPQ algorithm}
+		\label{lst:mtx_cfpq}
+		\Function{MatrixBasedCFPQ}{$\mathcal{G} = \langle V, E, L \rangle$, $G= \langle N, \Sigma, P, S \rangle$}
+		\State{$n \gets$ |V|}
+		\State{$T \gets \{T^{A} \mid A \in N$ where $T^{A}$ is a matrix of size $n \times n$ with all elements equal to $\bot$ \} }
+		
+		\ForAll{$(i, x, j) \in E$, $A \mid A \to x \in P$}
+		%\Comment{Matrices initialization}
+		%\For{$A_k \mid A_k \to x \in P$}
+		\State{$T^{A}[i, j] \gets \alpha^1_{i, j}$} \Comment{Matrix initialization using rules $A \to x$}
+		%\EndFor
+		\EndFor
+		\For{$A \mid A \to \varepsilon \in P$}
+		\ForAll{$i \in \{0,\ldots, n - 1\}$}
+		\State{$T^{A}[i, i] \gets \alpha^0_{i, i}$} \Comment{Matrix initialization using rules $A \to \varepsilon$}
+		\EndFor
+		\EndFor
+		
+		\While{any matrix in $T$ is changing}
+		%\Comment{Transitive closure calculation}
+		\ForAll{$A \to B C \in P$ where $T^{B}$ or $T^{C}$ are changed}
+		\State{ $T^{A} \gets T^{A} \bigoplus (T^{B} \cdot T^{C})$ } 
+		\EndFor
+		\EndWhile
+		\State \Return $T$
+		\EndFunction
+		
+	\end{algorithmic}
+\end{algorithm}
+
+%Далее представим различные алгебраические структуры, позволяющие переопределить операции над матрицами в алгоритме, представленном на листинге~\ref{lst:mtx_cfpq}, для решения задачи достижимости, поиска одного пути или поиска всех путей в графе с заданными КС-ограничениями.
+Next, we present various algebraic structures that allow one to modify the matrix operations in the algorithm shown in Listing~\ref{lst:mtx_cfpq} to solve the CFPQ problem with the reachability, the single-path, or with the all-path query semantics.
+
+\paragraph{Reachability.} %Так как для решения задачи достижимости необходима лишь информация о наличии путей, образующих из меток своих дуг определённые слова, то в ячейках матрицы смежности могут содержаться только булевы значения 0 или 1. В таком случае в ячейку $T^A[i, j]$ записывается значение 1, если существует путь из вершины $i$ в вершину $j$, образующий строку, выводимую из нетерминала $A$ в грамматике $G$, и значение 0 в противном случае. В процессе инициализации матриц в ячейки $T^A[i,j]$ будут записываться значения $\alpha^0_{i, j}$ и $\alpha^1_{i, j}$ при обнаружении соответствующего пути длины 0 или 1. А так как для поставленной задачи наличие пути записывается в соответствующую ячейку с помощью значения 1, то $\alpha^0_{i, j} = \alpha^1_{i, j} = 1$. Таким образом, алгоритм, представленный на листинге~\ref{lst:mtx_cfpq} решает задачу достижимости в графе с заданными КС-ограничениями при использовании алгебраической структуры $\langle \{0, 1\}, \vee, \wedge, 0 \rangle$ с логическими операциями дизъюнкции и конъюнкции. В графе $\mathcal{G}$ существует путь из вершины $i$ в вершину $j$, удовлетворяющий заданным КС-ограничениям, только если $T^S[i, j] = 1$.
+Since the solution of the reachability problem requires only information about existence of paths that form certain words from the labels of their edges, the cells of the adjacency matrix can only contain Boolean values 0 or 1. In this case, the cell $T^A[i, j]$ has the value 1 if there is a path from the node $i$ to the node $j$ that forms a string derived from the nonterminal $A$ in the grammar $G$, and value 0 otherwise. During the matrix initialization, $\alpha^0_{i, j}$ and $\alpha^1_{i, j}$ values will be written to $T^A[i, j]$ when a corresponding path of length 0 or 1 is found. And since for the given problem the existence of a path is written in the corresponding cell using the value 1 then $\alpha^0_{i, j} = \alpha^1_{i, j} = 1$. Thus, the algorithm shown in Listing~\ref{lst:mtx_cfpq} solves the reachability problem in a graph with given context-free constraints using the algebraic structure $\langle \{0, 1\}, \vee, \wedge, 0 \rangle$ with logical operations of disjunction and conjunction. In the graph $\mathcal{G}$ there is a path from $i$ to $j$ that satisfies the given constraints only if $T^S[i, j] = 1$.
+
+\paragraph{Single-path.}
+%Для решения задачи поиска одного пути в графе с заданными КС-ограничениями, необходимо для каждой пары вершин $(i, j)$ иметь возможность построить хотя бы одни путь из вершины $i$ в вершину $j$, удовлетворяющий заданным ограничениям, если такие пути существуют. Для этого добавим в ячейки матриц дополнительную информацию о найденных путях в графе и построим новую алгебраическую структуру для модификации операций над этими матрицами. Будем использовать матрицы, в ячейках которых записана информация о найденных путях в виде четвёрок ($\textit{left}$, $\textit{right}$, $\textit{middle}$, $\textit{height}$), где $\textit{left}$ и $\textit{right}$~--- конечные вершины найденного пути, $\textit{middle}$~--- одна из промежуточных вершин найденного пути $\pi$ со строкой $\lambda(\pi)$, выводимой из нетерминала $A$ в грамматике $G$, и $\textit{height}$~--- минимальная высота дерева вывода строки $\lambda(\pi)$ из нетерминала $A$. В случае, когда для определенной пары вершин $(i, j)$ таких путей не обнаружено, то будем использовать четвёрку $\bot = (0, 0, 0, 0)$.
+To solve the CFPQ problem with the single-path query semantics it is necessary for each pair of vertices $(i, j)$ to construct at least one path from the vertex $i$ to the vertex $j$ that satisfies the given constraints, if such paths exist. To do this, we store additional information about the found paths in the matrix elements and construct a new algebraic structure for modifying operations on these matrices. We will use matrices whose elements contain information about the found paths in the form of tuples ($\textit{left}$, $\textit{right}$, $\textit{middle}$, $\textit{height}$) where $\textit{left}$ and $\textit{right}$ are initial and final vertices of the found path, $\textit{middle}$ is the one of the intermediate vertices of the found path $\pi$ with the string $\lambda(\pi)$ derived from the nonterminal $A$ in the grammar $G$, and $\textit{height}$ is the minimum height of the derivation tree of the string $\lambda(\pi)$ from the nonterminal $A$. In the case when no such paths are found for a certain pair of vertices $(i, j)$ then we will use the special tuple $\bot = (0, 0, 0, 0)$.
+
+For a specific pair of vertices $(i, j)$ and a nonterminal $A$, in the proposed algorithm we visit a path that forms a string derived from the nonterminal $A$ and has the minimum height of the derivation tree. In addition, concatenations of two such paths for different triples $(A, i, j)$ will be visited. Therefore, the proposed algorithm will use only tuples ($\textit{left}$, $\textit{right}$, $\textit{middle}$, $\textit{height}$) with $\textit{height} \leq h + 1$ where $h$ is the maximum of such minimum heights of derivation trees for different triples $(A, i, j)$. We denote the set of all possible such tuples including $\bot$ as $\textit{PathIndex}$, and construct an algebraic structure using this set as a domain. The neutral element in such a structure will be the tuple $\bot$. In this case, initially all matrices will be initialized with this neutral element. Next, we define the multiplication and addition operations for this structure.
+
+
+%We denote the set of all possible such tuples, including $\bot$, as $\textit{PathIndex}$, and construct an algebraic structure using this set as a domain. The neutral element in such a structure will be the tuple $\bot$. In this case, initially all matrices will be initialized with this neutral element. Next, we need to define the matrix multiplication and matrix addition operations for this structure.
+
+%Так как в процессе обхода графа с использованием операции умножения матриц и правил грамматики вида $A \to B C$, рассматриваются более длинные пути $i \pi j$, являющиеся конкатенацией двух коротких путей $i\pi_1 k$ и $k \pi_2 j$, то в качестве промежуточной вершины $\textit{middle}$ длинного пути удобно выбрать вершину $k$. Тогда операция умножения $\otimes$ для \mbox{$\textit{PI}_1, \textit{PI}_2 \in \textit{PathIndex}$}, может быть определена следующим образом.
+In the process of graph traversal using the matrix multiplication operation and derivation rules of the form $A \to B C$, we visit the paths $i \pi j$ that are the concatenation of two shorter paths $i\pi_1 k$ and $k \pi_2 j$. Thus, it is convenient to choose the vertex $k$ as an intermediate vertex $\textit{middle}$ of the path $i \pi j$. Then the multiplication operation $\otimes$ for \mbox{$\textit{PI}_1, \textit{PI}_2 \in \textit{PathIndex}$} can be defined as follows.
+
+$$\textit{PI}_1 \otimes \textit{PI}_2 = \begin{cases}
+      (\textit{PI}_1.\textit{left}, \textit{PI}_2.\textit{right}, \textit{PI}_1.\textit{right}, max(\textit{PI}_1.\textit{height}, \textit{PI}_2.\textit{height}) + 1),\\
+                     \qquad \text{if $\textit{PI}_1\neq \bot \neq \textit{PI}_2$} \\
+      \bot, \qquad \text{otherwise} \\
+    \end{cases}\
+$$
+
+%Кроме того, в процессе анализа графа для одной и той же пары вершин могут быть найдены несколько путей, удовлетворяющих заданным КС-ограничениям. Такие пути агрегируются с использованием операции сложения $\oplus$ для \mbox{$\textit{PI}_1, \textit{PI}_2 \in \textit{PathIndex}$}, которая может быть определена следующим образом.
+In addition, in the process of graph analysis for the same pair of vertices several paths can be found that satisfy the given context-free constraints. Such paths are aggregated using the addition operation $\oplus$ for \mbox{$\textit{PI}_1, \textit{PI}_2 \in \textit{PathIndex}$} that can be defined as follows.
+
+$$\textit{PI}_1 \oplus \textit{PI}_2 = \begin{cases}
+      \textit{PI}_1, \qquad \text{if $\textit{PI}_1\neq \bot \neq \textit{PI}_2$ and} \\ \qquad (\textit{PI}_1.\textit{height}, \textit{PI}_1.\textit{middle}) \leq (\textit{PI}_2.\textit{height}, \textit{PI}_2.\textit{middle}) \\
+      \textit{PI}_1, \qquad \text{if $\textit{PI}_2 = \bot$} \\
+      \textit{PI}_2, \qquad \text{otherwise} \\
+    \end{cases}\
+$$
+
+%В представленном определении использовался лексикографический порядок над парами целых чисел $(\textit{PI}.\textit{height}, \textit{PI}.\textit{middle})$ для $\textit{PI} \in \textit{PathIndex}$. Таким образом, при использовании операции $\oplus$ в ячейках матрицы $T^A$ будет содержаться информация о найденных путях, образующих строки с минимальными высотами деревьев вывода из нетерминала $A$ в грамматике $G$. Далее определим значения элементов $\alpha^0_{i, j}, \alpha^1_{i, j} \in \textit{PathIndex}$. При обнаружении пути длины 1, выводимого из нетермниала $A_k$ в соответствующую ячейку матрицы $T^{A_k}$ будет добавляться информация об этом пути в виде четвёрки $\alpha^1_{i, j} = (i, j, i, 1)$. В свою очередь для путей длины 0 в соответствующие ячейки добавляются четвёрки $\alpha^0_{i, i} = (i, i, i, 1)$. В данных случаях в качестве промежуточных вершины выбраны начальные вершины путей длины 0 и 1. Таким образом, алгоритм, представленный на листинге~\ref{lst:mtx_cfpq} позволяет решить задачу поиска одного пути в графе с заданными КС-ограничениями при использовании полукольца $\langle \textit{PathIndex}, \oplus, \otimes, \bot \rangle$ с определенными для данной задачи операциями. Результатом работы алгоритма является множество матриц $T^A$ для всех нетерминальных символов $A \in N$, в ячейках $(i, j)$ которых содержится информация об одном найденном пути из вершины $i$ в вершину $j$, образующем строку, выводимую из нетерминала $A$ с минимальной высотой дерева вывода. В случае, если для пары вершин $(i, j)$ таких путей не существует, то $T^A[i, j] = \bot$.
+In the presented definition, we use the lexicographical order over pairs of integers $(\textit{PI}.\textit{height}, \textit{PI}.\textit{middle})$ for $\textit{PI} \in \textit{PathIndex}$. Thus, when the operation $\oplus$ is used, the elements of the matrix $T^A$ will contain information about the found paths that form words with the minimum heights of the derivation trees from the nonterminal $A$ in the grammar $G$. Next, we determine the values of the elements $\alpha^0_{i, j}, \alpha^1_{i, j} \in \textit{PathIndex}$. For a path of length 1 that form a string derived from the nonterminal $A_k$, the information about this path will be added to the corresponding matrix element $T^{A_k}$ in the form of a tuple $\alpha^1_{i, j} = (i, j, i, 1)$. In turn, for paths of length 0 , the tuples $\alpha^0_{i, i} = (i, i, i, 1)$ are used. In these cases, the initial vertices of paths of length 0 and 1 are chosen as intermediate vertices. Thus, the algorithm presented in Listing~\ref{lst:mtx_cfpq} allows one to solve the CFPQ problem with the single-path query semantics using the semiring $\langle \textit{PathIndex}, \oplus, \otimes, \bot \rangle$ with operations defined for this problem. The result of the algorithm is a set of matrices $T^A$ for all nonterminal symbols $A \in N$, whose elements $(i, j)$ contain information about found paths. For all pairs of vertices $(i, j)$, these elements describe a path that forms a word derived from the nonterminal $A$ with the minimum height of the derivation tree. If there are no such paths for a pair of vertices $(i, j)$ then $T^A[i, j] = \bot$.
+
+%Однако кроме построения множества матриц $T$, содержащих информацию о найденных путях, необходимо восстановить путь $i \pi j$ для любых $i, j$ и нетерминала $A$ таких, что $A \Rightarrow_G \lambda(\pi)$, если такой путь существует. Поэтому на листинге~\ref{lst:mtx_single_extract} представлен алгоритм восстановления одного пути, соответствующего заданным КС-ограничениям, для любой пары вершин $(i, j)$ и нетерминала $A$. Представленный алгоритм восстанавливает путь, соответствующий строке с минимальной высотой дерева вывода. Алгоритм возвращает пустой путь $\pi_{\varepsilon}$ только когда $i = j$ и $A \to \varepsilon \in P$. Необходимо заметить, что если $T^A[i, j] = \bot$, то предложенный алгоритм возвращает специальный путь $\pi_{\emptyset}$, обозначающий отсутствие путей соответствующих заданным КС-ограничениям.
+However, in addition to constructing the set of matrices $T$ containing information about the found paths, it is necessary to construct the path $i \pi j$ for any $i, j$ and nonterminal $A$ such that $A \Rightarrow_G \lambda(\pi)$ if such a path exists. Therefore, in Listing~\ref{lst:mtx_single_extract} we present an algorithm for the extraction of a single path corresponding to given context-free constraints for any pair of vertices $(i, j)$ and nonterminal $A$. The presented algorithm extracts the path corresponding to the string with the minimum height of the derivation tree. The algorithm returns the empty path $\pi_{\varepsilon}$ only when $i = j$ and $A \to \varepsilon \in P$. It should be noted that if $T^A[i, j] = \bot$ then the proposed algorithm returns a special path $\pi_{\emptyset}$ denoting the absence of paths corresponding to the given constraints.
+
+	\begin{algorithm}
+		\floatname{algorithm}{Listing}
+		\begin{algorithmic}[1]
+			\caption{Single path extraction algorithm}
+			\label{lst:mtx_single_extract}
+			\Function{ExtractSinglePath}{$i, j, A, T=\{T^{A_i}\}, G=\langle N, \Sigma, P, S \rangle$}
+			\State{$\textit{index} \gets T^{A}_{i,j}$ }
+			
+			\If{$\textit{index} = \bot$}
+			\State \Return $\pi_{\emptyset}$
+			\Comment{Such path does not exist}
+			\EndIf
+			
+			\If{$\textit{index.height} = 1$}
+			\If{$(i = j) \wedge (A \to \varepsilon \in P)$}
+			\State \Return $\pi_{\varepsilon}$
+			\Comment{Return the empty path}
+			\EndIf
+			\ForAll{$ x \mid (i,x,j) \in E$}
+			\If{$A \to x \in P$}
+			\State \Return $[(i,x,j)]$
+			\Comment{Return a path of length 1}
+			\EndIf
+			\EndFor
+			\EndIf
+			
+			\ForAll{$A \to B C \in P$}
+			\State{$\textit{index}_B \gets T^{B}[i, \textit{index.middle}]$ }
+			\State{$\textit{index}_C \gets T^{C}[\textit{index.middle}, j]$ }			
+			\If{$(\textit{index}_B \neq \bot) \wedge (\textit{index}_C \neq \bot)$}
+			\State{$\textit{maxH} \gets \textit{max}(\textit{index}_B.\textit{height}, \textit{index}_C.\textit{height})$ }
+			\If{$\textit{index.height} = \textit{maxH} + 1$}
+			
+						
+			\State{$\pi_1 \gets$ \Call{ExtractSinglePath}{$i, \textit{index.middle}, B, T, G$}}
+			\State{$\pi_2 \gets$ \Call{ExtractSinglePath}{$\textit{index.middle}, j, C, T, G$}}
+			\State \Return $\pi_1 + \pi_2$
+			\Comment{Return the concatenation of two paths}
+			\EndIf
+			\EndIf
+			\EndFor
+			\EndFunction
+		\end{algorithmic}
+	\end{algorithm}
+	
+%Таким образом, алгоритмы представленные на листингах~\ref{lst:mtx_cfpq} и \ref{lst:mtx_single_extract} позволяют решить задачу поиска одного пути в графе с заданными КС-ограничениями с использованием операций умножения матриц.
+Thus, the algorithms presented in Listings~\ref{lst:mtx_cfpq} and \ref{lst:mtx_single_extract} allow one to solve the CFPQ problem with the single-path query semantics.
+ 
+\paragraph{All-path.}
+%Для решения задачи поиска всех путей в графе с заданными КС-ограничениями, необходимо для каждой пары вершин $(i, j)$ иметь возможность построить все пути из вершины $i$ в вершину $j$, удовлетворяющие заданным ограничениям. Для этого добавим в ячейки матриц дополнительную информацию о всех найденных путях в графе и построим новую алгебраическую структуру для модификации операций над этими матрицами. В качестве такой информации возьмём множество троек $(\textit{left}, \textit{right}, \textit{middles})$, где $\textit{left}$ и $\textit{right}$~--- начальная и конечная вершины найденных путей, а $\textit{middles}$~--- множество некоторых промежуточных вершин этих путей. В процессе обхода графа в $T^A[i,j].\textit{middles}$ будут записываться все промежуточные вершины $k$ рассматриваемых путей $i \pi j$, образованных конкатенацией двух более коротких путей $i \pi_1 k$ и $k \pi_2 j$. В случае, если путь имеет длинну 0 или 1 и не имеет промежуточных вершин, то будем добавлять в соответствующую ячейку $(i, j)$ элементы $\alpha^0_{i, j} = \alpha^1_{i, j} = (i, j, \{n\})$ со специальным значением $n = |V|$. В случае отсутствия путей, соответствующих заданным ограничениям для некоторой пары вершин, будем использовать тройку $\bot = (0, 0, \emptyset)$.  Обозначим множество всех возможных значений таких ячеек, включая $\bot$, как $\textit{AllPathIndex}$. Теперь построим алгебраическую структуру над элементами множества $\textit{AllPathIndex}$, которое позволит модифицировать операции умножения и сложения матриц для решения задачи поиска всех путей в графе с заданными КС-ограничениями. Нейтральным элементом по сложению в этой структуре будет элемент $\bot$.
+In order to solve the CFPQ problem with the all-path query semantics it is necessary for each pair of vertices $(i, j)$ to construct any given number of paths from the vertex $i$ to the vertex $j$ that satisfy the given constraints. To do this, we add additional information about all found paths in the graph to the the matrix elements and construct a new algebraic structure for modifying operations on these matrices. We use the set of triples $(\textit{left}, \textit{right}, \textit{middles})$ where $\textit{left}$ and $\textit{right}$ are the initial and the final vertex of the found paths, and $\textit{middles}$ is the set of some intermediate vertices of these paths. In the process of traversing the graph, $T^A[i, j].\textit{middles}$ will contain all intermediate vertices $k$ of visited paths $i \pi j$ formed by the concatenation of two shorter paths $i \pi_1 k$ and $k \pi_2 j$. If the path has length 0 or 1 and has no intermediate vertices, then we will use the elements $\alpha^0_{i, j} = \alpha^1_{i, j} = (i, j, \{n\})$ with the special value $n = |V|$. This value is different from the number of any graph vertex, and it describes the case when the path found has no intermediate vertices. If there are no paths corresponding to the given constraints for some pair of vertices, we will use the triple $\bot = (0, 0, \emptyset)$. We denote the set of all possible values of such elements, including $\bot$, as $\textit{AllPathIndex}$. Next, we build an algebraic structure over the elements of the set $\textit{AllPathIndex}$, which allows one to modify the matrix multiplication and matrix addition operations to solve the CFPQ problem with the all-path query semantics. The neutral element in this structure will be the $\bot$ element.
+
+%Для построения алгебраической структуры сначала определим операцию умножения $\otimes$ для \mbox{$\textit{API}_1, \textit{API}_2 \in \textit{AllPathIndex}$} следующим образом.
+To construct an algebraic structure, we first define the multiplication operation $\otimes$ for \mbox{$\textit{API}_1, \textit{API}_2 \in \textit{AllPathIndex}$} as follows.
+
+$$\textit{API}_1 \otimes \textit{API}_2 = \begin{cases}
+      (\textit{API}_1.\textit{left}, \textit{API}_2.\textit{right}, \{\textit{API}_1.\textit{right}\}), \text{if $\textit{API}_1 \neq \bot \neq \textit{API}_2$} \\
+      \bot, \qquad \text{otherwise} \\
+    \end{cases}\
+$$
+
+%При обнаружении нескольких путей в графе, удовлетворяющих заданным КС-ограничениям, для одной и той же пары вершин необходимо записать информацию обо всех найденных путях. Поэтому определим операцию сложения $\oplus$ для \mbox{$\textit{API}_1, \textit{API}_2 \in \textit{AllPathIndex}$} следующим образом.
+For a pair of vertices several paths that satisfy the given constraints can be found. Thus, it is necessary to store information about all the paths found. Therefore, we define the addition operation $\oplus$ for \mbox{$\textit{API}_1, \textit{API}_2 \in \textit{AllPathIndex}$} as follows.
+
+$$\textit{API}_1 \oplus \textit{API}_2 = \begin{cases}
+      (\textit{API}_1.\textit{left}, \textit{API}_1.\textit{right}, \\ \textit{API}_1.\textit{middles} \cup \textit{API}_2.\textit{middles}), \qquad \text{if $\textit{API}_1\neq \bot$} \\
+      \textit{API}_2, \qquad \text{otherwise} \\
+    \end{cases}\
+$$
+
+%Таким образом, алгоритм, представленный на листинге~\ref{lst:mtx_cfpq} позволяет решить задачу поиска всех путей в графе с заданными КС-ограничениями при использовании алгебраической структуры $\langle \textit{AllPathIndex}, \oplus, \otimes, \bot \rangle$ с определенными для данной задачи операциями. Результатом работы алгоритма является множество матриц $T^A$ для всех нетерминальных символов $A \in N$, в ячейках $(i, j)$ которых содержится информация обо всех путях из вершины $i$ в вершину $j$, образующих строки, выводимые из нетерминала $A$. В случае, если для пары вершин $(i, j)$ таких путей не существует, то $T^A[i, j] = \bot$.
+Thus, the algorithm presented in Listing~\ref{lst:mtx_cfpq} allows one to solve the CFPQ problem with the all-path query semantics using the algebraic structure $\langle \textit{AllPathIndex}, \oplus, \otimes, \bot \rangle$ with operations defined for this problem. The result of the algorithm is a set of matrices $T^A$ for all nonterminal symbols $A \in N$, whose cells $(i, j)$ contain information about all paths from $i$ to $j$ that form strings derived from the nonterminal $A$. If there are no such paths for a pair of vertices $(i, j)$ then $T^A[i, j] = \bot$.
+
+%После построения множества матриц $T$, содержащих информацию обо всех найденных путях, необходимо иметь возможность восстановить все пути $i \pi j$ для любых $i, j$ и нетерминала $A$ таких, что $A \Rightarrow_G \lambda(\pi)$. Поэтому на листинге~\ref{lst:mtx_all_extract} представлен алгоритм восстановления всех путей, соответствующих заданным КС-ограничениям, для любой пары вершин $(i, j)$ и нетерминала $A$. Алгоритм возвращает пустой путь $\pi_{\varepsilon}$ только когда $i = j$ и $A \to \varepsilon \in P$.
+After constructing the set of matrices $T$ that contains information about all paths found, it is necessary to extract any given number of paths $i \pi j$ for any $i, j$ and nonterminal $A$ such that $A \Rightarrow_G \lambda(\pi)$. Therefore, in Listing~\ref{lst:mtx_all_extract} we present a path extraction algorithm. For any pair of vertices $(i, j)$ and nonterminal $A$, this algorithm constructs paths corresponding to the given context-free path constraints. The algorithm returns the empty path $\pi_{\varepsilon}$ only when $i = j$ and $A \to \varepsilon \in P$.
+
+\begin{algorithm}
+	\begin{algorithmic}[1]
+		\floatname{algorithm}{Listing}
+		\caption{All paths extraction algorithm}
+		\label{lst:mtx_all_extract}		
+		\Function{ExtractAllPaths}{$i, j, A, T=\{T^{A_k} \mid A_k \in N\}, G=\langle N, \Sigma, P, S \rangle$}
+		\State{$\textit{index} \gets T^{A}_{i,j}$ }
+		
+		\If{$\textit{index} = \bot$}
+		\State \Return $\emptyset$
+		\Comment{Such paths do not exist}
+		\EndIf
+		
+		\State{$n \gets $ the number of rows in the matrix $T^{A}$}
+		\State{$\textit{resultPaths} \gets \emptyset$}
+		
+		\ForAll{$m \in \textit{index.middles}$}		
+		\If{$m = n$}  \Comment{Add single-edge or empty paths}
+		\ForAll{$x \mid A \to x \in P$}
+		\If{$(i, x, j) \in E$}
+		\State{$\textit{resultPaths} \gets \textit{resultPaths} \cup \{((i, x, j))\}$}
+		\EndIf
+		\EndFor
+		\If{$(i = j) \wedge (A \to \varepsilon \in P)$}
+		\State{$\textit{resultPaths} \gets \textit{resultPaths} \cup \{\pi_{\varepsilon}\}$}
+		\EndIf
+		\Else \Comment{Add to the result the concatented paths from $i$ to $m$ and from $m$ to $j$}
+		\ForAll{$A \to B C \in P$}
+		\State{$\textit{index}_B \gets T^{B}[i, m]$ }
+		\State{$\textit{index}_C \gets T^{C}[m, j]$ }
+		\If{$(\textit{index}_B \neq \bot) \wedge (\textit{index}_C \neq \bot)$}
+		\State{$\textit{lPaths} \gets$ \Call{ExtractAllPaths}{$i, m, B, T, G$}}
+		\State{$\textit{rPaths} \gets$ \Call{ExtractAllPaths}{$m, j, C, T, G$}}
+		\State{$\textit{resultPaths} \gets \textit{resultPaths} \cup \textit{lPaths} \cdot \textit{rPaths}$}
+		\EndIf
+		\EndFor
+		\EndIf
+		\EndFor
+		\State \Return $\textit{resultPaths}$
+		\EndFunction
+	\end{algorithmic}
+\end{algorithm}
+
+%Таким образом, алгоритмы представленные на листингах~\ref{lst:mtx_cfpq} и \ref{lst:mtx_all_extract} позволяют решить задачу поиска всех путей в графе с заданными КС-ограничениями с использованием операций умножения матриц.
+Thus, the algorithms presented in Listings~\ref{lst:mtx_cfpq} and~\ref{lst:mtx_all_extract} allow one to solve the CFPQ problem with the all-path query semantics.
+
+
+\section{Correctness of the Algorithm}\label{sec:ch3/sect2}
+%В данном разделе сформулированы и доказаны утверждения о корректности и завершаемости изложенного алгоритма для рассмотренных задач поиска путей в графе с заданными КС-ограничениями.
+In this section, we formulate and prove statements about the correctness and termination of the proposed CFPQ algorithm.
+
+%Пусть дана одна из трёх задач поиска путей в графе с заданными КС-ограничениями. Также пусть для поставленной задачи построена алгебраическая структура $\langle \textit{MatrixElements}, \oplus, \otimes, \bot \rangle$, переопределяющая операции над матрицами в алгоритме, представленном на листинге~\ref{lst:mtx_cfpq}. Кроме того, пусть для любой пары вершин $(i, j)$ входного графа $\mathcal{G}$ в носителе этой структуры выделены элементы $\alpha^0_{i, j}$ и $\alpha^1_{i, j}$, используемые для инициализации матриц этого алгоритма. Тогда сначала докажем, что если построенная структура обладает некоторыми свойствами, то получившийся алгоритм поиска путей в графе завершается за конечно число шагов и корректно решает поставленную задачу. А затем покажем, что предложенные в предыдущем разделе алгебраические структуры для задач достижимости, поиска одного и поиска всех путей в графе с заданными КС-ограничениями такими свойствами обладают.
+Suppose that the particular CFPQ problem is given. Also, suppose that the algebraic structure $\langle \textit{MatrixElements}, \oplus, \otimes, \bot \rangle$ is constructed for this problem, and the matrix operations are modified in the algorithm shown in Listing~\ref{lst:mtx_cfpq}. Moreover, the defined elements $\alpha^0_{i, j}$ and $\alpha^1_{i, j}$ are used to initialize the matrices of this algorithm. Then we first prove that if the constructed structure has some properties then the resulting CFPQ algorithm terminates in a finite number of steps and correctly solves the problem. And then we will show that the algebraic structures proposed in the previous section for the reachability, the single-path, and the all-path query semantics have such properties.
+
+\textbf{Termination.} %Для доказательства завершаемости алгоритма, представленного на листинге~\ref{lst:mtx_cfpq}, сперва введём обозначения для промежуточных матриц из множества $T$, получающихся в процессе работы этого алгоритма. Для любой пары вершин $(i, j)$ и для любого нетерминала $A \in N$, будем использовать обозначение $T^{A, 0}[i, j]$ для значения в ячейке $T^{A}[i, j]$ после инициализации матриц в строках 2--8 алгоритма, а $T^{A, k}[i,j]$~--- для значения в ячейке $T^{A}[i, j]$ после $k$ исполнений цикла в строках 9--11, для $k \geq 1$.
+To prove the termination of the algorithm shown in Listing~\ref{lst:mtx_cfpq}, we first introduce the notation for the intermediate matrices from the set $T$ that are obtained in this algorithm. For any pair of vertices $(i, j)$ and for any nonterminal $A \in N$, we will use the notation $T^{A, 0}[i, j]$ for the value in cell $T^{A}[i, j]$ after matrix initialization in lines 2--8 of the algorithm, and $T^{A, k}[i, j]$~--- for the value in cell $T^{A}[i, j] $ after $k$ iterations of the loop in lines 9--11, for $k \geq 1$.
+
+%Тогда докажем, что если на элементах использованной конечной алгебраической структуры $\langle \textit{MatrixElements}, \oplus, \otimes, \bot \rangle$ может быть задано некоторое отношение частичного порядка $\preceq$, то предложенный алгоритм завершается.
+Then we prove that if some partial order relation $\preceq$ can be defined on the elements of the used finite algebraic structure $\langle \textit{MatrixElements}, \oplus, \otimes, \bot \rangle$ then the proposed algorithm terminates.
+
+\begin{theorem}[Algorithm termination]\label{thm:finite_mtx}
+	 Assume that a partial order relation $\preceq$ can be defined on the domain of the used algebraic structure $\langle \textit{MatrixElements}, \oplus, \otimes, \bot \rangle$ such that for any pair of vertices $(i, j)$, any nonterminal $A \in N$, and any $k \geq 1$, $T^{A, k - 1}[i, j] \preceq T^{A, k}[i, j]$. Also, assume that the domain $\textit{MatrixElements}$ is finite. Then the algorithm presented in Listing~\ref{lst:mtx_cfpq} terminates in a finite number of steps.
+\end{theorem}
+\begin{proof}
+%На очередной итерации цикла в строках 9--11 алгоритма, значения в ячейках $T^A[i, j]$ либо могут не изменяться, либо изменяться в результате выполнения операций $T^{A} \gets T^{A} \bigoplus (T^{B} \cdot T^{C})$ в строке 11. Алгоритм продолжает свою работу пока значение хотя бы в одной ячейке изменяется. По условию теоремы, значения в ячейках матриц от итерации к итерации монотонно возрастают относительно заданного частичного порядка $\preceq$. Таким образом, в силу конечности носителя $\textit{MatrixElements}$ на некоторой итерации матрицы перестанут изменяться и алгоритм завершит свою работу.
+At the next iteration of the loop in lines 9--11 of the algorithm, the values in the cells $T^A[i, j]$ can either remain unchanged or change as a result of the operations $T^{A} \gets T^{A} \bigoplus (T^{B} \cdot T^{C})$ in the line 11. The algorithm continues its work until the value in at least one cell changes. By the hypothesis of the theorem, the values in the matrix cells increase monotonically with respect to the given partial order $\preceq$. Thus, due to the finiteness of the domain $\textit{MatrixElements}$, at some iteration, the matrices will stop changing and the algorithm will terminate.
+\end{proof}
+
+\textbf{Correctness.} %Для доказательства корректности алгоритма, представленного на листинге~\ref{lst:mtx_cfpq}, введём обозначения, описывающие связь рассматриваемых путей в графе и значений в ячейках $T^{A, k}[i, j]$ промежуточных матриц, получающихся в процессе работы этого алгоритма. Для любой пары вершин $(i, j)$ и для любого нетерминала $A \in N$, будем использовать обозначение $\mathcal{P}_{\mathcal{G}, k}(i, j, A)$ для множества всех путей $i \pi j$ графа $\mathcal{G}$ таких, что существует дерево вывода минимальной высоты $h \leq k$ для строки $\lambda(\pi)$ из нетерминала $A$ грамматики $G$. Также будем говорить, что некоторая информация позволяет корректно решить задачу поиска путей с заданными КС-ограничениями для множества путей $\mathcal{P}$ из вершины $i$ в вершину $j$, если эта информация:
+To prove the correctness of the algorithm shown in Listing~\ref{lst:mtx_cfpq}, we introduce the notation that describes the relationship between the visited paths in the graph and the values in the cells $T^{A, k}[i, j]$ of the intermediate matrices obtained in this algorithm. For any pair of vertices $(i, j)$ and for any nonterminal $A \in N$, we will use the notation $\mathcal{P}_{\mathcal{G}, k}(i, j, A)$ for the set of all paths $i \pi j$ of the graph $\mathcal{G}$ such that there exists a derivation tree of minimum height $h \leq k$ for the string $\lambda(\pi)$ from the nonterminal $A$ of the grammar $G$. We will also say that some information allows us to correctly solve a CFPQ problem for the set of paths $\mathcal{P}$ from the vertex $i$ to the vertex $j$, if this information:
+\begin{itemize}
+    \item allows one to answer the question of the existence of at least one path $\pi \in \mathcal{P}$ satisfying the given constraints for the reachability problem;
+    \item allows one to construct at least one path $\pi \in \mathcal{P}$ satisfying the given constraints, if such exists, for the single-path query semantics;
+    \item allows one to construct any finite number of paths $\pi \in \mathcal{P}$ satisfying given constraints for the all-path query semantics.
+\end{itemize}
+
+%Тогда докажем, что если операции использованной алгебраической структуры $\langle \textit{MatrixElements}, \oplus, \otimes, \bot \rangle$ и её элементы обладают некоторыми свойствами, то предложенный алгоритм корректно решает поставленную задачу.
+Then we prove that if the operations of the used algebraic structure $\langle \textit{MatrixElements}, \oplus, \otimes, \bot \rangle$ and its elements have some properties then the proposed algorithm correctly solves the given CFPQ problem.
+
+\begin{lemma}[Algorithm correctness]\label{lemma:correct_mtx}
+	%Пусть $\mathcal{G} = \langle V, E, L \rangle$~--- входной граф и $G =\langle N, \Sigma, P, S \rangle$~--- входная КС-грамматика для алгоритма, представленного на листинге~\ref{lst:mtx_cfpq}. Также пусть для использованной алгебраической структуры $\langle \textit{MatrixElements}, \oplus, \otimes, \bot \rangle$ и для любых элементов $\alpha_1, \alpha_2 \in \textit{MatrixElements}$ справедливы следующие свойства:
+	Suppose that $\mathcal{G} = \langle V, E, L \rangle$ is the input graph and $G =\langle N, \Sigma, P, S \rangle$ is the input CFG for the algorithm presented in Listing~\ref{lst:mtx_cfpq}. Also, suppose that the used algebraic structure $\langle \textit{MatrixElements}, \oplus, \otimes, \bot \rangle$ and any elements $\alpha_1, \alpha_2 \in \textit{MatrixElements}$ have the following properties:
+	\begin{itemize}
+	    \item the algebraic structure $\langle \textit{MatrixElements}, \oplus, \otimes, \bot \rangle$ is a semiring without the associativity of the operation $\otimes$;
+	    \item the selected elements $\alpha^l_{i, j} \in \textit{MatrixElements}$ used in lines 4--8 of the algorithm, allow one to correctly solve the CFPQ problem for the set of paths of the graph $\mathcal{G}$ from the vertex $i$ to the vertex $j$ of length $l$ where $l \in \{0, 1\}$;
+	    \item if the elements $\alpha_1$ and $\alpha_2$ allow one to correctly solve the stated CFPQ problem for the sets of paths $\mathcal{P}_1$ and $\mathcal{P}_2$ from the vertex $i$ to the vertex $j$ then the element $\alpha_1 \oplus \alpha_2$ allows one to correctly solve the stated problem for the set of paths $\mathcal{P}_1 \cup \mathcal{P}_2$;
+	    \item if the elements $\alpha_1$ and $\alpha_2$ allow one to correctly solve the stated CFPQ problem for the set of paths $\mathcal{P}_1$ from the vertex $i$ to the vertex $k$ and for the set $\mathcal{P}_2$ of paths from the vertex $k$ to the vertex $j$ then the element $\alpha_1 \otimes \alpha_2$ allows one to correctly solve this problem for the set of paths $\mathcal{P}_1 \cdot \mathcal{P}_2$ of all possible concatenations of paths from these sets.
+	\end{itemize}
+	%Тогда  для любой пары вершин $(i, j)$ графа $\mathcal{G}$, для любого нетерминала $A \in N$ и для любого $k \geq 0$ значение в ячейке $T^{A, k}[i, j]$ позволяет корректно решить поставленную задачу для множества путей $\mathcal{P}_{\mathcal{G}, k + 1}(i, j, A)$.
+	Then for any pair of vertices $(i, j)$ of the graph $\mathcal{G}$, for any nonterminal $A \in N$, and for any $k \geq 0$ the value in cell $T^{A, k} [i, j]$ allows one to correctly solve the stated CFPQ problem for the set of paths $\mathcal{P}_{\mathcal{G}, k + 1}(i, j, A)$.
+\end{lemma}
+\begin{proof}(Proof by induction)
+
+\textbf{Base case}: %Покажем, что утверждение леммы справедливо для $k = 0$. Для грамматик в нормальной форме, деревья вывода с высотой 1 имеют лишь строки длины 1 или пустая строка $\varepsilon$. Таким образом, множество $\mathcal{P}_{\mathcal{G}, 1}(i, j, A)$ содержит только пути длины 0 или 1. Для всех таких путей и только для них существует дерево вывода минимальной высоты $h = k + 1 = 1$, показанное на рисунке~\ref{tree1}. Рассмотрение таких путей происходит в строках 4--8 алгоритма. Поэтому для любой пары вершин $(i, j)$ и любого нетерминала $A \in N$, $T^{A, 0}[i, j] \neq \bot$ тогда и только тогда, когда либо существует путь $i \pi j$ длины $1$, который содержит единственную дугу $(i, x, j) \in E$ и $(A \rightarrow x) \in P$, либо $i = j$ и $(A \rightarrow \varepsilon) \in P$. В случае наличия пути $\pi \in \mathcal{P}_{\mathcal{G}, 1}(i, j, A)$, в ячейку $T^{A, 0}[i, j]$ будут записаны соответствующие элементы $\alpha^0_{i, j}$ или $\alpha^1_{i, j}$. А по условию леммы выделенные элементы $\alpha^l_{i, j} \in \textit{MatrixElements}$ позволяют корректно решить поставленную задачу для множеств путей длины $l$, где $l \in \{0, 1\}$. Таким образом, утверждение леммы справедливо для $k = 0$.
+We will show that the statement of the lemma is correct for $k = 0$. For grammars in the WCNF, derivation trees with height 1 only correspond to the strings of length 1 or the empty string $\varepsilon$. Thus, the set $\mathcal{P}_{\mathcal{G}, 1}(i, j, A)$ contains only paths of length 0 or 1. For all such paths and only for them, there exists a derivation tree of minimum height $h = k + 1 = 1$ shown in the Figure~\ref{tree1}. Traversing of such paths occurs in lines 4--8 of the algorithm. Therefore, for any pair of vertices $(i, j)$ and any nonterminal $A \in N$, $T^{A, 0}[i, j] \neq \bot$ if and only if either there exists a path $i \pi j$ of length $1$ that contains a single edge $(i, x, j) \in E$ and $(A \rightarrow x) \in P$, or $i = j$ and $(A \rightarrow \varepsilon) \in P$. For a path $\pi \in \mathcal{P}_{\mathcal{G}, 1}(i, j, A)$ to the cell $T^{A, 0}[i, j]$ will be written the corresponding elements $\alpha^0_{i, j}$ or $\alpha^1_{i, j}$. And by the lemma conditions, the distinguished elements $\alpha^l_{i, j} \in \textit{MatrixElements}$ allow one to correctly solve the stated CFPQ problem for sets of paths of length $l$ where $l \in \{0, 1\}$. Thus, the statement of the lemma is correct for $k = 0$.
+	
+\begin{figure}
+	\begin{center}
+		\begin{tikzpicture}[on grid, auto]
+		\node[state] (q_0)   {$A$};
+		\node[state] (q_1) [below=2.0cm of q_0] {$x$};
+		\path[->]
+		(q_0) edge  node {} (q_1);
+		\end{tikzpicture}
+	\end{center}
+	\caption{A derivation tree of the minimal height $h = 1$ for the string $x = \lambda(\pi)$ where $x \in \Sigma \cup \{\varepsilon\}$}
+	\label{tree1}
+\end{figure}
+	
+	\textbf{Inductive step}: %Предположим, что утверждение леммы справедливо для любого $k \leq (p - 1)$, где $p \geq 1$, и покажем, что оно также справедливо для $k = p$.
+	Assume that the statement of the lemma is correct for any $k \leq (p - 1)$ where $p \geq 1$, and show that it is also correct for $k = p$.
+	
+	%Операции цикла в строках 9--11 алгоритма означают, что значение $T^{A, p}[i, j] = T^{A, p - 1}[i, j] \bigoplus_{A \to B C \in P} (T^{B, p - 1} \cdot T^{C, p - 1})[i, j]$. Докажем, что значение в ячейке $T^{A, p}[i, j]$ позволяет корректно решить поставленную задачу для множества путей $\mathcal{P}_{\mathcal{G}, p + 1}(i, j, A)$.
+	The loop operations in lines 9-11 of the algorithm mean that the value $T^{A, p}[i, j] = T^{A, p - 1}[i, j] \bigoplus_{A \to B C \in P} (T^{B, p - 1} \cdot T^{C, p - 1})[i, j]$. Next, we prove that the value in the cell $T^{A, p}[i, j]$ allows one to correctly solve the stated CFPQ problem for the set of paths $\mathcal{P}_{\mathcal{G}, p + 1}(i, j, A)$.
+	
+	%Пусть значение $\bigoplus_{A \to B C \in P} (T^{B, p - 1} \cdot T^{C, p - 1})[i,j]$ позволяет корректно решить задачу для множества путей $\mathcal{P}'$. По индукционному предположению, значение в ячейке $T^{A, p - 1}[i, j]$ позволяет это сделать для множества путей $\mathcal{P}_{\mathcal{G}, p}(i, j, A)$. Тогда по условию леммы получаем, что значение $T^{A, p}[i, j] = T^{A, p - 1}[i, j] \bigoplus_{A \to B C \in P} (T^{B, p - 1} \cdot T^{C, p - 1})[i, j]$ позволяет корректно решить поставленную задачу для множества путей $\mathcal{P}_{\mathcal{G}, p}(i,j,A) \cup \mathcal{P}'$. Таким образом, для завершения доказательства леммы остаётся показать, что $\mathcal{P}_{\mathcal{G}, p}(i, j, A) \cup \mathcal{P}' = \mathcal{P}_{\mathcal{G}, p + 1}(i, j, A)$.
+	Suppose that the value $\bigoplus_{A \to B C \in P} (T^{B, p - 1} \cdot T^{C, p - 1})[i, j]$ allows one to correctly solve the problem for the set of paths $\mathcal{P}'$. By the induction hypothesis, the value in the cell $T^{A, p - 1}[i, j]$ allows one to do this for the set of paths $\mathcal{P}_{\mathcal{G}, p}(i, j, A)$. Then, by the condition of the lemma, we obtain that the value $T^{A, p}[i, j] = T^{A, p - 1}[i, j] \bigoplus_{A \to B C \in P} (T^ {B, p - 1} \cdot T^{C, p - 1})[i, j]$ allows one to correctly solve the problem for the set of paths $\mathcal{P}_{\mathcal{G}, p}(i, j, A) \cup \mathcal{P}'$. Thus, to complete the proof of the lemma, it remains to show that $\mathcal{P}_{\mathcal{G}, p}(i, j, A) \cup \mathcal{P}' = \mathcal{P}_{\mathcal{G}, p + 1}(i, j, A)$.
+	
+	%Существование путей $\pi \in \mathcal{P}_{\mathcal{G}, p + 1}(i, j, A)$ равносильно существованию правила $A \to B C \in P$, а также путей $\pi_1 \in \mathcal{P}_{\mathcal{G}, p}(i, r, B)$  и $\pi_2 \in \mathcal{P}_{\mathcal{G}, p}(r, j, C)$, где путь $\pi$ получается в результате конкатенации путей $\pi_1$ и $\pi_2$, а дерево вывода строки $\lambda(\pi)$ из нетерминала $A$ с минимальной высотой $h \leq p + 1$ представлено на рисунке~\ref{tree2}. По индукционному предположению, значения $T^{B, p - 1}[i, r]$ и $T^{C, p - 1}[r, j]$ позволяют корректно решить поставленную задачу для множества всех таких путей $\pi_1$ и для множества всех таких путей $\pi_2$ соответственно. Используя свойства операции $\oplus$ и $\otimes$ из условия леммы, а также построение операций над матрицами получаем, что значение $(T^{B, p - 1} \cdot T^{C, p - 1})[i, j]$ позволяет корректно решить поставленную задачу для множества путей $\mathcal{P}_{\textit{BC}}$, полученного конкатенацией таких путей $\pi_1$ и $\pi_2$. Кроме того, используя свойство операции $\oplus$ из условия леммы получаем, что $\bigoplus_{A \to B C \in P} (T^{B, p - 1} \cdot T^{C, p - 1})[i, j]$ позволяет корректно решить поставленную задачу для множества путей $\mathcal{P}' = \bigcup_{A \to B C \in P} \mathcal{P}_{\textit{BC}}$. Таким образом, $\mathcal{P}_{\mathcal{G}, p}(i, j, A) \cup \mathcal{P}' = \mathcal{P}_{\mathcal{G}, p}(i, j, A) \cup \bigcup_{A \to B C \in P} \mathcal{P}_{\textit{BC}} = \mathcal{P}_{\mathcal{G}, p + 1}(i, j, A)$, что доказывает утверждение леммы.
+	The existence of paths $\pi \in \mathcal{P}_{\mathcal{G}, p + 1}(i, j, A)$ is equivalent to the existence of the rule $A \to B C \in P$ and paths $\pi_1 \in \mathcal{P}_{\mathcal{G}, p}(i, r, B)$, $\pi_2 \in \mathcal{P}_{\mathcal{G}, p}(r, j, C)$ where the path $\pi$ is obtained as a result of the concatenation of the paths $\pi_1$ and $\pi_2$, and the derivation tree of the string $\lambda(\pi)$ from the nonterminal $A$ with the minimum height $h \leq p + 1$ is shown in the Figure~\ref{tree2}. By the inductive hypothesis, the values $T^{B, p - 1}[i, r]$ and $T^{C, p - 1}[r, j]$ allow one to correctly solve the stated problem for the set of all such paths $\pi_1$ and for the set of all such paths $\pi_2$, respectively. Using the properties of the operations $\oplus$ and $\otimes$ from the conditions of the lemma, as well as the construction of matrix operations, we obtain that the value of $(T^{B, p - 1} \cdot T^{C, p - 1})[i, j]$ allows one to correctly solve the stated problem for the set of paths $\mathcal{P}_{\textit{BC}}$ obtained by concatenation of such paths $\pi_1$ and $\pi_2$. In addition, using the property of the operation $\oplus$ from the conditions of the lemma, we obtain that $\bigoplus_{A \to B C \in P} (T^{B, p - 1} \cdot T^{C, p - 1}) [i, j]$ allows one to correctly solve the stated problem for the set of paths $\mathcal{P}' = \bigcup_{A \to B C \in P} \mathcal{P}_{\textit{BC}}$. Thus, $\mathcal{P}_{\mathcal{G}, p}(i, j, A) \cup \mathcal{P}' = \mathcal{P}_{\mathcal{G}, p}(i, j, A) \cup \bigcup_{A \to B C \in P} \mathcal{P}_{\textit{BC}} = \mathcal{P}_{\mathcal{G}, p + 1}(i, j, A)$, and it proves the statement of the lemma.
+	
+	\begin{figure}[h!]
+	\begin{center}
+		\begin{tikzpicture}[on grid, auto]
+		\node[state] (q_0)   {$A$};
+		\node[state] (q_1) [below left=2cm and 1.5cm of q_0] {$B$};
+		\node[state] (q_2) [below right= 2cm and 1.5cm of q_0] {$C$};
+		\node[regular polygon,regular polygon sides=3, draw, dashed] (T1) [below=1.9cm of q_1] {$T_B$};
+		\node[regular polygon,regular polygon sides=3, draw, dashed] (T2) [below=1.9cm of q_2] {$T_C$};
+		\path[->]
+		(q_0) edge  node {} (q_1)
+		(q_0) edge  node {} (q_2);
+		\end{tikzpicture}
+	\end{center}
+	\caption{A derivation tree of the minimal height $h = 1 + \textit{max}(h_1, h_2)$ for the string $\lambda(\pi)$ where $T_B$ и $T_C$ are derivation trees for strings $\lambda(p_1)$ and $\lambda(\pi_2)$ with heights $h_1$ and $h_2$ respectively}
+	\label{tree2}
+    \end{figure}
+
+\end{proof}
+
+%Следствием леммы~\ref{lemma:correct_mtx} является следующая теорема о корректности алгоритма, представленного на листинге~\ref{lst:mtx_cfpq}.
+A consequence of the lemma~\ref{lemma:correct_mtx} is the following theorem on the correctness of the algorithm shown in Listing~\ref{lst:mtx_cfpq}.
+
+\begin{theorem}[Algorithm correctness]\label{thm:correct_mtx}
+	%Пусть $\mathcal{G} = \langle V, E, L \rangle$~--- входной граф и $G =\langle N, \Sigma, P, S \rangle$~--- входная КС-грамматика для алгоритма, представленного на листинге~\ref{lst:mtx_cfpq}. Пусть выбранная алгебраическая структура удовлетворяет свойствам, представленным в условии леммы~\ref{lemma:correct_mtx}. Тогда для любой пары вершин $(i, j)$ графа $\mathcal{G}$, для любого нетерминала $A \in N$, значение в ячейке $T^{A}[i, j]$ позволяет корректно решить поставленную задачу для множества всех путей графа $\mathcal{G}$ из вершины $i$ в вершину $j$.
+	Suppose that $\mathcal{G} = \langle V, E, L \rangle$ is the input graph and $G =\langle N, \Sigma, P, S \rangle$ is the input CFG for the algorithm presented in Listing~\ref{lst:mtx_cfpq}. Also, suppose that the chosen algebraic structure satisfy the properties presented in the condition of the lemma~\ref{lemma:correct_mtx}. Then for any pair of vertices $(i, j)$ of the graph $\mathcal{G}$, for any nonterminal $A \in N$, the value in the cell $T^{A}[i, j]$ allows one to correctly solve the stated CFPQ problem for the set of all paths of the graph $\mathcal{G}$ from the vertex $i$ to the vertex $j$.
+\end{theorem}
+\begin{proof}
+%Алгоритм возвращает множество матриц $T$ только в случае, когда для некоторого $k \geq 1$ $T^{A, k} = T^{A, k - 1}$ для всех нетерминалов $A \in N$. То есть для любого нетерминала $A$ $T^{A, p} = T^{A}$ для любого $p \geq k$. Таким образом, по лемме~\ref{lemma:correct_mtx}, для любой пары вершин $(i, j)$ графа $\mathcal{G}$, для любого нетерминала $A \in N$, ячейка $T^{A}[i, j]$ позволяет корректно решить поставленную задачу для множества всех путей $i \pi j$ таких, что существует дерево вывода для строки $\lambda(\pi)$ из нетерминала $A$ грамматики $G$. Что в свою очередь доказывает утверждение теоремы.
+The algorithm returns the set of matrices $T$ only if for some $k \geq 1$ $T^{A, k} = T^{A, k - 1}$ for all nonterminals $A \in N$. That is, for any nonterminal $A$ $T^{A, p} = T^{A}$ for any $p \geq k$. Thus, by the lemma~\ref{lemma:correct_mtx}, for any vetex pair $(i, j)$ of the graph $\mathcal{G}$, for any nonterminal $A \in N$, the cell $T^{A}[i, j]$ allows one to correctly solve the stated CFPQ problem for the set of all paths $i \pi j$ such that there exists a derivation tree for the string $\lambda(\pi)$ and the nonterminal $A$ of the grammar $G$. This completes the proof of the theorem.
+\end{proof}
+
+%Используя теорему~\ref{thm:correct_mtx} и индукцию на высоты деревьев вывода, соответствующих восстанавливаемым путям с помощью предложенного алгоритма для задач поиска одного пути и поиска всех путей, может быть доказана следующая теорема.
+Using the theorem~\ref{thm:correct_mtx} and induction on the heights of the derivation trees corresponding to the paths being extracted using the proposed algorithm for CFPQ problem with the single-path and the all-path query semantics, the following theorem can be proved.
+
+\begin{theorem}[Correctness of the path extraction algorithms]\label{thm:correct_extraction_single_all_mtx}
+%Пусть $\mathcal{G} = \langle V, E, L \rangle$~--- входной граф, $G =\langle N, \Sigma, P, S \rangle$~--- входная КС-грамматика и $T$~--- множество матриц, возвращаемое алгоритмом, представленным на листинге~\ref{lst:mtx_cfpq}. Пусть выбранная алгебраическая структура удовлетворяет свойствам, представленным в условии леммы~\ref{lemma:correct_mtx}. Тогда для любой пары вершин $(i, j)$ и любого нетерминала $A \in N$:
+Suppose that $\mathcal{G} = \langle V, E, L \rangle$ is the input graph, $G =\langle N, \Sigma, P, S \rangle$ is the input CFG, and $T$ is the set of matrices returned by the algorithm shown in Listing~\ref{lst:mtx_cfpq}. Also, suppose that the chosen algebraic structure satisfy the properties presented in the conditions of the lemma~\ref{lemma:correct_mtx}. Then for any pair of vertices $(i, j)$ and any nonterminal $A \in N$:
+	\begin{itemize}
+	    \item for the single-path query semantics the algorithm shown in Listing~\ref{lst:mtx_single_extract} will construct a path $i \pi j$ such that there is a derivation tree for the string $\lambda(\pi)$ and the nonterminal $A$ of the grammar $G$ if such a path exists;
+	    \item for the all-path query semantics, the algorithm shown in Listing~\ref{lst:mtx_all_extract} will construct the set of all paths $i \pi j$ such that there is a derivation tree for the string $\lambda(\pi)$ and the nonterminal $A$ of the grammar $G$.
+	\end{itemize}
+\end{theorem}
+
+\textbf{Properties of the proposed algebraic structures.} %Осталось показать, что предложенные в разделе~\ref{sec:ch3/sect1} алгебраические структуры для задач достижимости, поиска одного и поиска всех путей обладают свойствами, обеспечивающими завершаемость и корректность предложенного алгоритма.
+It remains to show that the algebraic structures proposed in section~\ref{sec:ch3/sect1} for CFPQ problem have properties that ensure the termination and the correctness of the proposed algorithm.
+
+%Во-первых, покажем завершаемость алгоритма для предложенных структур. Так как все три предложенные алгебраические структуры содержат конечный носитель, то остается показать, что на элементах этих структур может быть задано отношение частичного порядка $\preceq$ такое, что для любой пары вершин $(i, j)$ и любого $k \geq 1$, $T^{A, k - 1}[i, j] \preceq T^{A, k}[i, j]$.
+First, we will show the termination of the algorithm for the proposed structures. The algebraic structures for the reachability and the all-path query semantics contain finite domains. We will show that the domain of the proposed structure for the single-path query semantics is also finite. It remains to show that for given graph and a CFG, $h \leq |N||V|^2$. Each internal node of such derivation trees is associated with some nonterminal $A$ and a subtree with this node as a root. The leaves of such a subtree form a string corresponding to some path in the graph from the vertex $i$ to the vertex $j$. Therefore, with each internal node of such trees we will associate the triple $(A, i, j)$. If for some triple $(A, i, j)$ there is a derivation tree of minimum height $h > |N||V|^2$ then in such a tree there is a path of length $h > |N||V|^2$ from the root to some leaf. Also, there are two different nodes $u$ and $v$ on this path that are associated with the same triple $(B, k, l)$ since there are only $|N||V|^2$ different triples. Suppose that the node $u$ be closer to the root of the tree than the node $v$. Then replacing in this tree the subtree corresponding to the node $u$ with the subtree corresponding to the node $v$, we get a new derivation tree for the triple $(A, i, j)$ with decreased distances from the root of the tree to the leaves. Such transformations can be repeated until the height of the tree is less than or equal to $|N||V|^2$. Thus, the original derivation tree did not have a minimum height for the triple $(A, i, j)$. This means that all such heights $h \leq |N||V|^2$, and the tuples that will be used in the proposed algorithm contain $\textit{height} \leq |N||V|^2 + 1$. Therefore, the proposed structure for the single-path query semantics also has a finite domain.
+
+Since all three proposed algebraic structures contain a finite domain, it remains to show that for the elements of these structures can be defined a partial order relation $\preceq$ such that for any pair of vertices $(i, j)$ and for any $k \geq 1$, $T^{A, k - 1}[i, j] \preceq T^{A, k}[i, j]$.
+
+%Пусть $\preceq_{\textit{rel}}$~--- отношение частичного порядка соответствующее задаче достижимости, $\preceq_{\textit{single}}$~--- задаче поиска одного пути и $\preceq_{\textit{all}}$~--- задаче поиска всех путей в графе. Для краткости будем использовать обозначения $z_l$, $z_r$, $z_h$, $z_m$ и $z_{ms}$ для $\textit{z.left}$, $\textit{z.right}$, $\textit{z.height}$, $\textit{z.middle}$ и $\textit{z.middles}$ соответственно, где $z$~--- элемент носителя $\textit{MatrixElements}$ одной из трёх введенных алгебраических структур. Тогда для любых элементов $x$ и $y$ этих носителей определим отношения частичного порядка следующим образом:
+Denote $\preceq_{\textit{rel}}$ as the partial order relation corresponding to the reachability problem, $\preceq_{\textit{single}}$~--- the single-path query semantics, and $\preceq_{\textit{ all}}$~--- the all-path query semantics. For brevity, we will use the notation $z_l$, $z_r$, $z_h$, $z_m$, and $z_{ms}$ for $\textit{z.left}$, $\textit{z.right}$, $\ textit{z.height}$, $\textit{z.middle}$, and $\textit{z.middles}$ respectively, where $z$ is an element of the set $\textit{MatrixElements}$ of one of the three provided algebraic structures. Then for any elements $x$ and $y$ of these domains we define partial order relations as follows:
+
+$$
+\begin{array}{lcl}
+   x \preceq_{\textit{rel}} y & \iff & (x = 0) \wedge (y = 1), \\ 
+   x \preceq_{\textit{single}} y & \iff & (x = \bot = (0, 0, 0, 0)) \ \vee \\ 
+    & & ((x_l = y_l) \wedge (x_r = y_r ) \wedge ((y_h, y_m) \leq (x_h, x_m)) ), \\ 
+   x \preceq_{\textit{all}} y  & \iff & (x = \bot = (0, 0, \emptyset)) \vee ((x_l = y_l) \wedge (x_r = y_r) \wedge (x_{ms} \subseteq y_{ms}) ). \\ 
+\end{array}
+$$
+
+%\begin{itemize}
+%    \item $x \preceq_{rel} y \iff (x = 0) \wedge (y = 1)$,
+%    \item $x \preceq_{single} y \iff (x = \bot = (0, 0, 0, 0)) \vee \\ ((x_l = y_l) \wedge (x_r = y_r ) \wedge ((y_h, y_m) \leq (x_h, x_m)) )$,
+%    \item $x \preceq_{all} y \iff (x = \bot = (0, 0, \emptyset)) \vee ((x_l = y_l) \wedge (x_r = y_r) \wedge (x_{ms} \subseteq y_{ms}) )$.
+%\end{itemize}
+
+%Необходимо показать, что для любого $k \geq 1$, $T^{A, k - 1}[i, j] \preceq_{\textit{rel}} T^{A, k}[i, j]$ для задачи достижимости, $T^{A, k - 1}[i, j] \preceq_{\textit{single}} T^{A, k}[i, j]$ для задачи поиска одного пути и  $T^{A, k - 1}[i, j] \preceq_{\textit{all}} T^{A, k}[i, j]$ для задачи поиска всех путей в графе. На очередной итерации цикла в строках 9--11 алгоритма, значение в ячейке $T^A[i, j]$ либо может не изменится, либо изменится в результате выполнения операций $T^{A} \gets T^{A} \bigoplus (T^{B} \cdot T^{C})$ в строке 11. Если значение не изменилось, то утверждение теоремы очевидно в силу рефлексивности рассматриваемых отношений частичного порядка. В противном случае $T^{A, k}[i, j] = T^{A, k - 1}[i, j] \oplus (T^{B, k - 1} \cdot T^{C, k - 1})[i, j]$. Для всех трёх задач поиска путей в графе с заданными КС-ограничениями докажем, что $T^{A, k - 1}[i, j] \preceq T^{A, k - 1}[i, j] \oplus (T^{B, k - 1} \cdot T^{C, k - 1})[i, j]$ для соответствующего отношения частичного порядка $\preceq$.
+It is necessary to show that for any $k \geq 1$, $T^{A, k - 1}[i, j] \preceq_{\textit{rel}} T^{A, k}[i, j]$ for the CFPQ problem with the reachability query semantics, $T^{A, k - 1}[i, j] \preceq_{\textit{single}} T^{A, k}[i, j]$ for the single-path query semantics, and $T^{A, k - 1}[i, j] \preceq_{\textit{all}} T^{A, k}[i, j]$ for the all-path query semantics. At the next iteration of the loop in lines 9--11 of the algorithm, the value in the cell $T^A[i, j]$ may either remain unchanged or change as a result of the operations $T^{A} \gets T^{A} \bigoplus (T^{B} \cdot T^{C})$ in the line 11. If the value has not changed then the statement of the theorem is obvious due to the reflexivity of the discussed partial order relations. Otherwise $T^{A, k}[i, j] = T^{A, k - 1}[i, j] \oplus (T^{B, k - 1} \cdot T^{C, k - 1})[i, j]$. Next, for all three path query semantics, we prove that $T^{A, k - 1}[i, j] \preceq T^{A, k - 1}[i, j] \oplus (T^{B, k - 1} \cdot T^{C, k - 1})[i, j]$ for the corresponding partial order relation $\preceq$.
+
+\textit{Reachability.} %Используя алгебраическую структуру над логическими значениями и операцию дизъюнкции в качестве операции $\oplus$, значение в ячейке $T^A[i, j]$ может изменится только с 0 на 1. Поэтому $T^{A, k - 1}[i, j] \preceq_{\textit{rel}} T^{A, k}[i, j]$, что доказывает завершаемость алгоритма для задачи достижимости.
+Using the Boolean algebraic structure with the disjunction operation as the $\oplus$ operation, the value in the cell $T^A[i, j]$ can only change from 0 to 1. Thus, $T^{A, k - 1}[i, j] \preceq_{\textit{rel}} T^{A, k}[i, j]$. This fact proves the termination of the algorithm for the reachability problem.
+
+\textit{Single-path.} %По определению операции $\oplus$ полукольца над множеством четвёрок $\textit{PathIndex}$, значение в ячейке $T^A[i, j]$ может изменится только если $T^{A, k - 1}[i, j] = \bot$ или $$((T^{A, k}[i, j].\textit{height}, T^{A, k}[i, j].\textit{middle}) \leq (T^{A, k - 1}[i, j].\textit{height}, T^{A, k - 1}[i, j].\textit{middle})).$$ Если $T^{A, k - 1}[i, j] = \bot$, то по определению отношения частичного порядка $\preceq_{\textit{single}}$, $T^{A, k - 1}[i, j] \preceq_{\textit{single}} T^{A, k}[i, j]$. Иначе по определениям операции умножения матриц $(\cdot)$ и операции умножения элементов матриц $\otimes$, получаем, что $T^{A, k - 1}[i, j].\textit{left} = (T^{B, k - 1} \cdot T^{C, k - 1})[i, j].\textit{left}$ и $T^{A, k - 1}[i, j].\textit{right} = (T^{B, k - 1} \cdot T^{C, k - 1})[i, j].\textit{right}$. Таким образом, по определению отношения частичного порядка $\preceq_{\textit{single}}$, $T^{A, k - 1}[i, j] \preceq_{\textit{single}} T^{A, k}[i, j]$, что доказывает завершаемость алгоритма для задачи поиска одного пути.
+By the definition of the operation $\oplus$ of a semiring over the set of tuples $\textit{PathIndex}$, the value in the cell $T^A[i, j]$ can only change if $T^{A, k - 1}[i, j] = \bot$ or $$((T^{A, k}[i, j].\textit{height}, T^{A, k}[i, j].\textit{middle}) \leq (T^{A, k - 1}[i, j].\textit{height}, T^{A, k - 1}[i, j].\textit{middle})).$$ If $T ^{A, k - 1}[i, j] = \bot$ then by the definition of the partial order relation $\preceq_{\textit{single}}$, $T^{A, k - 1}[i, j] \preceq_{\textit{single}} T^{A, k}[i, j]$. Otherwise, by the definitions of the matrix multiplication $(\cdot)$ and the operation of multiplication of matrix elements $\otimes$, we obtain that $T^{A, k - 1}[i, j].\textit{left} = (T^ {B, k - 1} \cdot T^{C, k - 1})[i, j].\textit{left}$ and $T^{A, k - 1}[i, j].\textit {right} = (T^{B, k - 1} \cdot T^{C, k - 1})[i, j].\textit{right}$. Thus, by the definition of the partial order relation $\preceq_{\textit{single}}$, $T^{A, k - 1}[i, j] \preceq_{\textit{single}} T^{A, k}[i, j]$. This fact proves the termination of the algorithm for the single-path query semantics.
+
+\textit{All-path.} %По определению операции $\oplus$ полукольца над множеством троек $\textit{AllPathIndex}$, значение в ячейке $T^A[i, j]$ может изменится только если $T^{A, k - 1}[i, j] = \bot$ или $(T^{A, k - 1}[i, j].\textit{middles} \subseteq T^{A, k}[i, j].\textit{middles})$. Если $T^{A, k - 1}[i, j] = \bot$, то утверждение теоремы доказано по определению отношения частичного порядка $\preceq_{\textit{all}}$. Иначе по определениям операции умножения матриц $(\cdot)$ и операции умножения элементов матриц $\otimes$, получаем, что $T^{A, k - 1}[i, j].\textit{left} = (T^{B, k - 1} \cdot T^{C, k - 1})[i, j].\textit{left}$ и $T^{A, k - 1}[i, j].\textit{right} = (T^{B, k - 1} \cdot T^{C, k - 1})[i, j].\textit{right}$. Таким образом, по определению отношения частичного порядка $\preceq_{\textit{all}}$, $T^{A, k - 1}[i, j] \preceq_{\textit{all}} T^{A, k}[i, j]$, что доказывает завершаемость алгоритма для задачи поиска всех путей.
+By the definition of the operation $\oplus$ of a semiring over the set of triples $\textit{AllPathIndex}$, the value in the cell $T^A[i, j]$ can only change if $T^{A, k - 1}[i, j] = \bot$ or $(T^{A, k - 1}[i, j].\textit{middles} \subseteq T^{A, k}[i, j].\textit{middles})$. If $T^{A, k - 1}[i, j] = \bot$ then the statement of the theorem is proved by the definition of the partial order relation $\preceq_{\textit{all}}$. Otherwise, by the definitions of the matrix multiplication $(\cdot)$ and the operation of multiplication of matrix elements $\otimes$, we obtain that $T^{A, k - 1}[i, j].\textit{left} = (T^{B, k - 1} \cdot T^{C, k - 1})[i, j].\textit{left}$ and $T^{A, k - 1}[i, j].\textit {right} = (T^{B, k - 1} \cdot T^{C, k - 1})[i, j].\textit{right}$. Thus, by the definition of the partial order relation $\preceq_{\textit{all}}$, $T^{A, k - 1}[i, j] \preceq_{\textit{all}} T^{A, k }[i, j]$. This fact proves the termination of the algorithm for the all-path query semantics.
+
+%Во-вторых, докажем корректность алгоритма для предложенных алгебраических структур, показав, что они удовлетворяют следующим свойствам, указанным в условии леммы~\ref{lemma:correct_mtx}. Пусть была использована алгебраическая структура $\langle \textit{MatrixElements}, \oplus, \otimes, \bot \rangle$, тогда для любых элементов $\alpha_1, \alpha_2 \in \textit{MatrixElements}$:
+Second, we prove the correctness of the algorithm for the proposed algebraic structures by showing that they satisfy the following properties specified in the conditions of the lemma~\ref{lemma:correct_mtx}. %Let the algebraic structure $\langle \textit{MatrixElements}, \oplus, \otimes, \bot \rangle$ be used then for any elements $\alpha_1, \alpha_2 \in \textit{MatrixElements}$:
+	%\begin{itemize}
+%	    \item the algebraic structure $\langle \textit{MatrixElements}, \oplus, \otimes, \bot \rangle$ is a semiring without the associativity of the operation $\otimes$;
+%	    \item the selected elements $\alpha^l_{i, j} \in \textit{MatrixElements}$ used in lines 4--8 of the algorithm allow one to correctly solve the stated CFPQ problem for the sets of paths of the graph $\mathcal{G}$ from the vertex $i$ to the vertex $j$ of length $l$ where $l \in \{0, 1\}$;
+%	    \item if the elements $\alpha_1$ and $\alpha_2$ allow one to correctly solve the stated problem for the sets of paths $\mathcal{P}_1$ and $\mathcal{P}_2$ from the vertex $i$ to the vertex $j$ then the element $\alpha_1 \oplus \alpha_2$ allows one to correctly solve the stated problem for the set of paths $\mathcal{P}_1 \cup \mathcal{P}_2$;
+%	    \item if the elements $\alpha_1$ and $\alpha_2$ allow one to correctly solve the stated problem for the set of paths $\mathcal{P}_1$ from the vertex $i$ to the vertex $k$ and for the set $\mathcal{P}_2$ of paths from the vertex $k$ to the vertex $j$ then the element $\alpha_1 \otimes \alpha_2$ allows one to correctly solve the stated problem for the set of paths $\mathcal{P}_1 \cdot \mathcal{P}_2$ of all possible concatenations of paths from these sets.
+%	\end{itemize}
+	
+
+%Все три предложенные алгебраические структуры являются полукольцами без требования ассоциативности операции умножения. Осталось показать справедливость свойств для элементов $\alpha^l_{i, j}$ и для операций сложения и умножения предложенных структур.
+All three proposed algebraic structures are semirings without the associativity of the multiplication operation. It remains to show the validity of the properties for the elements $\alpha^l_{i, j}$ and for the operations of addition and multiplication.
+
+\textit{Reachability.} %В предложенной алгебраической структуре для задачи достижимости были выделены элементы $\alpha^0_{i, j} = \alpha^1_{i, j} = 1$, которые используются в алгоритме, представленном на листинге~\ref{lst:mtx_cfpq}, в случае существования пути из $\mathcal{P}_{\mathcal{G}, 1}(i, j, A)$ для некоторого нетерминала $A \in N$. Если такого пути не существует, то в соответствующей ячейке будет значение $\bot = 0$. Таким образом, элементы $\alpha^0_{i, j}$ и $\alpha^1_{i, j}$ позволяют определить наличие путей длины 0 или 1, удовлетворяющих заданным КС-ограничениям, что доказывает соответствующее свойство алгебраической структуры $\langle \{0, 1\}, \vee, \wedge, 0\rangle$. Справедливость свойства для операции $\oplus$ очевидна, так как $\alpha_1 \vee \alpha_2 = 1$ только если существует хотя бы один искомый путь в множестве $\mathcal{P}_1$ или в множестве $\mathcal{P}_2$, что эквивалентно решению задачи для множества $\mathcal{P}_1 \cup \mathcal{P}_2$. И, наконец, если элементы $\alpha_1$ и $\alpha_2$ позволяют корректно решить задачу достижимости для множества путей $\mathcal{P}_1$ из вершины $i$ в вершину $k$ и для множества $\mathcal{P}_2$ путей из вершины $k$ в вершину $j$, то элемент $\alpha_1 \wedge \alpha_2 = 1$, только если существовал хотя бы один искомый путь в множестве $\mathcal{P}_1$ и хотя бы одни искомый путь в множестве $\mathcal{P}_2$. Конкатенация таких путей является искомым путём из вершины $i$ в вершину $j$, поэтому значение $\alpha_1 \wedge \alpha_2$ позволит решить задачу для множества путей $\mathcal{P}_1 \cdot \mathcal{P}_2$.
+In the proposed algebraic structure for the CFPQ problem with the reachability query semantics, the elements $\alpha^0_{i, j} = \alpha^1_{i, j} = 1$ were selected, which are used in the algorithm shown in Listing~\ref{lst:mtx_cfpq} when there exists a path from $\mathcal{P}_{\mathcal{G}, 1}(i, j, A)$ for some nonterminal $A \in N$. If such a path does not exist then the corresponding cell will contain the value $\bot = 0$. Thus, the elements $\alpha^0_{i, j}$ and $\alpha^1_{i, j}$ allow one to determine the existence of paths of length 0 or 1 that satisfy the given constraints, which proves the corresponding property of the algebraic structure $\langle \{0, 1\}, \vee, \wedge, 0 \rangle$. The validity of the property for the operation $\oplus$ is obvious, since $\alpha_1 \vee \alpha_2 = 1$ only if there is at least one required path in the set $\mathcal{P}_1$ or in the set $\mathcal{P}_2$, which is equivalent to solving the problem for the set $\mathcal{P}_1 \cup \mathcal{P}_2$. And, finally, if the elements $\alpha_1$ and $\alpha_2$ allow one to correctly solve the reachability problem for the set of paths $\mathcal{P}_1$ from the vertex $i$ to the vertex $k$ and for the set $\mathcal{P}_2$ paths from the vertex $k$ to the vertex $j$ then the element $\alpha_1 \wedge \alpha_2 = 1$ only if there was at least one desired path in the set $\mathcal{P}_1$ and at least one such a path in the set $\mathcal{P}_2$. The concatenation of such paths is the desired path from $i$ to $j$, so the value $\alpha_1 \wedge \alpha_2$ will solve the problem for the set of paths $\mathcal{P}_1 \cdot \mathcal{P}_2$.
+
+\textit{Single-path.} %Рассмотрим предложенную структуру $\langle \textit{PathIndex}, \oplus, \otimes, \bot \rangle$ для задачи поиска одного пути. Для корректного решения поставленной задачи будем использовать элемент $\bot = (0, 0, 0, 0) \in \textit{PathIndex}$ для индикации отсутствия искомых путей и элемент $(\textit{left}, \textit{right}, \textit{middle}, \textit{height}) \in \textit{PathIndex}$ если существует искомый путь $\pi$ из вершины $\textit{left}$ в вершину $\textit{right}$, с некоторой выделенной вершиной $\textit{middle}$ и $\textit{height}$~--- минимальной высотой дерева вывода строки $\lambda(\pi)$ для соответствующего нетерминала грамматики. Остальные свойства следуют из построения этой алгебраической структуры в разделе~\ref{sec:ch3/sect1}:
+Consider the proposed structure $\langle \textit{PathIndex}, \oplus, \otimes, \bot \rangle$ for the single-path query semantics. To correctly solve the CFPQ problem, we will use the element $\bot = (0, 0, 0, 0) \in \textit{PathIndex}$ to indicate the absence of the desired paths and the $(\textit{left}, \textit{right}, \textit{middle}, \textit{height}) \in \textit{PathIndex}$ if there is a desired path $\pi$ from $\textit{left}$ to $\textit{right}$, with some distinguished intermediate vertex $\textit{middle}$, and the minimum height $\textit{height}$ of the derivation tree of the string $\lambda(\pi)$ for the corresponding grammar and nonterminal. The remaining properties follow from the construction of this algebraic structure in section~\ref{sec:ch3/sect1}:
+\begin{itemize}
+        \item the distinguished elements $\alpha^0_{i, i} = (i, i, i, 1)$ and $\alpha^1_{i, j} = (i, j, i, 1)$ describe the desired paths of length 0 or 1 with the derivation tree of height 1 if such paths exist;
+	    \item if the elements $\alpha_1$ and $\alpha_2$ describe the desired paths with the minimum height of the derivation tree for the sets of paths $\mathcal{P}_1$ and $\mathcal{P}_2$ from the vertex $i$ to the vertex $j$ then the element $\alpha_1 \oplus \alpha_2$ describes the desired path with the minimum height of the derivation tree for the set of paths $\mathcal{P}_1 \cup \mathcal{P}_2$;
+	    \item if the elements $\alpha_1$ and $\alpha_2$ describe the required paths with the minimum height of the derivation tree for the set of paths $\mathcal{P}_1$ from the vertex $i$ to the vertex $k$ and for the set $\mathcal{P}_2$ of paths from the vertex $k$ to the vertex $j$ then the element $\alpha_1 \otimes \alpha_2$ describes the desired path with the minimum height of the derivation tree for the set of paths $\mathcal{P}_1 \cdot \mathcal{P}_2$.
+	\end{itemize}
+
+\textit{All-path.} %Для задачи поиска всех путей с заданными КС-ограничениями в предложенной структуре $\langle \textit{AllPathIndex}, \oplus, \otimes, \bot \rangle$ используется элемент $\bot = (0, 0, \emptyset) \in \textit{AllPathIndex}$ для индикации отсутствия искомых путей и элемент $(\textit{left}, \textit{right}, \textit{middles}) \in \textit{AllPathIndex}$ если существуют искомые пути $\pi$ из вершины $\textit{left}$ в вершину $\textit{right}$, с некоторой выделенной вершиной $\textit{middle} \in \textit{middles}$. Остальные свойства следуют из построения этой алгебраической структуры в разделе~\ref{sec:ch3/sect1}:
+For the all-path query semantics in the proposed structure $\langle \textit{AllPathIndex}, \oplus, \otimes, \bot \rangle$, the element $\bot = (0, 0, \emptyset) \in \ textit{AllPathIndex}$ is used to indicate that there are no desired paths, and the element $(\textit{left}, \textit{right}, \textit{middles}) \in \textit{AllPathIndex}$ is used if there are desired paths $\pi$ from the vertex $\textit{left}$ to the vertex $\textit{right}$ with some distinguished $\textit{middle} \in \textit{middles}$. The remaining properties follow from the construction of this algebraic structure in section~\ref{sec:ch3/sect1}:
+\begin{itemize}
+        \item the selected elements $\alpha^0_{i, j} = \alpha^1_{i, j} = (i, j, \{ n\})$ describe all required paths of length 0 or 1 using the special value $n = |V|$ in the set $\textit{middles}$;
+	    \item if the elements $\alpha_1$ and $\alpha_2$ describe all the required paths for the sets of paths $\mathcal{P}_1$ and $\mathcal{P}_2$ from the vertex $i$ to the vertex $j$ then the element $\alpha_1 \oplus \alpha_2$ describes all required paths for the set of paths $\mathcal{P}_1 \cup \mathcal{P}_2$;
+	    \item if the elements $\alpha_1$ and $\alpha_2$ describe all required paths for the set of paths $\mathcal{P}_1$ from the vertex $i$ to the vertex $k$ and for the set $\mathcal{P}_2$ of paths from the vertex $k$ to the vertex $j$ then the element $\alpha_1 \otimes \alpha_2$ describes all the required paths for the set of paths $\mathcal{P}_1 \cdot \mathcal{P}_2$.
+	\end{itemize}
+	
+%Таким образом, для всех трёх предложенных в разделе~\ref{sec:ch3/sect1} алгебраических структур для задач достижимости, поиска одного и поиска всех путей в графе с заданными КС-ограничениями справедливы теоремы~\ref{thm:finite_mtx} и \ref{thm:correct_mtx}.
+Thus, for all three algebraic structures proposed in section~\ref{sec:ch3/sect1} for the CFPQ problem with the reachability, the single-path, and the all-path query semantics, the theorems~\ref{thm:finite_mtx} and \ref{thm:correct_mtx} are correct.
+
+\section{Time Complexity of the Algorithm}\label{sec:ch3/sect3}
+%В данном разделе представлены оценки временной сложности предложенного алгоритма для рассмотренных задач поиска путей в графе.
+In this section, we present the worst-case time complexity of the proposed CFPQ algorithm.
+
+%Пусть для алгоритма, представленного на листинге~\ref{lst:mtx_cfpq} была выбрана алгебраическая структура $\langle \textit{MatrixElements}, \oplus, \otimes, \bot \rangle$ с конечным носителем $\textit{MatrixElements}$ и с заданным на нём отношением частичного порядка $\preceq$ таким, что для любой пары вершин $(i, j)$ и любого $k \geq 1$, $T^{A, k - 1}[i, j] \preceq T^{A, k}[i, j]$. Тогда по теореме~\ref{thm:finite_mtx} алгоритм завершит свою работу за конечное число шагов. Тогда пусть $N_{\textit{iter}}$~---  максимальное количество итераций цикла в строках 9--11 алгоритма, представленного на листинге~\ref{lst:mtx_cfpq}. Стоит отметить, что значение $N_{\textit{iter}}$ зависит от выбранной алгебраической структуры. Также введем следующие обозначения, описывающие оценки на количество элементарных операций, необходимых для выполнения использованных операций над матрицами размера $n \times n$:
+Suppose that the algebraic structure $\langle \textit{MatrixElements}, \oplus, \otimes, \bot \rangle$ with finite domain $\textit{MatrixElements}$ is given, as well as a partial order relation $\preceq$ defined on this structure such that for any pair of vertices $(i, j)$ and for any $k \geq 1$, $T^{A, k - 1}[i, j] \preceq T^{A, k}[i, j]$. Then, according to the theorem~\ref{thm:finite_mtx}, the algorithm will terminate in a finite number of steps. Then suppose that $N_{\textit{iter}}$ is the maximum number of loop iterations in lines 9--11 of the algorithm shown in Listing~\ref{lst:mtx_cfpq}. Note that the value of $N_{\textit{iter}}$ depends on the chosen algebraic structure.
+
+Also, we assume that all operations on elements from the set $\textit{MatrixElements}$ are computed in $O(1)$. In addition, for the algebraic structure used, we estimate the worst-case number of elementary operations needed to compute operations on matrices of size $n \times n$ as:
+
+\begin{itemize}
+    \item $O(n^2)$~--- for $\bigoplus$ element-wise addition of two matrices,
+    \item $O(n^3)$~--- for $(\cdot)$ multiplication of two matrices.
+\end{itemize}
+
+Note that these estimates can be improved for algebraic structures with some properties. For example, there exists an algorithm with subcubic complexity $O(n^{3 - \varepsilon})$ where $\varepsilon > 0$ for such algebraic structures as rings~\cite{strassen1969gaussian}.
+
+%Тогда справедлива следующая оценка временной сложности алгоритма поиска путей в графе с заданными КС-ограничениями.
+Taking into account the assumptions made, the following estimation of the time complexity of the pathfinding algorithm in a graph with given KC constraints is valid.
+The following theorem on the time complexity of the proposed CFPQ algorithm is correct with respect to the discussed assumptions.
+
+\begin{theorem}[The worst-case time complexity of the matrix-based CFPQ algorithm]\label{thm:time_mtx}
+	%Пусть $\mathcal{G} = \langle V, E, L \rangle$~--- входной граф, $G =\langle N, \Sigma, P, S \rangle$~--- входная КС-грамматика. Тогда для алгоритма, представленного на листинге~\ref{lst:mtx_cfpq}, справедлива следующая оценка временной сложности:
+	For the input graph $\mathcal{G} = \langle V, E, L \rangle$, and the input CFG $G =\langle N, \Sigma, P, S \rangle$, the algorithm presented in Listing~\ref{lst:mtx_cfpq} has the following worst-case time complexity: $O(|N||P||V|^5)$.
+\end{theorem}
+\begin{proof}
+%На этапе инициализации матриц алгоритм производит запись значений в ячейки этих матриц. В строке 5 производится операция записи $O(|E|)$ раз, а в строке 8~--- $O(|V||N|)$ раз. Поэтому для всех задач поиска путей в графе на этапе инициализации производится $O((|E|+|V||N|)\textit{Write}(|V|)$ элементарных операций.
+At the initialization stage, the algorithm writes values to the cells of these matrices. In the line 5 the algorithm performs the write operation $O(|E|)$ times, and in the line 8~--- $O(|V||N|)$ times. Therefore, $O(|E|+|V||N|)$ elementary operations are performed at the initialization stage for all path query semantics.
+
+%Далее рассмотрим цикл в строках 9--11, вычисляющий транзитивное замыкание. Алгоритм продолжает вычисления пока любая матрица из множества $T$ меняется. Всего матриц в этом множестве $|N|$ и каждая имеет $|V|^2$ элементов. Из-за свойств трёх предложенных алгебраических структур значения ячеек матриц монотонно возрастают относительно соответствующего отношения частичного порядка. Далее рассмотрим максимальное количество итераций $N_{\textit{iter}}$, которое может возникнуть при решении различных задач поиска путей в графе.
+Next, consider the loop in lines 9--11 that computes the transitive closure. The algorithm continues calculations while any matrix from the set $T$ changes. There are $|N|$ matrices in this set, and each has $|V|^2$ elements. Due to the properties of the three proposed algebraic structures, the values of the cells of the matrices increase monotonically with respect to the corresponding partial order relation. Next, consider the maximum number of iterations $N_{\textit{iter}}$ that can occur when solving CFPQ problem with various path query semantics.
+
+\textit{Reachability and single-path.} %С каждой итерацией цикла в строках 9--11 увеличивается на единицу рассматриваемые высоты деревьев вывода строк, соответствующих путям в графе. Для задач достижимости и поиска одного пути значение конкретной ячейки может изменится лишь в рамках одной итерации цикла в строках 9--11. Поэтому максимальное количество итераций рассматриваемого цикла может быть достигнуто в случае, когда за каждую итерацию цикла изменяется значение лишь одной ячейки в одной матрице. Для задачи достижимости значение может изменится с $\bot = 0$ на 1, а для задачи поиска одного пути значение либо изменяется с $\bot = (0, 0, 0, 0)$ на четвёрку, описывающую некоторый найденный на данной итерации путь, либо значение для найденного пути изменяется на значение для другого пути с меньшим номером промежуточной вершины $\textit{middle}$. В рамках одной итерации цикла в строках 9--11 операции в строке 11 выполняются $O(|P|)$ раз. Поэтому для задач достижимости и поиска одного пути справедлива следующая оценка временной сложности: $O((|E|+|V||N|)\textit{Write}(|V|) + N_{\textit{iter}} |P| (\textit{MM}(|V|) + \textit{MA}(|V|)))$, где максимальное количество итераций цикла в строках 9--11 $N_{\textit{iter}} = |N||V|^2$.
+At each iteration of the loop in lines 9--11, the heights of the derivation trees of the strings corresponding to visited paths in the graph are increased by one. For the reachability and the single-path query semantics, the value of a particular cell can change only during one iteration of the loop in lines 9--11. Therefore, the maximum number of iterations of the discussed loop can be achieved in the case when the value of only one cell in one matrix changes for each iteration. For the reachability problem, the value can change from $\bot = 0$ to 1, and for the single-path query semantics the value either changes from $\bot = (0, 0, 0, 0)$ to a tuple describing some path found at this iteration, or the value for the found path is changed to the value for another path with a smaller number of intermediate vertex $\textit{middle}$. During one iteration of the loop in lines 9--11, the operations in line 11 are executed $O(|P|)$ times. Therefore, for the reachability and the single-path query semantics, the algorithm has the following worst-case time complexity: $O(N_{\textit{iter}} |P||V|^3)$ where the maximum number of loop iterations in lines 9--11 is $N_{\textit{iter}} = |N||V|^2$.
+
+\textit{All-path.} %Для данной задачи докажем, что количество итераций цикла в строках 9--11 превышает максимальное количество таких итераций при решении задачи поиска одного пути не более чем на 1, то есть всегда меньше либо равно, чем $|N||V|^2 + 1$. Для этого покажем, что изменения значения в одной из матриц на итерации с номером $k$ для задачи поиска всех путей влечёт за собой тот факт, что при решении с такими же входными данными задачи поиска одного пути значение в одной из матриц изменится на итерации с номером $k$ или $k - 1$.
+For this problem, we prove that the number of loop iterations in lines 9--11 exceeds the maximum number of such iterations for the single-path query semantics by no more than 1, that is, it is always less than or equal to $|N||V|^2 + 1$. To do this, we will show that changing the value in one of the matrices at iteration with number $k$ for the all-path query semantics leads to the fact that a value in one of the matrices will change at iterations with number $k$ or $k - 1$ when solving the CFPQ problem with the single-path query semantics and the same input.
+
+%Аналогично уже рассмотренным задачам, для задачи поиска всех путей с каждой итерацией цикла в строках 9--11 увеличивается на единицу рассматриваемые высоты деревьев вывода строк, соответствующих путям в графе. Пусть на итерации с номером $k$ изменилось значение в ячейке $T^{A}[i, j]$ после обнаружения путей из вершины $i$ в вершину $j$, образующих строки, выводимые из нетерминала $A$ и имеющие деревья вывода высоты $k + 1$. Это могло произойти в двух случаях: либо $T^{A, k - 1}[i, j] = \bot$ и $k + 1$~--- минимальная высота деревьев вывода для таких путей, либо $T^{A, k - 1}[i, j] = (i, j, \textit{middles}) \neq \bot$ и был найден хотя бы один путь $\pi$ с выделенной промежуточной вершиной $m \notin \textit{middles}$. В первом случае, на такой же итерации будет изменено значение в ячейке $T^{A}[i, j]$ при решении задачи поиска одного пути, поэтому $k \leq |N||V|^2$. Больший интерес представляет собой второй случай, который рассмотрим подробнее. Так как $m \notin \textit{middles}$, то $k + 1$~--- минимальная высота деревьев вывода для путей из вершины $i$ в вершину $j$ с выделенной промежуточной вершиной $m$, образующих строки, выводимые из нетерминала $A$. Пусть такое дерево вывода минимальной высоты образовано с использованием на корневом уровне правила вывода $(A \to B \ C) \in P$, где путь $i \pi j$~--- конкатенация путей $i \pi_1 m$ и $m \pi_2 j$, а $B \Rightarrow_G \lambda(\pi_1)$ и $C \Rightarrow_G \lambda(\pi_2)$. Тогда хотя бы одна из строк $\lambda(\pi_1)$ или $\lambda(\pi_2)$ имеет минимальную высоту дерева вывода из соответствующего нетерминала равную $k$. Иначе можно было бы построить дерево вывода строки $\lambda(\pi)$ с высотой меньшей, чем $k + 1$. Таким образом, на предыдущей итерации цикла с номером $k - 1$ был найден хотя бы один путь с минимальной высотой дерева вывода из соответствующего нетерминала и изменилось значение в ячейке $T^{B}[i, m]$ или в ячейке $T^{C}[m, j]$. Значения в этих ячейках также изменятся на $k - 1$ итерации цикла при решении задачи поиска одного пути. Таким образом, для решения задачи поиска одного пути потребуется не менее $k - 1$ итерации, а из уже доказанной оценки сверху на количество таких итераций получаем, что $k - 1 \leq |N||V|^2$ и, значит, $k \leq |N||V|^2 + 1$.
+Similarly to the query semantics already discussed, for the all-path query semantics at each iteration of the loop in lines 9--11, the heights of the derivation trees of strings corresponding to the visited paths are increased by one. Suppose that the value in the cell $T^{A}[i, j]$ is changed at the iteration with number $k$ after finding paths from $i$ to $j$ that form strings derived from the nonterminal $A$ and that have derivation trees with height $k + 1$. This could happen in two cases: either $T^{A, k - 1}[i, j] = \bot$ and $k + 1$ is the minimum height of derivation trees for such paths, or $T^{A, k - 1}[i, j] = (i, j, \textit{middles}) \neq \bot$ and there is at least one path $\pi$ with distinguished intermediate vertex $m \notin \textit{middles}$. In the first case, at the same iteration, the value in the cell $T^{A}[i, j]$ will be changed when solving the problem for the single-path query semantics, so $k \leq |N||V|^2$. Of greater interest is the second case, which we consider in more detail. Since $m \notin \textit{middles}$ then $k + 1$ is the minimum height of derivation trees for paths from the node $i$ to the node $j$ with distinguished intermediate node $m$ forming strings derived from the nonterminal $A$. Suppose that such a derivation tree of minimum height be formed using the derivation rule $(A \to B \ C) \in P$ at the root level where the path $i \pi j$ is the concatenation of the paths $i \pi_1 m$ and $m \pi_2 j$, while $B \Rightarrow_G \lambda(\pi_1)$ and $C \Rightarrow_G \lambda(\pi_2)$. Then at least one of the strings $\lambda(\pi_1)$ or $\lambda(\pi_2)$ has the minimum height of the derivation tree for the corresponding nonterminal equal to $k$. Otherwise, it would be possible to build a derivation tree for the string $\lambda(\pi)$ with a height less than $k + 1$. Thus, at the previous iteration of the loop numbered $k - 1$, at least one path with the minimum height of the derivation tree for the corresponding nonterminal was found and the value in cell $T^{B}[i, m]$ or cell $T^{C}[m, j]$ was changed. The values in these cells will also change on $k - 1$ iterations of the loop when solving the problem for the single-path query semantics. Thus, to solve the problem with the single-path query semantics, at least $k - 1$ iterations are required, and from the already proven upper bound on the number of such iterations, we obtain that $k - 1 \leq |N||V|^2$ and, therefore, $k \leq |N||V|^2 + 1$.
+
+%Мы показали, что при решении задачи поиска всех путей количество итераций в цикле не превышает $|N||V|^2 + 1$ и поэтому асимптотически для задачи поиска всех путей справедлива оценка, полученная для предыдущих двух задач, а именно:  $$O((|E|+|V||N|)\textit{Write}(|V|) + |N||V|^2 |P| (\textit{MM}(|V|) + \textit{MA}(|V|))).$$
+We have shown that when solving the CFPQ problem with the all-path query semantics, the number of iterations in the loop does not exceed $|N||V|^2 + 1$, and therefore the worst-case time complexity obtained for all path query semantics is $O(|N||P||V|^5)$.
+\end{proof}
+
+Note that the given time complexity of the algorithm presented in Listing~\ref{lst:mtx_cfpq} can be significantly improved for some algebraic structures and for sparse graphs. However, in the general case the obtained upper bounds of the algorithm time complexity are exact since there is an example of a graph and a CFG using which these upper bounds are reached. This example was first published by Jelle Hellings in the work~\cite{hellings2015querying}. Such example uses a graph similar to $\mathcal{G}_1$ shown in Figure~\ref{fig:example_graph}, but with $2^n + 1$ edges labeled by $a$ and $2^n$ edges labeled by $b$. The CFG used in this example describes the language $\mathcal{L} = \{a^nb^n \mid n \geq 1\}$. The fact that the lengths of two cycles in this graph are coprime leads to the fact that the minimum height of the derivation trees of paths from the vertex 0 to the vertex 0 that satisfy the given constraints is $O(|V|^2)$. A step-by-step demonstration of the proposed algorithm on a particular case of such example will be provided in the next section.
+
+%Далее, используя индукцию на минимальные высоты деревьев вывода, соответствующих восстанавливаемому пути с помощью алгоритма, представленного на листинге~\ref{lst:mtx_single_extract}, может быть доказана следующая теорема.
+Further, using induction on the minimum heights of the derivation trees corresponding to the extracted path using the algorithm presented in Listing~\ref{lst:mtx_single_extract}, the following theorem can be proved.
+
+\begin{theorem}[The time complexity of the single path extraction algorithm]\label{thm:time_single_mtx}
+	%Пусть $\mathcal{G} = \langle V, E, L \rangle$~--- входной граф, $G = \langle N, \Sigma, P, S \rangle$~--- входная КС-грамматика и $T$~--- множество матриц, возвращаемое алгоритмом, представленным на листинге~\ref{lst:mtx_cfpq}, с использованием алгебраической структуры, соответствующего задаче поиска одного пути. Тогда для алгоритма, представленного на листинге~\ref{lst:mtx_single_extract}, справедлива следующая оценка временной сложности: $O(d|N|^2\textit{Read}(|V|))$, где $d$~--- количество вершин в дереве вывода минимальной высоты для восстановленного алгоритмом пути.
+	Suppose that $\mathcal{G} = \langle V, E, L \rangle$ is the input graph, $G = \langle N, \Sigma, P, S \rangle$ is the input CFG, and $T$ is the set of matrices returned by the algorithm shown in Listing~\ref{lst:mtx_cfpq} using an algebraic structure corresponding to the single-path query semantics. Then the algorithm shown in Listing~\ref{lst:mtx_single_extract} has the following worst-case time complexity: $O(d|N|^2)$ where $d$ is the number of nodes in the minimum height derivation tree for the path extracted by the algorithm.
+\end{theorem}
+
+%В данной работе временная сложность алгоритма, представленного на листинге~\ref{lst:mtx_all_extract}, не приводится, так как она зависит от конкретного способа ограничения количества восстанавливаемых путей и построения соответствующих множеств искомых путей.
+In this work, the time complexity of the algorithm presented in Listing~\ref{lst:mtx_all_extract} is not given since it depends on the specific method of limiting the number of paths to be extracted and methods for constructing the corresponding sets of paths.
+
+\section{An Example}\label{sec:ch3/sect4}
+%В данном разделе работа изложенного алгоритма продемонстрирована на примере, основанном на КС-языке правильных вложенных скобочных последовательностей.
+In this section, a step-by-step demonstration of the proposed algorithm is provided using the example based on the CFL of the balanced nested bracket sequences.
+
+%Пусть даны граф $\mathcal{G}_1$, изображённый на~\cref{fig:example_graph} и КС-ограничения в виде КС-языка $\mathcal{L} = \{a^nb^n \mid n \geq 1\}$. Представим данный КС-язык в виде КС-грамматики $G$ в нормальной форме со следующими правилами вывода.
+The graph $\mathcal{G}_1$ is showed in Figure~\ref{fig:example_graph} and the CFL $\mathcal{L} = \{a^nb^n \mid n \geq 1\}$ is the context-free path constraints. We represent this CFL as a CFG $G$ in the WCNF with the following derivation rules.
+	\[
+	\begin{array}{rcclcrccl}
+	0: & S & \rightarrow & A \ B   & \quad & 3: & A & \rightarrow & \text{\emph{a}}     \\
+	1: & S & \rightarrow & A \ S_1       & \quad & 4: & B & \rightarrow & \text{\emph{b}} \\
+	2: & S_1 & \rightarrow & S \ B & & & & &
+	\end{array}
+	\]
+
+%Далее разберём работу алгоритма, представленного на листинге~\ref{lst:mtx_cfpq}, для задачи достижимости, поиска одного и поиска всех путей.
+Next, we provide a demonstration of the algorithm presented in Listing~\ref{lst:mtx_cfpq} for CFPQ problem with various path query semantics.
+
+\paragraph{Reachability.} %Для рассматриваемых графа и КС-грамматики алгоритм, представленный на листинге~\ref{lst:mtx_cfpq}, инициализирует множество матриц $T$, изображенных на~\cref{ExampleQueryInitMatrix}.
+For the discussed graph and CFG, the algorithm shown in Listing~\ref{lst:mtx_cfpq} initializes the set of matrices $T$ shown in Figure~\ref{ExampleQueryInitMatrix}.
+
+
+\begin{figure}[h]
+	\[
+	T^{A, 0} = \begin{pmatrix}
+	0 & 1      & 0 & 0       \\
+	0 & 0 & 1       & 0 \\
+	1       & 0 & 0 & 0 \\
+	0       & 0 & 0 & 0 \\
+	\end{pmatrix}
+	\]
+	\[
+	T^{B, 0} = \begin{pmatrix}
+	0 & 0       & 0 & 1      \\
+	0 & 0 & 0       & 0 \\
+	0       & 0 & 0 & 0 \\
+	1      & 0 & 0 & 0 \\
+	\end{pmatrix}
+	\]
+	\caption{The set of matrices $T$ after initialization for the reachability problem (elements $T^{S_1, 0}[i, j]$ and $T^{S, 0}[i, j]$ are equal to $\bot = 0$ for all $i, j$)}
+	\label{ExampleQueryInitMatrix}
+\end{figure}
+
+%Так как в заданной грамматике отсутствуют правила вида $A \rightarrow \varepsilon$, то алгоритм переходит к выполнению цикла в строках 9--11. Далее в процессе работы алгоритма будут меняться только матрицы $T^{S}$ и $T^{S_1}$. После первой итерации цикла все элементы матрицы $T^{S_1, 1}$ останутся равны $0$, а элементы матрицы $T^{S, 1}$ изображены на~\cref{ExampleQueryFirstIteration}. При нахождении очередного пути на некоторой итерации алгоритм добавляет информацию о достижимости в соответствующую матрицу. Например, на первой итерации цикла был найден путь $2 \pi 3 = (2, a, 0), (0, b, 3)$, образующий строку $\lambda(\pi) = ab$, выводимую из нетерминала $S$. Информация о достижимости вершины 3 из вершины 2 добавляется в ячейку $T^{S, 1}[2, 3]$.
+Since there are no derivation rules of the form $A \rightarrow \varepsilon$ in the given grammar, the algorithm proceeds to execute the loop in lines 9--11. Further, only the matrices $T^{S}$ and $T^{S_1}$ will change. After the first iteration of the loop, all elements of the matrix $T^{S_1, 1}$ will remain equal to $0$, and the elements of the matrix $T^{S, 1}$ are shown in Figure~\ref{ExampleQueryFirstIteration}. When finding the next path at some iteration, the algorithm adds reachability information to the corresponding matrix. For example, at the first iteration of the loop, the path $2 \pi 3 = (2, a, 0), (0, b, 3)$ was found, forming the string $\lambda(\pi) = ab$ derived from the nonterminal $S$. Information about the reachability of the vertex 3 from the vertex 2 is added to the cell $T^{S, 1}[2, 3]$.
+
+
+\begin{figure}[h]
+\[
+T^{S,1} = T^{S, 0} \bigoplus (T^{A, 0} \cdot T^{B, 0}) = \begin{pmatrix}
+	0 & 0     & 0 & 0       \\
+	0 & 0 & 0  & 0 \\
+	0       & 0 & 0 & 1 \\
+	0       & 0 & 0& 0\\
+\end{pmatrix}
+\]
+\caption{Elements of the matrix $T^{S, 1}$ after first loop iteration for the reachability problem}
+\label{ExampleQueryFirstIteration}
+\end{figure}
+
+%Для полного обхода графа в соответствии с входной КС-грамматикой этот процесс повторяется, пока добавляется новая информация хотя бы в одну из матриц. В данном примере алгоритм выполнит 13 итераций цикла, после чего завершит свою работу. Результирующая матрица $T^{S, 13}$ представлена на~\cref{ExampleQueryFinalMatrices}.
+To completely traverse the graph in accordance with the input CFG, this process is repeated while new information is added to at least one of the matrices. In this example, the algorithm will perform 13 iterations of the loop, after which it will complete its work. The resulting matrix $T^{S, 13}$ is represented in Figure~\ref{ExampleQueryFinalMatrices}.
+
+{\footnotesize
+\begin{figure}[h]
+	\[
+	T^{S, 13} = \begin{pmatrix}
+	1 & 0     & 0 & 1       \\
+	1 & 0 & 0   & 1 \\
+	1       & 0 & 0 & 1 \\
+	0       & 0 & 0 & 0 \\
+	\end{pmatrix}
+	\]
+	\caption{Elements of the resulting matrix $T^{S, 13}$ for the reachability problem}
+	\label{ExampleQueryFinalMatrices}
+\end{figure}
+}
+
+%Наконец, после работы алгоритма можно использовать получившуюся матрицу для построения множества пар вершин, являющегося ответом на задачу достижимости в графе с заданными КС-ограничениями. В данном примере этим множеством является $\{(0, 0),(0, 3),(1, 0),(1, 3),(2, 0),(2, 3)\}$.
+Finally, the resulting matrix can be used to construct a set of pairs of vertices, which is the answer to the CFPQ problem with the reachability query semantics. In this example, this set is equal to $\{(0, 0), (0, 3), (1, 0), (1, 3), (2, 0), (2, 3)\}$.
+
+
+\paragraph{Single-path.} %Аналогично задаче достижимости, продемонстрируем работу алгоритма, представленного на листинге~\ref{lst:mtx_cfpq}, для задачи поиска одного пути, при которой используется соответствующее полукольцо $\langle \textit{PathIndex}, \oplus, \otimes, \bot \rangle$, где $\bot = (0, 0, 0, 0)$. Алгоритм инициализирует множество матриц $T$, изображенных на~\cref{ExampleQueryInitMatrixSingle}.
+Similarly to the reachability problem, for the single-path query semantics the algorithm initializes the set of matrices $T$ shown in Figure~\ref{ExampleQueryInitMatrixSingle}.
+
+{\footnotesize
+\begin{figure}[h]
+	\[
+	T^{A, 0} = \begin{pmatrix}
+	\bot & (0, 1, 0, 1)       & \bot & \bot       \\
+	\bot & \bot & (1, 2, 1, 1)       & \bot \\
+	(2, 0, 2, 1)       & \bot & \bot & \bot \\
+	\bot       & \bot & \bot & \bot \\
+	\end{pmatrix}
+	\]
+	\[
+	T^{B, 0} = \begin{pmatrix}
+	\bot & \bot       & \bot & (0, 3, 0, 1)       \\
+	\bot & \bot & \bot       & \bot \\
+	\bot       & \bot & \bot & \bot \\
+	(3, 0, 3, 1)      & \bot & \bot & \bot \\
+	\end{pmatrix}
+	\]
+	\caption{The set of matrices $T$ after initialization for the single-path query semantics (elements $T^{S_1, 0}[i, j]$ and $T^{S, 0}[i, j]$ are equal to $\bot = (0, 0, 0, 0)$ for all $i, j$)}
+	\label{ExampleQueryInitMatrixSingle}
+\end{figure}
+}
+
+%Как и в случае решения задачи достижимости, далее в процессе работы алгоритма будут меняться только матрицы $T^{S}$ и $T^{S_1}$. После первой итерации цикла в строках 9--11 все элементы матрицы $T^{S_1, 1}$ останутся равны $\bot$, а элементы матрицы $T^{S, 1}$ изображены на~\cref{ExampleQueryFirstIterationSingle}. В отличие от предыдущего случая, при решении задачи поиска одного пути в матрицу добавляется информация не только о достижимости, но и о конечных вершинах пути, одной из его промежуточных вершин, а также о высоте соответствующего дерева вывода. Например, на первой итерации цикла был найден путь $2 \pi 3 = (2, a, 0), (0, b, 3)$, образующий строку $\lambda(\pi) = ab$, выводимую из нетерминала $S$. В ячейку $T^{S, 1}[2, 3]$ записывается значение $(2, 3, 0, 2)$, так как был найден путь из вершины 2 в вершину 3, с промежуточной вершиной 0 и с деревом вывода строки $\lambda(\pi) = ab$ высоты 2, изображенного на~\cref{treeExample}.
+Only matrices $T^{S}$ and $T^{S_1}$ will change in the process of graph analysis. After the first iteration of the loop in lines 9--11, all elements of the matrix $T^{S_1, 1}$ will remain equal to $\bot$, and the elements of the matrix $T^{S, 1}$ are shown in Figure~\ref{ExampleQueryFirstIterationSingle}. Unlike the previous case, when solving the CFPQ problem with the single-path query semantics, the added information not only about reachability, but also about the initial and final vertices of the path, one of its intermediate vertices, and also about the height of the corresponding derivation tree. For example, at the first iteration of the loop, the path $2 \pi 3 = (2, a, 0), (0, b, 3)$ was found, forming the string $\lambda(\pi) = ab$ derived from the nonterminal $S$. The value $(2, 3, 0, 2)$ is written to the cell $T^{S, 1}[2, 3]$ since the path from the node 2 to the node 3 was found, with an intermediate node 0 and with a derivation tree for the string $\lambda(\pi) = ab$ of height 2, which is shown in Figure~\ref{treeExample}.
+
+{\footnotesize
+\begin{figure}[h]
+	\[
+	T^{S,1} = T^{S, 0} \bigoplus (T^{A, 0} \cdot T^{B, 0}) = \begin{pmatrix}
+	\bot & \bot       & \bot & \bot       \\
+	\bot & \bot & \bot       & \bot \\
+	\bot       & \bot & \bot & (2, 3, 0, 2) \\
+	\bot       & \bot & \bot & \bot \\
+	\end{pmatrix}
+	\]
+	\caption{Elements of the matrix $T^{S, 1}$ after first loop iteration for the single-path query semantics}
+	\label{ExampleQueryFirstIterationSingle}
+\end{figure}
+}
+
+	\begin{figure}[h!]
+	\begin{center}
+		\begin{tikzpicture}[on grid, auto]
+		\node[state] (q_0)   {$S$};
+		\node[state] (q_1) [below left=2cm and 1.5cm of q_0] {$A$};
+		\node[state] (q_2) [below right= 2cm and 1.5cm of q_0] {$B$};
+		\node[state] (q_3) [below=2.0cm of q_1] {$a$};
+		\node[state] (q_4) [below=2.0cm of q_2] {$b$};
+		\path[->]
+		(q_0) edge  node {} (q_1)
+		(q_0) edge  node {} (q_2)
+		(q_1) edge  node {} (q_3)
+		(q_2) edge  node {} (q_4);
+		\end{tikzpicture}
+	\end{center}
+	\caption{A derivation tree with minimal height $h = 2$ for the nonterminal $S$ and the string $\lambda(\pi) = ab$}
+	\label{treeExample}
+    \end{figure}
+
+%Как и при решении задачи достижимости алгоритм выполнит 13 итераций цикла в строках 9--11, после чего завершит свою работу. Результирующая матрица $T^{S, 13}$ для задачи поиска одного пути представлена на~\cref{ExampleQueryFinalMatricesSingle}.
+Similarly to reachability problem, the algorithm will execute 13 iterations of the loop in lines 9--11, after which it will complete its work. The resulting matrix $T^{S, 13}$ for the single-path query semantics is presented in Figure~\ref{ExampleQueryFinalMatricesSingle}.
+
+{\footnotesize
+\begin{figure}[h]
+	\[
+	T^{S, 13} = \begin{pmatrix}
+	(0, 0, 1, 12) & \bot       & \bot & (0, 3, 1, 6)       \\
+	(1, 0, 2, 4) & \bot & \bot       & (1, 3, 2, 10) \\
+	(2, 0, 0, 8)       & \bot & \bot & (2, 3, 0, 2) \\
+	\bot       & \bot & \bot & \bot \\
+	\end{pmatrix}
+	\]
+	\caption{Elements of the resulting matrix $T^{S, 13}$ for the single-path query semantics}
+	\label{ExampleQueryFinalMatricesSingle}
+\end{figure}
+}
+
+%Построенные матрицы также содержат информацию о достижимости, поэтому аналогично может быть построено множество пар вершин $\{(0, 0), (0, 3), (1, 0), (1, 3), (2, 0), (2, 3)\}$, которое является ответом на задачу достижимости с заданными КС-ограничениями. Однако построенные матрицы также содержат информацию, достаточную для построения по одному пути, соответствующему заданным ограничениям, для каждой пары вершин из этого множества. Для этого может быть использован алгоритм, представленный на листинге~\ref{lst:mtx_single_extract}. Например, для восстановления такого пути из вершины 0 в вершину 0 необходимо передать этому алгоритму на вход: начальную и конечную вершины $i = j = 0$; $S$~--- стартовый нетерминал грамматики; результирующие матрицы для всех нетерминалов, вычисленные алгоритмом, представленным на листинге~\ref{lst:mtx_cfpq}; а также КС-ограничения в виде грамматики $G$. Тогда алгоритм, представленный на листинге~\ref{lst:mtx_single_extract}, вернёт путь $0\pi 0$, для которого $\lambda(\pi) = a^6 b^6$. Минимальная высота дерева вывода такой строки из стартового нетерминала $S$ равна 12, что соответствует значению $(0, 0, 1, 12)$, записанному в ячейке $T^{S, 13}[0, 0]$.
+The constructed matrices also contain reachability information, so the set of pairs of vertices $\{(0, 0), (0, 3), (1, 0), (1, 3), (2, 0), (2, 3)\}$ can be constructed, which is the answer to the CFPQ problem with the reachability query semantics. However, the constructed matrices also contain information sufficient to construct one path corresponding to the given constraints for each pair of vertices from this set. For this, the algorithm presented in Listing~\ref{lst:mtx_single_extract} can be used. For example, to extract such a path from the vertex 0 to the vertex 0 it is necessary to pass to this algorithm as input: the initial and final vertices $i = j = 0$; the starting nonterminal $S$ of the grammar; the resulting matrices for all nonterminals, calculated by the algorithm presented in Listing~\ref{lst:mtx_cfpq}; as well as the context-free constraints in the form of the grammar $G$. Then the algorithm shown in Listing~\ref{lst:mtx_single_extract} will return the path $0\pi 0$ for which $\lambda(\pi) = a^6 b^6$. The value $T^{S, 13}[0, 0] = (0, 0, 1, 12)$ corresponds to the derivation tree with minimum height for the string $a^6 b^6$ and the starting nonterminal $S$.
+
+\paragraph{All-path.} %Аналогично предыдущим двум задачам, предоставим состояния матриц из множества $T$ для задачи поиска всех путей и полукольца $\langle \textit{AllPathIndex}, \oplus, \otimes, \bot \rangle$, где $\bot = (0, 0, \emptyset)$. Множество матриц $T$ после инициализации изображено на~\cref{ExampleQueryInitMatrixAll} (в процессе инициализации матриц вместо промежуточных вершин используется специальное значение 4 = $|V|$, сигнализирующее о том, что длина найденного пути равна 0 или 1). Элементы матрицы $T^{S, 1}$, полученные после первой итерации цикла в строках 9--11 изображены на~\cref{ExampleQueryFirstIterationAll}. И, наконец, результирующая матрица $T^{S, 13}$ для задачи поиска всех путей представлена на~\cref{ExampleQueryFinalMatricesAll}.
+Similarly to the previous two path query semantics, we provide the matrices from the set $T$ for the all-path query semantics and the structure $\langle \textit{AllPathIndex}, \oplus, \otimes, \bot \rangle$ with the neutral element $\bot = (0, 0, \emptyset)$. The initialized set of matrices $T$ is shown in Figure~\ref{ExampleQueryInitMatrixAll} (in the process of matrix initialization, instead of intermediate vertices, a special value 4 = $|V|$ is used indicating that the length of the path found is 0 or 1). The elements of the matrix $T^{S, 1}$ obtained after the first iteration of the loop in lines 9--11 are shown in Figure~\ref{ExampleQueryFirstIterationAll}. And finally, the resulting matrix $T^{S, 13}$ for the all-path query semantics is presented in Figure~\ref{ExampleQueryFinalMatricesAll}.
+
+{\small
+	\begin{figure}[h]
+		\[
+		T^{A, 0} = \begin{pmatrix}
+			\bot & (0, 1, \{4\})       & \bot & \bot       \\
+			\bot & \bot & (1, 2, \{4\})       & \bot \\
+			(2, 0, \{4\})       & \bot & \bot & \bot \\
+			\bot       & \bot & \bot & \bot \\
+		\end{pmatrix}
+		\]
+		\[
+		T^{B, 0} = \begin{pmatrix}
+			\bot & \bot       & \bot & (0, 3, \{4\})       \\
+			\bot & \bot & \bot       & \bot \\
+			\bot       & \bot & \bot & \bot \\
+			(3, 0, \{4\})      & \bot & \bot & \bot \\
+		\end{pmatrix}
+		\]
+		\caption{The set of matrices $T$ after initialization for the all-path query semantics (elements $T^{S_1, 0}[i, j]$ and $T^{S, 0}[i, j]$ are equal to $\bot = (0, 0, \emptyset)$ for all $i, j$)}
+		\label{ExampleQueryInitMatrixAll}
+	\end{figure}
+}
+
+{\small
+	\begin{figure}[h]
+		\[
+		T^{S, 1} = \begin{pmatrix}
+			\bot & \bot       & \bot & \bot       \\
+			\bot & \bot & \bot       & \bot \\
+			\bot       & \bot & \bot & (2, 3, \{0\}) \\
+			\bot       & \bot & \bot & \bot \\
+		\end{pmatrix}
+		\]
+		\caption{Elements of the matrix $T^{S, 1}$ after first loop iteration for the all-path query semantics}
+		\label{ExampleQueryFirstIterationAll}
+	\end{figure}
+}
+
+{\small
+	\begin{figure}[h]
+		\[
+		T^{S, 13} = \begin{pmatrix}
+			(0, 0, \{1\}) & \bot       & \bot & (0, 3, \{1\})       \\
+			(1, 0, \{2\}) & \bot & \bot       & (1, 3, \{2\}) \\
+			(2, 0, \{0\})       & \bot & \bot & (2, 3, \{0\}) \\
+			\bot       & \bot & \bot & \bot \\
+		\end{pmatrix}
+		\]
+		\caption{Elements of the resulting matrix $T^{S, 13}$ for the all-path query semantics}
+		\label{ExampleQueryFinalMatricesAll}
+	\end{figure}
+}
+
+%Можем заметить, что для данного примера в результирующей матрице $T^S$ нету элементов с более чем одной промежуточной вершиной. Поэтому полученная матрица очень схожа с соответствующей матрицей для задачи поиска одного пути, но без наличия информации о высотах деревьев вывода. Однако в общем случае количество найденных промежуточных вершин для путей между двумя вершинами может быть больше одного. После построения алгоритмом таких матриц известно, что они содержат все такие промежуточные вершины, поэтому с помощью алгоритма, представленного на листинге~\ref{lst:mtx_all_extract}, могут быть восстановлены все пути, удовлетворяющие заданным КС-ограничениям. Например, могут быть восстановлены все пути из вершины 0 в вершину 0, образующие строки из языка $\mathcal{L} = \{a^nb^n \mid n \geq 1\}$. Множество таких путей бесконечно и они образуют слова из множества $\{a^6 b^6, a^{12} b^{12}, a^{18} b^{18}, \ldots \}$. Для любого $m \geq 1$, путь, образующий строку $a^{6m} b^{6m}$, проходит по циклу с метками $a$ $2m$ раз и по циклу с метками $b$~--- $3m$ раз. При реализации алгоритма восстановления всех путей необходимо ограничивать количество восстанавливаемых путей и добавить соответствующий входной параметр в алгоритм.
+We can notice that for this example, in the resulting matrix $T^S$ there are no elements with more than one intermediate vertex. Therefore, the resulting matrix is very similar to the corresponding matrix for the single-path query semantics but without the information about the heights of the derivation trees. However, in the general case, the number of found intermediate vertices for paths between two vertices can be more than one. After the algorithm constructs such matrices, it is known that they contain all such intermediate vertices, therefore, using the algorithm presented in Listing~\ref{lst:mtx_all_extract} all paths that satisfy the given constraints can be extracted. For example, all paths from the vertex 0 to the vertex 0 can be restored forming strings from the language $\mathcal{L} = \{a^nb^n \mid n \geq 1\}$. The set of such paths is infinite and they form strings from the set $\{a^6 b^6, a^{12} b^{12}, a^{18} b^{18}, \ldots \}$. For any $m \geq 1$, the path forming the string $a^{6m} b^{6m}$ traverses the cycle labeled by $a$~--- $2m$ times and the cycle labeled by $b$~--- $3m$ times. When implementing the algorithm for extracting all paths, it is necessary to limit the number of extracted paths and add the corresponding input parameter to the algorithm.
+
+%Таким образом, была продемонстрирована работа изложенного алгоритма поиска путей в графе с заданными КС-ограничениями.
+Thus, the demonstration of the described CFPQ algorithm was provided.
+
+\section{Implementation}\label{sec:ch3/sect5}
+%В данном разделе приведены детали реализации полученного алгоритма поиска путей в графе с заданными КС-ограничениями с использованием операций умножения матриц. Все перечисленные в разделе реализации находятся в открытом доступе в рамках платформы $\textit{CFPQ\_PyAlgo}\footnote{CFPQ\_PyAlgo~--- платформа для разработки и тестирования алгоритмов поиска путей в графе с заданными КС-ограничениями: https://github.com/JetBrains-Research/CFPQ\_PyAlgo (дата обращения: 14.01.2022).}$.
+In this section, we present the implementation details for the obtained matrix-based CFPQ algorithm. All the implementations listed in this section are available as part of the $\textit{CFPQ\_PyAlgo}\footnote{CFPQ\_PyAlgo~--- platform for developing and testing of CFPQ algorithms: https:// github.com/JetBrains-Research/CFPQ\_PyAlgo (date of access: 14.01.2022).}$ platform.
+
+%При реализации предложенного алгоритма учитывались особенности реальных графов в таких областях, как анализ RDF данных и статический анализ программ. Такие графы имеют довольно большие размеры (до десятков миллионов вершин), однако являются разреженными (имеют до десятков миллионов дуг). Для графов таких размеров целесообразно использовать параллельные вычислительные системы, так как время, затраченное на организацию параллельных вычислений (например, обмен данными между CPU и GPU) будет незначителен в сравнении с временем самого анализа. Поэтому обязательными атрибутами реализаций являются: использование параллельных вычислений и представление матриц с помощью разреженных форматов. Так как рассматриваемые графы не являются сильно разреженными, то для хранения разреженных матриц был выбран формат CSR. Далее будут описаны полученные реализации предложенного алгоритма.
+The properties of real graphs in such areas as RDF data analysis and static program analysis were taken into account. Such graphs are quite large (up to tens of millions of vertices) but they are sparse (up to tens of millions of edges). For graphs of such sizes it is advisable to use parallel computing systems since the time spent on organizing parallel computing (for example, data exchange between the CPU and GPU) will be insignificant compared to the time of the analysis itself. Therefore, the implementations must use parallel computations and must store matrices using sparse formats. Since the discussed graphs are not hypersparse, the CSR format was chosen to store sparse matrices. Next, the obtained implementations of the proposed algorithm will be described.
+
+\paragraph{Reachability.} %Для решения задачи достижимости были использованы операции умножения и сложения над набором булевых матриц. А для реализации данного алгоритма были выбраны библиотеки для параллельного вычисления этих операций над разреженными булевыми матрицами на CPU и GPU. Реализация на CPU была создана с использованием библиотеки SuiteSparse:GraphBLAS, а для реализации на GPU~--- с использованием библиотеки cuBool. Стоит отметить, что библиотека SuiteSparse:GraphBLAS содержит встроенные алгебраические структуры, которые могут быть использованы для вычисления операций над булевыми матрицами. В результате были получены следующие реализации:
+To solve the CFPQ problem with the reachability query semantics, the operations of multiplication and addition over a set of Boolean matrices were used. And to implement this algorithm, libraries were chosen for the parallel calculation of these operations on sparse Boolean matrices on the CPU and GPU. The CPU implementation was created using the SuiteSparse:GraphBLAS library, and for the GPU implementation we used the cuBool library. It is worth noting that the SuiteSparse:GraphBLAS library contains built-in algebraic structures that can be used to compute operations on Boolean matrices. As a result, the following implementations were obtained:
+\begin{itemize}
+    \item $\textit{MtxReach}_{\textit{CPU}}$~--- a \texttt{Python} implementation using the pygraphblas package, which is a wrapper for the SuiteSparse:GraphBLAS library;
+    \item $\textit{MtxReach}_{\textit{GPU}}$~--- a \texttt{Python} implementation using the pycubool package, which is a wrapper for the cuBool library.
+\end{itemize}
+
+To solve CFPQ problem with other path query semantics, more complex types for matrix elements were used. This leads to a significant increase in memory consumption, which is especially critical for GPU implementations. The proposed matrix-based algorithm for the single-path and all-path query semantics can be implemented on the GPU, for example, using CUSP library that allows one to calculate matrix operations with user-defined data type. However, to evaluate such implementations on real data, further research is needed to optimize the proposed algorithm and the used algebraic structures. Such a study should focus on the algorithm memory consumption and implementation details of the selected GPU linear algebra library. In this thesis, the proposed algorithm for the single-path and all-path query semantics was implemented only on the CPU.
+
+\paragraph{Single-path.} %Алгоритм для решения задачи поиска одного пути был также реализован с использованием библиотеки SuiteSparse:GraphBLAS. Однако вместо использования одной из встроенных алгебраических структур, для вычисления операций над матрицами в этом алгоритме необходимо определить пользовательский тип данных и операции над ними, соответствующие приведённой для этой задачи структуре $\langle \textit{PathIndex}, \oplus, \otimes, \bot \rangle$. В результате была получены следующая реализация:
+The algorithm for the single-path query semantics was also implemented using the SuiteSparse:GraphBLAS library. However, instead of using one of the built-in algebraic structures, to calculate operations on matrices in this algorithm, it is necessary to define a user-defined data type and operations on them corresponding to the structure $\langle \textit{PathIndex}, \oplus, \otimes, \bot \rangle$. In the result we have the following implementation:
+\begin{itemize}
+    \item $\textit{MtxSingle}_{\textit{CPU}}$~--- a \texttt{Python} implementation using the pygraphblas package, which is a wrapper for the SuiteSparse:GraphBLAS library.
+\end{itemize}
+
+\paragraph{All-path.} %Реализация для задачи поиска всех путей была также получена с использованием библиотеки SuiteSparse:GraphBLAS. Однако пакет pygraphblas на момент написания данного текста не позволяет определить пользовательский тип данных и операции над ними, соответствующие алгебраической структуре $\langle \textit{AllPathIndex}, \oplus, \otimes, \bot \rangle$. Поэтому реализация алгоритма для поиска всех путей была написана на языке Си++ с использованием библиотеки SuiteSparse:GraphBLAS, а также для этого алгоритма была написана собственная обёртка на языке Питон. В итоге была получена следующая реализация:
+The implementation for the all-path query semantics was also obtained using the SuiteSparse:GraphBLAS library. However, at the moment, the pygraphblas package does not allow one to use a user-defined data type and operations on them corresponding to the algebraic structure $\langle \textit{AllPathIndex}, \oplus, \otimes, \bot \rangle$. Therefore, the implementation of the algorithm for the all-path query semantics was written in \texttt{C++} using the SuiteSparse:GraphBLAS library, and a \texttt{Python} wrapper was written for this algorithm. As a result, the following implementation was obtained:
+\begin{itemize}
+    \item $\textit{MtxAll}_{\textit{CPU}}$~--- a \texttt{Python} implementation using our own wrapper for the \texttt{C++} algorithm using the SuiteSparse:GraphBLAS library.
+\end{itemize}
+
+%Кроме того, для задач поиска одного и поиска всех путей в графе были реализованы на языке Питон алгоритмы восстановления искомых путей по информации, содержащейся в построенных матрицах. Стоит отметить, что в реализации алгоритма восстановления всех путей был дополнительно использован параметр, ограничивающий длины восстанавливаемых путей для завершаемости этого процесса.
+In addition, for the single-path and the all-path query semantics the algorithms for extracting the desired paths from the information contained in the constructed matrices were implemented in \texttt{Python}. It should be noted that in the implementation of the algorithm for extracting all paths, a parameter was additionally used that limits the length of the extracted paths for the process termination.
+
+\clearpage
