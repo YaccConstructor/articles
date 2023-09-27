@@ -1,0 +1,605 @@
+\section{Экспериментальное исследование}\label{ps}
+
+Для оценки производительности предложенного решения было проведено экспериментальное исследование на реальных графах и запросах.
+В данном разделе приведены и описаны полученные результаты.
+
+\subsection{Оборудование}
+Все эксперименты были запущены на сервере со следующими характеристиками.
+
+\begin{itemize}
+    \item Операционная система Ubuntu 18.04.
+    \item Процессор Intel Core i7-6700 CPU, 3.40GHz, 4 потока (hyper-thread-ing выключен).
+    \item DDR4 64Gb RAM.
+    \item OpenJDK 64-Bit виртуальная машина (build 25.362-b09, mixed mo-de). JVM сконфигурирована использовать 60Gb памяти кучи. 
+\end{itemize}
+
+\subsection{Эспериментальные данные}
+Экспериментальное исследование проводилось на графах, содержащихся в библиотеке CFPQ\_Data\footnote{CFPQ\_Data --- это публичный набор графов и грамматик для CFPQ-алгоритмов. GitHub репозиторий: \url{https://github.com/FormalLanguageConstrainedPathQuerying/CFPQ_Data}. Accessed: 05/04/2023. }.
+Был выбран набор графов, относящихся к RDF анализу (класс RDF), как достаточно известный и зарекомендовавший себя со временем набор графов для исследования решающих задачу поиска достижимостей в графе с контекстно-свободными ограничениями.
+% , а также множество графов, извлеченных из исходного кода операционной системы Linux, относящихся к статическому анализу кода (класс MemoryAliases).
+Подробное описание графов (количество вершин, ребер, а также количество ребер с метками, используемых в запросе) приведено в таблице~\ref{tab:graphs_for_evaluation_rdf}.
+
+
+\begin{table*}
+    \centering
+    \resizebox{\columnwidth}{!}{%
+    \begin{tabular}{| l | r | r | r | r | r | r |}
+         \hline
+         Название графа & $|V|$ & $|E|$ & \#subClassOf & \#type & \#broaderTransitive\\
+         \hline
+         \hline
+            skos & 144 & 252 & 1 & 70 & 0 \\
+            generations & 129 & 273 & 0 & 78 & 0 \\
+            travel & 131 & 277 & 30 & 90 & 0 \\
+            univ & 179 & 293 & 36 & 84 & 0 \\
+            atom & 291 & 425 & 122 & 138 & 0 \\
+            biomedical & 341 & 459 & 122 & 130 & 0 \\
+            foaf & 256 & 631 & 10 & 174 & 0 \\
+            people & 337 & 640 & 33 & 161 & 0 \\
+            funding & 778 & 1086 & 90 & 304 & 0 \\
+            wine & 733 & 1839 & 126 & 485 & 0 \\
+            pizza & 671 & 1980 & 259 & 365 & 0 \\
+            core & 1323 & 2752 & 178 & 706 & 0 \\
+            pathways & 6238 & 12363 & 3117 & 3118 & 0 \\
+            enzyme & 48815 & 86543 & 8163 & 14989 & 8156 \\
+            eclass & 239111 & 360248 & 90962 & 72517 & 0 \\
+            go\_hierarchy & 45007 & 490109 & 490109 & 0 & 0 \\
+            go & 582929 & 1437437 & 94514 & 226481 & 0 \\
+            geospecies & 450609 & 2201532 & 0 & 89062 & 20867 \\
+            taxonomy & 5728398 & 14922125 & 2112637 & 2508635 & 0 \\
+         \hline
+    \end{tabular}%
+    }
+    \caption{Графы класса RDF: количество вершин, ребер и ребер с определенными метками}
+    \label{tab:graphs_for_evaluation_rdf}
+\end{table*}
+
+%     \begin{table*}[h!]
+%     \centering
+%     \begin{tabular}{| c | c | c | c | c | c | c |}
+%          \hline
+%          Graph name & $|V|$ & $|E|$ & \#a & \#d \\
+%          \hline
+%          \hline
+%          Apache         & 1 721 418 & 1 510 411  & 362 799 & 1 147 612 \\
+%          Block          & 3 423 234 & 2 951 393  & 669 238 & 2 282 155 \\
+%          Fs             & 4 177 416 & 3 609 373 & 824 430 & 2 784 943 \\
+%          Ipc            & 3 401 022 & 2 931 498 & 664 151 & 2 267 347 \\
+%          Lib            & 3 401 355 & 2 931 880 & 664 311 & 2 267 569 \\
+%          Mm             & 2 538 243 & 2 191 079 & 498 918 & 1 692 161 \\
+%          Net            & 4 039 470 & 3 500 141 & 807 162 & 2 692 979 \\
+%          Postgre        & 5 203 419 & 4 678 543 & 1 209 597 & 3 468 946 \\
+%          Security       & 3 479 982 & 3 003 326 & 683 339 & 2 319 987 \\
+%          Sound          & 3 528 861 & 3 049 732 & 697 159 & 2 352 573 \\
+%          Init           & 2 446 224 & 2 112 809 & 481 994 & 1 630 815 \\
+%          Arch           & 3 448 422 & 2 970 242 & 6 712 95 & 2 298 947 \\
+%          Crypto         & 3 464 970 & 2 988 387 & 678 408 & 2 309 979 \\
+%          Drivers        & 4 273 803 & 3 707 769 & 858 568 & 2 849 201 \\
+%          Kernel         & 11 254 434& 9 484 213  & 1 981 258 & 7 502 955 \\
+%          \hline
+%     \end{tabular}
+%     \caption{Графы класса MemoryAliases: количество вершин, ребер и ребер с определенными метками}
+%     \label{tab:graphs_for_evaluation_stat}
+% \end{table*}
+
+
+% Все использованные запросы являются вариациями запроса \emph{поиска потомков одного поколения}.
+Для графов, из класса RDF были использованы те же запросы, что и в других работах по разработке алгоритмов решающих задачу поиска достижимостей в графе с контекстно-свободными ограничениями: $G_1$~(\ref{cfg:g_1}), $G_2$~(\ref{cfg:g_2}) и $Geo$~(\ref{cfg:geo}).
+Запросы выражены как контекстно-свободные грамматики, где $S$ --- стартовый нетерминал, \textit{subClassOf, type, broaderTransitive, }$ \overline{\textit{subClassOf}}$, $\overline{\textit{type}}$, $\overline{\textit{broaderTransitive}}$ --- терминальные символы.
+Здесь $\overline{x}$ обозначает обратное ребро $(v_j, x, v_i)$ для ребра $(v_i, x, v_j)$ в графе.
+    
+\begin{ruexample}
+    Контекстно-свободная грамматика $G_1$.
+    \begin{align}
+    \begin{split}
+    \label{cfg:g_1}
+    S \to & \overline{\textit{subClassOf}} \ \ S \ \textit{subClassOf} \mid \overline{\textit{type}} \ \ S \ \textit{type}\\   & \mid \overline{\textit{subClassOf}} \ \ \textit{subClassOf} \mid \overline{\textit{type}} \ \textit{type}
+    \end{split}
+    \end{align}
+\end{ruexample}
+
+\begin{ruexample}
+    Рекурсивный автомат $A_1$, соответствующий контекстно-свободной грамматике $G_1$.~
+\end{ruexample}
+\begin{align}
+        \label{rsm:g_1}
+        \begin{tikzpicture}[node distance=4cm,shorten >=1pt,on grid,auto]
+           \node[state, initial] (q_0)   {$0 \{S\}$};
+           \node[state] (q_1) [above right=of q_0] {$1 \{S\}$};
+           \node[state] (q_2) [right=of q_1] {$2 \{S\}$};
+           \node[state, accepting] (q_3) [below right=of q_2] {$3 \{S\}$};
+           \node[state] (q_4) [below right=of q_0] {$4 \{S\}$};
+           \node[state] (q_5) [right=of q_4] {$5 \{S\}$};
+           \path[->]
+            (q_0) edge[bend left, left]  node {$\overline{subClassOf}$} (q_1)
+            (q_1) edge  node {$S$} (q_2)
+            (q_2) edge[bend left, right]  node {$subClassOf$} (q_3)
+            (q_1) edge[left]  node {$subClassOf$} (q_3)
+            (q_0) edge[bend right, left] node {$\overline{type}$} (q_4)
+            (q_4) edge  node {$S$} (q_5)
+            (q_5) edge[bend right, right]  node {$type$} (q_3)
+            (q_4) edge[left]  node {$type$} (q_3);
+        \end{tikzpicture}
+    \end{align}
+
+\begin{ruexample}
+    Контекстно-свободная грамматика $G_2$.
+\begin{align}
+\label{cfg:g_2}
+S \to \overline{\textit{subClassOf}} \ \ S \ \textit{subClassOf} \mid \textit{subClassOf}
+\end{align}
+\end{ruexample}
+
+\begin{ruexample}
+    Рекурсивный автомат $A_2$, соответствующий контекстно-свободной грамматике $G_2$.~
+    \begin{align}
+    \label{rsm:g_2}
+        \begin{tikzpicture}[node distance=4cm,shorten >=1pt,on grid,auto]
+           \node[state, initial] (q_0)   {$0 \{S\}$};
+           \node[state] (q_1) [right=of q_0] {$1 \{S\}$};
+           \node[state] (q_2) [right=of q_1] {$2 \{S\}$};
+           \node[state, accepting] (q_3) [right=of q_2] {$3 \{S\}$};
+           \path[->]
+            (q_0) edge[bend right, below]  node {$\overline{subClassOf}$} (q_1)
+            (q_1) edge  node {$S$} (q_2)
+            (q_2) edge[bend right, below]  node {$subClassOf$} (q_3)
+            (q_0) edge[bend left, above]  node {$subClassOf$} (q_3);
+        \end{tikzpicture}
+    \end{align}
+    
+\end{ruexample}
+
+
+\begin{ruexample}
+    Контекстно-свободная грамматика $Geo$.
+\begin{align}
+\begin{split}
+\label{cfg:geo}
+S \to & \textit{broaderTransitive} \ \  S \ \overline{\textit{broaderTransitive}} \\
+      & \mid \textit{broaderTransitive} \ \  \overline{\textit{broaderTransitive}}
+\end{split}
+\end{align}
+\end{ruexample}
+
+\begin{ruexample}
+    Рекурсивный автомат $A_{geo}$, соответствующий контекстно-свободной грамматике $Geo$.~
+\end{ruexample}
+
+    \begin{align}
+    \label{rsm:geo}
+        \begin{tikzpicture}[node distance=4cm,shorten >=1pt,on grid,auto]
+           \node[state, initial] (q_0)   {$0 \{S\}$};
+           \node[state] (q_1) [right=of q_0] {$1 \{S\}$};
+           \node[state] (q_2) [right=of q_1] {$2 \{S\}$};
+           \node[state, accepting] (q_3) [right=of q_2] {$3 \{S\}$};
+           \path[->]
+            (q_0) edge[bend left, above]  node {$broaderTransitive$} (q_1)
+            (q_1) edge  node {$S$} (q_2)
+            (q_2) edge[bend right, below]  node {$\overline{broaderTransitive}$} (q_3)
+            (q_1) edge[bend left, above]  node {$\overline{broaderTransitive}$} (q_3);
+        \end{tikzpicture}
+    \end{align}
+
+
+% Для графов класса MemoryAliases был взят запрос $PointsTo ~(\ref{cfg:points_to})$, использовавшийся в исследовании~\cite{Zheng}. 
+% \begin{ruexample}
+%     Контекстно-свободная грамматика $PointsTo$.
+% \begin{align}
+% \begin{split}
+% \label{cfg:points_to}
+% S & \to \overline{d} \ V \ d \\
+% V & \to V_1 \ V_2 \ V_3 \\
+% V_1 & \to \varepsilon \\
+% V_1 & \to V_2 \ \overline{a} \ V_1 \\
+% V_2 & \to \varepsilon \\
+% V_2 & \to S \\
+% V_3 & \to \varepsilon \\
+% V_3 & \to a \ V_2 \ V_3 \\
+% \end{split}
+% \end{align}
+% \end{ruexample}
+
+% \begin{ruexample}
+%     Рекурсивный автомат $A_{PointsTo}$, соответствующий контекстно-свободной грамматике $PointsTo$.~
+% \end{ruexample}
+
+%     \begin{align}
+%     \label{rsm:points_to}
+%         \begin{tikzpicture}[node distance=2.7cm,shorten >=1pt,on grid,auto, x=20mm, y=20mm]
+%            \node[state, initial] (q_0)   {$0 \{S\}$};
+%            \node[state] (q_1) [right=of q_0] {$1 \{S\}$};
+%            \node[state] (q_2) [right=of q_1] {$2 \{S\}$};
+%            \node[state, accepting] (q_3) [right=of q_2] {$3 \{S\}$};
+%            \node[state, initial, accepting] (q_4) [below=of q_0] {$4 \{V\}$};
+%            \node[state] (q_5) [right=of q_4] {$5 \{V\}$};
+%            \node[state, accepting] (q_6) [right=of q_5] {$6 \{V\}$};
+%            \node[state, accepting] (q_7) [right=of q_6] {$7 \{V\}$};
+%            \node[state, accepting] (q_8) [right=of q_7] {$8 \{V\}$};
+%            \node[state, accepting] (q_9) [right=of q_8] {$9 \{V\}$};
+%            \path[->]
+%             (q_0) edge node {$\overline{d}$} (q_1)
+%             (q_1) edge node {$V$} (q_2)
+%             (q_2) edge node {$d$} (q_3)
+%             (q_4) edge[out=270, in=270, looseness=1] node {$\overline{a}$} (q_6)
+%             (q_4) edge[out=270, in=270, looseness=1] node {$a$} (q_8)
+%             (q_4) edge node {$S$} (q_5)
+%             (q_4) edge[out=270, in=270, looseness=1] node {$S$} (q_7)
+%             (q_5) edge[bend right, below] node {$\overline{a}$} (q_6)
+%             (q_6) edge[out=330, in=300, looseness=8] node {$\overline{a}$} (q_6)
+%             (q_6) edge[bend left] node {$a$} (q_8)
+%             (q_6) edge[bend right, above] node {$S$} (q_5)
+%             (q_6) edge node {$S$} (q_7)
+%             (q_7) edge node {$a$} (q_8)
+%             (q_8) edge[out=330,in=300,looseness=8] node {$a$} (q_8)
+%             (q_8) edge node {$S$} (q_9)
+%             (q_9) edge[out=120, in=60, above] node {$a$} (q_8)
+%             ;
+%         \end{tikzpicture}
+%     \end{align}
+
+Кроме того, для исследования различий в эффективности обработки регулярных выражений классическим и модифицированным GLL алгоритмами, были выбраны следующие регулярные выражения, построенные по шаблонам $Q_1$, $Q_2$, $Q_{4}^{2}$ и $Q_6$ из работы~\cite{regex}. 
+
+\begin{ruexample}
+    Регулярное выражение $R_1$ для класса графов RDF, построенное по шаблону $Q_1$ на терминальном символе $type$.
+\begin{align}
+\begin{split}
+\label{reg:rdf_reg_1}
+type^*
+\end{split}
+\end{align}
+\end{ruexample}
+
+\begin{ruexample}
+    Контекстно-свободная грамматика $G_{R_1}$, соответствующая регулярному выражению~(\ref{reg:rdf_reg_1}).
+\begin{align}
+\begin{split}
+\label{cfg:rdf_reg_1}
+S & \to \varepsilon \\
+S & \to type \ S \\
+\end{split}
+\end{align}
+\end{ruexample}
+
+\begin{ruexample}
+    Рекурсивный автомат $A_{R_1}$, соответствующий регулярному выражению~(\ref{reg:rdf_reg_1}).
+\end{ruexample}
+
+    \begin{align}
+    \label{rsm:rdf_reg_1}
+        \begin{tikzpicture}[node distance=2.7cm,shorten >=1pt,on grid,auto, x=20mm, y=20mm]
+           \node[state, initial, accepting] (q_0)   {$0 \{S\}$};
+           \path[->]
+            (q_0) edge[out=30, in=150, looseness=8, above] node {$type$} (q_0)
+            ;
+        \end{tikzpicture}
+    \end{align}
+
+% \begin{ruexample}
+%     Регулярное выражение для класса графов MemoryAliases, построенное по шаблону $Q_1$ на терминальном символе $a$.
+% \begin{align}
+% \begin{split}
+% \label{reg:memory_aliases_reg_1}
+% a^*
+% \end{split}
+% \end{align}
+% \end{ruexample}
+
+% \begin{ruexample}
+%     Контекстно-свободная грамматика, соответствующая регулярному выражению~(\ref{reg:memory_aliases_reg_1}).
+% \begin{align}
+% \begin{split}
+% \label{cfg:memory_aliases_reg_1}
+% S & \to \varepsilon \\
+% S & \to a \ S \\
+% \end{split}
+% \end{align}
+% \end{ruexample}
+
+% \begin{ruexample}
+%     Рекурсивный автомат, соответствующий регулярному выражению~(\ref{reg:memory_aliases_reg_1}).
+% \end{ruexample}
+
+%     \begin{align}
+%     \label{rsm:memory_aliases_reg_1}
+%         \begin{tikzpicture}[node distance=2.7cm,shorten >=1pt,on grid,auto, x=20mm, y=20mm]
+%            \node[state, initial, accepting] (q_0)   {$0 \{S\}$};
+%            \path[->]
+%             (q_0) edge[out=30, in=150, looseness=8, above] node {$a$} (q_0)
+%             ;
+%         \end{tikzpicture}
+%     \end{align}
+
+\begin{ruexample}
+    Регулярное выражение $R_2$ для класса графов RDF, построенное по шаблону $Q_2$ на терминальных символах $type$ и $subClassOf$ соответственно.
+\begin{align}
+\begin{split}
+\label{reg:rdf_reg_2}
+type \ subClassOf^*
+\end{split}
+\end{align}
+\end{ruexample}
+
+\begin{ruexample}
+    Контекстно-свободная грамматика $G_{R_2}$, соответствующая регулярному выражению~(\ref{reg:rdf_reg_2}).
+\begin{align}
+\begin{split}
+\label{cfg:rdf_reg_2}
+S & \to type \ C \\
+C & \to \varepsilon \\
+C & \to subClassOf \ C \\
+\end{split}
+\end{align}
+\end{ruexample}
+
+\begin{ruexample}
+    Рекурсивный автомат $A_{R_2}$, соответствующий регулярному выражению~(\ref{reg:rdf_reg_2}).
+\end{ruexample}
+
+    \begin{align}
+    \label{rsm:rdf_reg_2}
+        \begin{tikzpicture}[node distance=4cm,shorten >=1pt,on grid,auto, x=20mm, y=20mm]
+           \node[state, initial] (q_0)   {$0 \{S\}$};
+           \node[state, accepting] (q_1) [right=of q_0]   {$1 \{S\}$};
+           \path[->]
+            (q_0) edge node {$type$} (q_1)
+            (q_1) edge[out=30, in=150, looseness=8, above] node {$subClassOf$} (q_1)
+            ;
+        \end{tikzpicture}
+    \end{align}
+
+% \begin{ruexample}
+%     Регулярное выражение для класса графов MemoryAliases, построенное по шаблону $Q_2$ на терминальных символах $a$ и $d$ соответственно.
+% \begin{align}
+% \begin{split}
+% \label{reg:memory_aliases_reg_2}
+% a \ d^*
+% \end{split}
+% \end{align}
+% \end{ruexample}
+
+% \begin{ruexample}
+%     Контекстно-свободная грамматика, соответствующая регулярному выражению~(\ref{reg:memory_aliases_reg_2}).
+% \begin{align}
+% \begin{split}
+% \label{cfg:memory_aliases_reg_2}
+% S & \to a \ C \\
+% C & \to \varepsilon \\
+% C & \to d \ C \\
+% \end{split}
+% \end{align}
+% \end{ruexample}
+
+% \begin{ruexample}
+%     Рекурсивный автомат, соответствующий регулярному выражению~(\ref{reg:memory_aliases_reg_2}).
+% \end{ruexample}
+
+%     \begin{align}
+%     \label{rsm:memory_aliases_reg_2}
+%         \begin{tikzpicture}[node distance=4cm,shorten >=1pt,on grid,auto, x=20mm, y=20mm]
+%            \node[state, initial] (q_0)   {$0 \{S\}$};
+%            \node[state, accepting] (q_1) [right=of q_0]   {$1 \{S\}$};
+%            \path[->]
+%             (q_0) edge node {$a$} (q_1)
+%             (q_1) edge[out=30, in=150, looseness=8, above] node {$d$} (q_1)
+%             ;
+%         \end{tikzpicture}
+%     \end{align}
+
+\begin{ruexample}
+    Регулярное выражение $R_3$ для класса графов RDF, построенное по шаблону $Q_{4}^{2}$ на терминальных символах $type$ и $subClassOf$ соответственно.
+\begin{align}
+\begin{split}
+\label{reg:rdf_reg_3}
+(type ~|~ subClassOf)^*
+\end{split}
+\end{align}
+\end{ruexample}
+
+\begin{ruexample}
+    Контекстно-свободная грамматика $G_{R_3}$, соответствующая регулярному выражению~(\ref{reg:rdf_reg_3}).
+\begin{align}
+\begin{split}
+\label{cfg:rdf_reg_3}
+S & \to \varepsilon \\
+S & \to type \ S \\
+S & \to subClassOf \ S \\
+\end{split}
+\end{align}
+\end{ruexample}
+
+\begin{ruexample}
+    Рекурсивный автомат $A_{R_3}$, соответствующий регулярному выражению~(\ref{reg:rdf_reg_3}).
+\end{ruexample}
+
+    \begin{align}
+    \label{rsm:rdf_reg_3}
+        \begin{tikzpicture}[node distance=2.7cm,shorten >=1pt,on grid,auto, x=20mm, y=20mm]
+           \node[state, initial, accepting] (q_0)   {$0 \{S\}$};
+           \path[->]
+            (q_0) edge[out=30, in=150, looseness=8, above] node {$type$} (q_0)
+            (q_0) edge[out=330, in=210, looseness=8, below] node {$subClassOf$} (q_0)
+            ;
+        \end{tikzpicture}
+    \end{align}
+
+% \begin{ruexample}
+%     Регулярное выражение для класса графов MemoryAliases, построенное по шаблону $Q_{4}^{2}$ на терминальных символах $a$ и $d$ соответственно.
+% \begin{align}
+% \begin{split}
+% \label{reg:memory_aliases_reg_3}
+% (a ~|~ d)^*
+% \end{split}
+% \end{align}
+% \end{ruexample}
+
+% \begin{ruexample}
+%     Контекстно-свободная грамматика, соответствующая регулярному выражению~(\ref{reg:memory_aliases_reg_3}).
+% \begin{align}
+% \begin{split}
+% \label{cfg:memory_aliases_reg_3}
+% S & \to \varepsilon \\
+% S & \to a \ S \\
+% S & \to d \ S \\
+% \end{split}
+% \end{align}
+% \end{ruexample}
+
+% \begin{ruexample}
+%     Рекурсивный автомат, соответствующий регулярному выражению~(\ref{reg:memory_aliases_reg_3}).
+% \end{ruexample}
+
+%     \begin{align}
+%     \label{rsm:memory_aliases_reg_3}
+%         \begin{tikzpicture}[node distance=2.7cm,shorten >=1pt,on grid,auto, x=20mm, y=20mm]
+%            \node[state, initial, accepting] (q_0)   {$0 \{S\}$};
+%            \path[->]
+%             (q_0) edge[out=30, in=150, looseness=8, above] node {$a$} (q_0)
+%             (q_0) edge[out=330, in=210, looseness=8, below] node {$d$} (q_0)
+%             ;
+%         \end{tikzpicture}
+%     \end{align}
+
+
+\begin{ruexample}
+    Регулярное выражение $R_4$ для класса графов RDF, построенное по шаблону $Q_6$на терминальных символах $type$ и $subClassOf$ соответственно.
+\begin{align}
+\begin{split}
+\label{reg:rdf_reg_4}
+type^* \ subClassOf^*
+\end{split}
+\end{align}
+\end{ruexample}
+
+\begin{ruexample}
+    Контекстно-свободная грамматика $G_{R_4}$, соответствующая регулярному выражению~(\ref{reg:rdf_reg_4}).
+\begin{align}
+\begin{split}
+\label{cfg:rdf_reg_4}
+S & \to A \ B \\
+A & \to \varepsilon \\
+A & \to type \ A \\
+B & \to \varepsilon \\
+B & \to subClassOf \ B \\
+\end{split}
+\end{align}
+\end{ruexample}
+
+\begin{ruexample}
+    Рекурсивный автомат $A_{R_4}$, соответствующий регулярному выражению~(\ref{reg:rdf_reg_4}).
+\end{ruexample}
+
+    \begin{align}
+    \label{rsm:rdf_reg_4}
+        \begin{tikzpicture}[node distance=5cm,shorten >=1pt,on grid,auto, x=20mm, y=20mm]
+           \node[state, initial, accepting] (q_0)   {$0 \{S\}$};
+           \node[state, accepting] (q_1) [right=of q_0]   {$1 \{S\}$};
+           \path[->]
+            (q_0) edge[out=30, in=150, looseness=4, above] node {$type$} (q_0)
+            (q_0) edge node {$subClassOf$} (q_1)
+            (q_1) edge[out=30, in=150, looseness=4, above] node {$subClassOf$} (q_1)
+            ;
+        \end{tikzpicture}
+    \end{align}
+
+% \begin{ruexample}
+%     Регулярное выражение для класса графов MemoryAliases, построенное по шаблону $Q_6$ на терминальных символах $a$ и $d$ соответственно.
+% \begin{align}
+% \begin{split}
+% \label{reg:memory_aliases_reg_4}
+% a^* \ d^*
+% \end{split}
+% \end{align}
+% \end{ruexample}
+
+% \begin{ruexample}
+%     Контекстно-свободная грамматика, соответствующая регулярному выражению~(\ref{reg:memory_aliases_reg_4}).
+% \begin{align}
+% \begin{split}
+% \label{cfg:memory_aliases_reg_4}
+% S & \to A \ B \\
+% A & \to \varepsilon \\
+% A & \to a \ A \\
+% B & \to \varepsilon \\
+% B & \to d \ B \\
+% \end{split}
+% \end{align}
+% \end{ruexample}
+
+% \begin{ruexample}
+%     Рекурсивный автомат, соответствующий регулярному выражению~(\ref{reg:memory_aliases_reg_4}).
+% \end{ruexample}
+
+%     \begin{align}
+%     \label{rsm:memory_aliases_reg_4}
+%         \begin{tikzpicture}[node distance=5cm,shorten >=1pt,on grid,auto, x=20mm, y=20mm]
+%            \node[state, initial] (q_0)   {$0 \{S\}$};
+%            \node[state, accepting] (q_1) [right=of q_0]   {$1 \{S\}$};
+%            \path[->]
+%             (q_0) edge[out=30, in=150, looseness=4, above] node {$a$} (q_0)
+%             (q_0) edge node {$d$} (q_1)
+%             (q_1) edge[out=30, in=150, looseness=4, above] node {$d$} (q_1)
+%             ;
+%         \end{tikzpicture}
+%     \end{align}
+
+\subsection{Постановка экспериментов}
+
+Экспериментальное исследование проводилось следующий образом.
+\begin{itemize}
+    \item Замерялось время работы классического и модифицированного GLL алгоритмов на задачах поиска путей в графе с контекст-но-свободными ограничениями, поиска достижимостей в графе с контекстно-свободными ограничениями и поиска достижимостей в графе с регулярными ограничениями.
+    \item В качестве стартового и в качестве финального множеств запроса были расмотрены все вершины графа.
+    \item В качестве контекстно-свободных ограничений были рассмотрены контекстно-свободные грамматики $G_1$~(\ref{cfg:g_1}), $G_2$~(\ref{cfg:g_2}), $Geo$~(\ref{cfg:geo}) и соответствующие им рекурсивные автоматы $A_1$~(\ref{rsm:g_1}), $A_2$~(\ref{rsm:g_2}), и $A_{geo}$~(\ref{rsm:geo}).
+    \item В качестве регулярных ограничений были рассмотрены регулярные выражения $R_1$~(\ref{reg:rdf_reg_1}), $R_2$~(\ref{reg:rdf_reg_2}), $R_3$~(\ref{reg:rdf_reg_3}) и $R_4$~(\ref{reg:rdf_reg_4}), соответствующие им контекстно-свободные грамматики $G_{R_1}$~(\ref{cfg:rdf_reg_1}), $G_{R_2}$~(\ref{cfg:rdf_reg_2}), $G_{R_3}$~(\ref{cfg:rdf_reg_3}) и $G_{R_4}$~(\ref{cfg:rdf_reg_4}) представляли запросы для классического GLL алгоритма, а соответствующие им рекурсивные автоматы $A_{R_1}$~(\ref{rsm:rdf_reg_1}), $A_{R_2}$~(\ref{rsm:rdf_reg_2}), $A_{R_3}$~(\ref{rsm:rdf_reg_3}) и $A_{R_4}$~(\ref{rsm:rdf_reg_4}) представляли запросы для модифицированного GLL алгоритма.
+    \item Для каждой четверки (граф, грамматика, GLL алгоритм, задача) проводилось 20 замеров времени работы в наносекундах.
+\end{itemize}
+
+\subsection{Результаты экспериментов}
+
+Для удобства исследования полученные результаты были оформлены в виде таблиц, представленных ниже.
+Результаты приведены с точностью до последней значащей цифры, выбранной с учетом стандартного отклонения для каждой выборки результатов.
+
+Ниже представлены результаты работы классического GLL алгоритма в сравнении с модифицированным алгоритмом для сценария поиска всех путей и сценария поиска всех достижимостей на графах класса RDF с контекстно-свободными ограничениями.
+
+
+\include{matmex-diploma-template-master/tables/results_with_sppf}
+
+\include{matmex-diploma-template-master/tables/results_without_sppf}
+
+Здесь $OOM$ означает $Out \ of \ Memory$, то есть то, что для обработки графа оказалось недостаточно оперативной памяти.
+
+Из полученных результатов можно сделать следующие выводы.
+\begin{itemize}
+    \item Прежде всего, стоит заметить, что предоставленные модификации эффективны в контексте применимости алгоритма. В подавляющем большинстве случаев использование рекурсивного автомата дало положительный результат на времени работы GLL алгоритма. 
+    \item Как для классического GLL, так и для модифицированного большое значение имеет сруктура графа. Так, чем большее количество вершин содержит граф, тем сильнее на нем отражается улучшение во времени работы. Однако для относительно плотных графов (например, $go\_hierarchy$) ускорение заметно не так сильно.
+    \item Значимым результатом является то, что модифицированный алгоритм работает быстрее не только на графах с большим количеством вершин, но также и на графах с запросами, возвращающими большое количество пар достижимостей ($go,~taxonomy$). Так, например, на графе $taxonomy$ и запросе $G_1$ можно наблюдать прирост в производительности более, чем в два раза.
+\end{itemize}
+
+Ниже представлены результаты работы классического GLL алгоритма в сравнении с модифицированным алгоритмом для поиска всех достижимостей на графах класса RDF с регулярными ограничениями.
+
+% Please add the following required packages to your document preamble:
+% \usepackage{multirow}
+
+\include{matmex-diploma-template-master/tables/rdf_regs}
+
+Из полученных результатов можно сделать следующие выводы.
+\begin{itemize}
+    \item Для небольших регулярных ограничений, в смысле мощности соответствующего языка, а именно, для $R_1$, время работы классического и модифицированного GLL алгоритмов примерно одинаково на всех графах.
+    \item Чем регулярное ограничение больше, в смысле мощности соответствующего языка, тем эффективнее работает модифицированный GLL алгоритм, по сравнению с классическим.
+\end{itemize}
+
+Ниже представлены результаты работы модифицированного GLL алгоритма в сравнении с результатами работы библиотеки GLL4Graph на тех же графах и запросах для сценария поиска всех достижимостей с контекстно-свободными ограничениями.
+
+\include{matmex-diploma-template-master/tables/kotgll_vs_gll4graph}
+
+Из полученных результатов можно сделать следующие выводы.
+\begin{itemize}
+    \item Реализованная модификация оказывается в несколько раз эффективнее реализации GLL алгоритма в проекте GLL4Graph на большинстве графов.
+    \item Исключением, опять же, является самый плотный из представленных графов --- $go_hierarchy$, на котором прирост производительности составил только окло 20\%.
+    \item Это означает, что была получена не только эффективная реализация GLL алгоритма с использованием рекурсивного автомата, но и сам по себе классический GLL алгоритм также реализован достаточно оптимально. 
+    \item Получается, что реализованная модификация GLL алгоритма может быть весьма эффективна в практическом применении.
+\end{itemize}
+
+% \subsubsection{Класс MemoryAliases}
+%  Ниже представлены результаты работы классического GLL алгоритма в сравнении с модифицированным алгоритмом для сценария поиска всех путей и сценария поиска всех достижимостей на графах класса MemoryAliases.
+
+ 
