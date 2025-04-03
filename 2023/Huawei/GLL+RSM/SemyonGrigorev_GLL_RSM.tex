@@ -1,0 +1,544 @@
+%15 min preso!
+\documentclass[xcolor=table,aspectratio=169]{beamer}
+\usepackage{beamerthemesplit}
+\usepackage{wrapfig}
+\usetheme{SPbGU}
+\usepackage{pdfpages}
+\usepackage{amsmath}
+\usepackage{cmap}
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{multirow}
+\usepackage[noend]{algpseudocode}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{fancyvrb}
+\usepackage{hyperref} 
+\usetikzlibrary{calc}
+\usetikzlibrary{shapes}
+\usetikzlibrary{arrows,automata}
+\usetikzlibrary{positioning}
+\usetikzlibrary{fit}
+\usetikzlibrary{shapes.callouts}
+\usetikzlibrary{shapes.misc}
+\usepackage{xparse}
+
+\usepackage{etoolbox,refcount}
+\usepackage{multicol}
+
+\usepackage{fontawesome5}
+\usepackage{fontawesome}
+\usepackage{xcolor}
+\usepackage{nicematrix}
+\usetikzlibrary{arrows,automata,fit,calc, positioning}
+\usepackage{soul}
+\usepackage[makeroom]{cancel}
+
+\usepackage{tabularx}
+\newcolumntype{Y}{>{\raggedleft\arraybackslash}X}
+
+\renewcommand{\thealgorithm}{}
+
+\newtheorem{mytheorem}{Theorem}
+\renewcommand{\thealgorithm}{}
+
+\newcommand{\tikzmark}[1]{\tikz[overlay,remember picture] \node (#1) {};}
+\def\Put(#1,#2)#3{\leavevmode\makebox(0,0){\put(#1,#2){#3}}}
+
+\newcommand{\ltz}{$< 1$}
+
+\tikzset{
+    state/.style={
+           rectangle,
+           rounded corners,
+           draw=black, very thick,
+           minimum height=2em,
+           inner sep=2pt,
+           text centered,
+           },
+}
+
+\tikzset{
+    invisible/.style={opacity=0,text opacity=0},
+    visible on/.style={alt=#1{}{invisible}},
+    alt/.code args={<#1>#2#3}{%
+      \alt<#1>{\pgfkeysalso{#2}}{\pgfkeysalso{#3}} % \pgfkeysalso doesn't change the path
+    },
+}
+
+\tikzset{cross/.style={cross out, draw=black, minimum size=2*(#1-\pgflinewidth), inner sep=0pt, outer sep=0pt, ultra thick},cross/.default={1pt}}
+
+
+
+%callout relative pointer={(230:0.5cm)}]
+
+\newcounter{countitems}
+\newcounter{nextitemizecount}
+\newcommand{\setupcountitems}{%
+  \stepcounter{nextitemizecount}%
+  \setcounter{countitems}{0}%
+  \preto\item{\stepcounter{countitems}}%
+}
+\makeatletter
+\newcommand{\computecountitems}{%
+  \edef\@currentlabel{\number\c@countitems}%
+  \label{countitems@\number\numexpr\value{nextitemizecount}-1\relax}%
+}
+\newcommand{\nextitemizecount}{%
+  \getrefnumber{countitems@\number\c@nextitemizecount}%
+}
+\newcommand{\previtemizecount}{%
+  \getrefnumber{countitems@\number\numexpr\value{nextitemizecount}-1\relax}%
+}
+\makeatother    
+\newenvironment{AutoMultiColItemize}{%
+\ifnumcomp{\nextitemizecount}{>}{3}{\begin{multicols}{2}}{}%
+\setupcountitems\begin{itemize}}%
+{\end{itemize}%
+\unskip\computecountitems\ifnumcomp{\previtemizecount}{>}{3}{\end{multicols}}{}}
+
+
+\beamertemplatenavigationsymbolsempty
+
+\title[GLL+RSM]{RSM-based Generalized LL Parsing Algorithm}
+\subtitle{All You Need is Generalized GLL}
+%\institute[PL\&T@SPbSU]{
+%Saint Petersburg State University
+%}
+
+% То, что в квадратных скобках, отображается в левом нижнем углу.
+\author[Semyon Grigorev]{Semyon Grigorev}
+
+%\date{September 26, 2022}
+
+\begin{document}
+{
+\begin{frame}[fragile]
+  %\begin{table}
+  %\centering
+  %\includegraphics[height=1.5cm]{pictures/SPbGU_Logo.png}  
+  %\end{table}
+  \titlepage
+\end{frame}
+}
+
+
+% LL
+% Combinators, left recursive productions
+% ANTLR
+% TreeSitter
+% Iguana
+% GLL
+% Error recovery
+% Incremental parsing
+% Code generation
+% Scanerless
+% PEG -> GLL
+% String-embedded languages processing
+
+
+\begin{frame}[fragile]
+  \frametitle{Recursive State Machine}
+  \begin{definition}[Recursive State Machine]
+    \textit{Recursive state machine} (RSM) is a tuple $\mathcal{R} = \langle \mathcal{N},\Sigma,B,B_S,Q,Q_S\rangle$
+    \begin{itemize}
+       \item $N$ is a set of nonterminal symbols 
+       \item $\Sigma$ is a set of terminal symbols 
+       \item $Q$ is a set of states of the RSM 
+       \item $Q_S$ is a set of the start states of all \textit{boxes} 
+       \item $B=\{B_{N_i} \mid N_i \in \mathcal{N}\}$ is a set of \textbf{boxes}, where each \\ $B_{N_i} = \langle Q_{N_i}, q_S, Q_F^{N_i}, \delta \rangle$ is a deterministic finite automaton without $\varepsilon$-transitions  
+        \begin{itemize}
+            \item $Q_{N_i} \subseteq Q$ is a set of states of the box 
+            \item $q_S \in Q_{N_i} \cap Q_S$ is the start state of the box
+            \item $Q_F^{N_i} \subseteq Q_{N_i}$ is a set of final states of the box 
+            \item $\delta \subseteq Q_{N_i} \times  (\Sigma\cup Q_S) \times Q_{N_i}$ is a transition function of the box
+        \end{itemize}
+    \item $B_S \in B$ is the start box of the RSM
+    \end{itemize}
+\end{definition}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Configuration of RSM}  
+  \begin{definition}[Configuration of RSM]
+    A \textit{Configuration} $C_{\mathcal{R}}$ of the computation of the RSM $\mathcal{R}=\langle \mathcal{N},\Sigma,B,B_S,Q,Q_S \rangle$ over the graph $D=\langle V,E,L \rangle$ is a tuple $(q,v,\mathcal{S})$
+    \begin{itemize}
+        \item $q \in Q$ is a current state of RSM
+        \item $\mathcal{S}$ is the current stack, which frames have one of two types
+        \begin{itemize} 
+            \item Return addresses frame (elements of $Q$) to specify states to continue computation after the call is finished
+            \item Parsing tree node to store fragments of a parsing tree
+        \end{itemize}
+        \item $v \in V$ is the current vertex (current position in the input)
+    \end{itemize}
+\end{definition}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Transition Step}
+  \begin{definition}[Step of RSM Computation]\label{def:rsm_transition}
+    A \textit{transition step} of the RSM specifies how to get new configurations of RSM, given the current configuration. $C_{\mathcal{R}} \vdash W$ denotes that $\mathcal{R}$ can go to each configuration in $W$ from the configuration $C_{\mathcal{R}}$
+    \begin{align*}
+    (q,v,w_0::s::\mathcal{S})  \vdash & \{ (q',v',t::w_0::s::\mathcal{S}) \mid (q,t,q') \in \delta, (v,t,v') \in E\} \\
+                       & \cup \{(s', v, q'::w_0::s::\mathcal{S}) \mid (q,s',q') \in \delta, s' \in Q_S \} \\
+                       & \cup \{(s,v,\textit{Node}(N_i, w_0)::\mathcal{S}) \mid q \in Q_F^{N_i}\}
+    \end{align*}
+    , where $w_0$ is a possibly empty sequence of terminals and nonterminal nodes. 
+\end{definition}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Extended RSM for grammar $S \to a \ b \mid a \ S \ b$}
+  \begin{figure}
+    \centering
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=2.5cm, semithick]  
+
+  \node[initial,state]   (F)              {$q_4$};
+  \node[state]           (G) [right of=F] {$q_5$};
+  \node[accepting,state] (H) [right of=G] {$q_6$};
+  \node[draw=black, fit= (F) (G) (H), inner sep=0.35cm] (J) {};
+  \node[below right] at (J.north west) {S'};
+
+  \path (F) edge              node {$q_0$} (G)
+        (G) edge              node {$\$$} (H); 
+
+  \node[initial,state] (A) [below = 2.7cm of F] {$q_0$};
+  \node[state]         (B) [right of=A] {$q_1$};
+  \node[state]         (D) [above right of=B] {$q_2$};
+  \node[accepting,state]         (C) [right of=B] {$q_3$};
+  \node [draw=black, fit= (A) (C) (D), inner sep=0.25cm] (E) {};
+  \node[below right] at (E.north west) {S};
+
+  \path (A) edge              node {a} (B)
+        (B) edge              node {$q_0$} (D)
+            edge              node {b} (C)
+        (D) edge              node {b} (C);
+\end{tikzpicture}    
+\end{figure}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \frametitle{Example}
+  \begin{minipage}{0.3\textwidth}
+  \begin{figure}
+    \centering  
+  
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=1.8cm, semithick]  
+
+  \node[initial,state]   (F)              {$q_4$};
+  \node[state]           (G) [right of=F] {$q_5$};
+  \node[accepting,state] (H) [right of=G] {$q_6$};
+  \node[draw=black, fit= (F) (G) (H), inner sep=0.35cm] (J) {};
+  \node[below right] at (J.north west) {S'};
+
+  \path (F) edge              node {$q_0$} (G)
+        (G) edge              node {$\$$} (H); 
+
+  \node[initial,state] (A) [below = 2.7cm of F] {$q_0$};
+  \node[state]         (B) [right of=A] {$q_1$};
+  \node[state]         (D) [above right of=B] {$q_2$};
+  \node[accepting,state]         (C) [right of=B] {$q_3$};
+  \node [draw=black, fit= (A) (C) (D), inner sep=0.25cm] (E) {};
+  \node[below right] at (E.north west) {S};
+
+  \path (A) edge              node {a} (B)
+        (B) edge              node {$q_0$} (D)
+            edge              node {b} (C)
+        (D) edge              node {b} (C);
+\end{tikzpicture}  
+
+\begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=2.8cm, semithick]
+      
+  \node[state] (A)                    {$v_0$};
+  \node[state]         (B) [right of=A] {$v_1$};
+  
+  \path (A) edge  [loop left] node {a} (A)
+            edge  [bend left] node {b} (B)
+        (B) edge  [bend left] node {b} (A);
+\end{tikzpicture}
+
+\end{figure}
+\end{minipage}
+\begin{minipage}{0.69\textwidth}
+  \begin{align}
+    \setcounter{equation}{0}
+    \action<+->{(q_4,v_0,[])     \vdash & \{(q_0,v_0,[q_5])\} \\}
+    \action<+->{(q_0,v_0,[q_5])  \vdash & \{(q_1,v_0,[a,q_5])\} \\}
+    \action<+->{(q_1,v_0,[a,q_5])\vdash & \{(q_0,v_0,[q_2,a,q_5]) \nonumber\\
+                            & , (q_3,v_1,[b,a,q_5])\} \\}
+    \action<+->{(q_0,v_0,[q_2,a,q_5]) \vdash & \{(q_1,v_0,[a,q_2,a,q_5])\} \\}
+    \action<+->{(q_3,v_1,[b,a,q_5])   \vdash & \boxed{\{(q_5,v_1,[S(a,b)])\}}\\}
+    \action<+->{(q_1,v_0,[a,q_2,a,q_5]) \vdash & \{(q_3,v_1,[b,a,q_2,a,q_5]) \nonumber \\
+                                   & , (q_0,v_0,[q_2,a,q_2,a,q_5])\}\\}
+    \action<+->{(q_3,v_1,[b,a,q_2,a,q_5]) \vdash & \{(q_2,v_1,[S(a,b),a,q_5])\} \\}
+    \action<+->{(q_2,v_1,[S(a,b),a,q_5]) \vdash & \{(q_3,v_0,[b,S(a,b),a,q_5])\} \\}
+    \action<+->{(q_3,v_0,[b,S(a,b),a,q_5]) \vdash & \boxed{\{(q_5,v_0,[S(a,S(a,b),b)])\}}}
+    \end{align}  
+  \end{minipage}    
+\end{frame}
+
+\begin{frame}[fragile]{Paths Representation}
+  \begin{definition}[Matched Range]
+    \textit{Range} or a \textit{matched range} $R^{q_i,v_i}_{q_j,v_j}$ corresponds to the fact that there is a chain of transitions from the configuration $(q_i,v_i,\mathcal{S}_i)$ to the configuration $(q_j,v_j,\mathcal{S}_j)$, or $(q_i,v_i,\mathcal{S}_i) \vdash^* (q_j,v_j,\mathcal{S}_j)$. The symbol $\epsilon$ denotes the empty range: an empty sequence of configurations.
+  \end{definition}
+  \pause
+  \begin{definition}[Path Index]
+    \textit{Path index} for the graph $D=\langle V,E,L \rangle$ and the query $\mathcal{R}=\langle \mathcal{N}, \Sigma, B, B_S, Q, Q_S \rangle$ is a $\mathcal{K} \times \mathcal{K}$ square matrix $\mathcal{I}$, $\mathcal{K} = |Q|\cdot|V|$.
+    Columns and rows are indexed by tuples $(q_i, v_j), q_i \in Q, v_j \in V$. $\mathcal{I}[(q_i,v_j),(q_l,v_k)]$ is a set which represents information about a $R^{q_i,v_j}_{q_l,v_k}$:
+\begin{itemize}
+    \item $t \in \Sigma$ means that $(q_i,v_j,\mathcal{S}') \vdash (q_l,v_k,t::\mathcal{S}') $; 
+    \item $N_m \in \mathcal{N}$ means that $(q_i,v_j,\mathcal{S}') \vdash^* (q_l,v_k,N_m::\mathcal{S}')$; 
+    \item $I_{q_a,v_b}$ is an \textit{intermediate point}: $R^{q_i,v_j}_{q_l,v_k}$ was combined from $R^{q_i,v_j}_{q_a,v_b}$ and $R^{q_a,v_b}_{q_l,v_k}$ $$(q_i,v_j,\mathcal{S}') \vdash^* (q_a,v_b,\mathcal{S}'') \vdash^* (q_l,v_k,\mathcal{S}''')$$
+\end{itemize}
+  \end{definition}
+\end{frame}
+
+\begin{frame}[fragile]
+  \begin{center}
+      
+  \scalebox{.65}{
+    \begin{tabular}{l c c c}
+      \hline \\
+      & 
+      Configuration
+      &
+      Path
+      &
+      Stack
+      \\
+      \hline \action<+->{ \\  
+      1 
+      &
+      $\vdash (q_4,v_0,(q_4,v_0),\epsilon)$ 
+      & 
+      
+      &
+      \vspace{-0.2cm}
+      \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=2.8cm, semithick]
+        \node[state]         (A)              {$q_4,v_0$};
+      \end{tikzpicture} 
+      \\
+      \\
+      \hline} \action<+->{ \\ 
+      2 &
+      $(q_4,v_0,(q_4,v_0),\epsilon) \vdash \{(q_0,v_0,(q_0,v_0),\epsilon)\}$ 
+      &
+      
+      &
+      \multirow{2}{*}[0.15cm]{
+      \begin{minipage}[t]{0.2\textwidth}
+      \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=2.8cm, semithick]
+        \node[state]         (A)              {$q_4,v_0$};
+        \node[state]         (B) [right of=A] {$q_0,v_0$};
+        \path (B) edge         node {$q_5, \epsilon $} (A);
+      \end{tikzpicture}
+      \end{minipage}
+      } 
+      \\}\action<+->{
+      3 & 
+      $(q_0,v_0,(q_0,v_0),\epsilon) \vdash \{(q_1,v_0,(q_0,v_0),R^{q_0,v_0}_{q_1,v_0})\}$ 
+      &
+      $[(q_0,v_0),(q_1,v_0)] \xleftarrow{} a$
+      & 
+      \\
+      \\
+      \hline }\action<+->{
+      \\
+      4 
+      &
+      $(q_1,v_0,(q_0,v_0),R^{q_0,v_0}_{q_1,v_0}) \vdash \{\xcancel{(q_0,v_0,(q_0,v_0),\epsilon)}, (q_3,v_1,(q_0,v_0),R^{q_0,v_0}_{q_3,v_1})\}$ 
+      &
+      \begin{minipage}[t]{0.2\textwidth}
+      $\begin{array}{l}
+      \left[(q_1,v_0),(q_3,v_1)\right] \xleftarrow{} b \\ 
+      \left[(q_0,v_0),(q_3,v_1)\right] \xleftarrow{} (q_1,v_0) \\
+      \end{array}
+      $
+      \end{minipage}
+      &
+      \multirow{2}{*}[0.2cm]{
+      \begin{minipage}[t]{0.2\textwidth}
+        \scalebox{.95}{
+      \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=2.8cm, semithick]
+        \node[state]         (A)              {$q_4,v_0$};
+        \node[state]         (B) [above of=A] {$q_0,v_0$};
+        \path (B) edge         node {$q_5, \epsilon$} (A)
+              (B) edge  [loop] node[above]{$q_2, R^{q_0,v_0}_{q_1,v_0}$} (B) 
+               ;
+      \end{tikzpicture}
+        }
+      \end{minipage}
+      }
+      \\
+      
+      &
+      \\}\action<+->{
+      5 
+      & 
+      $(q_3,v_1,(q_0,v_0),R^{q_0,v_0}_{q_3,v_1}) \vdash \{(q_2,v_1,(q_0,v_0),R^{q_0,v_0}_{q_2,v_1}), \boxed{(q_5,v_1,(q_4,v_0),R^{q_4,v_0}_{q_5,v_1})}\}$ 
+      &
+      \begin{minipage}[t]{0.2\textwidth}
+      $\begin{array}{l}
+      \left[(q_4,v_0),(q_5,v_1)\right] \xleftarrow{} S \\
+      \left[(q_1,v_0),(q_2,v_1)\right] \xleftarrow{} S \\
+      \left[(q_0,v_0),(q_2,v_1)\right] \xleftarrow{} (q_1,v_0) 
+      \end{array}
+      $
+      \end{minipage}
+      
+      &
+      \\
+      \\}\action<+->{
+      6 
+      & 
+      $(q_2,v_1,(q_0,v_0),R^{q_0,v_0}_{q_2,v_1}) \vdash \{(q_3,v_0,(q_0,v_0),R^{q_0,v_0}_{q_3,v_0})\}$ 
+      &
+      \begin{minipage}[t]{0.2\textwidth}
+      $\begin{array}{l}
+      \left[(q_2,v_1),(q_3,v_0)\right] \xleftarrow{} b \\
+      \left[(q_0,v_0),(q_3,v_0)\right] \xleftarrow{} (q_2,v_1)
+      \end{array}
+      $
+      \end{minipage}
+      &
+      \\
+      \\}\action<+->{
+      7 
+      & 
+      $(q_3,v_0,(q_0,v_0),R^{q_0,v_0}_{q_3,v_0}) \vdash \{(q_2,v_0,(q_0,v_0),R^{q_0,v_0}_{q_2,v_0}), \boxed{(q_5,v_0,(q_4,v_0),R^{q_4,v_0}_{q_5,v_0})}\}$ 
+      &
+      \begin{minipage}[t]{0.2\textwidth}
+      $\begin{array}{l}
+      \left[(q_4,v_0),(q_5,v_0)\right] \xleftarrow{} S \\
+      \left[(q_1,v_0),(q_2,v_0)\right] \xleftarrow{} S \\
+      \left[(q_0,v_0),(q_2,v_0)\right] \xleftarrow{} (q_1,v_0)
+      \end{array}
+      $
+      \end{minipage}
+      &
+      \\
+      \\}\action<+->{
+      8 
+      & 
+      $(q_2,v_0,(q_0,v_0),R^{q_0,v_0}_{q_2,v_0}) \vdash \{\xcancel{(q_3,v_1,(q_0,v_0),R^{q_0,v_0}_{q_3,v_1})}\}$ 
+      &
+      \begin{minipage}[t]{0.2\textwidth}
+      $\begin{array}{l}
+      \left[(q_0,v_0),(q_3,v_1)\right] \xleftarrow{} (q_2,v_0) \\
+      \left[(q_2,v_0),(q_3,v_1)\right] \xleftarrow{} b
+      \end{array}
+      $
+      \end{minipage}
+      &
+      \\
+      \\
+      
+      \hline}
+      
+      \end {tabular}
+      
+  }
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Path Index}
+  \setcounter{MaxMatrixCols}{30}
+  \begin{center}
+    \scalebox{.65}{
+      $\begin{pNiceMatrix}[first-row,last-row,first-col,last-col,nullify-dots]
+        & q_0,v_0 & q_1,v_0 & q_2,v_0       & q_3,v_0       & q_4,v_0 & q_5,v_0 & q_6,v_0 & q_0,v_1 & q_1,v_1 & q_2,v_1         & q_3,v_1       & q_4,v_1    & q_5,v_1 & q_6,v_1 &          \\
+q_0,v_0 &         & \{a\}   &\{I_{q_1,v_0}\}&\{I_{q_2,v_1}\}&         &         &         &         &         & \{I_{q_1,v_0}\} &\{I_{q_1,v_0}, I_{q_2,v_0}\}&         &         &         & q_0,v_0\\
+q_1,v_0 &         &         &  \{S\}        &               &         &         &         &         &         &   \{S\}         & \{b\}         &         &         &         & q_1,v_0\\
+q_2,v_0 &         &         &               &               &         &         &         &         &         &                 & \{b\}        &         &         &         & q_2,v_0\\
+q_3,v_0 &         &         &         &               &         &         &         &         &         &                 &         &         &         &         & q_3,v_0\\
+q_4,v_0 &         &         &         &               &         & \{S\}   &         &         &         &                 &         &         &\{S\}    &         & q_4,v_0\\
+q_5,v_0 &         &         &         &               &         &         &         &         &         &                 &         &         &         &         & q_5,v_0\\
+q_6,v_0 &         &         &         &               &         &         &         &         &         &                 &         &         &         &         & q_6,v_0\\
+q_0,v_1 &         &         &         &               &         &         &         &         &         &                 &         &         &         &         & q_0,v_1\\
+q_1,v_1 &         &         &         &               &         &         &         &         &         &                 &         &         &         &         & q_1,v_1\\
+q_2,v_1 &         &         &         &   \{b\}       &         &         &         &         &         &                 &         &         &         &         & q_2,v_1\\
+q_3,v_1 &         &         &         &         &         &         &         &         &         &         &         &         &         &         & q_3,v_1\\
+q_4,v_1 &         &         &         &         &         &         &         &         &         &         &         &         &         &         & q_4,v_1\\
+q_5,v_1 &         &         &         &         &         &         &         &         &         &         &         &         &         &         & q_5,v_1\\
+q_6,v_1 &         &         &         &         &         &         &         &         &         &         &         &         &         &         & q_6,v_1\\
+        & q_0,v_0 & q_1,v_0 & q_2,v_0 & q_3,v_0 & q_4,v_0 & q_5,v_0 & q_6,v_0 & q_0,v_1 & q_1,v_1 & q_2,v_1 & q_3,v_1 & q_4,v_1 & q_5,v_1 & q_6,v_1 &         \\
+\end{pNiceMatrix}$
+    }
+  \end{center}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  %\frametitle{Summary}  
+  \begin{figure}
+    \centering
+    \scalebox{.95}{
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=1.5cm, semithick,scale=0.8, every node/.style={scale=0.8}]
+      %\tikzstyle{every state}=[fill=red,draw=none,text=white]
+    
+      \node[state]         (A)              {$R^{q_4,v_0}_{q_5,v_0}$};
+      \node[state]         (B) [right of=A] {$S$};
+      \node[state]         (C) [right of=B] {$R^{q_0,v_0}_{q_3,v_0}$};
+      \node[state]         (D) [below of=C] {$I_{q_2,v_1}$};
+      \node[state]         (E) [below of=D] {$R^{q_0,v_0}_{q_2,v_1}$};
+      \node[state]         (F) [right of=D] {$R^{q_2,v_1}_{q_3,v_0}$};
+      \node[state]         (G) [below of=E] {$I_{q_1,v_0}$};
+      \node[state]         (H) [below of=F] {$b$};
+      \node[state]         (J) [below of=G] {$R^{q_0,v_0}_{q_1,v_0}$};
+      \node[state]         (I) [right of=G] {$R^{q_1,v_0}_{q_2,v_1}$};
+      \node[state]         (K) [below left of=J] {$a$};
+      \node[state]         (L) [right of=I] {$I_{q_1,v_0}$};
+      \node[state]         (M) [right of=L] {$S$};
+      \node[state]         (N) [right of=M] {$R^{q_0,v_0}_{q_3,v_1}$};
+      \node[state]         (O) [below of=N] {$I_{q_1,v_0}$};
+      \node[state]         (P) [right of=O] {$I_{q_2,v_0}$};
+      \node[state]         (R) [below of=P] {$R^{q_0,v_0}_{q_2,v_0}$};
+      \node[state]         (S) [right of=R] {$R^{q_2,v_0}_{q_3,v_1}$};
+      \node[state]         (T) [below of=O] {$R^{q_1,v_0}_{q_3,v_1}$};
+      \node[state]         (U) [below of=T] {$b$};
+      \node[state]         (V) [below of=S] {$b$};
+      \node[state]         (W) [below of=R] {$I_{q_1,v_0}$};      
+      \node[state]         (X) [below right of=W] {$R^{q_1,v_0}_{q_2,v_0}$};
+      \node[state]         (Y) [right of=X] {$S$};
+      
+      \path (A) edge          (B)
+            (B) edge   (C)
+            (C) edge   (D)
+            (D) edge   (E)
+            (D) edge   (F)
+            (E) edge   (G)
+            (F) edge   (H)
+            (G) edge   (J)
+            (G) edge   (I)
+            (J) edge   (K)
+            (I) edge   (L)
+            (L) edge   (M)
+            (M) edge   (N)
+            (N) edge   (O)
+            (N) edge   (P)
+            (O) edge   (J)
+            (O) edge   (T)
+            (P) edge   (R)
+            (R) edge   (W)
+            (P) edge   (S)
+            (T) edge   (U)
+            (S) edge   (V)
+            (W) edge[in=270, out=220]   (J)
+            (W) edge   (X)
+            (X) edge   (Y)
+            (Y) edge[in=0, out=89]   (C)
+            
+             ;
+    \end{tikzpicture}
+      }
+    \end{figure}
+\end{frame}
+
+
+\end{document}
