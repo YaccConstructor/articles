@@ -11,10 +11,10 @@ We evaluated Brahma.FSharp in two cases listed below and described in respective
 \subsection{Image Convolution}
 
 We implement image convolution in order to demonstrate multiple GPGPUs utilization.
-Native for F\# asynchronous model, as was shown in~\cite{aleaGPUasync}, simplifies creation of complex workflows that include GPGs.
+Native for F\# asynchronous model, as was shown in~\cite{aleaGPUasync}, simplifies creation of complex workflows that include computations on GPGs.
 We use F\# MailboxProcessor because Brahma.FSharp provides it as an interface for communication with GPUs.
 Kernel is simply wrapped as shown in~\ref{lst:img_conv}. 
-Simple load balancer that send next image to an agent with less number of messages in input queue was implemented.
+Simple load balancer that send next image to an agent with less number of messages in the input queue was implemented.
 
 \begin{listing}[h]
   \begin{minted}[linenos]{fsharp}
@@ -44,7 +44,7 @@ Thus we can see that even naive multi-GPU workflow allows one to achieve up to 3
 
 \subsection{Matrix Multiplication}
 
-We evaluate generic kernel parametrized by types and operations~\ref{lst:mXm_kernels}, implemented in F\#.
+We evaluate generic kernel parametrized by types and operations (see listing~\ref{lst:mXm_kernels}), implemented in F\#.
 Several basic optimizations, inspired by ``Tutorial: OpenCL SGEMM tuning for Kepler'' by Cedric Nugteren\footnote{``Tutorial: OpenCL SGEMM tuning for Kepler'': \url{https://cnugteren.github.io/tutorial/pages/page1.html}}, were applied.
 Namely, we use tiling in local and private memory.
 But current version supports only square matrices and square tiles.
@@ -63,28 +63,29 @@ But current version supports only square matrices and square tiles.
 \end{figure}
 
 We choose two competitors.
-The first one is the CLBlast\footnote{CLBlast source code: \url{https://github.com/CNugteren/CLBlast}}~\cite{10.1145/3204919.3204924} that is a highly-tuned (even for liw-power mobile GPUPUs) OpenCL-based BLAS implementation.
-The second oe is the OpenBLAS\footnote{OpenBALAS source code: \url{https://github.com/OpenMathLib/OpenBLAS}} that is a highly-tuned BLAS implementation foe CPU.
-All competitors were compiled and run with default settings.
+The first one is the CLBlast\footnote{CLBlast source code: \url{https://github.com/CNugteren/CLBlast}}~\cite{10.1145/3204919.3204924} that is a highly-tuned (even for low-power mobile GPUPUs) OpenCL-based BLAS implementation.
+The second one is the OpenBLAS\footnote{OpenBALAS source code: \url{https://github.com/OpenMathLib/OpenBLAS}} that is a highly-tuned BLAS implementation for CPU.
 Additionally, we run OpenCL-based solutions on CPUs using POCL~\cite{Jskelinen2014}.
+All competitors were compiled and run with default settings.
+
 
 We evaluate all competitors on several platforms listed below.
 \begin{itemize}
-  \item \textbf{Lenovo}: Intel Core i7-8550U CPU, NVIDIA GeForce MX150 and Intel(R) UHD Graphics 620 GPUs.
+  \item \textbf{Lenovo}: Intel Core i7-8550U CPU, NVIDIA GeForce MX150 and Intel UHD Graphics 620 GPUs.
   \item \textbf{Zen}: Intel Core i5-1340P CPU, Intel Iris Xe Graphics G7 80EUs GPU.
-  \item \textbf{MILC-V}. SpacemiT M1 CPU, IMG BXE-2-32 GPU.
+  \item \textbf{MILK-V}. SpacemiT M1 CPU, IMG BXE-2-32 GPU.
   %\item \textbf{OrangePi}, Mali, ARM
 \end{itemize}
 
-We generate random square matrices with elements of type \texttt{float32} and use typical arithmetic semiring because our competitors does not provide generic kernels.
+We generate random square matrices with elements of type \texttt{float32} and use typical arithmetic semiring because our competitors do not provide generic kernels.
 Time is measured as an average of 10 runs.
-We measure time of client function execution, so it includes datatransfer.
+We measure time of client function execution, so it includes data transfer.
 Results of evaluation represented in figure~\ref{fig:mxm_perf}: we show both time and relative speedup.
 
 First of all, we show that Brahma.FSharp allows one to create portable solutions.
 Obviously, our kernel is not such optimized as kernel from CLBlast, but relative speedup analysis shows that more tuning required: in much cases performance gap decreases with data size increase (\textbf{Lenovo} esp. Intel GPU; \textbf{Zen}).
-But in some cases behavior is more complex: for \textbf{MILC-V} our solution on CPU using POCL demonstrates better performance that CLBlast, but on respective GPU performance gap slightly increases with data size increase.
+But in some cases behavior is more complex: for \textbf{MILK-V} our solution on CPU using POCL demonstrates better performance that CLBlast, but on respective GPU performance gap slightly increases with data size increase.
 
-Such behavior can be explained by differences in kernel tuning, but not by technology problem.
-So, while it is unlikely possible to hide dotnet overhead fully, it looks possible to minimize it to be comparable on big matrices.
+Such behavior can be explained by differences in kernel tuning, but not by the Brahma.FSharp technology problem.
+So, while it is unlikely possible to hide dotnet overhead fully, it looks possible to minimize it to be comparable with competitors on big matrices.
 To do it we should to create finer tuned and more flexible kernel to allows one better fit performance-affecting parameters.
