@@ -15,10 +15,34 @@ An example of quoted code (actually, part of the generalized mXm kernel) is pres
 This code also demonstrates typed composition of quotations: operations \verb|opAdd| and \verb|opMult|, and identity element \verb|zero|, have agreed types and can be specified outside the kernel in run time.
 So, we can write highly configurable kernels generator and instantiate specific kernels later, as shown in lines 15--16.
 
+\begin{listing}
+    \begin{minted}[linenos]{fsharp}
+  let mXmKernel    
+     (opAdd: Quotations.Expr<'a -> 'b -> 'a>) 
+     (opMult: Quotations.Expr<'e -> 'f -> 'b>) 
+     (zero: Quotations.Expr<'a>) ... (* other parameters *)  =
+        ... // Supplementary code
+        let kernel = <@ fun 2dRange m1 m2 res ->  // Quoted code
+          ... 
+          let acc = %zero // Embedded identity value
+          let lBuf = localArray lws // captured from context
+          ... 
+          acc <- (%opAdd) acc ((%opMult) x y) // Embedded operations
+          ... @>
+        ... // Supplementary code
+    
+  let intArithmeticKernel = mXmKernel <@ (+) @> <@ ( * ) @> <@ 0 @>
+  let intMinPlusKernel = 
+      mXmKernel <@ (min) @> <@ (+) @> <@ Int.MaxValue @>
+    \end{minted}
+    \caption{An example of generic matrix multiplication kernel}
+    \label{lst:mXm_kernels}
+  \end{listing}
+
 The translator supports not only imperative subset of F\# and primitive types, but also F\#-specific features like structs, tuples, discriminated unions, pattern matching, nested bindings.
 Also it supports OpenCL specific features like atomic functions, barriers, local and thread-local arrays allocation.
-For data transferring and manipulation Brahma.FSharp provides specified memory primitives (\verb|ClArray<'t>| and \verb|ClCell<'t>|) that is F\#-array-friendly wrappers around \texttt{ClBuffer}.
+For data transferring and manipulation Brahma.FSharp provides \verb|ClArray<'t>| and \verb|ClCell<'t>| primitives that are F\#-array-friendly wrappers for \texttt{ClBuffer}.
 
-Brahma.FSharp provides typical workflow to run kernels and implements respective typed wrappers for it\footnote{Configure of path to \texttt{libopencl} making the solution portable.}.
-It is worth noting that F\# is friendly to asynchronous programming and provides huge amount of parallel and asyncronious programming primitives~\cite{FSharpAsync}.
-Utilization of \emph{mailbox processor}, that is F\#-native massage passing primitive, to wrap command queue allows us to make communication with GPGPU friendly for asynchronous programming in F\#.
+Brahma.FSharp provides typical workflow to run kernels and implements respective typed wrappers for it\footnote{Configuration of path to \texttt{libopencl} allows one to make the solution portable.}.
+It is worth noting that F\# is friendly to asynchronous programming and provides huge amount of parallel and asynchronous programming primitives~\cite{FSharpAsync}.
+Utilization of \emph{MailboxProcessor}, that is F\#-native massage passing primitive, to wrap command queue allows us to make communication with GPGPU friendly for asynchronous programming in F\#.
