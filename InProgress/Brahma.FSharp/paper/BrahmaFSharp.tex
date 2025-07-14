@@ -1,19 +1,24 @@
 \section{Brahma.FSharp}
 
-Brahma.FSharp is a tool that allows one to utilize GPGPUs in .NET applications and write kernels and all supplementary code in pure F\#~\cite{fsharp} that is a functional-first multiparadigmal programming language for .NET platform.
-This language combines functional programming, including first-class functions, generics, static strong typing with automatic type inference, with transparent integration with a platform for business applications development with mature infrastructure.
-At the same time, F\# provides an ability to write imperative code that is native for kernel programming.
+Brahma.FSharp is a tool that enables GPGPU utilization in .NET applications, allowing developers to write both kernels and supporting code in pure F\#~\cite{fsharp}---a functional-first, multiparadigmal programming language for the .NET platform.
+This language combines functional programming features (including first-class functions, generics, and static strong typing with automatic type inference) with seamless integration into a mature business application development platform.
+Additionally, F\# supports imperative coding patterns that are natural for kernel programming.
 
-Core of the tool is a translator of F\# subset to OpenCL C that is based on \emph{code quotations}~\cite{FSharpQuotations} that allows one to get access to annotated tree of the F\# code and transform it during program execution.
-This tree can be transformed using regular F\# functions: for example, it can be translated to other language, that is we do to generate OpenCL C code for kernels.
-Other words, code quotations is a runtime metaprogramming feature that allows us to create kernels configurable during program execution.
-For example, in opposite to compile time metaprogramming, it is possible to configure work group size dependent parts of kernel (e.g. local buffer size) without recompilation of whole program (look at line 9 of listing~\ref{lst:mXm_kernels}).
-The main feature is that everything is strongly and statically typed: no unsafe code that uses strings, pointers, objects, etc.
-At the user side, compiled quotation (compiled kernel) has the signature that requires parameters of types that are in agreement with initial quotation.
+The tool's core is an F\#-subset-to-OpenCL-C translator based on \emph{code quotations}~\cite{FSharpQuotations}---language feature that provides access to an annotated syntax tree of F\# code and to transform it during program execution.
+This tree can be processed using standard F\# functions: for instance, we transform it to generate OpenCL C kernel code.
+In other words, code quotations enable runtime metaprogramming for creating configurable kernels during program execution.
+Unlike compile-time metaprogramming, this approach enables dynamic configuration of work-group-dependent kernel aspects (such as local buffer sizes) without full program recompilation (see line 9 in Listing~\ref{lst:mXm_kernels}). 
+Crucially, all operations remain strongly and statically typed, eliminating the need for unsafe code involving strings, pointers, or object manipulation.
+From the user's perspective, a compiled quotation (compiled kernel) exposes a type signature that enforces parameter consistency with the original quotation.
+In other words, the compiled kernel retains full type information about its arguments, enabling the compiler to verify parameter binding correctness at compile-time without needing additional type annotations.
 
-An example of quoted code (actually, part of the generalized mXm kernel) is presented in listing~\ref{lst:mXm_kernels} (lines 6--12).
-This code also demonstrates typed composition of quotations: operations \verb|opAdd| and \verb|opMult|, and identity element \verb|zero|, have agreed types and can be specified outside the kernel in run time.
-So, we can write highly configurable kernels generator and instantiate specific kernels later, as shown in lines 15--16.
+Actually, creating a truly generic \texttt{compile} function that converts high-level code to compiled kernels is a nontrivial challenge. 
+As a result, many other tools either erase all type information or require manual type specifications. 
+For example, ILGPU requires manual specification of the compiled kernel type.
+
+Listing~\ref{lst:mXm_kernels} (lines 6-12) shows an example of quoted code (part of a generalized matrix multiplication kernel).
+This example demonstrates typed quotation composition: the operations \verb|opAdd| and \verb|opMult|, along with the identity element \verb|zero|, maintain type consistency and can be specified externally at runtime.
+Thus, we can create highly configurable kernels generator and instantiate specific kernels as needed (lines 15-16).
 
 \begin{listing}
     \begin{minted}[linenos]{fsharp}
@@ -39,10 +44,10 @@ So, we can write highly configurable kernels generator and instantiate specific 
     \label{lst:mXm_kernels}
   \end{listing}
 
-The translator supports not only imperative subset of F\# and primitive types, but also F\#-specific features like structs, tuples, discriminated unions, pattern matching, nested bindings.
-Also it supports OpenCL specific features like atomic functions, barriers, local and thread-local arrays allocation.
-For data transferring and manipulation Brahma.FSharp provides \verb|ClArray<'t>| and \verb|ClCell<'t>| primitives that are F\#-array-friendly wrappers for \texttt{ClBuffer}.
+The translator supports not only the imperative subset of F\# and primitive types, but also F\#-specific features including structs, tuples, discriminated unions, pattern matching, and nested bindings.
+Additionally, it implements OpenCL-specific functionality such as atomic operations, memory barriers, and allocation of local/thread-local arrays.
+For data transfer and manipulation, Brahma.FSharp provides two key primitives---\verb|ClArray<'t>| and \verb|ClCell<'t>|--- that are F\#-array-friendly wrappers for \texttt{ClBuffer}.
 
-Brahma.FSharp provides typical workflow to run kernels and implements respective typed wrappers for it\footnote{Configuration of path to \texttt{libopencl} allows one to make the solution portable.}.
+The framework implements a standard kernel execution workflow with typed wrappers\footnote{Portability is achieved through configurable \texttt{libopencl} path specification.}
 It is worth noting that F\# is friendly to asynchronous programming and provides huge amount of parallel and asynchronous programming primitives~\cite{FSharpAsync}.
-Utilization of \emph{MailboxProcessor}, that is F\#-native massage passing primitive, to wrap command queue allows us to make communication with GPGPU friendly for asynchronous programming in F\#.
+By utilizing \emph{MailboxProcessor}---F\#'s built-in message passing primitive---to wrap command queues, we achieve GPGPU communication patterns that naturally complement F\#'s asynchronous programming model.
