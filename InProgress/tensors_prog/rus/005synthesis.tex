@@ -1,0 +1,246 @@
+% !TeX encoding = windows-1251
+% !TeX spellcheck = ru_RU
+% !TEX root = mainrus.tex
+
+В данном разделе кратко опишем верификатор расположений на основе предписаний, который получается
+путём написания наивного верификатора и добавления некоторых оптимизаций.
+
+Изначальный наивный верификатор получается, если прямолинейную проверку покрытия, совместности и подтверждения свойств из раздела~\ref{sec:guidelines}
+закодировать в виде отношения, которое связывает структуру и экземпляры расположения.
+Покрытие можно получить, обойдя все примитивы расположения, собирая все невиртуальные элементы управления в множество, и
+проверяя, что оно соответствует множеству всех невиртуальных элементов управления в структуре. Совместность проверяется аналогично, по определению.
+
+Для подтверждения нам нужно обойти все примитивы расположения и подтвердить каждый их них.
+Это требует обращения правила предписания.
+Например, рассмотрим следующее правило:
+\[
+\term{describes}\,(X,\,Y)\,\mapsto\,\term{vert}\,(X,\,Y),\,\term{halign}\,(X,\,Y)
+\]
+
+\noindent Оно определяет следующие случаи для процедуры подтверждения структуры $\Sigma$ и набора экземпляров расположения  $S$:
+%It determines the following (sub)cases for the confirmation check procedure for a structure $\Sigma$ and a set of layout instances $S$:
+
+\begin{lstlisting}[language=ocanren,basicstyle=\small]
+ if $\term{vert}\,(X,\,Y)\in S$
+ then $\term{describes}\,(X,\,Y)\in\Sigma$ /\ $\,\term{halign}\,(X,\,Y)\in S$
+ else if $\term{halign}\,(X,\,Y)\in S$
+ then $\term{describes}\,(X,\,Y)\in\Sigma$ /\ $\,\term{vert}\,(X,\,Y)\in S$
+\end{lstlisting}
+
+Мы не проверяем \emph{максимальность} в реализации верификатора, так как это может нивелировать полезность реляционного программирования.
+Максимальность проверяется другим образом: запуском верификатора на конкретной структуре и
+на \emph{свободной переменной} на месте конкретных экземпляров расположения.
+За счет полноты поиска \textsc{miniKanren} выдаст нам все множества, одновременно  совместные, покрытые и подтверждённые.
+Затем   отфильтруем не максимальные.
+
+На этом первый шаг закончен, и получен полный наивный синтезатор, у которого можно назвать два недостатка.
+
+Во-первых, эффективность синтезатора зависит от структуры данных, которая хранит примитивы расположения.
+Наивная реализация с помощью списков будет выдавать бесконечно много эквивалентных ответов, различающиеся порядком примитивов расположения и повторами.
+Для решения этой проблемы был реализован так называемый \emph{гиперкуб}~--- структура данных, которая напоминает битовую карту, где все ответы представимы однозначно.
+Для данной задачи она будет всегда конечного размера, так как все виды примитивов расположения и количество элементов в структуре известны наперёд.
+
+Во-вторых, изначальная реализация порождает всевозможные совместные множества экземпляров расположения, число которых \emph{огромно}, даже если рассматривать только подтверждённые и покрытые.
+Чтобы это исправить, сконструируем максимальное несовместное расположение, а из него получаем все совместные путём поиска конфликтов
+и \emph{недетерминированной} отмены минимального набора правил, которые образуют конфликты.
+Такой подход даст нам множество всех максимальных совместных расположений.
+Это является оптимизаций за счет того, что конфликтующих примитивов расположения меньше, чем не конфликтующих, и поэтому проще получить и недетерминированно выкинуть все конфликтующие, чем недетерминировано искать все не конфликтующие.
+
+Каждый из трёх шагов получения максимальных не конфликтующих   расположений   реализован как отдельная реляционная компонента.
+%
+%Our initial solution generate all compatible sets of instances. However their number can be huge even if
+%only confirmed and covered sets are considered. In order to make our synthesizer applicable we have to eliminate
+%this overhead. We do this using greedy approach: instead of enumerating all compatible layouts and
+%filtering out non-maximal ones we first build one maximal but not compatible layout, then identify all conflicts and,
+%finally, eliminate the conflicts by \emph{nondeterministically} canceling minimal numbers of rules
+%which introduce these conflicts. This approach gives us a set of all maximal compatible layouts.
+%Each of these steps is implemented as an independent relational component.
+
+На первом шаге   недетерминировано применяем все правила предписания, чтобы получить максимальное (возможно, несовместное)  множество экземпляров расположения, представленное гиперкубом.
+
+%On the first step we non-deterministically apply all guideline rules and combine them into the maximal
+%(but probably non-compatible) set of layout instances represented as a hypercube.
+
+На втором шаге воспользуемся особым реляционным верификатором, чтобы найти все конфликты. Для каждого вида конфликта применим
+специальный верификатор, который по гиперкубу и набору экземпляров расположения проверяет, что элементы набора содержатся в гиперкубе и действительно образуют конфликт рассматриваемого вида.
+Запустившись в обратном направлении на конкретном гиперкубе верификатор вернёт набор экземпляров расположения, который образует конфликт соответствующего вида. Запуск в обратном направлении дизъюнкции верификаторов даст нам все конфликтующие наборы экземпляров.
+
+%Being run in the reverse direction for a ground hypercube and free variable this verifier returns all
+%sets of layout instances which occur in the hypercube and constitute a conflict of given kind. Running a disjunction
+%of all such verifiers in the reverse direction gives us the set of all sets of conflicting layout instances.
+
+На третьем шаге   для каждого конфликтующего расположения разрешаем конфликты, что даст нам (для каждого набора) множество максимальных совместных расположений.
+Сделаем это следующим образом. Обозначим множество конфликтующих экземпляров как   $S$.
+Каждый найденный конфликт можно разрешить, убрав только один примитив расположения.
+Поэтому, будем по-одному выкидывать экземпляры из $S$ и смотреть, какие конфликты разрешились.
+Выкидывание одного примитива может разрешить сразу несколько конфликтов.
+Так   получим максимальное совместное расположение, когда не останется ни одного конфликта.
+Тут есть тонкость, осложняющая реализацию:
+удаляя экземпляры можно получить расположение, которое более не подтверждается предписанием, так как некоторые части расположения могут появляться и исчезать только одновременно.
+Поэтому, надо аккуратно реализовывать процедуру отмены правил. Весь шаг реализован реляционно из-за многочисленного использования недетерминизма.
+
+Обращаем внимание, что решение задействует три реляционные программы, которые передают результаты друг в друга. Эти программы нельзя объединить в одну, так как запуск следующей требует нахождения всех результатов предыдущей программы.
+
+%Note that this solution uses three independent relational programs which thread the answers from one to another.
+%Moreover, it is impossible to combine them into a single relational program since each step requires all the answers
+%of the previous one to be found.
+
+\He{Вычисление абсолютных координат}
+
+Чтобы привести расположение к окончательному виду, необходимо посчитать координаты всех элементов управления.
+Для корректного множества экземпляров расположения эта задача сводится к решению задачи в \emph{целочисленных линейных ограничениях}.
+Каждый примитив расположения добавляет некоторые неравенства в систему неравенств. Например, примитив $\term{hor}\,(C_1,\,C_2)$~---
+горизонтальное расположение элементов управления $C_1$ и $C_2$ друг за другом~--- порождает следующие ограничения:
+%In order to give a layout its final form all coordinates have to be calculated for all controls. When a sound set of
+%layout instances is calculated this task reduces to solving a system of \emph{integer linear constraints}. Each
+%layout primitive contributes a few inequalities to this system. For example, a primitive $\term{hor}\,(C_1,\,C_2)$ (horizontal
+%placement of controls $C_1$ and $C_2$ next to each other) contributes the following constraints
+\begin{gather*}
+  C_2\prg{.x} - C_1\prg{.x} \leq i_H + C_1\prg{.width}\\
+  C_2\prg{.y} - C_1\prg{.y} = a_V,
+\end{gather*}
+\noindent где \emph{переменные} $C_i\prg{.x}$ и $C_i\prg{.y}$ обозначают координаты $x$ и $y$ соответствующего элемента управления, целочисленные
+\emph{константы} $C_k\prg{.width}$~--- ширину $C_k$, $i_H$~--- горизонтальный отступ, $a_V$~--- отступ для вертикального выравнивания.
+
+Также, для каждого виртуального элемента управления $C$, содержащего $C_1, \ldots, C_n$, нужно добавить следующие ограничения на координаты, ширину и высоту:
+%Also, for each virtual GUI control $C$ containing GUI controls $C_1, \ldots, C_n$ the following constraints are needed that define
+%its actual coordinates, width and height:
+  \begin{gather*}
+    C\prg{.x} = \min\,\{C_1\prg{.x}, \ldots, C_n\prg{.x}\}\\
+    C\prg{.y} = \min\,\{C_1\prg{.y}, \ldots, C_n\prg{.y}\}\\
+    C\prg{.x} + C\prg{.width} = \max\,\{C_i\prg{.x} + C_i\prg{.width}\}_{i=1}^n\\
+    C\prg{.y} + C\prg{.height} = \max\,\{C_i\prg{.y} + C_i\prg{.height}\}_{i=1}^n
+  \end{gather*}
+%\vspace{-1em}
+Дополнительно, нужно добавить неравенства, которые ограничивают максимальные значения переменных на основе размера холста, где мы располагаем элементы управления.
+
+%Additionally, a number of inequality constraints is added which restrict the maximal possible values for
+%coordinates taking into account the size of enclosing panel.
+
+%For each GUI control $C$ we introduce the following constraints:
+%  \begin{gather*}
+%    C\prg{.x} \geq 0\\
+%    C\prg{.y} \geq 0\\
+%    C\prg{.x} + C\prg{.width} \leq W\\
+%    C\prg{.y} + C\prg{.height} \leq H\\
+%  \end{gather*}
+%\vspace{-2em}
+
+
+Существует множество способов разрешать линейные целочисленные неравенства, один из них --- применение SMT решателя для теории линейной арифметики.
+Но заманчиво было бы применить реляционный решатель ещё раз. Он мог бы быть бесшовно интегрирован в существующую процедуру синтеза, что
+позволило бы проверять некоторые ограничения на более ранних фазах поиска.
+
+%There exists a number of ways to solve the set of integer linear inequalities (for example, using SMT solvers over the linear
+%integer arithmetic theory). It is, however, very appealing to try to employ relational verifiers yet again. This relational
+%solver would have the following benefit: it could be seamlessly integrated into the layout synthesis procedure, thus allowing some
+%constraint selection to be rejected at earlier stages.
+
+Однако текущий реляционный решатель показывает низкую производительность в присутствии виртуальных элементов управления.
+Как было упомянуто выше, размеры виртуальных элементов~--- не константы, что существенно увеличивает пространство поиска.
+Поэтому на данный момент используется \Zthree~\cite{Zthree}, чтобы определять абсолютные координаты элементов управления,
+а также размеры виртуальных.
+
+%However, the current relational implementation of this solver is underperforming in the presence of virtual GUI controls.
+%As mentioned above, the width and height of virtual GUI controls are not constants, which greatly increases the
+%search space. So, for the time being, we, indeed, use \textsc{Z3} theorem prover~\cite{Zthree} to determine the
+%absolute coordinates of the GUI controls (as well as the width and height of all virtual GUI controls).
+
+Заметим, что данный подход может повредить полноте решателя. Определение конфликтов, а также процедура их устранения из предыдущего раздела, никак не учитывают размеры холста и размеры виртуальных элементов (которые зависят только от размеров, входящих в них элементов). Таким образом, система целочисленных неравенств может быть несовместной даже для корректных расположений. Заметим, что отмена правил предписания влечет за собой отмену целочисленных ограничений, что может восстановить корректность системы. Другими словами, несовместность системы может быть решена также, как и конфликт --- отменой правил. Отметим, что вся идея поиска конфликтов основана на предположении, что заранее известно, что некоторые экземпляры расположения рано или поздно создадут несовместные ограничения на координаты. Но на стадии поиска и устранения конфликтов у нас недостаточно информации, чтобы решить эту задачу достаточно точно.
+
+%This approach, however, can potentially compromise the completeness of the overall solver. Indeed, the conflict
+%detection and elimination procedures described in the previous section do not take into account the size of the
+%enclosing panel and the sizes of virtual controls (which solely depends on the manner their nested controls are
+%layed out). Thus, the system of integer inequalities can be inconsistent even for sound layouts. However,
+%by cancelling application of some guideline rules some of the integer constraints can be removed thus restoring
+%the consistency of the system. In other words, by ignoring size constraints we can ponentially overlook some
+%proper layouts.
+%Note, the whole idea of conflict identification comes from the observation that we know
+%in advance that some sets of layout instances will inevitably introduce inconsistend constrainst on
+%some controls' coordinates; however at the conflict identification and elimination stage we do not have
+%enough information to do this job in utterly precise manner.
+
+\begin{figure}
+\begin{lstlisting}[language=algo,mathescape=true,basicstyle=\ttfamily]
+solve(layPart, sizePart) {
+  // Попытка решить всю систему
+  if (Z3.solve (layPart $\cup$ sizePart)) {
+      // Возврат модели
+      return [ Z3.model ]
+  }
+
+  // Если unsat, необходимо найти и вычислить
+  // конфликт расположения
+
+  // MUC является одним из конфликтов
+  muc = Z3.minimalUnsatCore
+
+  // Список корректных моделей
+  answers = []
+
+  for (mucElement $\in$ muc) {
+    // Чтобы решить конфликт, необходимо
+    // удалить один из элементов MUC
+    // из системы
+    if (mucElement $\in$ layPart) {
+      reducedLayPart =
+        layPart $\setminus$ {mucElement}
+      answers ++= solve(
+          reducedLayPart, sizePart)
+    }
+  }
+
+  return answers
+}
+\end{lstlisting}
+\caption{Алгоритм решения конфликтов координат}
+\label{Z3op}
+\end{figure}
+
+Восстановление полноты требует аккуратного взаимодействия с \textsc{Z3}.
+В случае невыполнимости системы $S$ получим \emph{минимальное ядро невыполнимости}~\cite{minUnsatCore} (англ. unsatisfiable core).
+Это такое несовместное подмножество  $UC\subseteq S$, что удаление одного ограничения из ядра делает систему выполнимой.
+На первый взгляд, достаточно недетерминированно удалять по одному ограничению из $UC$, и смотреть из каких частей расположения это ограничение появилось.
+Отменяя правило предписания, которое внесло это ограничение,  сделаем систему выполнимой.
+К сожалению, не со всеми ограничениями можно так обойтись.
+Разделим $UC$ на \emph{ограничения расположения } $L$ (порождённые экземплярами), и \emph{ограничения на размер} $Z$, появившиеся из-за размера холста и размеров виртуальных элементов.
+Можно непосредственно отменять ограничения из $L$, но если не только они образуют ядро невыполнимости, то необходимо действовать более тонко.
+
+%Restoring the completeness requires more accurate interoperation with \textsc{Z3}. When the inconsistency of the system
+%$S$ is discovered, a \emph{minimal unsatisfiable core}~\cite{minUnsatCore} is returned.
+%Minimal unsatisfiable core is an inconsistent subset $UC\subseteq S$ such that removing any constraint from $UC$
+%makes the remaining set consistent. The first idea would be to take one constraint from $UC$ (nondeterministically) and
+%see what layout instance contributed it. By cancelling guideline rule application which introduced this
+%layout instance we remove this constraint thus making the whole system consistent. Alas, not all constraints can
+%be treated this way. We split all the constraints of $UC$ into \emph{layout} constraints $L$ (those
+%introduced by layout instances) and \emph{size}-constraints $Z$ (the inequalities for the sizes of virtual controls and
+%inequalities for control coordinates introduced to respect the size of the enclosing pane). As we noticed earlier,
+%all constrains in $Z$ are determined by layout instances which contributed to $L$. We can explicitly cancel only
+%constraints from $L$; alas, they alone do not constitute minimal unsatisfiable core, so we have to act more accurately.
+
+Построим множество $M$, выбирая по одному ограничению  $c$ из $L$ и запрашивая у  \textsc{Z3} решение системы $S\setminus\{c\}$  на каждом шаге.
+В итоге может получиться два результата:
+%We build an auxiliary set $M$ by taking the constraints $c$ from $L$ one by one and asking \textsc{Z3} to solve the system $S\setminus\{c\}$ on each step.
+%There can be two outcomes:
+
+\begin{enumerate}
+\item Множество $S\setminus\{c\}$ остается невыполнимым. Это означает, что $c$ не влияет на невыполнимость и поиск продолжается.
+\item Множество $S\setminus\{c\}$ стало выполнимым. Значит $c$ в конфликте с каким-то другим ограничением. Добавляем $c$ в $M$ и продолжаем дальше.
+\end{enumerate}
+
+После окончания выполнения процедуры множество $M$ будет содержать по построению все ограничения, такие, что удаление одного из них восстанавливает выполнимость.
+Каждое из них появилось из-за какого-то экземпляра расположения. Будем недетерминированно отменять применение правил предписания, которые создали эти экземпляры.
+Из $S$ мы получим $n$ подсистем, где $n=\ \mid\!\!\!\!M\!\!\!\!\mid$.
+Затем попробуем решить эти системы с помощью \textsc{Z3} и для каждой повторим процедуру.
+В конце концов мы либо отменим достаточно правил, чтобы получить все корректные расположения, либо придём к состоянию, где система невыполнима, а ядро содержит только ограничения на размер, что означает, что элементы не помещаются на наш холст как   их не раскладывай.
+Это обосновывает полноту алгоритма синтеза.
+Псевдокод процедуры представлен на рис.~\ref{Z3op}.
+
+%By the end of this procedure $M$ will by construction contain all constraints such that removing any of them potentially
+%restores the consistency. Each of them was contributed by some layout instances. We nondeterministically
+%cancel the application of guideline rules which introduced these instances which gives us $n$ subsystems of $S$ where $n=|M|$.
+%Now we try to solve these subsystems with \textsc{Z3} and for each inconsistent one repeat the whole procedure. In the
+%end we either cancel enough rules to enumerate all sound layouts or arrive at the state when the system of
+%constraints remain inconsistent with the minimal unsatisfiable core containing only size constraints, which means that
+%there are some controls which do not fit into the enclosing pane regardless their layout. This justifies the completeness
+%of our synthesis algorithm. The pseudocode for the whole procedure is shown in Fig.~\ref{Z3op}.
