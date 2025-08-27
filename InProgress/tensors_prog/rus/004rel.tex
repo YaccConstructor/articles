@@ -1,0 +1,109 @@
+% !TeX encoding = windows-1251
+% !TeX spellcheck = ru_RU
+% !TEX root = mainrus.tex
+
+Реализация синтеза интерфейсов использует реляционное программирование. В этом разделе будет кратко рассказано, что это такое и как работает наш инструмент.
+
+%The implementation of our layout synthesizer employs the techniques of relational programming. Here
+%we briefly recollect what relational programming is and how the approaches and tools we use work.
+
+Реляционное программирование~\cite{TRS}~--- это подход, основанный на идее описания программ как отношений.
+Его можно рассматривать как вид логического программирования, в котором порицается использование всех не реляционных конструкций (эффекты, не логические конструкции).
+В узком смысле реляционное программирование~--- это написание программ на \miniKanren~--- специально сконструированном для этих целей, встраиваемом предметно-ориентированном языке. В оригинале он разрабатывался для \textsc{Scheme}/\textsc{Racket}, позже \miniKanren был перенесён на другие языки\footnote{\url{http://minikanren.org/\#implementations} (проверено: \DTMDate{2024-11-11})}.
+Мы используем строго статически типизированную реализацию \miniKanren{}, встроенную в \OCaml{}, которая называется \OCanren{}~\cite{OCanren}.
+От \textsc{Prolog} язык \miniKanren отличается синтаксисом (явные унификации и дизъюнкции, конъюнкции, явное создание свежих (англ. fresh) переменных) и стратегией \emph{поиска с чередованием} (англ. interleaving search)~\cite{interleaving}, которая полна~\cite{certified}.
+Кроме унификации с проверкой цикличности вхождений (англ. occurs-check) по-умолчанию, \miniKanren{} можно расширять другими ограничениями, например: неравенства~\cite{disuni}, конечные домены~\cite{cKanren} или конструкции из номинальной логики~\cite{aKanren}.
+
+
+%Relational programming~\cite{TRS} is an approach based on the idea of describing programs as
+%relations. It can be considered as a branch of logic programming in which the use of
+%all non-relational constructs (side-effects, extra-logic features) is discouraged. In a
+%narrow sense relational programming amounts to writing programs in \textsc{miniKanren}~--- a
+%specifically designed for this purpose embedded DSL. Initially developed for \textsc{Scheme}/\textsc{Racket}
+%\textsc{miniKanren} later was ported for dozens of host
+%languages\footnote{\url{http://minikanren.org/\#implementations}}.
+%We, specifically, use a strongly typed \textsc{miniKanren} implementation for \textsc{OCaml}~\cite{ocaml}, called \textsc{OCanren}~\cite{OCanren}.
+%\textsc{miniKanren} uses the same theory of Horn clauses as \textsc{Prolog} but with a different
+%concrete syntax with explicit unification, conjunction, disjunction and fresh variable introduction, and
+%employs a different \emph{interleaving} search strategy~\cite{interleaving}, which is known to be complete~\cite{certified}.
+%Besides unification with occurs-check, enabled by default, \textsc{miniKanren} can be equipped with other
+%basic constraints like disequality constraint~\cite{disuni}, finite-domain constraints~\cite{cKanren}, or
+%constructs of nominal logic~\cite{aKanren}.
+
+В контексте нашей работы самым важным свойством \miniKanren является возможность выражения \emph{обратимых вычислений}.
+Известно~\cite{SemanticsModifiers,SemanticsModifiers1}, что некоторые сложные программы могут быть построены как результат обращения некоторых других, более простых, программ. В частности, \emph{решатель} задачи поиска можно рассматривать как обращение программы, которая проверяет корректность ответа (англ. \emph{verifier}).
+Широко известно, что задача проверки корректности решения, как правило, гораздо проще задачи поиска корректного решения.
+Реляционная природа \miniKanren позволяет очень просто осуществлять обратимые вычисления, что помогает в задачах синтеза программ~\cite{Untagged,WBirdSeven,PatternMatching}.
+
+%In the context of our work the most valuable property of \textsc{miniKanren} is its capability of expressing \emph{reverse computations}.
+%It is well-known~\cite{SemanticsModifiers,SemanticsModifiers1} that some complicated programs can be constructed as
+%the results of inversion of some other, much simpler, programs. In particular, a \emph{solver} for a
+%certain search problem can be considered as an inversion of its \emph{verifier}; it is rather a matter of common knowledge that verifying a
+%solution is, as a rule, much easier than finding one. The relational nature of \textsc{miniKanren} makes
+%inverse computations particularly easy~\cite{searchproblems}, which opens a way for program
+%synthesis~\cite{Untagged,WBirdSeven,PatternMatching}.
+
+%Другим компонентом нашего подхода является \emph{реляционное преобразование} (англ. \emph{relational conversion}).
+%Во многих случаях (но не всегда) проще получить реляционную спецификацию из кода на функциональном языке, чем написать спецификацию вручную.
+%Мы используем инструмент \noCanren, который преобразует программы, написанные на подмножестве \OCaml, в  \OCanren-спецификации, корректные по построению.
+%\textcolor{red}{noCanren не упоминать}
+
+%Another component of our approach is \emph{relational conversion}. In many cases (but not always!) it is easier to obtain a relational specification
+%from functional program than writing the one by hands. We use a tool, called \textsc{noCanren}, which converts programs written is a reasonable
+%subset of \textsc{OCaml} into correct-by-construction\cite{conversion} \textsc{OCanren} specifications.
+
+Продемонстрируем наш подход на следующем обозримом примере.
+Рассмотрим программу на рис.~\ref{fun_vs_rel}\subref{funadd}, которая конкатенирует два списка, и её реляционный эквивалент на рис. ~\ref{fun_vs_rel}\subref{reladd}.
+Сравнивая их, можно обратить внимание, что сопоставление с образцом было заменено на дизъюнкцию (\lstinline[language=ocanren,basicstyle=\small]|conde|)
+и унификацию  (\lstinline[language=ocanren,basicstyle=\small]|===|);
+модификации потока данных --- на конъюнкцию (\lstinline[language=ocanren,basicstyle=\small]|&&&|);
+свежие переменные были добавлены, где это необходимо;
+а постфиксная нотация \enquote{o} традиционно используется для обозначения определения вычислимых отношений.
+В отличие от функциональной реализации, у реляционной \emph{три} аргумента (\lstinline[language=ocanren,basicstyle=\small]|xs|, \lstinline[language=ocanren,basicstyle=\small]|ys|
+и \lstinline[language=ocanren,basicstyle=\small]|zs|), каждый из которых может содержать  свежие переменные.
+Вычисление конструкции  \lstinline[language=ocanren,basicstyle=\small]|run$^*$ {appendo xs ys zs}| возвращает \emph{ленивый поток ответов}, который содержит все подстановки этих трёх переменных, такие, что отношение $\{(x,y,z)\in\mathbb{N}^3 \mid x +\kern-1.3ex+\kern0.8ex y=z\}$ верно.
+Этот поток можно исследовать в \OCaml{}, чтобы получать ответы по-одному.
+Одна и та же спецификация может использоваться и для конкатенации, и для отрезания префикса, и для разбиения списка на две части.
+
+%We demonstrate the roadmap of our approach by the following observable example. Let us have a program
+%shown in Fig.~\ref{fun_vs_rel}\subref{funadd} which adds two natural numbers in Peano form. Its relational counterpart,
+%acquired via relational conversion (not literally, but in equivalent form), is shown in Fig.~\ref{fun_vs_rel}\subref{reladd}.
+%Comparing both of them we can notice that pattern-matching was replaced by disjunction (\lstinline[language=ocanren,basicstyle=\small]|\/|)
+%and unification (\lstinline[language=ocanren,basicstyle=\small]|===|), data-flow dependent computations with conjunction (\lstinline[language=ocanren,basicstyle=\small]|/\|),
+%and fresh variables can be allocated when needed; the postfix ``$^o$'' is traditionally used to distinguish relational definitions. Unlike its functional
+%counterpart the relational specification has \emph{three} arguments \lstinline[language=ocanren,basicstyle=\small]|x|, \lstinline[language=ocanren,basicstyle=\small]|y|,
+%and \lstinline[language=ocanren,basicstyle=\small]|z|, each of which can contain fresh (initially undefined) variables.
+%The evaluation of construction \lstinline[language=ocanren,basicstyle=\small]|run$^*$ {add$^o$ x y z}| returns all substitutions for these
+%fresh variables which make the relation $\{(\mbox{\texttt x}, \mbox{\texttt y}, \mbox{\texttt z})\in\mathbb{N}^3\, |\, \mbox{\texttt x+y=z}\}$ hold, represented as a \emph{lazy stream of answers}. This stream can
+%then be inspected in a host functional application to retrieve individual answers. Thus the same specification can be equally used for plain addition,
+%subtraction or decomposition of a number into two summands.
+
+\begin{figure}[t]
+  \begin{subfigure}[t]{0.5\textwidth}
+  \begin{lstlisting}[language=ocanren,basicstyle=\small]
+   let rec append xs ys =
+     match xs with
+     | []    -> ys
+     | x::xs -> x :: append xs ys
+  \end{lstlisting}
+  \caption{Реализация на \OCaml{}}
+  \label{funadd}
+  \end{subfigure}
+  \begin{subfigure}[t]{0.5\textwidth}
+    \begin{lstlisting}[language=ocanren,basicstyle=\small]
+  let rec appendo xs ys zs =
+    conde
+      [ (xs === nil()) &&& (ys === xs)
+      ; fresh (h tl tmp)
+          (xs === List.cons h tl)
+          (appendo tl ys tmp)
+          (zs === List.cons h tmp)
+      ]
+    \end{lstlisting}
+    \caption{Реляционное слияние списков.
+    Используется конъюнкция \texttt{\&\&\&}, дизъюнкция \texttt{conde} и квантор существования (\texttt{fresh}), совмещенный с конъюнкцией}
+    \label{reladd}
+  \end{subfigure}
+  \caption{Функциональное и реляционное слияние списков}
+  \label{fun_vs_rel}
+\end{figure}

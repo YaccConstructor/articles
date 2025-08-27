@@ -1,0 +1,101 @@
+\he{Paths Extraction Algorithm}
+After the index has been created, one can enumerate all paths between specified vertices.
+The index $M_3$ already stores data about all paths derivable from nonterminals.
+This data can be used to construct these paths. However, the set of such paths can be infinite.
+From a practical perspective, it is necessary to use lazy evaluation or limit the resulting set of paths in some other way.
+For example, one can try to query some fixed number of paths, query paths of fixed maximum length, or just query a single path.
+The problem of paths enumeration, namely how to enumerate paths with the smallest delay, may be relevant here.
+
+\begin{algorithm}[h]
+	\floatname{algorithm}{Listing}
+	\begin{algorithmic}[1]
+		\footnotesize
+		\caption{Paths extraction algorithm}
+		\label{tensor:pathsExtraction}
+		\State{$M_3 \gets $ the result of index creation algorithm: final Kronecker product}
+		\State{$R \gets$ recursive automata for the input RSM}
+		\State{$\mathcal{M}_1 \gets $  the set of adjacency matrices for $R$}
+		\State{$\mathcal{M}_2 \gets $ the set of adjacency matrices of the final graph}
+
+
+		\Function{getPaths}{$v_s, v_f, N$}
+		\State{$q_N^0 \gets$ Start state of automata for $N$}
+		\State{$F_N \gets$ Final states of automata for $N$}
+		\State{$paths\gets \bigcup\limits_{q_N^f \in F_N} \Call{genPaths}{(q_N^0,v_s),(q_N^f, v_f)}$}
+		\State{$resultPaths \gets \emptyset$}
+		\For{$path \in paths$}
+		\State{$currentPaths \gets \emptyset$}
+		\For{$((s_i, v_i), (s_j, v_j)) \in path$}
+		\State{\begin{minipage}[t]{0.05\textwidth}
+				\vspace{-11pt}
+				\begin{align*}
+					currentSubPaths \gets & \{(v_i,t,v_j) \mid M_2^t[v_i, v_j] \wedge M_1^t[s_i, s_j]\}\\
+					& \cup  \ \bigcup_{\{N \mid  M_2^N[v_i, v_j]  
+                                                       \wedge M_1^N[s_i, s_j]\}} 
+                        \\ \Call{getPaths}{v_i, v_j, N}
+				\end{align*}
+			\end{minipage}
+		}
+		\State{$currentPaths \gets currentPaths \cdot currentSubPaths$}
+		\Comment{Concatenation of paths}
+		\EndFor
+		\State{$resultPaths \gets resultPaths \cup currentPaths$}
+		\EndFor
+
+		\State \Return $resultPaths$
+		\EndFunction
+
+		% note: the first index in the pair is the state of the RSM
+		% note: the second index in the pair is the vertex of the graph
+
+		\Function{genPaths}{$(s_i,v_i), (s_j,v_j)$}
+		\State{$q \gets \text{vector of zeros with size } dim(M_3)$}
+		\Comment{Vector for indicating the current vertex}
+		\State{$q[s_i dim(\mathcal{M}_2) + v_i] \gets 1$}
+		\State{$resultPaths \gets \emptyset$}
+		\State{$supposedPaths \gets \{([~], q)\}$}
+		\Comment{Set of pairs: path and the vector for current vertex}
+		\While{$supposedPaths$ is changing}
+		\For{$(path, q) \in supposedPaths$}
+		\If{$q[s_j dim(\mathcal{M}_2) + v_j] = 1$}
+		\State{$resultPaths \gets resultPaths \cup path$}
+		\EndIf
+
+		\State{$q \gets q \cdot (M_3)^T$}
+		\Comment{Boolean vector-matrix multiplication}
+
+		\State{$\text{Remove } (path, q)\text{ from } supposedPaths$}
+		\For{$j \text{ such that } q[j] = 1$}
+		\State{$pathNew \gets path$}
+		\If{$path \text{ is empty path}$}
+		\State{$pathNew \gets pathNew \cdot [\big((s_i, v_i), (\left\lfloor{j / dim(\mathcal{M}_2)}\right\rfloor, j \bmod dim(\mathcal{M}_2))\big)]$}
+		%\Comment{Edge adding}
+		\Else
+		\State{$(s_k, v_k) \gets \text{ the last vertex of } path$}
+		\State{$pathNew \gets pathNew \cdot [\big((s_k, v_k), (\left\lfloor{j / dim(\mathcal{M}_2)}\right\rfloor, j \bmod dim(\mathcal{M}_2))\big)]$}
+		%\Comment{Edge adding}
+		\EndIf
+		\State{$qNew \gets \text{vector of zeros with size } dim(M_3)$}
+		\State{$qNew[j] \gets 1$}
+		\State{$\text{Add } (pathNew, qNew)\text{ to } supposedPaths$}
+		\EndFor
+		\EndFor
+		\EndWhile
+		\State \Return $resultPaths$
+		\EndFunction
+	\end{algorithmic}
+\end{algorithm}
+
+The most natural way to use the created index is to query paths between the specified vertices derivable from the specified nonterminal. To do so, we provide a function \textsc{getPaths}($v_s, v_f, N$), where $v_s$ is a start vertex of the graph, $v_f$ --- the final vertex, and $N$ is a nonterminal.
+Implementation of this function is presented in Listing~\ref{tensor:pathsExtraction}.
+
+Paths extraction is implemented as two functions.
+The entry point is \textsc{getPaths}($v_s, v_f, N$).
+This function returns a set of the paths in the input graph between $v_s$ and $v_f$ such that the word formed by a path is derivable from the nonterminal $N$.
+
+To compute such paths, it is necessary to compute paths from vertices of the form $(q_N^0,v_s)$ to vertices of the form $(q_N^f, v_f)$ in the resulting Kronecker product $M_3$, where $q_N^0$ is an initial state of RSM for $N$ and $q_N^f$ is one of the final states.
+For this reason, we provide the function \textsc{genPaths}$((s_i,v_i),(s_j,v_j))$. This function explores the graph corresponding to the resulting Kronecker product $M_3$ in a breadth-first manner and return all paths from $(s_i,v_i)$ to $(s_j,v_j)$. For each path, we also store the vector $q$ that indicates which vertex is current now. We find the next vertices using the Boolean vector-matrix multiplication in line 26 of the algorithm from Listing~\ref{tensor:pathsExtraction}. After that, we add new edges to our paths in lines 31 and 34. If we reach the vertex $(s_j,v_j)$ then we can add the collected path to the resulting set (see lines 24-25). The paths constructed by \textsc{genPaths} is used to construct the corresponding paths in the input graph. Each edge $((s_i,v_i),(s_j,v_j))$ corresponds to set of paths in the input graph. This set is computed in line 13 and is used as subpaths for constructing the resulting paths in line 14. Note that in lines 14, 31, and 34 we use the operation $\cdot$
+which naturally generalizes the path concatenation operation by constructing all possible concatenations of path pairs from the given two sets. Finally, if a single-edge subpath is labeled by a terminal, then the corresponding edge should be added to the result and if the label is nonterminal, \textsc{getPaths} should be used to restore paths.
+
+It is assumed that the sets are computed lazily, so as to ensure the termination in case of an infinite number of paths.
+We also do not check paths for duplication explicitely, since they are assumed to be represented as sets.
