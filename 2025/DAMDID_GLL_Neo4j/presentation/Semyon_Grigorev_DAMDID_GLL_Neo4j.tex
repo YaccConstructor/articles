@@ -211,10 +211,43 @@ Saint Petersburg State University
       \end{itemize}
       \item \textbf{Recursive State Machine (RSM)} to represent constraints
       \begin{itemize}
-        \item Instead of grammar in (E)BNF
+        \item Instead of grammar in (E)BNF\footnote{Right part of the rule is a regular expression over terminals and nonterminals}
       \end{itemize}
   \end{itemize}
 
+\end{frame}
+
+
+\begin{frame}[fragile] \frametitle{Definitions}
+  \begin{itemize}
+      \item \textbf{Descriptor} $d=(u,q,g)$ --- configuration of recognizer/parser
+      \begin{itemize}
+        \item $u$ --- vertex of the input graph
+        \item $q$ --- state of the RSM (constraint)
+        \item $g$ --- current top of the stack (vertex of GSS) 
+      \end{itemize}
+      \item \textbf{Graph Structured Stack (GSS)} --- compact\footnote{Cubic in worst case} representation of multiple stacks
+      \begin{itemize}
+        \item Vertex $(M,u)$ --- Handling of nonterminal $M$ is started from vertex $u$ of the input graph
+        \item Each edge is labelled with $p$ --- state of the RSM to continue from after pop
+      \end{itemize}
+      \item \textbf{Shared Packed Parse Forest (SPPF)} --- compact\footnote{Cubic in worst case} representation of all possible derivation trees
+      \begin{itemize}
+        \item \textbf{Terminal} and \textbf{nonterminal} nodes
+        \item \textbf{Packed, intermediate, etc} --- special nodes to reuse subtrees
+      \end{itemize}
+      \item \textbf{Recursive State Machine (RSM)} --- finite-automata-like representation of context-free language
+      \begin{itemize}
+        \item DFA representation of right part of rule for each nonterminal
+      \end{itemize}
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile] \frametitle{An Example}
+  \begin{center}
+      \includegraphics[width=0.99\textwidth]{pictures/RSM.pdf}
+  \end{center}
 \end{frame}
 
 \begin{frame}[fragile] \frametitle{Generalized LL for CFPQ: The Idea}
@@ -275,158 +308,139 @@ Saint Petersburg State University
 
 \begin{frame}[fragile] \frametitle{Implementation Details}
   \begin{itemize}
-  \item !!!
-  \item !!!
-  \item !!!
+  \item Generic CFPQ solver (graph is abstraction)
+  \item Neo4j as graph storage (no Cypher extension to support CFPQ)  
   \end{itemize}
-
 \end{frame}
 
 
 \begin{frame}[fragile] \frametitle{Evaluation Setup}
 
 \begin{minipage}[t]{0.51\textwidth}
-\vspace{-2cm}
+\vspace{-1.4cm}
 \begin{itemize}
-  \item Ubuntu 18.04, Intel Core i7-6700 CPU, 3.4GHz, DDR4 64Gb RAM
-  \item Graphs are stored in RedisGraph augmented~with our extensions
-  \item Queries are generated with template for the~given size of the start set
-  \item The union of all start sets is denoted $V$
+  \item Ubuntu 20.04, Intel Core i7-6700 CPU, 3.4GHz, DDR4 64Gb RAM
+  \item Neo4j 5.12.0
+  \begin{itemize}
+    \item Unlimited memory usage per transaction
+  \end{itemize}
+  \item JVM was configured to use 55Gb  
 \end{itemize}
 
 \end{minipage}
-\pause
+~
 \begin{minipage}[t]{0.44\textwidth}
 {
+\resizebox{1.1\textwidth}{!}{
 \rowcolors{2}{black!2}{black!10}
-\begin{tabular}{|l|c|c|c|}
-\hline
-Graph                  & \#V                  & \#E                  & Q     \\
-
-\hline
-\hline
-core                   & 1323                 & 4342                 & $g_1$ \\
-pathways               & 6238                 & 18 598               & $g_1$ \\
-gohierarchy            & 45 007               & 980 218              & $g_1$ \\
-enzyme                 & 48 815               & 109 695              & $g_1$ \\
-eclass\_514en          & 239 111              & 523 727              & $g_1$ \\
-geospecies             & 450 609              & 2 311 461            & $geo$ \\
-go                     & 272 770              & 534 311              & $g_1$ \\
-\hline
-\end{tabular}
+\begin{tabular}{| l | c | c | c | c | c |}
+         \hline
+         Graph name & $|V|$ & $|E|$ & \#subClassOf & \#type \\
+         \hline
+         \hline
+         Core               & 1 323     & 2 752      & 178        & 0         \\
+         Pathways           & 6 238     & 12 363     & 3 117      & 3 118     \\
+         Go\_hierarchy       & 45 007    & 490 109    & 490 109    & 0        \\
+         Enzyme             & 48 815    & 86 543     & 8 163      & 14 989    \\
+         Eclass             & 239 111   & 360 248    & 90 962     & 72 517    \\
+         Geospecies         & 450 609   & 2 201 532  & 0          & 89 065    \\
+         Go                 & 582 929   & 1 437 437  & 94 514     & 226 481   \\
+         Taxonomy           & 5 728 398 & 14 922 125 & 2 112 637  & 2 508 635 \\
+         \hline
+    \end{tabular}
 }
-
+}
 \end{minipage}
 
-\vspace{1cm}
-\pause
-\begin{minted}{cypher}
-PATH PATTERN S =
-  ()-/ [<:SubClassOf [~S | ()] :SubClassOf] | [<:Type [~S | ()] :Type] /->()
-MATCH (src)-/ ~S /->()
-WHERE {id_from} <= src.id and src.id <= {id_to}
-RETURN count(*)
+Queries:
+\begin{align*}
+&Q_1: & S \to & \overline{\textit{subClassOf}} \ \ S \ \textit{subClasOf} \mid \overline{\textit{type}} \ \ S \ \textit{type} \\ 
+&     &       & \mid \overline{\textit{subClassOf}} \ \ \textit{subClassOf} \mid \overline{\textit{type}} \ \textit{type} \\
+&Q_2: & S  \to & \overline{\textit{subClassOf}} \ \ S \ \textit{subClasOf} \mid \textit{subClassOf} \\
+&\textit{reg}_1:& S  \to  & (\textit{subClassOf} \mid \textit{type})^* \\
+&\textit{reg}_2:& S  \to  & \textit{subClassOf }^* \cdot \textit{type}^*
+\end{align*}
 
-\end{minted}
 \end{frame}
 
 
-\begin{frame}[fragile] \frametitle{Multiple sources CFPQ reachability speedup (RSM over CFG) on RDF graphs}  
-  \begin{center}        
+\begin{frame}[fragile] \frametitle{CFPQ reachability speedup (RSM over CFG) on RDF graphs}  
+  \begin{center}   
+    $Q_1$ \hspace{7cm} $Q_2$     \\
     \includegraphics[width=0.49\textwidth]{pictures/g1_kotgll_result.pdf}
     %\caption{ $G_1$ query}            
-    %\includegraphics[width=0.3\textwidth]{pictures/g2_kotgll_result.pdf}
+    \includegraphics[width=0.49\textwidth]{pictures/g2_kotgll_result.pdf}
     %\caption{$G_2$ query}        
-    \includegraphics[width=0.49\textwidth]{pictures/geo_kotgll_result.pdf}
+    %\includegraphics[width=0.49\textwidth]{pictures/geo_kotgll_result.pdf}
     %\caption{$Geo$ query}
   \end{center}
 \end{frame}
 
 
-\begin{frame}[fragile] \frametitle{Multiple sources CFPQ reachability results for queries related to RDF analysis}
-  \begin{center}        
+\begin{frame}[fragile] \frametitle{CFPQ results (Neo4j vs RedisGraph)}
+  \begin{center}
+    $Q_1$ \hspace{7cm} $Q_2$     \\
     \includegraphics[width=0.49\textwidth]{pictures/g1_result.pdf}
     %\caption{ $G_1$ query}            
-    %\includegraphics[width=0.3\textwidth]{pictures/g2_result.pdf}
+    \includegraphics[width=0.49\textwidth]{pictures/g2_result.pdf}
     %\caption{$G_2$ query}        
-    \includegraphics[width=0.49\textwidth]{pictures/geo_result.pdf}
+    %\includegraphics[width=0.49\textwidth]{pictures/geo_result.pdf}
     %\caption{$Geo$ query}
   \end{center}
 \end{frame}
 
-\begin{frame}[fragile] \frametitle{Multiple source RPQ reachability results for queries related to RDF analysis and respective query (native solution failed with OOM on last two graphs)}
-  \begin{center}        
+\begin{frame}[fragile] \frametitle{RPQ results for Neo4j\footnote{Native solution failed with OOM on last two graphs}}
+  \begin{center}
+    $\textit{reg}_1$ \hspace{7cm} $\textit{reg}_2$     \\
     \includegraphics[width=0.49\textwidth]{pictures/reg1_rpq_result.pdf}
     %\caption{ $G_1$ query}            
-    %\includegraphics[width=0.3\textwidth]{pictures/g2_result.pdf}
-    %\caption{$G_2$ query}        
     \includegraphics[width=0.49\textwidth]{pictures/reg2_rpq_result.pdf}
+    %\caption{$G_2$ query}        
+    %\includegraphics[width=0.49\textwidth]{pictures/reg2_rpq_result.pdf}
     %\caption{$Geo$ query}
   \end{center}
 \end{frame}
 
-\begin{frame}[fragile] \frametitle{Conclusion}
+\begin{frame}[fragile] \frametitle{Conclusion And Future Research}
   \begin{itemize}
-      \item Full-stack support for CFPQ in real-world applications which use RedisGraph database with Cypher query language
+      \item[\faCheck] GLL-based CFPQ algorithm 
       \begin{itemize}
-         \item No more context-free grammars
-         \item No more custom graph formats and storages
+         \item RSM is promising representation of CFLs in context of CFPQ
+         \item In some cases faster than linear-algebra-based approach
+         \item Comparable with native RPQ (for Neo4j)
       \end{itemize}
-      \item Reasonable performance of context-free path queries
+      \item[\faGears] Implementation of paths extraction strategies
+      \item[\faHourglassStart] Parallel version of GLL
       \begin{itemize}
-         \item Multiple-source scenario
-         \item Space-time ratio can be tuned
-      \end{itemize}
-      \item Context-free path queries can be used in applications with well-established tools
+         \item[\faLightbulbO] All descriptors can be handled independently
+         \item[\faFrownO] Complex global shared structures (GSS, SPPF, etc) --- synchronization needed
+      \end{itemize}      
+      \item[\faHourglassStart] Incremental version of GLL
   \end{itemize}
 \end{frame}
 
+%\begin{frame}
+%\frametitle{Contact Information}
+%\begin{minipage}[t]{0.8\textwidth}
+%\begin{itemize}
+%  \item Try it out (Docker image with extended RedisGraph): \url{https://hub.docker.com/r/simpletondl/redisgraph}
+%  \item RedisGraph extended with CFPQ: \url{https://github.com/YaccConstructor/RedisGraph}
+%  \item Cypher parser extended with path patterns: \url{https://github.com/YaccConstructor/libcypher-parser}
+%
+%  \vspace{0.5cm}
+%  \pause
+%  \item Semyon Grigorev: \href{mailto:s.v.grigoriev@spbu.ru}{s.v.grigoriev@spbu.ru}
+%  \item Arseniy Terekhov: \href{mailto:simpletondl@yandex.ru}{simpletondl@yandex.ru}
+%  \item Vlada Pogozhelskaya: \href{mailto:pogozhelskaya@gmail.com}{pogozhelskaya@gmail.com}
+%  \item Vadim Abzalov: \href{mailto:vadim.i.abzalov@gmail.com}{vadim.i.abzalov@gmail.com}
+%  \item Timur Zinnatulin: \href{mailto:teemychteemych@gmail.com}{teemychteemych@gmail.com}
+%\end{itemize}
+%\end{minipage}~
+%\begin{minipage}[t]{0.19\textwidth}
+%\pause
+%\vspace{2.5cm}
+%\center{\huge{Thanks!}}
+%\end{minipage}
+%\end{frame}
 
-
-\begin{frame}[fragile] \frametitle{Future Research}
-  \begin{itemize}
-    \item Mechanization of Cypher semantics in Coq
-    \begin{itemize}
-      \item Semantics which includes path patterns
-      \item Goal: prove correctness of translation to linear algebra
-    \end{itemize}
-    \pause
-    \item Integration of tensor-based CFPQ algorithm\footnote<.(1)->{Egor Orachev, Ilya Epelbaum, R. Azimov and S. Grigorev. 2020. Context-Free Path Querying by Kronecker Product.} to RedisGraph
-    \begin{itemize}
-      \item The algorithm constructs paths, not only reachability facts
-      \item The algorithm should be modified to get multiple-source version
-    \end{itemize}
-    \pause
-    \item Detailed evaluation
-    \begin{itemize}
-      \item Include more graphs and queries, including RPQs
-      \item Evaluate the scalability of the solution
-      \item Compare with other graph query engines
-    \end{itemize}
-  \end{itemize}
-\end{frame}
-
-\begin{frame}
-\frametitle{Contact Information}
-\begin{minipage}[t]{0.8\textwidth}
-\begin{itemize}
-  \item Try it out (Docker image with extended RedisGraph): \url{https://hub.docker.com/r/simpletondl/redisgraph}
-  \item RedisGraph extended with CFPQ: \url{https://github.com/YaccConstructor/RedisGraph}
-  \item Cypher parser extended with path patterns: \url{https://github.com/YaccConstructor/libcypher-parser}
-
-  \vspace{0.5cm}
-  \pause
-  \item Semyon Grigorev: \href{mailto:s.v.grigoriev@spbu.ru}{s.v.grigoriev@spbu.ru}
-  \item Arseniy Terekhov: \href{mailto:simpletondl@yandex.ru}{simpletondl@yandex.ru}
-  \item Vlada Pogozhelskaya: \href{mailto:pogozhelskaya@gmail.com}{pogozhelskaya@gmail.com}
-  \item Vadim Abzalov: \href{mailto:vadim.i.abzalov@gmail.com}{vadim.i.abzalov@gmail.com}
-  \item Timur Zinnatulin: \href{mailto:teemychteemych@gmail.com}{teemychteemych@gmail.com}
-\end{itemize}
-\end{minipage}~
-\begin{minipage}[t]{0.19\textwidth}
-\pause
-\vspace{2.5cm}
-\center{\huge{Thanks!}}
-\end{minipage}
-\end{frame}
 \end{document}
