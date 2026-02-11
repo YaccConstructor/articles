@@ -13,44 +13,71 @@ To keep simulation times manageable, we used a single graph from the SuiteSparse
 We conducted two series of experiments.
 The first varies the number of warps and threads per warp while keeping the number of clusters and cores fixed (at 2 and 4, respectively), with the goal of selecting the best core configuration while preserving multi-core execution to account for cache effects.
 The second series, using the best configuration identified in the first step, varies the number of clusters and cores per cluster to assess scaling at the core and cluster levels.
+Cache sizes were set to their default values: 16 KB for $L_1$, 1 MB for $L_2$, and 2 MB for $L_3$.
+
+We use the number of cycles reported by SimX as a performance metric.
+For multi-core configurations, we report the maximum cycle count across all cores.
+During the experiments, we encountered unexpected behavior in SimX that led to out-of-memory exceptions. 
+Therefore, some data points are missing from the graphs below.
 
 \subsection{Results}
 
-In figures~\ref{fig:tc_performance_threads_warps}
+In figures~\ref{fig:tc_threads_warps} and~\ref{fig:bfs_threads_warps}
 
 \begin{figure}
     \begin{center}
-        \includegraphics[width=0.49\textwidth]{pictures/TC_perf_threads_warps.pdf}
+        \includegraphics[width=0.49\textwidth]{pictures/TC_threads_warps.pdf}
     \end{center}
-    \caption{Triangle counting performance threads and warps}
-    \label{fig:tc_performance_threads_warps}
+    \caption{Scaling analysis of triangle counting for varying numbers of warps and threads per warp}
+    \label{fig:tc_threads_warps}
 \end{figure}
 
 \begin{figure}
     \begin{center}
-        \includegraphics[width=0.49\textwidth]{pictures/TC_perf_warps.jpg}
+        \includegraphics[width=0.49\textwidth]{pictures/BFS_threads_warps.pdf}
     \end{center}
+    \caption{Scaling analysis of BFS for varying numbers of warps and threads per warp}
+    \label{fig:bfs_threads_warps}
 \end{figure}
+
+Best configuration for BFS is 2 warps, 8 threads per warp (16 threads total). 
+Best configuration for TC is 4 warps, 16 threads per warp (64 threads total).
+
 
 \begin{figure}
     \begin{center}
-        \includegraphics[width=0.49\textwidth]{pictures/TC_perf_warps.jpg}
+        \includegraphics[width=0.49\textwidth]{pictures/BFS_cores_clusters.pdf}
     \end{center}
+    \caption{Scaling analysis of BFS for varying numbers of clusters and cores per cluster}
+    \label{fig:bfs_cores_clusters}
 \end{figure}
 
-\begin{figure}
-    \begin{center}
-        \includegraphics[width=0.49\textwidth]{pictures/TC_perf_warps.jpg}
-    \end{center}
-\end{figure}
-
-Best configuration for BFS. 
-Best configuration for TC.
-
-Caches. 
 
 Edges per core on cycle. Compare with Spla on other GPUs.
 
 \subsection{Scaling limitations analysis}
 
-LSU, Graphics
+%sum(scoreboard stalls * lsu_percent) / sum(instr) * 100
+To analyze the reasons for limited scaling as the number of threads increases, we measured the average utilization of the ALU and LSU, in terms of stall cycles, for the best BFS configuration.
+The results are presented in Fig.~\ref{fig:bfs_alu_stalls} and Fig.~\ref{fig:bfs_lsu_stalls}, respectively.
+The data indicate that the LSU is the performance bottleneck within the core.
+
+The same bottleneck was observed in the scaling analysis across clusters and cores.
+Whether increasing cache sizes can alleviate this problem remains a question for future research.
+We anticipate that careful cache size tuning may help identify a more efficient configuration.
+
+\begin{figure}
+    \begin{center}
+        \includegraphics[width=0.49\textwidth]{pictures/BFS_alu.pdf}
+    \end{center}
+    \caption{ALU stalls on BFS for the best configuration}
+    \label{fig:bfs_alu_stalls}
+\end{figure}
+
+\begin{figure}
+    \begin{center}
+        \includegraphics[width=0.49\textwidth]{pictures/BFS_lsu.pdf}
+    \end{center}
+    \caption{LSU stalls on BFS for the best configuration}
+    \label{fig:bfs_lsu_stalls}
+\end{figure}
