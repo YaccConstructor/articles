@@ -1,0 +1,44 @@
+\section{Introduction}
+
+Graph analysis has become fundamental to modern data science, powering applications ranging from recommendation systems in social networks~\cite{!!!} and fraud detection in financial transactions~\cite{!!!} to protein interaction analysis in bioinformatics~\cite{!!!} and static code analysis~\cite{!!!}.
+As graph sizes grow to billions of vertices and edges, the need for efficient, scalable implementations becomes critical.
+However, graph analysis algorithms are difficult to parallelize due to their irregular memory access patterns, poor data locality, and load imbalance across computational units~\cite{!!!}.
+
+The GraphBLAS standard~\cite{!!!} addresses these challenges by providing a foundation for constructing high-performance parallel graph analysis algorithms.
+By expressing graph algorithms in the language of linear algebra---using sparse vectors and matrices as core data structures, together with a rich set of highly parameterizable operations (matrix multiplication, element-wise operations, etc.)---GraphBLAS offers a high-level, mathematically rigorous framework for algorithm construction.
+Moreover, these linear algebraic primitives can be optimized for diverse hardware architectures, providing a path to high-performance graph analysis across platforms.
+This approach has proven successful, with implementations like SuiteSparse:GraphBLAS~\cite{!!!} delivering high performance on shared-memory systems, and LAGraph~\cite{!!!} providing a collection of graph analysis algorithms built on these primitives.
+However, designing parallel functions over sparse data structures remains a nontrivial engineering challenge, particularly for accelerators.
+Beyond CPU implementations, GraphBLAS has been partially ported to such devices: GraphBLAST~\cite{!!!} and Spla~\cite{!!!} target GPGPUs, while GraphLily~\cite{!!!} targets FPGAs.
+
+Despite its successes, GraphBLAS and its implementations face certain challenges.
+The algebraic structures central to GraphBLAS---such as semirings and monoids---align more naturally with functional programming paradigms than with imperative ones.
+Generic data structures, such as matrices and vectors, and functions that required to provide a flexible core for matrix processing, together with user-defined types and operations (which are themselves functions), complicate API design and usage, particularly with respect to type safety.
+This insight suggests that functional programming languages could simplify the design of GraphBLAS-like APIs, offering cleaner abstractions and more composable primitives.
+However, general-purpose functional languages are often not fast enough for high-performance numerical computing.
+Research into functional languages and frameworks for parallel computations (including GPUs)---such as Futhark~\cite{!!!}, AnyDSL~\cite{!!!}, LIFT~\cite{!!!}, and Accelerate~\cite{!!!}---while demonstrating promising results, has largely focused on dense computations, leaving sparse irregular workloads less explored.
+
+At the same time, interaction nets~\cite{10.1145/96709.96718}---a graph-rewriting model introduced by Yves Lafont---offer a computational model that is inherently well-suited for irregular parallelism.
+In interaction nets, computation proceeds through local rewriting rules applied to pairs of connected nodes (so-called active pairs).
+Crucially, multiple non-interfering active pairs can be reduced simultaneously, making interaction nets a promising foundation for parallel irregular computations, including graph analysis.
+Furthermore, interaction nets are relatively close to functional programming languages, making it easy to transfer design approaches and ideas from the functional world.
+
+In this paper, we present the design and implementation of a GraphBLAS-like linear algebra foundation in two different settings: F\# (a mature functional-first language, chosen for ease of prototyping and testing) and Inpla (a language and runtime for interaction nets).
+We employ quadtrees to represent sparse matrices and vectors, enabling natural divide-and-conquer parallelism through recursive subdivision.
+On this foundation, we build three canonical graph algorithms—breadth-first search (BFS), single-source shortest paths (SSSP), and triangle counting—using the algebraic primitives provided by our API.
+
+Our contributions are as follows.
+\begin{enumerate}
+    \item !!! A design for a GraphBLAS-like API in functional settings, demonstrating how to utilize types for natural graph encoding, together with a minimal set of operations (e.g., \texttt{map}, \texttt{map2}, \texttt{spmv}, \texttt{spgemm}).
+    \item A minimal subset of this API implemented in both F\# and Inpla, enabling a direct comparison between a conventional functional language and an interaction net-based approach.
+    \item An empirical evaluation of BFS, SSSP, and triangle counting using our implementations, analyzing correctness, performance, scalability, and comparison with LAGraph.
+\end{enumerate}
+
+%Our results demonstrate that while our implementations do not yet match the absolute performance of highly optimized libraries like SuiteSparse:GraphBLAS, they offer unique advantages in terms of determinism, implicit parallelism, and clarity of expression. The interaction net metrics reveal that the available parallelism in graph algorithms closely correlates with graph structure, and that the Inpla runtime effectively exploits this parallelism. This work establishes interaction nets as a promising foundation for parallel, functionally pure graph analysis, and provides a roadmap for future optimizations and extensions.
+
+The paper is structured as follows.
+Section~\ref{sec:background} provides background on GraphBLAS, quadtree matrix representations, interaction nets, and the Inpla language.
+Section~\ref{sec:API} details our API design and its implementation in both F\# and Inpla.
+Section~\ref{sec:graph_algorithms} describes the graph algorithms built on this API.
+Section~\ref{sec:evaluation} presents our experimental setup and evaluation results.
+Section~\ref{sec:related_work} discusses related work, and Section ~\ref{sec:conclusion} concludes with directions for future research.
