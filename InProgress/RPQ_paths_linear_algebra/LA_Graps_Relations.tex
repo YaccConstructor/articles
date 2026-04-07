@@ -1,7 +1,126 @@
-\section{Libear Algebra, Graphs And Relations}
+\section{Libear Algebra, Graphs And Relations}\label{sec:la-graphs}
 
-\subsection{Linear Algebra}
+In this section, we establish the linear algebra foundations required for our approach. We introduce the concept of semirings, discuss matrix representations of relations, and present the original LARPQ algorithm for solving the reachability problem.
 
-Matrices, graphs, semirings.
+\subsection{Semirings}
 
-\subsection{The LARPQ Algorithm}
+Semirings provide an algebraic framework that generalizes both Boolean algebra and path-based computations. A semiring consists of a set equipped with two binary operations that satisfy certain axioms.
+
+\begin{definition}[Semiring]
+	A semiring is a tuple $\langle S, \oplus, \otimes, \mathbf{0}, \mathbf{1} \rangle$ where:
+	\begin{itemize}
+		\item $\langle S, \oplus, \mathbf{0} \rangle$ is a commutative monoid with identity $\mathbf{0}$;
+		\item $\langle S, \otimes, \mathbf{1} \rangle$ is a monoid with identity $\mathbf{1}$;
+		\item $\otimes$ distributes over $\oplus$: $a \otimes (b \oplus c) = (a \otimes b) \oplus (a \otimes c)$ and $(a \oplus b) \otimes c = (a \otimes c) \oplus (b \otimes c)$;
+		\item $\mathbf{0}$ is an annihilator for $\otimes$: $a \otimes \mathbf{0} = \mathbf{0} \otimes a = \mathbf{0}$.
+	\end{itemize}
+\end{definition}
+
+Two specific semirings are particularly important for this work: the Boolean semiring for reachability and the path semiring for enumerating paths.
+
+\subsection{Matrix Representations}
+
+Relations between finite sets can be represented using matrices. For two enumerated finite sets $A = \{1, 2, \ldots, n\}$ and $B = \{1, 2, \ldots, m\}$, a binary matrix $T$ of size $n \times m$ can represent a relation $T \subseteq A \times B$ where $T_{ij} = 1 \Leftrightarrow (i, j) \in T$.
+
+Let $G = \langle V, E, L, \lambda_G \rangle$ be an arbitrary graph and $N = \langle Q, \Sigma, \Delta, \lambda_N, Q_S, Q_F \rangle$ an arbitrary 2-NFA. For each label $a \in L^\leftrightarrow$, we define:
+\begin{itemize}
+	\item $E_a = \{e \mid e \in E, a \in \lambda_G^\leftrightarrow(e)\}$;
+	\item $\Delta_a = \{\delta \mid \delta \in \Delta, a \in \lambda_N(\delta)\}$.
+\end{itemize}
+
+\begin{definition}[Adjacency matrix of a label]
+	Let $G_a$ be the matrix representing the binary relation $E_a$. Then $G_a$ is called the adjacency matrix of label $a$.
+\end{definition}
+
+\begin{definition}[Boolean decomposition]
+	A Boolean decomposition of the adjacency matrix $G$ is the set of Boolean matrices $\{G_a \mid a \in L^\leftrightarrow\}$.
+\end{definition}
+
+Note that for a given graph $G = \langle V, E, L, \lambda_G \rangle$, we have $E_{a^-} = (E_a)^-$ and $G_{a^-} = (G_a)^T$, enabling efficient traversal in both directions.
+
+\subsection{Boolean Matrix Operations}
+
+For matrices over the Boolean semiring $\langle \mathbb{B} = \{0, 1\}, \lor, \land, \neg, 0, 1 \rangle$, we define the following operations. Let $A = (a_{ij})$, $B = (b_{ij})$, $C = (c_{ij})$ be matrices:
+\begin{itemize}
+	\item \textbf{Sum:} $A_{n \times m} + B_{n \times m} = (a_{ij} \lor b_{ij})_{n \times m}$;
+	\item \textbf{Product:} $A_{n \times m} \times B_{m \times k} = (\bigvee_{l=1}^m a_{il} \land b_{lj})_{n \times k}$;
+	\item \textbf{Transposition:} $A^T_{n \times m} = (a_{ji})_{m \times n}$;
+	\item \textbf{Zero-matrix:} $0_{n \times k} = (0)_{n \times k}$;
+	\item \textbf{Mask:} $A_{n \times m} \langle C_{n \times m} \rangle = (a_{ij} \land c_{ij})_{n \times m}$;
+	\item \textbf{Complement:} $\neg A = (\neg a_{ij})$.
+\end{itemize}
+
+These operations suffice for expressing the reachability algorithm.
+
+\subsection{The Path Semiring}
+
+For solving path enumeration problems (all simple paths, all trails), we require a more expressive semiring based on path representations.
+
+Let $RPaths = 2^{\mathbb{N}^*}$, where $\pi' = (v_1, v_2, \ldots, v_n) \in \mathbb{N}^*$ represents a 2-path $\pi = ((v_1, v_2), (v_2, v_3), \ldots, (v_{n-1}, v_n))$ of length $n-1$. For $a, b \in RPaths$ and $c \in \mathbb{B}$, we define:
+\begin{itemize}
+	\item \textbf{Sum:} $a \oplus b = a \cup b$;
+	\item \textbf{Product:} $a \otimes c = c \otimes a = \begin{cases} a & \text{if } c = 1 \\ \emptyset & \text{otherwise} \end{cases}$.
+\end{itemize}
+
+Let $A = (a_{ij})$, $B = (b_{ij})$ be matrices over $RPaths$ and $C = (c_{ij})$ be a Boolean matrix. We extend the operations to matrices:
+\begin{itemize}
+	\item \textbf{Sum:} $A_{n \times m} \oplus B_{n \times m} = (a_{ij} \oplus b_{ij})_{n \times m}$;
+	\item \textbf{Product:} $A_{n \times m} \otimes C_{m \times k} = (\bigoplus_{l=1}^m a_{il} \otimes c_{lj})_{n \times k}$;
+	\item \textbf{Zero-matrix:} $0^{Paths}_{n \times k} = (\emptyset)_{n \times k}$.
+\end{itemize}
+
+\subsection{Index Unary Operators}
+
+The path semiring alone is insufficient for enforcing path semantics (simple paths, trails). We introduce index unary operators that can filter paths based on vertex or edge repetition.
+
+\begin{definition}[Index unary operator]
+	Let $A_{n \times m} = (a_{ij})$ be a matrix over a semiring $R$. An index unary operator $I: R \times \mathbb{N} \times \mathbb{N} \mapsto R$ is applied element-wise: $I(A) = (I(a_{ij}, i, j))_{n \times m}$.
+\end{definition}
+
+For matrices over $RPaths$, we define specific index unary operators:
+
+\begin{itemize}
+	\item $I_{Simple}(a, i, j) = \{(v_1, v_2, \ldots, v_n, j) \mid (v_1, v_2, \ldots, v_n) \in a, v_1 \neq v_n \text{ and } \forall 2 \leq t \leq n: v_t \neq j\}$;
+	\item $I_{Trail}(a, i, j) = \{(v_1, v_2, \ldots, v_n, j) \mid (v_1, v_2, \ldots, v_n) \in a \text{ and } \forall 1 \leq t \leq n - 1: (v_t, v_{t+1}) \neq (v_n, j)\}$.
+\end{itemize}
+
+The $I_{Simple}$ operator extends paths while filtering out those that would create vertex repetitions (enforcing simple paths). The $I_{Trail}$ operator filters out extensions that would create edge repetitions (enforcing trails).
+
+\subsection{The Original LARPQ Algorithm for Reachability}
+
+We now present the original LARPQ algorithm for solving single-source 2-RPQ reachability, which serves as the foundation for our semiring generalization.
+
+\begin{figure}
+	\fbox{
+		\begin{minipage}{\linewidth}
+			\textbf{Input:} $\mathcal{N} = \langle Q, \Sigma, \Delta, \lambda_\mathcal{N}, Q_S, Q_F \rangle$, $\mathcal{G}=\langle V, E, L, \lambda_\mathcal{G} \rangle$, $v_s \in V$ \\
+			\textbf{Output:} Vector $P^F$ of size $1 \times |V|$
+			\begin{enumerate}
+				\item $\{ N^a \}\gets$ Boolean decomposition of the $\mathcal{N}$ adjacency matrix
+				\item $\{ G^a \}\gets$ Boolean decomposition of the $\mathcal{G}$ adjacency matrix
+				\item $M_{|Q| \times |V|} \gets \mathbf{0}_{|Q| \times |V|}$
+				\item $P_{|Q| \times |V|} \gets \mathbf{0}_{|Q| \times |V|}$
+				\item For each $q \in Q_S$: set $M_{q{v_s}} \gets 1$
+				\item While $M \ne \mathbf{0}$:
+				      \begin{itemize}
+					      \item $M \gets \bigoplus_{a \in \Sigma^\leftrightarrow \cap L^\leftrightarrow}((N^a)^T \times M \times G^a) \langle \neg P \rangle$
+					      \item $P\gets P \oplus M$
+				      \end{itemize}
+				\item $F_{1 \times |Q|} \gets \mathbf{0}_{1 \times |Q|}$
+				\item For each $q \in Q_F$: set $F_{1q} \gets 1$
+				\item Return $P^F = F \times P$
+			\end{enumerate}
+		\end{minipage}
+	}
+	\caption{Single-Source 2-RPQ Reachability using Linear Algebra}
+	\label{algo:larpq-reachability}
+\end{figure}
+
+The algorithm maintains two matrices: $M$ (the frontier) represents the relation between automaton states and graph vertices reached in the current step, while $P$ accumulates all reachable pairs. The key insight is that on each iteration, $M_{qv} = 1$ if and only if there exists a 2-path in $\mathcal{G}$ from $v_s$ to $v$ and a path in $\mathcal{N}$ from some $q_s \in Q_S$ to $q$, both having the same labels and of length $n$ (the iteration number). The mask $\langle \neg P \rangle$ ensures that each vertex-automaton state pair is processed only once, preventing infinite loops.
+
+The correctness of the algorithm follows from the simultaneous breadth-first traversal of both the graph and the automaton. After termination, $P_{q_Fv} = 1$ for $q_F \in Q_F$ if and only if there exists a 2-path from $v_s$ to $v$ whose label sequence belongs to the language accepted by $\mathcal{N}$.
+
+The algorithm can also solve single-destination reachability by reversing the query. Let $\mathcal{R}^- = \{w^- = a_n^- a_{n-1}^- \ldots a_1^- \mid w = a_1 a_2 \ldots a_n \in \mathcal{R}\}$ and $\mathcal{N}^- = \langle Q, \Sigma, \Delta^-, \lambda_{\mathcal{N}}^-, Q_F, Q_S \rangle$. Then:
+$$ [[Q]]_{SDR} = [[\langle \mathcal{G}, \mathcal{R}^-, v_s \rangle]]_{SSR}. $$
+
+Boolean matrix decomposition of $\mathcal{N}^-$ is obtained by transposing the matrices in the decomposition of $\mathcal{N}$.

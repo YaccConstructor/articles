@@ -1,5 +1,117 @@
-\section{Preliminaries}
+\section{Preliminaries}\label{sec:preliminaries}
 
-Basic definitions. 
+In this section, we introduce the foundational concepts required throughout the paper, including edge-labeled graphs, paths, finite automata, and regular path queries.
 
-Graphs, RPQ-s, semantics
+\subsection{Edge-Labeled Graphs}
+
+We begin by defining the graph data model used in this work.
+
+\begin{definition}[Edge-labeled graph]
+	A quadruple $G = \langle V, E, L, \lambda_G \rangle$ is called an edge-labeled graph (or simply a graph) if:
+	\begin{itemize}
+		\item $V$ is a finite set of vertices;
+		\item $E \subseteq V \times V$ is a finite set of edges;
+		\item $L$ is a finite set of labels;
+		\item $\lambda_G: E \mapsto 2^L$ represents edge labels.
+	\end{itemize}
+\end{definition}
+
+For the remainder of this paper, we assume that vertices of any graph $G = \langle V, E, L, \lambda_G \rangle$ are enumerated, and without loss of generality, $V = \{1, 2, \ldots, |V|\}$.
+
+To enable traversal in both directions along edges, we introduce the notion of inverted edges and labels. Let $G = \langle V, E, L, \lambda_G \rangle$ be an edge-labeled graph. We define:
+\begin{itemize}
+	\item $a^- \notin L$ for each $a \in L$, with $(a^-)^- = a$ and $a = b \Leftrightarrow a^- = b^-$;
+	\item $e^- = (v, u)$ where $e = (u, v)$;
+	\item $E^- = \{e^- \mid e \in E\}$;
+	\item $L^- = \{a^- \mid a \in L\}$;
+	\item $\lambda_G^-: E^- \mapsto 2^{L^-}$, where $\lambda_G^-(e^-) = \{a^- \mid a \in \lambda_G(e)\}$.
+\end{itemize}
+
+We also define the bidirectional edge and label sets:
+\begin{itemize}
+	\item $E^\leftrightarrow = E \cup E^-$;
+	\item $L^\leftrightarrow = L \cup L^-$;
+	\item $\lambda_G^\leftrightarrow: E^\leftrightarrow \mapsto 2^{L^\leftrightarrow}$, where $\lambda_G^\leftrightarrow(e) = \lambda_G(e) \cup \lambda_G^-(e)$;
+	\item $G^\leftrightarrow = \langle V, E^\leftrightarrow, L^\leftrightarrow, \lambda_G^\leftrightarrow \rangle$.
+\end{itemize}
+
+The graph $G^\leftrightarrow$ allows traversal along both original and inverted edges, which is essential for evaluating two-way regular path queries.
+
+\subsection{Paths}
+
+\begin{definition}[Path]
+	A path $\pi = (e_1, e_2, \ldots, e_n)$ of length $n$ in the graph $G = \langle V, E, L, \lambda_G \rangle$ from $u_1$ to $v_n$ is a finite sequence of edges $e_i = (u_i, v_i) \in E$ such that $\forall 1 \leq i \leq n - 1: v_i = u_{i+1}$.
+\end{definition}
+
+We also consider zero-length paths, represented by an empty sequence from a vertex to itself.
+
+\begin{definition}[Simple path]
+	A path $\pi = (e_1, e_2, \ldots, e_n)$ is simple if it contains no repeated vertices except possibly the first and last. Formally, $\forall 1 \leq i, j \leq n: v_i = u_j \Rightarrow j = i + 1$.
+\end{definition}
+
+\begin{definition}[Trail]
+	A path $\pi = (e_1, e_2, \ldots, e_n)$ is a trail if it contains no repeated edges. Formally, $\forall 1 \leq i, j \leq n: e_i = e_j \Rightarrow i = j$.
+\end{definition}
+
+\begin{definition}[Two-way path]
+	A two-way path (2-path) $\pi = (e_1, e_2, \ldots, e_n)$ in $G$ is a path in $G^\leftrightarrow$. Two-way simple paths and two-way trails are defined analogously.
+\end{definition}
+
+The mapping $\omega$ associates paths with words over the label alphabet:
+\begin{itemize}
+	\item $\omega_G(\pi) = \{a_1 \cdot a_2 \cdot \ldots \cdot a_n \mid a_i \in \lambda_G(e_i)\}$ for a path $\pi = (e_1, e_2, \ldots, e_n)$ in $G$;
+	\item $\omega_{G^\leftrightarrow}(\pi) = \{a_1 \cdot a_2 \cdot \ldots \cdot a_n \mid a_i \in \lambda_G^\leftrightarrow(e_i)\}$ for a 2-path $\pi = (e_1, e_2, \ldots, e_n)$ in $G$.
+\end{itemize}
+
+Here, $\cdot$ denotes string concatenation.
+
+\subsection{Two-Way Finite Automata}
+
+Regular languages, recognized by finite automata, provide the foundation for specifying path constraints. For two-way path queries, we require a variant of nondeterministic finite automata.
+
+\begin{definition}[Two-way NFA]
+	A two-way nondeterministic finite automaton (2-NFA) is a tuple $N = \langle Q, \Sigma, \Delta, \lambda_N, Q_S, Q_F \rangle$, where:
+	\begin{itemize}
+		\item $Q$ is a finite set of states;
+		\item $\Sigma$ is a finite alphabet;
+		\item $\Delta \subseteq Q \times Q$ is the transition relation;
+		\item $\lambda_N: \Delta \mapsto 2^{\Sigma^\leftrightarrow}$ maps transitions to labels;
+		\item $Q_S \subseteq Q$ is the set of starting states;
+		\item $Q_F \subseteq Q$ is the set of final states.
+	\end{itemize}
+\end{definition}
+
+\begin{definition}[Two-way DFA]
+	A two-way deterministic finite automaton (2-DFA) is a special case of 2-NFA with $|Q_S| = 1$ and $\forall (q, q'), (q, q'') \in \Delta: q' \neq q'' \Rightarrow \lambda_N((q, q')) \cap \lambda_N((q, q'')) = \emptyset$.
+\end{definition}
+
+A 2-NFA can be viewed as a graph $G_N = \langle Q, \Delta, \Sigma^\leftrightarrow, \lambda_N \rangle$ equipped with sets of starting and final states. Conversely, a graph $G = \langle V, E, L, \lambda_G \rangle$ equipped with $V_S \subseteq V$ can be seen as a 2-NFA $N_G = \langle V, L, E, \lambda_G^\leftrightarrow, V_S, V \rangle$ that accepts:
+$$ [[N_G]] = \bigcup_{\text{2-path } \pi_G \text{ in } G \text{ from } v_S \in V_S} \omega_{G^\leftrightarrow}(\pi_G) $$
+
+\subsection{Two-Way Regular Path Queries}
+
+\begin{definition}[Two-way regular path query]
+	A two-way regular path query (2-RPQ) is a triple $\langle G, R, v_s \rangle$ where $G = \langle V, E, L, \lambda_G \rangle$ is a graph, $R$ is a regular language over the alphabet $L^\leftrightarrow$, and $v_s \in V$ is a starting vertex.
+\end{definition}
+
+We define several semantic variants of 2-RPQs that are considered in this paper:
+
+\begin{itemize}
+	\item \textbf{Single-source reachability (SSR):}
+	      $$ [[Q]]_{SSR} = \{ u \in V \mid \exists \text{ 2-path } \pi \text{ in } G \text{ from } v_s \text{ to } u \text{ and } \omega_{G^\leftrightarrow}(\pi) \cap R \neq \emptyset \}. $$
+
+	\item \textbf{Single-destination reachability (SDR):}
+	      $$ [[Q]]_{SDR} = \{ u \in V \mid \exists \text{ 2-path } \pi \text{ in } G \text{ from } u \text{ to } v_s \text{ and } \omega_{G^\leftrightarrow}(\pi) \cap R \neq \emptyset \}. $$
+
+	\item \textbf{Single-source all simple paths (SSASP):}
+	      $$ [[Q]]_{SSASP} = \{ \pi \mid \pi \text{ is a 2-simple path in } G \text{ from } v_s \text{ and } \omega_{G^\leftrightarrow}(\pi) \cap R \neq \emptyset \}. $$
+
+	\item \textbf{Single-destination all simple paths (SDASP):}
+	      $$ [[Q]]_{SDASP} = \{ \pi \mid \pi \text{ is a 2-simple path in } G \text{ to } v_s \text{ and } \omega_{G^\leftrightarrow}(\pi) \cap R \neq \emptyset \}. $$
+
+	\item \textbf{Single-source all trails (SSAT):}
+	      $$ [[Q]]_{SSAT} = \{ \pi \mid \pi \text{ is a 2-trail in } G \text{ from } v_s \text{ and } \omega_{G^\leftrightarrow}(\pi) \cap R \neq \emptyset \}. $$
+
+	\item \textbf{Single-destination all trails (SDAT):}
+	      $$ [[Q]]_{SDAT} = \{ \pi \mid \pi \text{ is a 2-trail in } G \text{ to } v_s \text{ and } \omega_{G^\leftrightarrow}(\pi) \cap R \neq \emptyset \}. $$
+\end{itemize}
