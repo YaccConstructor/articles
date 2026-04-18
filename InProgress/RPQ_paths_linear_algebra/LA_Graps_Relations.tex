@@ -6,16 +6,18 @@ In this section, we establish the linear algebra foundations required for our ap
 
 Semirings provide an algebraic framework that generalizes both Boolean algebra and path-based computations. A semiring consists of a set equipped with two binary operations that satisfy certain axioms.
 
-\begin{definition}[Semiring]
-	A semiring is a tuple $\langle S, \oplus, \otimes, \mathbf{0}, \mathbf{1} \rangle$ where:
+\begin{definition}[Semiring]%, \mathbf{1}
+	A semiring is a tuple $\langle D_{out}, D_{in_1}, D_{in_2}, \oplus, \otimes, \mathbf{0} \rangle$ where:
 	\begin{itemize}
-		\item $\langle S, \oplus, \mathbf{0} \rangle$ is a commutative monoid with identity $\mathbf{0}$;
-		\item $\langle S, \otimes, \mathbf{1} \rangle$ is a monoid with identity $\mathbf{1}$;
-		\item $\otimes$ distributes over $\oplus$: $a \otimes (b \oplus c) = (a \otimes b) \oplus (a \otimes c)$ and $(a \oplus b) \otimes c = (a \otimes c) \oplus (b \otimes c)$;
-		\item $\mathbf{0}$ is an annihilator for $\otimes$: $a \otimes \mathbf{0} = \mathbf{0} \otimes a = \mathbf{0}$.
+		\item $D_{out}$, $D_{in_1}$, and $D_{in_2}$ are three domains
+		%\item $\oplus : D_{out} \times D_{out} \rightarrow D_{out}$ is an associative and commutative addition with an identity element $\mathbf{0} \in D_{out}$;
+		%\item $\otimes: D_{in_1} \times D_{in_2} \rightarrow D_{out}$ is a multiplicative operation;
+		\item $\langle D_{out}, \oplus, \mathbf{0} \rangle$ is a commutative monoid with an identity element $\mathbf{0} \in D_{out}$;
+		\item $\langle D_{out}, D_{in_1}, D_{in_2}, \otimes \rangle$ is a closed binary operator;
 	\end{itemize}
 \end{definition}
 
+In graph processing algorithms, semirings are defined differently from algebraic semirings due to the versatility of having different domains and irrelevancy of distributivity and multiplicative identity elements.
 Two specific semirings are particularly important for this work: the Boolean semiring for reachability and the path semiring for enumerating paths.
 
 \subsection{Matrix Representations}
@@ -35,8 +37,6 @@ Let $G = \langle V, E, L, \lambda_G \rangle$ be an arbitrary graph and $N = \lan
 \begin{definition}[Boolean decomposition]
 	A Boolean decomposition of the adjacency matrix $G$ is the set of Boolean matrices $\{G_a \mid a \in L^\leftrightarrow\}$.
 \end{definition}
-
-Note that for a given graph $G = \langle V, E, L, \lambda_G \rangle$, we have $E_{a^-} = (E_a)^-$ and $G_{a^-} = (G_a)^T$, enabling efficient traversal in both directions.
 
 \subsection{Boolean Matrix Operations}
 
@@ -59,7 +59,17 @@ For solving path enumeration problems (all simple paths, all trails), we require
 Let $RPaths = 2^{\mathbb{N}^*}$, where $\pi' = (v_1, v_2, \ldots, v_n) \in \mathbb{N}^*$ represents a 2-path $\pi = ((v_1, v_2), (v_2, v_3), \ldots, (v_{n-1}, v_n))$ of length $n-1$. For $a, b \in RPaths$ and $c \in \mathbb{B}$, we define:
 \begin{itemize}
 	\item \textbf{Sum:} $a \oplus b = a \cup b$;
-	\item \textbf{Product:} $a \otimes c = c \otimes a = \begin{cases} a & \text{if } c = 1 \\ \emptyset & \text{otherwise} \end{cases}$.
+	%\item \textbf{Product:} $a \otimes c = c \otimes a = \begin{cases} a & \text{if } c = 1 \\ \emptyset & \text{otherwise} \end{cases}$.
+	\item \textbf{Product:} $a \otimes c = \begin{cases} a & \text{if } c = 1 \\ \emptyset & \text{otherwise} \end{cases}$.
+\end{itemize}
+
+To this end, we can introduce a semiring for deciding more complex path problems:
+%To this end, we can introduce two semirings those are common for deciding more complex path problems:
+
+\begin{itemize}
+	%\item $Paths_{left} = \langle RPaths, RPaths, \mathbb{B} = \{ 0, 1 \}, \cup, \textbf{fst}, \emptyset \rangle \text{ where } \textbf{fst}(x, y) = x$
+	%\item $Paths_{right} = \langle RPaths, RPaths, \mathbb{B} = \{ 0, 1 \}, \cup, \textbf{snd}, \emptyset \rangle \text{ where } \textbf{snd}(x, y) = y$
+	\item $Paths = \langle RPaths, RPaths, \mathbb{B} = \{ 0, 1 \}, \cup, \textbf{fst}, \emptyset \rangle \text{ where } \textbf{fst}(x, y) = \begin{cases} x & \text{if } y = 1 \\ \emptyset & \text{otherwise} \end{cases}$
 \end{itemize}
 
 Let $A = (a_{ij})$, $B = (b_{ij})$ be matrices over $RPaths$ and $C = (c_{ij})$ be a Boolean matrix. We extend the operations to matrices:
@@ -68,6 +78,10 @@ Let $A = (a_{ij})$, $B = (b_{ij})$ be matrices over $RPaths$ and $C = (c_{ij})$ 
 	\item \textbf{Product:} $A_{n \times m} \otimes C_{m \times k} = (\bigoplus_{l=1}^m a_{il} \otimes c_{lj})_{n \times k}$;
 	\item \textbf{Zero-matrix:} $0^{Paths}_{n \times k} = (\emptyset)_{n \times k}$.
 \end{itemize}
+
+\begin{definition}[boolean decomposition]
+	A Boolean decomposition of the adjacency matrix $G$ is the set of Boolean matrices $\{G_a \mid a \in L^\leftrightarrow\}$.
+\end{definition}
 
 \subsection{Index Unary Operators}
 
@@ -103,7 +117,7 @@ We now present the original LARPQ algorithm for solving single-source 2-RPQ reac
 				\item For each $q \in Q_S$: set $M_{q{v_s}} \gets 1$
 				\item While $M \ne \mathbf{0}$:
 				      \begin{itemize}
-					      \item $M \gets \bigoplus_{a \in \Sigma^\leftrightarrow \cap L^\leftrightarrow}((N^a)^T \times M \times G^a) \langle \neg P \rangle$
+					      \item $M \gets \bigoplus_{a \in \Sigma^\leftrightarrow \cap L^\leftrightarrow}((M^T \times N^a)^T \times G^a) \langle \neg P \rangle$
 					      \item $P\gets P \oplus M$
 				      \end{itemize}
 				\item $F_{1 \times |Q|} \gets \mathbf{0}_{1 \times |Q|}$
