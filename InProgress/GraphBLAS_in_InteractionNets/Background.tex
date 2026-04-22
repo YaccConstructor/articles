@@ -12,7 +12,130 @@ LAGraph as a collection of graph analysis algorithms (based on SuiteSparse:Graph
 
 \subsection{Tree-based Representation for Sparse Matrices and Vectors}
 
-Explain the quadtree structure. Show how a matrix is recursively subdivided into quadrants (NW, NE, SW, SE) until a uniform or empty quadrant is reached. Contrast this with CSR/CSC formats used in libraries like SuiteSparse. Discuss its advantages (natural divide-and-conquer, adaptive to sparsity patterns) and potential disadvantages (overhead for very regular matrices).
+% Explain the quadtree structure. Show how a matrix is recursively subdivided into quadrants (NW, NE, SW, SE) until a uniform or empty quadrant is reached. Contrast this with CSR/CSC formats used in libraries like SuiteSparse. Discuss its advantages (natural divide-and-conquer, adaptive to sparsity patterns) and potential disadvantages (overhead for very regular matrices).
+
+To store sparse matrices and vectors efficiently, we employ a quad-tree data structure. The matrix is recursively subdivided into four quadrants~--- northwest (NW), northeast (NE), southwest (SW), and southeast (SE)~--- until each block becomes either uniform or empty.
+The figure~\ref{fig:quadtree_example} shows an example of a matrix in the quad-tree form.
+
+\begin{figure}[htbp]
+    \centering
+    \caption{Example of the matrix and its quad-tree representation}
+\begin{subfigure}[b]{0.9\textwidth}
+    \centering
+    \caption{Block decomposition of the matrix}
+\begin{tikzpicture}[scale=0.8, font=\sffamily]
+
+  \draw[step=1cm, black!70, thick] (0,0) grid (8,8);
+  
+  % Заполняем матрицу значениями (\x/\y/\val)
+  \foreach \x/\y/\val in {
+    0/0/1, 1/0/1, 2/0/1, 3/0/1, 4/0/5, 5/0/5, 6/0/7, 7/0/7,
+    0/1/1, 1/1/1, 2/1/1, 3/1/1, 4/1/5, 5/1/5, 6/1/7, 7/1/7,
+    0/2/1, 1/2/1, 2/2/1, 3/2/1, 4/2/6, 5/2/6, 6/2/8, 7/2/8,
+    0/3/1, 1/3/1, 2/3/1, 3/3/1, 4/3/6, 5/3/6, 6/3/8, 7/3/8,
+    0/4/2, 1/4/2, 2/4/2, 3/4/2, 4/4/3, 5/4/3, 6/4/4, 7/4/9,
+    0/5/2, 1/5/2, 2/5/2, 3/5/2, 4/5/3, 5/5/3, 6/5/10, 7/5/11,
+    0/6/2, 1/6/2, 2/6/2, 3/6/2, 4/6/12, 5/6/12, 6/6/13, 7/6/13,
+    0/7/2, 1/7/2, 2/7/2, 3/7/2, 4/7/12, 5/7/12, 6/7/13, 7/7/13
+  } {
+    \node at (\x+0.5, \y+0.5) {\val};
+  }
+
+\node at (9.5, 4) {$=$};
+
+\begin{scope}[shift={(11,0)}]
+    % Фоновая сетка для наглядности соответствия
+    \draw[step=1cm, gray!10, very thin] (0,0) grid (8,8);
+    
+    % Блоки 4x4
+    \draw[draw=black, thick] (0,4) rectangle ++(4,4) node[midway, font=\Large\bfseries] {2 (NW)};
+    \draw[draw=black, thick] (0,0) rectangle ++(4,4) node[midway, font=\Large\bfseries] {1 (SW)};
+    
+    % Блоки 2x2 (верхний правый квадрант)
+    \draw[draw=black, thick] (4,6) rectangle ++(2,2) node[midway, font=\bfseries] {12 (NW)};
+    \draw[draw=black, thick] (6,6) rectangle ++(2,2) node[midway, font=\bfseries] {13 (NE)};
+    \draw[draw=black, thick] (4,4) rectangle ++(2,2) node[midway, font=\bfseries] {3 (SW)};
+    
+    % Блоки 1x1 (вложены в правый нижний угол верхнего правого квадранта)
+    \draw[draw=black, thick] (6,4) rectangle ++(1,1) node[midway, font=\tiny\bfseries] {4(SW)};
+    \draw[draw=black, thick] (7,4) rectangle ++(1,1) node[midway, font=\tiny\bfseries] {9(SE)};
+    \draw[draw=black, thick] (6,5) rectangle ++(1,1) node[midway, font=\tiny\bfseries] {10(NW)};
+    \draw[draw=black, thick] (7,5) rectangle ++(1,1) node[midway, font=\tiny\bfseries] {11(NE)};
+    
+    % Блоки 2x2 (нижний правый квадрант)
+    \draw[draw=black, thick] (4,2) rectangle ++(2,2) node[midway, font=\bfseries] {6 (NW)};
+    \draw[draw=black, thick] (6,2) rectangle ++(2,2) node[midway, font=\bfseries] {8 (NE)};
+    \draw[draw=black, thick] (4,0) rectangle ++(2,2) node[midway, font=\bfseries] {5 (SW)};
+    \draw[draw=black, thick] (6,0) rectangle ++(2,2) node[midway, font=\bfseries] {7 (SE)};
+    
+
+  \end{scope}
+\end{tikzpicture}
+
+\label{fig:quadtree_blocks}
+\end{subfigure}
+
+\vspace{1cm}
+
+\begin{subfigure}[b]{0.9\textwidth}
+    \centering
+    \caption{Quadtree representation of the blocks in~\ref{fig:quadtree_blocks}}
+\begin{tikzpicture}[
+    grow=down,
+    level 1/.style={sibling distance=3.5cm, level distance=2cm},
+    level 2/.style={sibling distance=1.2cm, level distance=2cm},
+    level 3/.style={sibling distance=1.1cm, level distance=2cm},
+    edge from parent/.style={draw, -latex, thick},
+    % Стили узлов
+    int/.style={draw, circle, fill=black, font=\small\bfseries, minimum size=0.5cm, inner sep=0pt},
+    leaf/.style={draw, rectangle, fill=gray!20, font=\large\bfseries, minimum size=0.8cm, inner sep=2pt, rounded corners=2pt},
+    % Метки квадрантов на рёбрах
+    q/.style={font=\scriptsize\itshape, pos=0.5, fill=white, inner sep=1pt, rounded corners=1pt}
+]
+
+\node[int] { }
+    % Branch 1: Northwest (uniform)
+    child { node[leaf] {2} edge from parent node[q, left] {NW} }
+    % Branch 3: Northeast (requires division)
+    child {
+        node[int] { }
+        child { node[leaf] {5} edge from parent node[q, left] {NW} }
+        child { node[leaf] {6} edge from parent node[q, left] {SW} }
+        child { node[leaf] {7} edge from parent node[q, right] {NE} }
+        child {
+            node[int] {}
+            child { node[leaf] {10} edge from parent node[q, left] {NW} }
+            child { node[leaf] {12} edge from parent node[q, left] {SW} }
+            child { node[leaf] {11} edge from parent node[q, right] {NE} }
+            child { node[leaf] {13} edge from parent node[q, right] {SE} }
+            edge from parent node[q, right] {SE}
+            }
+        edge from parent node[q, left] {NE}
+    }
+    child { node[leaf] {1} edge from parent node[q, right] {SW} }
+    % Branch 4: Southeast (requires division)
+    child {
+        node[int] { }
+        child { node[leaf] {3} edge from parent node[q, left] {NW} }
+        child { node[leaf] {8} edge from parent node[q, left] {SW} }
+        child { node[leaf] {9} edge from parent node[q, right] {NE} }
+        child { node[leaf] {4} edge from parent node[q, right] {SE} }
+        edge from parent node[q, right] {SE}
+    };
+\end{tikzpicture}
+\label{fig:quadtree_tree}
+\end{subfigure}
+\label{fig:quadtree_example}
+\end{figure}
+
+
+
+This recursive partitioning allows large uniform blocks to be represented implicitly, eliminating the need to store them explicitly.
+Unlike flat array formats such as CSR or CSC, which are standard in libraries like SuiteSparse:GraphBLAS, the quad-tree naturally supports a divide-and-conquer execution model and adapts dynamically to irregular sparsity patterns.
+This structure simplifies parallelization, as independent sub-blocks can be processed recursively without global synchronization.
+
+However, this flexibility comes at a cost: for dense or highly regular matrices, the overhead of maintaining tree metadata and pointer indirection can outweigh the benefits of sparse storage, making traditional linear formats more efficient in such cases.
+
 
 \subsection{Interaction Nets}
 
