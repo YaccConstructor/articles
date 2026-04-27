@@ -1,24 +1,25 @@
-\section{Implementation Details}\label{sec:API}
+\section{Implementation Details}\label{sec:implementation_details}
 
-\subsection{Implemented Basic Functions}\label{sec:graph_algorithms}
+In this section we describe our implementations: in F\# (used as a prototype and reference for other implementations), in Inpla (a low-level language), and in Vine (a high-level language).
+We present the data structures and functions, list graph analysis algorithms (with short descriptions), and discuss details related to the implementation of the described structures and functions in selected languages.
 
-Algebraic data types.
+\subsection{Basic Data Structures and Functions}\label{sec:basic_structures_and_functions}
 
-Options.
+Matrix representation, as described in the F\# code, is shown in Listing~\ref{lst:matrix_representation}.
+Our representation is generic, meaning it is parameterized by the matrix cell type.
+The structure does not only work for matrices with sizes that are powers of two.
+A user-defined matrix of arbitrary size will be aligned to a square storage with size equal to a power of two using \verb|Dummy| blocks.
+Since the representation is compressed, the \verb|Storage| stores the real size (as a power of two) together with the respective tree. Finally, the \verb|SparseMatrix| stores the matrix dimensions and the number of non-zero entries (nnz) together with data represented as \verb|Storage|.
+Data structures for a sparse vector are described in a similar way.
 
-Structures not only for power of 2.
+We propose to use \verb|Option<'T>| to explicitly represent cells that have no values.
+This approach is natural for graph representation: a cell of the adjacency matrix of a graph with edge labels of type \verb|'T| has type \verb|Option<'T>|: either there exists an edge with a label of the respective type (\verb|Some(l)|), or there is no edge at all (\verb|None|).
+Thus, for a sparse matrix with filled cells of type \verb|'T|, the storage has type \verb|Option<'T>|.
 
 \begin{listing}
 \begin{minted}{ocaml}
-    type treeValue<'value> =
-       | Dummy
-       | UserValue of 'value
-\end{minted}
-\caption{!!!}
-\end{listing}
+type treeValue<'value> = | Dummy | UserValue of 'value
 
-\begin{listing}
-\begin{minted}{ocaml}
 (*
 | x1 | x2 |
 ----------
@@ -33,7 +34,6 @@ type Storage<'value> =
     // Storage is always size-x-size square.
     val size: uint64<storageSize>
     val data: qtree<'value>
-
     new(_size, _data) = { size = _size; data = _data }
 
 [<Struct>]
@@ -42,25 +42,51 @@ type SparseMatrix<'value> =
     val ncols: uint64<ncols>
     val nvals: uint64<nvals>
     val storage: Storage<Option<'value>>
-
 \end{minted}
-\caption{!!!}
+\caption{Matrix representation}
+\label{lst:matrix_representation}
 \end{listing}
 
-List of functions: map, mpa2, mask as map2, vxm, mxm. Conversion form-to coordinate list.
+We implemented a minimal set of operations over matrices and vectors required to implement selected graph analysis algorithms.
+The list of basic functions includes \verb|map|, \verb|fold|, \verb|reduce|.
+Element-wise operations are based on \verb|map2|.
+Particularly, \verb|mask| is implemented as a case of \verb|map2|.
+Linear algebra functions include: \verb|vxm| (generic vector-matrix multiplication) and \verb|mxm| (generic matrix-matrix multiplication).
+We also support transpose and extracting the triangular part of a matrix (required for the triangle counting algorithm).
+We did not implement fused versions.
+Conversion to and from coordinate list format is provided to simplify input graph building.
+All operations take sparsity into account and preserve compression.
 
-Exceptions handling?
+Exception handling is unlikely to be possible in interaction nets in the traditional way due to their highly parallel and irregular nature.
+Moreover, the selected languages (Inpla and Vine) do not provide any specific mechanisms for exception handling.
+We focus on realistic code, so we should handle not only correct cases but also erroneous ones (e.g., inconsistent matrix or vector sizes).
+For this, we use the \verb|Result| type (even in the F\# version)\footnote{We do this to be as close to interaction-net-based implementations as possible. The F\# language has traditional exception mechanisms.} that explicitly represents two cases: \verb|Ok<'R>| for successfully completed computations and \verb|Err<'E>| for errors. 
+This way of handling errors is represented in many languages such as Rust, F\#, etc.
 
 \subsection{Implemented Graph Analysis Algorithms}\label{sec:graph_algorithms}
 
-implemented algorithms: level-bfs BFS, SSSP with control , Triangles counting (name?).
+We implemented three basic graph analysis algorithms.
+\begin{itemize}
+    \item Level-based BFS: for the given graph and start vertex, it returns a sparse vector \verb|result| such that if \verb|result[i] = Some(k)|, then vertex \verb|i| was visited at step \verb|k|.
+    If \verb|result[i] = None|, then \verb|i| is unreachable.
+    \item SSSP: for the given graph and start vertex, it returns a sparse vector \verb|result| such that if \verb|result[i] = Some(k)|, then the shortest path from the start vertex to \verb|i| has length \verb|k|.
+    If \verb|result[i] = None|, then \verb|i| is unreachable. 
+    To prevent an infinite loop in the case of negative cycles, we check that the number of iterations should not be greater than the number of vertices in the input graph.
+    \item Triangle counting algorithm.
+\end{itemize}
+
+All algorithms were implemented using operations over matrices and vectors similarly to how they are described in GraphBLAS-related materials.
+We provide basic implementations without any optimizations such as the \emph{push-pull} optimization for BFS or SSSP.
 
 \subsection{Interaction Nets Related Details}
 
-Translation almost ``as-is'' but...
+The translation is almost ``as-is'' without any application of interaction-net-specific optimizations or code templates.
 
-Fixes in Inpla: list reading, !!!!
+Inpla has no I/O, so data structures are generated. There is no error handling (hard to implement in a low-level language).
 
-Inpla has no IO, so generated data structures.
+Vine supports reading. Execution is parallel, so separating concerns is difficult.
+Error handling uses the standard \verb|Result| type from the Vine language.
 
-Vine? With reading. In parallel, so hard to separate.
+Inpla does not support floats. 
+Vine supports floats but without comparison (possibly due to problems with NaN comparison).
+Therefore, weights in SSSP are represented as integers, not floats, in both Vine and Inpla implementations.
