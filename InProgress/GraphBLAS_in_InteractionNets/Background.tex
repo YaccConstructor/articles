@@ -1,14 +1,32 @@
 \section{Background}\label{sec:background}
 
+In this section we briefly discuss GraphBLAS and introduce tree-based matrix representation.
+We also provide the basics of interaction nets, discuss implementations of interaction nets, and motivate our choice of which one we use for evaluation.
+
 \subsection{GraphBLAS}
 
-Basic ideas. 
+The goal of the GraphBLAS API is to provide basic building blocks for constructing high-performance graph analysis algorithms.
+To achieve this goal, GraphBLAS utilizes \textbf{sparse generic} linear algebra.
+Operations over sparse generic matrices and vectors parameterized by semiring-like structures provide a powerful basis for expressing a wide range of graph analysis algorithms~\cite{8778338}.
 
-Kernel fusion. Problems (implicit zeroes, etc).
+GraphBLAS API: C API, C++ API, implementations in Java, Julia, etc.
 
-SuiteSparse:GraphBLAS as a reference implementation
+Challenges on this path include the implementation of high-performance generic operations over sparse data structures.
+Imbalanced subtasks together with irregular data access patterns make load balancing — and thus efficient parallel implementation — hard.
+Moreover, graph analysis algorithms are not single operations but nontrivial chains of operations over matrices and vectors.
+This leads to the problem of intermediate data structures.
+Kernel fusion could solve these problems, but it is too difficult to implement automatic optimizations for sparse generic computations, so it is done manually in the most frequent cases.
+Attempts to use MLIR (GraphBLAS dialect).!!!
+Poor utilization on GPUs. Nontrivial challenge to create generic kernels for GPU and FPGA.!!!
+There are also other problems discussed in ``What Did GraphBLAS Get Wrong?'' by John Gilbert\footnote{Talk by John Gilbert, UC Santa Barbara, GraphBLAS BoF at HPEC, September 2022. Details can be found here: \url{https://sites.cs.ucsb.edu/~gilbert/talks/talks.htm}.}
 
-LAGraph as a collection of graph analysis algorithms (based on SuiteSparse:GraphBLAS). 
+SuiteSparse:GraphBLAS serves as the reference implementation of this API, offering a highly optimized, multi-threaded C library that supports various sparse matrix formats.
+Building on this foundation, LAGraph provides a collection of production-ready graph algorithms (e.g., PageRank, connected components, triangle counting) implemented using SuiteSparse:GraphBLAS.
+Currently it is one of the state-of-the-art (SOTA) solutions for high-performance graph analysis, thus we use it as a baseline for evaluation.
+
+The long-term goal of our work is to investigate how interaction nets can help solve challenges with irregular parallelism and, possibly, with kernel fusion.
+In this work, we do not focus on the GraphBLAS API implementation, but we are inspired by it: we implemented a minimal set of generic data structures and operations sufficient to implement several classic graph analysis algorithms.
+ 
 
 \subsection{Tree-based Representation for Sparse Matrices and Vectors}
 
@@ -329,9 +347,26 @@ This constitutes the interface.
 \label{fig:peano_rules}
 \end{figure}
 
-As shown in Lafont's work~\cite{10.1145/96709.96718}, $\lambda$-calculus can be expressed through this formalism. Additionally, reductions can be performed independently of each other and it has been proven that the order of reductions doesn't matter. This serves as the primary reason for the natural suitability of Interaction Nets for parallel computations.
+As shown in Lafont's work~\cite{10.1145/96709.96718}, $\lambda$-calculus can be expressed through this formalism.
+Additionally, reductions can be performed independently of each other and it has been proven that the order of reductions doesn't matter. This serves as the primary reason for the natural suitability of Interaction Nets for parallel computations.
 
 \subsection{Implementations of Interaction Nets}
+
+ Proposed by Lafont, interaction nets can serve as a foundation for irregular parallel computations.
+
+ Notable implementations include Inpla, HVM, and Vine. In OCaml~\cite{Huber_2025} (Comparison, Inpla fastest)
+
+    Vine --- high-level language (Rust-like) + interaction-nets-based intermediate representation + parallel virtual machine.
+
+    HVM --- high-level language (JS-like) + interaction-nets-based intermediate representation + parallel virtual machine (+GPGPU?).
+
+    Inpla --- mature enough, demonstrates good performance and scalability. Interaction-nets-based language + parallel VM. Equipped with a high-level language.
+
+No information is available on the evaluation or comparison of Vine and HVM.
+Typical benchmarks for these systems include Fibonacci, Ackermann, sorting, and list traversal. 
+No graph analysis algorithms while such algorithms looks grate candidates for interaction nets.
+Other projects implement interaction nets in languages such as OCaml and Haskell.
+
 
 We are focused on languages and runtimes. 
 
