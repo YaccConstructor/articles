@@ -51,11 +51,9 @@ Element-wise operations are based on \verb|map2|.
 Particularly, \verb|mask| is implemented as a case of \verb|map2|.
 Linear algebra functions include: \verb|vxm| (generic vector-matrix multiplication) and \verb|mxm| (generic matrix-matrix multiplication).
 We also support transpose and extracting the triangular part of a matrix (required for the triangle counting algorithm).
-We did not implement fused versions.
 Conversion to and from coordinate list format is provided to simplify input graph building.
 All operations take sparsity into account and preserve compression.
-No manual parallelization to !!!
-
+We do not implement fused versions or manually parallelized versions of these functions.
 
 Exception handling is unlikely to be possible in interaction nets in the traditional way due to their highly parallel and irregular nature.
 Moreover, the selected languages (Inpla and Vine) do not provide any specific mechanisms for exception handling.
@@ -72,7 +70,7 @@ We implemented three basic graph analysis algorithms.
     \item SSSP: for the given graph and start vertex, it returns a sparse vector \verb|result| such that if \verb|result[i] = Some(k)|, then the shortest path from the start vertex to \verb|i| has length \verb|k|.
     If \verb|result[i] = None|, then \verb|i| is unreachable. 
     To prevent an infinite loop in the case of negative cycles, we check that the number of iterations should not be greater than the number of vertices in the input graph.
-    \item Triangle counting algorithm.
+    \item Sandia triangle counting algorithm~\cite{wolf2017kktri} that for the given undirected graph returns total number of triangles in it.
 \end{itemize}
 
 All algorithms were implemented using operations over matrices and vectors similarly to how they are described in GraphBLAS-related materials.
@@ -80,37 +78,39 @@ We provide basic implementations without any optimizations such as the \emph{pus
 
 \subsection{Interaction Nets Related Details}
 
-The translation is almost ``as-is'' without any application of interaction-net-specific optimizations or code templates.
+The translation from F\# to Vine and Inpla is almost ``as-is'' without any interaction-nets-specific optimizations, code practices, or techniques.
 
-In general, a high-level programming language function is translated into an interaction nets agent with a single port and an associated rewriting rule. Calling such a function involves connecting the function agent to its argument (which may be represented as a tuple agent). The result is then obtained on the agent's port after a sequence of rewritings. This defines an interface function, which is typically rewritten into a single implementation agent with more complex interaction rules.
+In the case of Inpla, we translate high-level programming language functions and algebraic type constructors into an interaction-net agent with a single port and an associated rewriting rule, as shown in Listing~\ref{lst:FSharp_to_inpla}.
+Calling such a function involves connecting the function agent to its argument (which may be represented as a tuple agent).
+The result is then obtained on the agent's port after a sequence of rewritings. This defines an interface function that is typically rewritten as a single implementation agent with more complex interaction rules.
 
 \begin{listing}[H]
 \caption{Interface function pattern in Inpla}
-\begin{verbatim}
-// Simple interaction rule; real implementation omitted
+\begin{minted}[fontsize=\footnotesize]{ocaml}
+(* Simple interaction rule; real implementation omitted *)
 SMMap2(r) >< (f, m1, m2) =>
     SMMap2Decons_1(r, f, m2) ~ m1;
-// ... 
-// Operations on generic data - also agents and rules
+(* ...  *)
+(* Operations on generic data - also agents and rules *)
 op_add(r) >< (x, y) =>
     op_add_1(r, x) ~ y;
 
-// Calling the interface function with real data
+(* Calling the interface function with real data *)
 m1 ~ SparseMatrix(4, 4, 16, 4, QTreeLeaf(UserValue(Some(1)))),
 m2 ~ SparseMatrix(..., QTreeNode(...)),
 SMMap2(r) ~ (%op_add, m1, m2);
 r; free r;
-\end{verbatim}
+\end{minted}
+\caption{An example of top-level functions and constructors translation result}
+\label{lst:FSharp_to_inpla}
 \end{listing}
 
+Inpla has no I/O operations, so input data structures must be generated in advance.
+Error handling is minimal and relies on the virtual machine's ``no interaction rule'' exception for unforeseen situations, as implementing comprehensive checks would introduce significant cognitive overhead in such a low-level language.
 
-Inpla has no I/O operators, so input data structures must be generated in advance. Error handling is minimal and relies on the virtual machine's ``no interaction rule'' exception for unforeseen situations, as implementing comprehensive checks would introduce significant cognitive overhead in such a low-level language.
+Since we do not use any .NET-specific or F\#-specific features in our reference implementation, translation to Vine is rather straightforward: this language provides algebraic data types, pattern matching, and standard \verb|List|, \verb|Option|, and \verb|Result| types.
+We used the last for error handling.
+Vine supports file reading, so data loading was implemented. 
+However, this makes performance comparison less accurate because, due to the nature of interaction nets, separation of steps is difficult.
 
-A significant concern is memory consumption. Interaction nets programming requires the use of duplicator agents for data reuse. Inpla's current implementation eagerly copies entire subnets when duplicating, resulting in substantial memory overhead compared to the F\# prototype. Addressing this issue requires further investigation.
-
-Vine supports reading. Execution is parallel, so separating concerns is difficult.
-Error handling uses the standard \verb|Result| type from the Vine language.
-
-Inpla does not support floats. 
-Vine supports floats but without comparison (possibly due to problems with NaN comparison).
-Therefore, weights in SSSP are represented as integers, not floats, in both Vine and Inpla implementations.
+In both Vine and Inpla implementations, weights in SSSP are represented as integers, not floats because Inpla does not support floats, and Vine supports floats but without comparison operators (possibly due to issues with NaN comparison).

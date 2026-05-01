@@ -1,52 +1,34 @@
 \section{Introduction}
 
-Graph analysis has become fundamental to modern data science, powering applications ranging from recommendation systems in social networks~\cite{!!!} and fraud detection in financial transactions~\cite{!!!} to protein interaction analysis in bioinformatics~\cite{!!!} and static code analysis~\cite{!!!}.
+Graph analysis has become fundamental to modern data science, powering applications ranging from recommendation systems in social networks and fraud detection in financial transactions to protein interaction analysis in bioinformatics and static code analysis.
 As graph sizes grow to billions of vertices and edges, the need for efficient, scalable implementations becomes critical.
-However, graph analysis algorithms are difficult to parallelize due to their irregular memory access patterns, poor data locality, and load imbalance across computational units~\cite{!!!}.
+However, graph analysis algorithms are difficult to parallelize due to their irregular memory access patterns, poor data locality, and load imbalance across computational units.
 
 The GraphBLAS standard~\cite{9460572} addresses these challenges by providing a foundation for constructing high-performance parallel graph analysis algorithms.
-By expressing graph algorithms in the language of linear algebra---using sparse vectors and matrices as core data structures, together with a rich set of highly parameterizable operations (matrix multiplication, element-wise operations, etc.)---GraphBLAS offers a high-level, mathematically rigorous framework for algorithm construction.
-Moreover, these linear algebraic primitives can be optimized for diverse hardware architectures, providing a path to high-performance graph analysis across platforms.
-This approach has proven successful, with implementations like SuiteSparse:GraphBLAS~\cite{10.1145/3577195} delivering high performance on shared-memory systems, and LAGraph~\cite{8778338} providing a collection of graph analysis algorithms built on these primitives.
-However, designing parallel functions over sparse data structures remains a nontrivial engineering challenge, particularly for accelerators.
-Beyond CPU implementations, GraphBLAS has been partially ported to such devices: GraphBLAST~\cite{10.1145/3466795} and Spla~\cite{!!!} target GPGPUs, while GraphLily~\cite{9643582} targets FPGAs.
+By expressing graph algorithms in the language of linear algebra~--- using generic sparse vectors and matrices as core data structures, together with a rich set of highly parameterizable operations (matrix multiplication, element-wise operations, etc.)~--- GraphBLAS offers a high-level, mathematically rigorous framework for algorithm construction.
+Operations over sparse generic matrices and vectors parameterized by semiring-like structures provide a powerful basis for expressing a wide range of graph analysis algorithms~\cite{8778338}.
 
-Despite its successes, GraphBLAS and its implementations face certain challenges.
-The algebraic structures central to GraphBLAS---such as semirings and monoids---align more naturally with functional programming paradigms than with imperative ones.
-Generic data structures, such as matrices and vectors, and functions that required to provide a flexible core for matrix processing, together with user-defined types and operations (which are themselves functions), complicate API design and usage, particularly with respect to type safety.
-This insight suggests that functional programming languages could simplify the design of GraphBLAS-like APIs, offering cleaner abstractions and more composable primitives.
-However, general-purpose functional languages are often not fast enough for high-performance numerical computing.
-%Research into functional languages and frameworks for parallel computations (including GPUs)---such as Futhark~\cite{10.1145/3140587.3062354}, AnyDSL~\cite{10.1145/3276489}, LIFT~\cite{7863730}---while demonstrating promising results, has largely focused on dense computations, leaving sparse irregular workloads less explored.
-Special hardware for graph analysis.
-"A Survey on Graph Processing Accelerators: Challenges and Opportunities", "Graph Processing on FPGAs: Taxonomy, Survey, Challenges"
+Despite its successes, GraphBLAS and its implementations face certain challenges including the implementation of high-performance generic operations over sparse data structures.
+Imbalanced subtasks together with irregular data access patterns make load balancing~--- and thus efficient parallel implementation~--- hard.
+Moreover, graph analysis algorithms are not single operations but nontrivial chains of operations over matrices and vectors.
+This leads to the problem of intermediate data structures.
+Kernel fusion could solve these problems, but it is too difficult to implement automatic optimizations for sparse generic computations, so it is done manually in the most frequent cases.
 
-
-
-At the same time, interaction nets~\cite{10.1145/96709.96718}---a graph-rewriting model introduced by Yves Lafont---offer a computational model that is inherently well-suited for irregular parallelism.
+At the same time, interaction nets~\cite{10.1145/96709.96718}~--- a graph-rewriting model introduced by Yves Lafont~--- offer a computational model that is inherently well-suited for irregular parallelism.
 In interaction nets, computation proceeds through local rewriting rules applied to pairs of connected nodes (so-called active pairs).
 Crucially, multiple non-interfering active pairs can be reduced simultaneously, making interaction nets a promising foundation for parallel irregular computations, including graph analysis.
 Furthermore, interaction nets are relatively close to functional programming languages, making it easy to transfer design approaches and ideas from the functional world.
 
-In this paper, we present the design and implementation of a GraphBLAS-like linear algebra foundation in two different settings: F\# (a mature functional-first language, chosen for ease of prototyping and testing) and Inpla (a language and runtime for interaction nets).
-We employ quadtrees to represent sparse matrices and vectors, enabling natural divide-and-conquer parallelism through recursive subdivision.
-On this foundation, we build three canonical graph algorithms—breadth-first search (BFS), single-source shortest paths (SSSP), and triangle counting—using the algebraic primitives provided by our API.
+However, comparisons between existing interaction-net-based evaluators remain very limited and are often performed only on basic benchmarks such as Fibonacci, Ackermann, sorting, and list traversal.
 
-Our contributions are as follows.
+We believe that interaction nets can provide a powerful foundation for implementing graph analysis algorithms.
+The long-term goal of our work is to investigate how interaction nets can help solve challenges with irregular parallelism and, possibly, with kernel fusion.
+In this work, we do not focus on the GraphBLAS API implementation, but we are inspired by it: we implemented a minimal set of generic data structures and operations sufficient to implement several classic graph analysis algorithms.
+
+This work is in progress, and our current contributions are as follows.
 \begin{enumerate}
-    \item A type-driven design for a GraphBLAS-like API, demonstrating how to utilize algebraic types together with a minimal set of operations (e.g., \texttt{map}, \texttt{map2}, \texttt{spmv}, \texttt{spgemm}) for natural linear-algebra-based graph and graph analysis algorithms encoding  with compile-time safety.
-    \item Reference implementations of a minimal, functionally equivalent subset of the API in F\#, Vine, and Inpla, enabling direct comparison of respective execution models and runtime systems.
-    \item  A comprehensive empirical evaluation of BFS, SSSP, and triangle counting across the three implementations, including: 
-    \begin{itemize}
-        \item runtime and memory comparison against C-based GraphBLAS baselines;
-        \item performance scaling analysis on multi-core architectures.
-    \end{itemize}
+    \item We implemented a minimal, functionally equivalent subset of the functions over tree-represented matrices and vectors in F\# (a mature functional-first language, chosen for ease of prototyping and testing), Vine, and Inpla. 
+    On this foundation, we implemented the following graph analysis algorithms: BFS, SSSP, and triangle counting.
+    Thus, we enable direct comparison of the respective execution models and runtime systems.
+    \item We evaluated the implemented algorithms on a set of real-world and synthetic graphs and highlight directions for future research. 
 \end{enumerate}
-
-%Our results demonstrate that while our implementations do not yet match the absolute performance of highly optimized libraries like SuiteSparse:GraphBLAS, they offer unique advantages in terms of determinism, implicit parallelism, and clarity of expression. The interaction net metrics reveal that the available parallelism in graph algorithms closely correlates with graph structure, and that the Inpla runtime effectively exploits this parallelism. This work establishes interaction nets as a promising foundation for parallel, functionally pure graph analysis, and provides a roadmap for future optimizations and extensions.
-
-%The paper is structured as follows.
-%Section~\ref{sec:background} provides background on GraphBLAS, quadtree matrix representations, interaction nets, and the Inpla language.
-%Section~\ref{sec:API} details our API design and its implementation in both F\# and Inpla.
-%Section~\ref{sec:graph_algorithms} describes the graph algorithms built on this API.
-%Section~\ref{sec:evaluation} presents our experimental setup and evaluation results.
-%Section~\ref{sec:related_work} discusses related work, and Section ~\ref{sec:conclusion} concludes with directions for future research.
