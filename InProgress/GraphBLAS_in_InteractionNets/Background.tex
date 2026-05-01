@@ -14,14 +14,15 @@ Imbalanced subtasks together with irregular data access patterns make load balan
 Moreover, graph analysis algorithms are not single operations but nontrivial chains of operations over matrices and vectors.
 This leads to the problem of intermediate data structures.
 Kernel fusion could solve these problems, but it is too difficult to implement automatic optimizations for sparse generic computations, so it is done manually in the most frequent cases.
-Attempts to use MLIR (GraphBLAS dialect).!!!
-Poor utilization on GPUs. Nontrivial challenge to create generic kernels for GPU and FPGA.!!!
-There are also other problems discussed in ``What Did GraphBLAS Get Wrong?'' by John Gilbert\footnote{Talk by John Gilbert, UC Santa Barbara, GraphBLAS BoF at HPEC, September 2022. Details can be found here: \url{https://sites.cs.ucsb.edu/~gilbert/talks/talks.htm}.}
+
+%Attempts to use MLIR (GraphBLAS dialect).!!!
+%Poor utilization on GPUs. Nontrivial challenge to create generic kernels for GPU and FPGA.!!!
+%There are also other problems discussed in ``What Did GraphBLAS Get Wrong?'' by John Gilbert\footnote{Talk by John Gilbert, UC Santa Barbara, GraphBLAS BoF at HPEC, September 2022. Details can be found here: \url{https://sites.cs.ucsb.edu/~gilbert/talks/talks.htm}.}
 
 SuiteSparse:GraphBLAS serves as the reference implementation of this API, offering a highly optimized, multi-threaded C library that supports various sparse matrix formats.
 Building on this foundation, LAGraph provides a collection of production-ready graph algorithms (e.g., PageRank, connected components, triangle counting) implemented using SuiteSparse:GraphBLAS.
 Currently it is one of the state-of-the-art (SOTA) solutions for high-performance graph analysis, thus we use it as a baseline for evaluation.
-GraphBLAS API: C API, C++ API, implementations in Java, Julia, etc.
+%GraphBLAS API: C API, C++ API, implementations in Java, Julia, etc.
 
 The long-term goal of our work is to investigate how interaction nets can help solve challenges with irregular parallelism and, possibly, with kernel fusion.
 In this work, we do not focus on the GraphBLAS API implementation, but we are inspired by it: we implemented a minimal set of generic data structures and operations sufficient to implement several classic graph analysis algorithms.
@@ -149,7 +150,7 @@ This recursive partitioning allows large uniform blocks to be represented implic
 Unlike flat array formats such as CSR or CSC, which are standard in libraries like SuiteSparse:GraphBLAS, the quad-tree naturally supports a divide-and-conquer execution model and adapts dynamically to irregular sparsity patterns.
 This structure simplifies parallelization of element-wise, matrix-matrix, and matrix-vector operations, as independent sub-blocks can be processed recursively without global synchronization.
 
-However, this flexibility comes at a cost: for dense or highly regular matrices, the overhead of maintaining tree metadata and pointer indirection can outweigh the benefits of sparse storage, making traditional linear formats more efficient in such cases.
+%However, this flexibility comes at a cost: for dense or highly regular matrices, the overhead of maintaining tree metadata and pointer indirection can outweigh the benefits of sparse storage, making traditional linear formats more efficient in such cases.
 
 
 \subsection{Interaction Nets}\label{sec:interaction_nets}
@@ -205,6 +206,7 @@ This constitutes the interface.
 \begin{figure}[htbp]
 \centering
 \caption{Example of computation in interaction nets: reduction of the term $(1+0) + (1+0)$ encoded in Peano numerals }
+\scalebox{0.7}{
 \begin{tikzpicture}[>=Stealth, node distance=0.5cm]
 
 \begin{scope}[local bounding box=group1, baseline=(group1.center)]
@@ -299,7 +301,7 @@ This constitutes the interface.
 \draw[->, thick] ([xshift=0.5cm]group3.east |- arrowY) -- ++(0.9,0);
 
 \end{tikzpicture}
-
+}
 \label{fig:net_example}
 \end{figure}
 
@@ -309,7 +311,7 @@ This constitutes the interface.
     \begin{subfigure}[b]{0.45\textwidth}
         \centering
     
-    
+\scalebox{0.7}{    
 \begin{tikzpicture}[>=Stealth, node distance=0.5cm]
     \begin{scope}[local bounding box=group1]
         
@@ -335,12 +337,14 @@ This constitutes the interface.
             \inetwirecoords(t)(b1)
     \end{scope}
 \end{tikzpicture}
+}
 \caption{ Rule for $0 + x = x$}
 \label{fig:peano_rules_0_x}
 \end{subfigure}
 \begin{subfigure}[b]{0.45\textwidth}
     \centering
 
+\scalebox{0.7}{
 \begin{tikzpicture}[>=Stealth, node distance=0.5cm]
     \begin{scope}[local bounding box=group1]
         \matrix[row sep=1em]{
@@ -380,6 +384,7 @@ This constitutes the interface.
         \draw[thick] (S.pal) -- (sp);
     \end{scope}
 \end{tikzpicture}
+}
 \caption{ Rule for $S(x) + y = S(x + y)$}
 \label{fig:peano_rules_x_y}
 \end{subfigure}
@@ -407,16 +412,12 @@ Programming in Inpla requires defining a custom set of rewriting rules for a cho
 Computation begins when two agents are connected via their primary ports.
 
 \begin{listing}[H]
-\begin{minted}[texcomments, escapeinside=||]{ocaml}
+\begin{minted}[fontsize=\footnotesize, texcomments, escapeinside=||]{ocaml}
 (* Defining custom rules *)
-Add(r, x) >< Z => (* Rule presented in Fig. \ref{fig:peano_rules_0_x} *)
-    r ~ x;
-Add(r, x) >< S(y) => (* Rule presented in Fig. \ref{fig:peano_rules_x_y} *)
-    Add(r, S(x)) ~ y;
-
+Add(r, x) >< Z => r ~ x; (* Rule presented in Figure \ref{fig:peano_rules_0_x} *)
+Add(r, x) >< S(y) => Add(r, S(x)) ~ y; (* Rule presented in Figure \ref{fig:peano_rules_x_y} *)
 (* (1 + 0) + (1 + 0): two active pairs (Fig \ref{fig:net_example}) *)
-Add(x, S(Z)) ~ Z,
-Add(Add(r, x), S(Z)) ~ Z;
+Add(x, S(Z)) ~ Z, Add(Add(r, x), S(Z)) ~ Z;
 (* Printing the result and freeing the `r` name *)
 r; free r;
 \end{minted}
