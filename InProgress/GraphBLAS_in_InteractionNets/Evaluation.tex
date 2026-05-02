@@ -29,6 +29,14 @@ We compare five implementations presented below.
     We perform 10 runs for each configuration.
 \end{itemize}
 
+\paragraph{Dataset.}
+We evaluate our implementations on several real-world and synthetic graphs with \texttt{Int} weights from the SuiteSparse Matrix Collection~\cite{Kolodziej2019}.
+The graphs were chosen to represent a variety of sizes, sparsity patterns, and application domains, considering the capabilities and limitations of the selected competitors.
+Table~\ref{tab:datasets} summarizes the number of vertices (\(|V|\)) and edges (\(|E|\)) for each selected graph.
+Weights were shifted relative to the minimum weight per graph to eliminate negative cycles.
+All graphs were converted to undirected form and have exactly one connected component.
+Thus, any vertex can serve as the start for BFS and SSSP. 
+We selected vertex 0 for all runs.
 \begin{wraptable}{r}{7cm}
 \centering
 \caption{Dataset properties}
@@ -46,14 +54,6 @@ gr\_30\_30 & 900 & 7,744 \\
 \hline
 \end{tabular}
 \end{wraptable}
-\paragraph{Dataset.}
-We evaluate our implementations on several real-world and synthetic graphs with \texttt{Int} weights from the SuiteSparse Matrix Collection~\cite{Kolodziej2019}.
-The graphs were chosen to represent a variety of sizes, sparsity patterns, and application domains, considering the capabilities and limitations of the selected competitors.
-Table~\ref{tab:datasets} summarizes the number of vertices (\(|V|\)) and edges (\(|E|\)) for each selected graph.
-Weights were shifted relative to the minimum weight per graph to eliminate negative cycles.
-All graphs were converted to undirected form and have exactly one connected component.
-Thus, any vertex can serve as the start for BFS and SSSP. 
-We selected vertex 0 for all runs.
 
 \paragraph{Reordering.} Sparse matrix reordering techniques can improve the performance of matrix operations~\cite{10.1145/3731599.3767441}.
 In quad-tree-based representations, reordering can also reduce memory consumption.
@@ -274,7 +274,7 @@ As a result, triangle counting is feasible only on relatively small graphs.
 Notably, Vine encounters out-of-memory (OOM) errors even on \emph{Trefethen\_2000} when performing triangle counting.
 Second, Vine is excessively slow.
 Therefore, we can execute it within a reasonable time only on small matrices, namely \emph{Trefethen\_2000} and \emph{gr\_30\_30}.
-Additionally, Inpla has data races that leads to instability\footnote{Some of them already fixed by our team (e.g. this one: \url{https://github.com/inpla/inpla/pull/8}), other must be fixed in the future.}.
+Additionally, Inpla has data races that leads to instability\footnote{Some of them already fixed by our team (e.g. \url{https://github.com/inpla/inpla/pull/8}), other must be fixed in the future.}.
 We check that results are correct, but des not guarantee that raises does not affect performance patterns.
 
 \textbf{Performance} analysis shows that in all cases (Figures~\ref{fig:coAuthors_execution_time}, \ref{fig:bone_and_usroads_execution_time}, \ref{fig:andrews_execution_time}, \ref{fig:bfs_treferthen_execution_time}, \ref{fig:sssp_treferthen_execution_time}, \ref{fig:bfs_gr_3_30_execution_time}, \ref{fig:sssp_gr_3_30_execution_time}), interaction-net-based implementations are several orders of magnitude slower (up to $10^5$) than both NetworkX and LAGraph. 
@@ -314,18 +314,12 @@ While reordered slower, it scale better.
   \caption{Total number of interactions}
   \label{fig:total_number_of_interactions}
 \end{wrapfigure}
-Also we analyze total number of reductions presented in Figure~\ref{fig:total_number_of_interactions}. as expected, Vine performs significantely more reductions because compile code to fixed set of basics agents while Inpla allows user to use custom agents. 
-Inpla way can be better to optimize domain-specific computatuions.
+We further analyze the total number of interactions performed by the virtual machines during evaluation, with results presented in Figure~\ref{fig:total_number_of_interactions}.
+As expected, Vine performs significantly more interactions, as it compiles code to a fixed set of low-level basic agents, whereas Inpla employs higher-level custom agents. 
+This suggests that the Inpla approach may be better suited for optimizing domain-specific computations. 
+In particular, it could benefit future hardware-based implementations of interaction nets by providing a means to extend a fixed basic set of agents and rules with custom ones tailored to specific computational tasks.
+An anomaly in the interactions count was detected for SSSP on \emph{gr\_30\_30}: the gap between Vine and Inpla is significantly smaller than in the other cases. 
+This observation correlates with the performance anomaly for the same case discussed above. 
+Consequently, this case warrants detailed analysis.
 
-To summarize.
-\begin{itemize}
-    \item Coding patterns together with evaluation strategu=y and memory menegenet mechnisms to reduce memory consumption.
-    \item Load balancing (reordering and scaling)
-    \item Configuration of Inpla (performance on small graphs)
-    \item Anomaly number of reductions and performance for SSSP on \emph{gr\_30\_30} Gap in number of reductions is smaller than in other cases. Performance of Vine is better than Inpla. SSSP only. BSF ok. 
-\end{itemize}
-
-A significant concern is memory consumption. Interaction nets programming requires the use of duplicator agents for data reuse.
-Inpla's current implementation eagerly copies entire subnets when duplicating, resulting in substantial memory overhead compared to the F\# prototype.
-Vine do not so, but still require huge amount of memory.
-Addressing this issue requires further investigation.
+%We summarize our observations in the next section.

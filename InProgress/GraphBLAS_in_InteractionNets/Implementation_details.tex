@@ -7,13 +7,13 @@ We present the data structures and functions, list graph analysis algorithms (wi
 
 Matrix representation, as described in the F\# code, is shown in Listing~\ref{lst:matrix_representation}.
 Our representation is generic, meaning it is parameterized by the matrix cell type.
-The structure does not only work for matrices with sizes that are powers of two.
-A user-defined matrix of arbitrary size will be aligned to a square storage with size equal to a power of two using \verb|Dummy| blocks.
-Since the representation is compressed, the \verb|Storage| stores the real size (as a power of two) together with the respective tree. Finally, the \verb|SparseMatrix| stores the matrix dimensions and the number of non-zero entries (nnz) together with data represented as \verb|Storage|.
+The structure is not limited to matrices whose dimensions are powers of two.
+A user-defined matrix of arbitrary size is aligned to a square storage block whose size is the next power of two using \verb|Dummy| blocks.
+Since the representation is compressed, \verb|Storage| stores the aligned size (as a power of two) together with the corresponding tree. Finally, \verb|SparseMatrix| stores the matrix dimensions and the number of non-zero entries (nnz) together with the data represented as \verb|Storage|.
 Data structures for a sparse vector are described in a similar way.
 
-We propose to use \verb|Option<'T>| to explicitly represent cells that have no values.
-This approach is natural for graph representation: a cell of the adjacency matrix of a graph with edge labels of type \verb|'T| has type \verb|Option<'T>|: either there exists an edge with a label of the respective type (\verb|Some(l)|), or there is no edge at all (\verb|None|).
+We use \verb|Option<'T>| to explicitly represent cells with no values.
+This approach is natural for graph representation: a cell of the adjacency matrix of a graph with edge labels of type \verb|'T| has type \verb|Option<'T>|~--- either there exists an edge with a label of the respective type (\verb|Some(lbl)|), or there is no edge at all (\verb|None|).
 Thus, for a sparse matrix with filled cells of type \verb|'T|, the storage has type \verb|Option<'T>|.
 
 \begin{listing}
@@ -45,21 +45,22 @@ type SparseMatrix<'value> =
 \label{lst:matrix_representation}
 \end{listing}
 
-We implemented a minimal set of operations over matrices and vectors required to implement selected graph analysis algorithms.
-The list of basic functions includes \verb|map|, \verb|fold|, \verb|reduce|.
+We implemented a minimal set of operations over matrices and vectors required to implement the selected graph analysis algorithms.
+The list of basic functions includes \verb|map|, \verb|fold|, and \verb|reduce|.
 Element-wise operations are based on \verb|map2|.
-Particularly, \verb|mask| is implemented as a case of \verb|map2|.
-Linear algebra functions include: \verb|vxm| (generic vector-matrix multiplication) and \verb|mxm| (generic matrix-matrix multiplication).
-We also support transpose and extracting the triangular part of a matrix (required for the triangle counting algorithm).
-Conversion to and from coordinate list format is provided to simplify input graph building.
+In particular, \verb|mask| is implemented as a special case of \verb|map2|.
+Linear algebra functions include \verb|vxm| (generic vector-matrix multiplication) and \verb|mxm| (generic matrix-matrix multiplication).
+We also support transpose and extraction of the triangular part of a matrix (required for triangle counting).
+Conversion to and from coordinate list format is provided to simplify graph input construction.
 All operations take sparsity into account and preserve compression.
 We do not implement fused versions or manually parallelized versions of these functions.
 
-Exception handling is unlikely to be possible in interaction nets in the traditional way due to their highly parallel and irregular nature.
+Traditional exception handling is unlikely to be possible in interaction nets due to their highly parallel and irregular nature.
 Moreover, the selected languages (Inpla and Vine) do not provide any specific mechanisms for exception handling.
-We focus on realistic code, so we should handle not only correct cases but also erroneous ones (e.g., inconsistent matrix or vector sizes).
-For this, we use the \verb|Result| type (even in the F\# version)\footnote{We do this to be as close to interaction-net-based implementations as possible. The F\# language has traditional exception mechanisms.} that explicitly represents two cases: \verb|Ok<'R>| for successfully completed computations and \verb|Err<'E>| for errors. 
-This way of handling errors is represented in many languages such as Rust, F\#, etc.
+We focus on realistic code, so we handle not only correct cases but also erroneous ones (e.g., inconsistent matrix or vector sizes).
+For this, we use the \verb|Result| type (even in the F\# version)\footnote{We do this to be as close to the interaction-net-based implementations as possible; F\# has traditional exception mechanisms.} which explicitly represents two cases: \verb|Ok<'R>| for successfully completed computations and \verb|Err<'E>| for errors. 
+This error handling pattern is supported by many languages, such as Rust and F\#.
+
 
 \subsection{Implemented Graph Analysis Algorithms}\label{sec:graph_algorithms}
 
