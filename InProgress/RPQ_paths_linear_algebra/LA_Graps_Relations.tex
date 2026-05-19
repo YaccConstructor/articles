@@ -68,7 +68,7 @@ Let $\rpaths = 2^{\mathbb{N}^*}$, where $\pi' = (v_1, v_2, \ldots, v_n) \in \mat
 %\end{itemize}
 
 \begin{itemize}
-	\item $\paths = \langle \rpaths, \rpaths, \mathbb{B} = \{ 0, 1 \}, \cup, \fst, \emptyset \rangle \text{ with } \fst(x, y) = \begin{cases} x & \text{if } y = 1 \\ \emptyset & \text{otherwise} \end{cases}$.
+	\item $\paths = \langle \rpaths, \rpaths, \mathbb{B} = \{ 0, 1 \}, \cup, \fst, \emptyset \rangle \text{ with } \fst(x, y) = \begin{cases} x & \text{if } y = 1 \\ \emptyset & \text{otherwise} \end{cases}$;
   \item $\overline{\paths} = \langle \rpaths, \mathbb{B} = \{ 0, 1 \}, \rpaths, \cup, \snd, \emptyset \rangle \text{ with } \snd(x, y) = \begin{cases} y & \text{if } x = 1 \\ \emptyset & \text{otherwise} \end{cases}$.
 \end{itemize}
 
@@ -79,8 +79,10 @@ Let $A = (a_{ij})$, $B = (b_{ij})$ be matrices over $\rpaths$ and $C = (c_{ij})$
 \begin{itemize}
 	\item \textbf{Sum:} $A_{n \times m} \oplus B_{n \times m} = (a_{ij} \oplus b_{ij})_{n \times m}$;
 	\item \textbf{Product:} $A_{n \times m} \otimes C_{m \times k} = (\bigoplus_{l=1}^m a_{il} \otimes c_{lj})_{n \times k}$;
-	\item \textbf{Zero-matrix:} $0^{\paths}_{n \times k} = (\emptyset)_{n \times k}$.
+  \item \textbf{Zero-matrix:} $\textbf{0}^{\paths}_{n \times k} = (\emptyset)_{n \times k}$.
 \end{itemize}
+
+We write $\overline{\otimes}$ to denote multiplication over the dual semiring to $\mathcal{S}$.
 
 \subsection{Index Unary Operators}
 
@@ -93,18 +95,33 @@ The path semiring alone is insufficient for enforcing path semantics (simple pat
 For matrices over $\rpaths$, we define specific index unary operators:
 
 \begin{itemize}
-	\item $I_{Simple}(a, i, j) = \{(v_1, v_2, \ldots, v_n, j) \mid (v_1, v_2, \ldots, v_n) \in a \text{ and } \forall t: \, 1 \leq t \leq n: v_t \neq j\}$;
-	\rs{dobule check there: simple should filter out cycles}
-	\item $I_{Trail}(a, i, j) = \{(v_1, v_2, \ldots, v_n, j) \mid (v_1, v_2, \ldots, v_n) \in a \text{ and } \forall t: \,  1 \leq t \leq n - 1: (v_t, v_{t+1}) \neq (v_n, j)\}$.
-  \item $I^P_{Shortest}(a, i, j) = \{(v_1, v_2, \ldots, v_n, j) \mid (v_1, v_2, \ldots, v_n) \in a \text{ and } P_{ij} = \emptyset \}$.
+	\item $I_{Simple}(a, i, j) = \left\{
+      (v_1, \ldots, v_n, j) \,\middle|\,
+      \begin{aligned}
+        & (v_1, \ldots, v_n) \in a \\
+        & \forall t: \, 1 \leq t \leq n: v_t \neq j
+      \end{aligned}
+    \right\}$;
+	\item $I_{Trail}(a, i, j) = \left\{
+      (v_1, \ldots, v_n, j) \,\middle|\,
+      \begin{aligned}
+        & (v_1, \ldots, v_n) \in a \\
+        & \forall t: \,  1 \leq t \leq n - 1: (v_t, v_{t+1}) \neq (v_n, j)
+      \end{aligned}
+    \right\}$.
+  \item $I^P_{Shortest}(a, i, j) = \begin{cases}
+      \{(v_1, \ldots, v_n, j) \, \vert \, (v_1, \ldots, v_n) \in a \} & \text{if } \forall j\,P_{ij} = \emptyset\\
+      \emptyset & \text{otherwise}.
+    \end{cases}$
 \end{itemize}
+\gb{ALGIN TO EQUATION}
 
-The $I_{Simple}$ operator extends paths while filtering out those that would create vertex repetitions (enforcing simple paths). The $I_{Trail}$ operator filters out extensions that would create edge repetitions (enforcing trails).
+The $I_{Simple}$ operator extends paths while filtering out those that would create vertex repetitions (enforcing simple paths). The $I_{Trail}$ operator filters out extensions that would create edge repetitions (enforcing trails). The $I^P_{Shortest}$ operator extends paths and leaves (visited)
 
-\subsection{The Original LARPQ Algorithm for Reachability}
-
-We now present the original LARPQ algorithm for solving single-source 2-RPQ reachability, which serves as the foundation for our semiring generalization.
-
+%\subsection{The Original LARPQ Algorithm for Reachability}
+%
+%We now present the original LARPQ algorithm for solving single-source 2-RPQ reachability, which serves as the foundation for our semiring generalization.
+%
 %\begin{figure}
 %	\fbox{
 %		\begin{minipage}{\linewidth}
@@ -130,12 +147,12 @@ We now present the original LARPQ algorithm for solving single-source 2-RPQ reac
 %	\caption{Single-Source 2-RPQ Reachability using Linear Algebra}
 %	\label{algo:larpq-reachability}
 %\end{figure}
-
-The algorithm maintains two matrices: $M$ (the frontier) represents the relation between automaton states and graph vertices reached in the current step, while $P$ accumulates all reachable pairs. The key insight is that on each iteration, $M_{qv} = 1$ if and only if there exists a 2-path in $\mathcal{G}$ from $v_s$ to $v$ and a path in $\mathcal{N}$ from some $q_s \in Q_S$ to $q$, both having the same labels and of length $n$ (the iteration number). The mask $\langle \neg P \rangle$ ensures that each vertex-automaton state pair is processed only once, preventing infinite loops.
-
-The correctness of the algorithm follows from the simultaneous breadth-first traversal of both the graph and the automaton. After termination, $P_{q_Fv} = 1$ for $q_F \in Q_F$ if and only if there exists a 2-path from $v_s$ to $v$ whose label sequence belongs to the language accepted by $\mathcal{N}$.
-
-The algorithm can also solve single-destination reachability by reversing the query. Let $\mathcal{R}^- = \{w^- = a_n^- a_{n-1}^- \ldots a_1^- \mid w = a_1 a_2 \ldots a_n \in \mathcal{R}\}$ and $\mathcal{N}^- = \langle Q, \Sigma, \Delta^-, \lambda_{\mathcal{N}}^-, Q_F, Q_S \rangle$. Then:
-$$ [[Q]]_{SDR} = [[\langle \mathcal{G}, \mathcal{R}^-, v_s \rangle]]_{SSR}. $$
-
-Boolean matrix decomposition of $\mathcal{N}^-$ is obtained by transposing the matrices in the decomposition of $\mathcal{N}$.
+%
+%The algorithm maintains two matrices: $M$ (the frontier) represents the relation between automaton states and graph vertices reached in the current step, while $P$ accumulates all reachable pairs. The key insight is that on each iteration, $M_{qv} = 1$ if and only if there exists a 2-path in $\mathcal{G}$ from $v_s$ to $v$ and a path in $\mathcal{N}$ from some $q_s \in Q_S$ to $q$, both having the same labels and of length $n$ (the iteration number). The mask $\langle \neg P \rangle$ ensures that each vertex-automaton state pair is processed only once, preventing infinite loops.
+%
+%The correctness of the algorithm follows from the simultaneous breadth-first traversal of both the graph and the automaton. After termination, $P_{q_Fv} = 1$ for $q_F \in Q_F$ if and only if there exists a 2-path from $v_s$ to $v$ whose label sequence belongs to the language accepted by $\mathcal{N}$.
+%
+%The algorithm can also solve single-destination reachability by reversing the query. Let $\mathcal{R}^- = \{w^- = a_n^- a_{n-1}^- \ldots a_1^- \mid w = a_1 a_2 \ldots a_n \in \mathcal{R}\}$ and $\mathcal{N}^- = \langle Q, \Sigma, \Delta^-, \lambda_{\mathcal{N}}^-, Q_F, Q_S \rangle$. Then:
+%$$ [[Q]]_{SDR} = [[\langle \mathcal{G}, \mathcal{R}^-, v_s \rangle]]_{SSR}. $$
+%
+%Boolean matrix decomposition of $\mathcal{N}^-$ is obtained by transposing the matrices in the decomposition of $\mathcal{N}$.
