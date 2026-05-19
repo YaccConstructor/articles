@@ -31,6 +31,7 @@ The key insight is that the LARPQ algorithm can be abstracted to work over any s
 	\caption{Generalized Single-Source 2-RPQ using Semirings}
 	\label{algo:semiring-rpq}
 \end{figure}
+\rs{maybe Return exported results? Fig. 3}
 
 The generalized algorithm differs from the original in several key aspects:
 \begin{itemize}
@@ -43,7 +44,7 @@ We now present two important instantiations of this framework.
 
 \subsection{Instantiation I: Boolean Semiring for Reachability}
 
-By instantiating $\mathcal{S}$ with the Boolean semiring $\langle \mathbb{B} = \{0, 1\}, \mathbb{B}, \mathbb{B}, \lor, \land, 0 \rangle$ and completely omitting the index unary operator, we recover the original LARPQ algorithm for reachability (Algorithm~\ref{algo:larpq-reachability}). The matrix entries are Boolean values, where $1$ indicates reachability. The mask operation $\langle \neg P \rangle$ ensures each vertex is processed only once.
+By instantiating $\mathcal{S}$ with the Boolean semiring $\langle \mathbb{B} = \{0, 1\}, \mathbb{B}, \mathbb{B}, \lor, \land, 0 \rangle$ and completely omitting the index unary operator, we recover the original LARPQ algorithm for reachability (Algorithm~\ref{algo:larpq-reachability}). The matrix entries are Boolean values, where $1$ indicates reachability. The mask operation $\langle \neg P \rangle$ ensures each vertex is processed only once
 
 The result is a Boolean vector $P^F$ where $P^F_v = 1$ if and only if vertex $v$ is reachable from the source via a path satisfying the regular language constraint.
 
@@ -74,78 +75,11 @@ Figure~\ref{fig:algorithm-step} illustrates an example of the algorithm step for
 We analyze the computational complexity of the generalized algorithm.
 
 \noindent\textbf{Complexity.} Let $n = |V|$ be the number of vertices, $m = |E|$ be the number of edges, $k = |L|$ be the number of distinct labels, and $q = |Q|$ be the number of automaton states. The algorithm requires $O(q \cdot nz(G) \cdot \text{iterations})$ operations defined in semiring, where $nz(G)$ is the number of non-zero entries in the Boolean matrix decomposition.
+\rs{can we say smth like:: For the Boolean instantiation, the algorithm requires $O(q \cdot nz(G) \cdot \text{iterations})$ semiring operations, where $nz(G)$ is the number of non-zero entries in the Boolean matrix decomposition. For path-enumeration instantiations, the running time and memory consumption are output-sensitive and may be exponential in the graph size, because the number of simple paths or trails can be exponential}
 
-\subsection{Proof of Correctness}
+\subsection{Correctness Argument}
 
-We prove the correctness of the generalized semiring-based algorithm.
-
-\medskip
-\noindent\textbf{Frontier Invariant.} After the $t$-th iteration of the main loop, for each automaton state $q \in Q$ and vertex $v \in V$:
-$$ M^{(t)}_{qv} = \{ \pi \mid \pi \text{ is a 2-path from } v_s \text{ to } v \text{ of length } t \text{ satisfying the query} \}. $$
-
-\medskip
-\noindent\textbf{Accumulator Invariant.} After the $t$-th iteration:
-$$ P^{(t)}_{qv} = \{ \pi \mid \pi \text{ is a 2-path from } v_s \text{ to } v \text{ of length } \leq t \text{ satisfying the query} \}. $$
-
-We now provide a formal proof of correctness using invariant-based reasoning.
-
-\medskip
-\noindent\textbf{Invariant 1 (Frontier).} \label{inv:frontier} After iteration $t$ ($t \geq 0$), for each automaton state $q \in Q$ and vertex $v \in V$:
-$$ M^{(t)}_{qv} = \{ \pi \mid \pi \text{ is a 2-path from } v_s \text{ to } v \text{ of length exactly } t \text{ such that } \omega(\pi) \in L(\mathcal{N}) \}. $$
-
-\medskip
-\noindent\textbf{Invariant 2 (Accumulator).} \label{inv:accumulator} After iteration $t$ ($t \geq 0$), for each $q \in Q$ and $v \in V$:
-$$ P^{(t)}_{qv} = \{ \pi \mid \pi \text{ is a 2-path from } v_s \text{ to } v \text{ of length } \leq t \text{ such that } \omega(\pi) \in L(\mathcal{N}) \}. $$
-
-When an index unary operator $I$ is applied, the invariant is modified to consider only paths satisfying the semantic constraints enforced by $I$.
-
-\medskip
-%\noindent\textbf{Proof of Invariant 1 (Frontier).} We prove by induction on $t$.
-%
-%\textbf{Base case ($t = 0$):} Initially, $M^{(0)}$ contains the empty path from $v_s$ to $v_s$ for each starting state $q \in Q_S$, represented by the identity element $\mathbf{1}$ of the semiring. Formally:
-%$$ M^{(0)}_{qv} = \begin{cases} \mathbf{1} & \text{if } q \in Q_S \text{ and } v = v_s \\ \mathbf{0} & \text{otherwise} \end{cases} $$
-%
-%This matches the definition in Invariant 1 for paths of length 0.
-%
-%\textbf{Inductive step:} Assume Invariant 1 holds after iteration $t$. Consider iteration $t+1$. The update step computes:
-%$$ M^{(t+1)} = \bigoplus_{a \in \Sigma^\leftrightarrow \cap L^\leftrightarrow} (N^a)^T \otimes M^{(t)} \otimes G^a. $$
-%
-%For a fixed label $a$, the product $(N^a)^T \otimes M^{(t)}$ extends each path in $M^{(t)}$ by one automaton transition labeled $a$. Specifically, if $M^{(t)}_{q'v'}$ contains a path $\pi$, then $((N^a)^T \otimes M^{(t)})_{qv'}$ contains the extended path for each predecessor state $q$ with a transition $q \xrightarrow{a} q'$ in $\mathcal{N}$.
-%
-%Multiplying by $G^a$ then extends these paths by one graph edge labeled $a$. The result contains all paths of length $t+1$ from $v_s$ to each vertex $v$ that correspond to paths in the automaton from some starting state to $q$.
-%
-%Taking the union (via $\bigoplus$) over all labels $a$ combines all possible extensions, yielding exactly the set of paths of length $t+1$ satisfying the query. This establishes Invariant 1 for iteration $t+1$.
-%
-%When an index unary operator $I$ is applied, it filters or transforms the paths in $M^{(t+1)}$ according to the semantic constraints. The correctness of filtering follows directly from the definitions of $I_{Simple}$ and $I_{Trail}$.
-%
-%\medskip
-%\noindent\textbf{Proof of Invariant 2 (Accumulator).} Invariant 2 follows directly from Invariant 1 and the accumulation step:
-%$$ P^{(t+1)} = P^{(t)} \oplus M^{(t+1)}. $$
-%
-%By the induction hypothesis, $P^{(t)}$ contains all paths of length $\leq t$. Adding $M^{(t+1)}$ (which contains paths of exactly length $t+1$ by Invariant 1) yields all paths of length $\leq t+1$.
-
-\medskip
-\noindent\textbf{Theorem (Correctness).} Let $\mathcal{Q} = \langle \mathcal{G}, \mathcal{R}, v_s \rangle$ be a 2-RPQ and let the algorithm terminate after $T$ iterations. Then:
-\begin{enumerate}
-	\item For Boolean semiring: $P^F_v = 1$ iff $v \in [[Q]]_{SSR}$;
-		\gb{write about all shortest paths}
-	%\item For path semiring with mask$: the result contains exactly all 2-simple paths in $[[Q]]_{SSASP}$; 
-	\item For path semiring with $I_{Simple}$: the result contains exactly all 2-simple paths in $[[Q]]_{SSASP}$;
-	\item For path semiring with $I_{Trail}$: the result contains exactly all 2-trails in $[[Q]]_{SSAT}$.
-\end{enumerate}
-
-\medskip
-\noindent\textbf{Proof.} By Invariant 2, after termination (when $M = \mathbf{0}$), $P$ contains all paths from $v_s$ to each vertex that satisfy the query. The export step multiplies by $F$, which selects only paths ending in final automaton states.
-
-For Boolean semiring, $P_{q_Fv} = 1$ for some $q_F \in Q_F$ iff there exists a path from $v_s$ to $v$ whose label is accepted by the automaton. This is precisely the definition of reachability.
-
-For the path semiring, $I_{Simple}$ ensures that only simple paths remain (no vertex repetition), and $I_{Trail}$ ensures only trails remain (no edge repetition). The index operators are applied at each step, filtering out non-compliant extensions immediately, guaranteeing correctness.
-
-%\begin{figure}[h]
-%  \centering
-
-\input{Diagram.tex}
-
-%  \caption{Frontier update with path semantics: (a) simple paths filter, (b) trails filter.}
-%  \label{fig:path-filtering}
-%\end{figure}
+The correctness argument follows the same induction scheme as in our previous work on LARPQ~\cite[Appendix~A]{belyanin2150single}.
+The induction is over the iterations of the main loop: the frontier matrix $M$ stores exactly the paths produced at the current traversal depth, and the accumulator matrix $P$ stores the union of all paths produced so far.
+Each iteration extends paths consistently in the query automaton and in the input graph; the optional index unary operator filters out extensions that violate the selected path semantics.
+After termination, selecting final automaton states yields exactly the query result for the chosen semiring instantiation.
