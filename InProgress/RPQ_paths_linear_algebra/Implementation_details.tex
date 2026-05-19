@@ -1,38 +1,56 @@
 \section{Implementation Details} \label{sec:implementation}
 
-We have implemented the proposed algorithms within the LAGraph project \cite{!!!}, a collection of linear algebra-based graph processing algorithms built on top of \ssgrb \cite{!!!}. This section describes the key implementation aspects.
+We have implemented the proposed algorithms within the LAGraph project~\cite{lagraph}, a collection of linear algebra-based graph processing algorithms built on top of \ssgrb \cite{10.1145/3577195}. This section describes the key implementation aspects.
 
+% The actual implementation involves an additional semiring due to the asymmetric nature of the definition. The original semiring $\paths = \langle \rpaths, \rpaths, \mathbb{B} = \{ 0, 1 \}, \cup, \textbf{fst}, \emptyset \rangle$ uses $\textbf{fst} : \rpaths \times \mathbb{B} \rightarrow \rpaths$.
+%
+% However, it is convenient to introduce another semiring $\overline{\paths} = \langle \rpaths, \mathbb{B} = \{ 0, 1 \}, \rpaths, \cup, \textbf{snd}, \emptyset \rangle$, which uses $\textbf{snd} : \mathbb{B} \times \rpaths \rightarrow \rpaths$, defined as ??. 
+%
+% If we use these two semirings and the corresponding multiplicative operations $\otimes$ and $\overline{\otimes}$, we obtain:
+%
+% \begin{equation*}
+%   (A \otimes B)^T = (B^T \overline{\otimes} A^T)
+% \end{equation*}
+%
+% for matrices $A$ and $B$ over $D_{out}$.
+%
+% Using this observation, we can avoid the expensive product transposition on line ?? in Algorithm \ref{algo:semiring-rpq} and use the cheaper $(N^a)^T$ operation instead:
+%
+% \begin{equation*}
+%   ((M^T \otimes N^a)^T \otimes G^a) \leadsto ((N^a)^T \overline{\otimes} M \otimes G^a).
+% \end{equation*}
+% \rs{should this dot be there?}
+%
+% In addition, \ssgrb imposes restrictions on user-defined semirings. Most importantly, user-defined semirings must have fixed-size values to work with built-in automatic allocators.
+% Therefore, the implementation of $\paths$ in \ssgrb relies on external memory management when paths become too long or when too many paths appear in a single $M_{qv}$ $\rpaths$ element.
+% We introduce two constants, $L_{fast}$ and $C_{fast}$, to control the maximum path length and the maximum cardinality of a $\rpaths$ element without external memory management.
+%
+% If a path $\pi \in M_{qv}$ with $|\pi| > L_{fast}$ appears, a new linked list representing this long path is allocated in a supplementary memory arena.
+% Similarly, if $|M_{qv}| > C_{fast}$ for some $q, v$, an extensible linked list is allocated.
+%
+% These two values provide a trade-off between peak memory consumption and execution speed.
+% In practice, these constants should be adjusted for each dataset individually.
+%
+% Finally, we ship the semiring-based algorithm implementation as a standalone executable file.
+% A preprocessed graph, decomposed into a set of Boolean Matrix Market matrices, and a set of regular path query patterns described in a SPARQL-like query language are consumed as input and executed one by one.
+% The CLI flag ?? \texttt{--semantics} can be used to switch between all-simple-path and all-trail semantics.
+% At the same time, \texttt{--fast-path-length} controls $L_{fast}$, and \texttt{--fast-path-cardinality} defines the $C_{fast}$ constant.
 
-The actual implementation involves an additional semiring due to the asymmetric nature of the definition. The original semiring $\paths = \langle \rpaths, \rpaths, \mathbb{B} = \{ 0, 1 \}, \cup, \textbf{fst}, \emptyset \rangle$ uses $\textbf{fst} : \rpaths \times \mathbb{B} \rightarrow \rpaths$.
+The main engineering limitation is that \ssgrb user-defined semiring values must have a fixed size to work with built-in automatic allocators.
+At the same time, an element of the path semiring may contain paths of different lengths and may accumulate an unbounded number of paths during evaluation.
+To fit these variable-size objects into the fixed-size semiring interface, the implementation uses a compact in-place representation for common cases and falls back to explicit memory management only when this representation overflows.
 
-However, it is convenient to introduce another semiring $\overline{\paths} = \langle \rpaths, \mathbb{B} = \{ 0, 1 \}, \rpaths, \cup, \textbf{snd}, \emptyset \rangle$, which uses $\textbf{snd} : \mathbb{B} \times \rpaths \rightarrow \rpaths$, defined as ??. 
-
-If we use these two semirings and the corresponding multiplicative operations $\otimes$ and $\overline{\otimes}$, we obtain:
-
-\begin{equation*}
-  (A \otimes B)^T = (B^T \overline{\otimes} A^T)
-\end{equation*}
-
-for matrices $A$ and $B$ over $D_{out}$.
-
-Using this observation, we can avoid the expensive product transposition on line ?? in Algorithm \ref{algo:semiring-rpq} and use the cheaper $(N^a)^T$ operation instead:
-
-\begin{equation*}
-  ((M^T \otimes N^a)^T \otimes G^a) \leadsto ((N^a)^T \overline{\otimes} M \otimes G^a).
-\end{equation*}
-\rs{should this dot be there?}
-
-In addition, \ssgrb imposes restrictions on user-defined semirings. Most importantly, user-defined semirings must have fixed-size values to work with built-in automatic allocators.
-Therefore, the implementation of $\paths$ in \ssgrb relies on external memory management when paths become too long or when too many paths appear in a single $M_{qv}$ $\rpaths$ element.
-We introduce two constants, $L_{fast}$ and $C_{fast}$, to control the maximum path length and the maximum cardinality of a $\rpaths$ element without external memory management.
+We introduce two constants, $L_{fast}$ and $C_{fast}$, to control the maximum path length and the maximum cardinality of a $\rpaths$ element that can be stored without external memory management.
+As long as all paths in an element are no longer than $L_{fast}$ and the element contains at most $C_{fast}$ paths, the value is stored directly inside the fixed-size semiring object.
+This fast representation avoids extra allocations and is intended to cover the typical case.
 
 If a path $\pi \in M_{qv}$ with $|\pi| > L_{fast}$ appears, a new linked list representing this long path is allocated in a supplementary memory arena.
 Similarly, if $|M_{qv}| > C_{fast}$ for some $q, v$, an extensible linked list is allocated.
+These fallback structures keep the semiring value itself fixed-size: it stores only the inline data or references to the arena-managed objects.
 
 These two values provide a trade-off between peak memory consumption and execution speed.
 In practice, these constants should be adjusted for each dataset individually.
 
 Finally, we ship the semiring-based algorithm implementation as a standalone executable file.
 A preprocessed graph, decomposed into a set of Boolean Matrix Market matrices, and a set of regular path query patterns described in a SPARQL-like query language are consumed as input and executed one by one.
-The CLI flag ?? \texttt{--semantics} can be used to switch between all-simple-path and all-trail semantics.
-At the same time, \texttt{--fast-path-length} controls $L_{fast}$, and \texttt{--fast-path-cardinality} defines the $C_{fast}$ constant.
+The CLI flag \texttt{--semantics} can be used to switch between all-simple-path, all-shortest-path and all-trail semantics.
