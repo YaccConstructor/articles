@@ -11,7 +11,7 @@ The key insight is that the LARPQ algorithm can be abstracted to work over any s
 \begin{figure}
 	\fbox{
 		\begin{minipage}{\linewidth}
-			\textbf{Input:} Semiring $\mathcal{S} = \langle D_{out}, D_{in_1}, \mathbb{B}, \oplus, \otimes, \mathbf{0} \rangle$, optional index unary operator $I$, 2-NFA $\mathcal{N} = \langle Q, \Sigma, \Delta, \lambda_\mathcal{N}, Q_S, Q_F \rangle$, graph $\mathcal{G}=\langle V, E, L, \lambda_\mathcal{G} \rangle$, source $v_s \in V$ \\
+			\textbf{Input:} Semiring $\mathcal{S} = \langle D_{out}, D_{in_1}, \mathbb{B}, \oplus, \otimes, \mathbf{0} \rangle$, index unary operator $I^P$, 2-NFA $\mathcal{N} = \langle Q, \Sigma, \Delta, \lambda_\mathcal{N}, Q_S, Q_F \rangle$, graph $\mathcal{G}=\langle V, E, L, \lambda_\mathcal{G} \rangle$, source $v_s \in V$ \\
 			\textbf{Output:} Result depending on semiring instantiation
 			\begin{enumerate}
 				\item $\{ N^a \}\gets$ Boolean decomposition of the $\mathcal{N}$ adjacency matrix
@@ -20,7 +20,7 @@ The key insight is that the LARPQ algorithm can be abstracted to work over any s
 				\item For each $q \in Q_S$: $M_{q{v_s}} \gets \mathbf{1}$
 				\item While $M \ne \mathbf{0}$:
 				      \begin{itemize}
-					      \item If $I$ defined: $M \gets I(M)$
+					      \item If $I^P$ defined: $M \gets I(M)$
 					      \item $P \gets P \oplus M$
                 \item $M \gets \bigoplus_{a \in \Sigma^\leftrightarrow \cap L^\leftrightarrow}((N^a)^T \overline{\otimes} M \otimes G^a)$
 				      \end{itemize}
@@ -37,7 +37,7 @@ The key insight is that the LARPQ algorithm can be abstracted to work over any s
 The generalized algorithm differs from the original in several key aspects:
 \begin{itemize}
 	\item Matrix operations ($\oplus$, $\otimes$) are performed over an arbitrary semiring $\mathcal{S}$ having $D_{in_2} = \mathbb{B}$;
-	\item An optional index unary operator $I$ can be applied to filter or transform path information;
+	\item An optional index unary operator $I^P$ can be applied to filter or transform path information;
 	\item The final result format depends on the semiring instantiation.
 \end{itemize}
 
@@ -45,7 +45,7 @@ We now present two important instantiations of this framework.
 
 \subsection{Instantiation I: Boolean Semiring for Reachability}
 
-By instantiating $\mathcal{S}$ with the Boolean semiring $\langle \mathbb{B} = \{0, 1\}, \mathbb{B}, \mathbb{B}, \lor, \land, 0 \rangle$ and completely omitting the index unary operator, we recover the original LARPQ algorithm for reachability from~\cite{belyanin2150single}. The matrix entries are Boolean values, where $1$ indicates reachability. The mask operation $\langle \neg P \rangle$ ensures each vertex is processed only once
+By instantiating $\mathcal{S}$ with the Boolean semiring $\langle \mathbb{B} = \{0, 1\}, \mathbb{B}, \mathbb{B}, \lor, \land, 0 \rangle$ and the index unary operator $I^P$ with $I^P_{Reach}$, we recover the original LARPQ algorithm for reachability from~\cite{belyanin2150single}. The matrix entries are Boolean values, where $1$ indicates reachability. The index unary operator ensures each pair of an automaton state and vertex is processed only once.
 
 The result is a Boolean vector $P^F$ where $P^F_v = 1$ if and only if vertex $v$ is reachable from the source via a path satisfying the regular language constraint.
 
@@ -53,10 +53,14 @@ The result is a Boolean vector $P^F$ where $P^F_v = 1$ if and only if vertex $v$
 
 For enumerating all simple paths or all trails, we use the previously introduced path semiring $\langle \rpaths, \rpaths, \mathbb{B} = \{ 0, 1 \}, \cup, \textbf{fst}, \emptyset \rangle$ combined with appropriate index unary operators.
 
-When $I = I_{Simple}$, the algorithm enumerates all simple 2-paths satisfying the query. When $I = I_{Trail}$, it enumerates all trails. The key difference from reachability is that the frontier matrix $M$ now stores actual path information (as sequences of vertices) rather than Boolean values. The index unary operator filters extensions that would violate the path semantics:
+When $I^P = I_{Simple}$, the algorithm enumerates all simple 2-paths satisfying the query. When $I^P = I_{Trail}$, it enumerates all trails.
+The key difference from the reachability algorithm is that the frontier matrix $M$ now stores actual path information (as sequences of vertices)
+rather than Boolean values. The index unary operator filters extensions that would violate the path semantics:
+
 \begin{itemize}
 	\item $I_{Simple}$ prevents extending a path with a vertex already present in the path (except the starting vertex), ensuring simplicity;
 	\item $I_{Trail}$ prevents extending a path with an edge already traversed, ensuring the result is a trail.
+	\item $I^P_{Simple}$ prevents extending a path with a vertex if shorter paths to that vertex were already accessed.
 \end{itemize}
 
 The algorithm maintains the BFS structure: on iteration $n$, $M_{qv}$ contains all valid paths of length $n$ from $v_s$ to $v$ that correspond to paths from some $q_s \in Q_S$ to $q$ in the automaton.
