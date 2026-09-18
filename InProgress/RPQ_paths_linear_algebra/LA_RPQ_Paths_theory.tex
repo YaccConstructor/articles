@@ -2,27 +2,31 @@
 
 \label{sec:semiring-framework}
 
-In this section, we present our main contribution: a generalized semiring-based framework for evaluating single-source 2-RPQs. The original LARPQ algorithm operates over the Boolean semiring to solve reachability. We show that by replacing the Boolean semiring with other algebraic structures, the same algorithmic framework can solve different path-aggregation problems.
+In this section, we present our main contribution: a generalized semiring-based framework for evaluating single-source 2-RPQs.
+% C19 (2026-09-17): repeats the introduction.
+%The original LARPQ algorithm operates over the Boolean semiring to solve reachability. We show that by replacing the Boolean semiring with other algebraic structures, the same algorithmic framework can solve different path-aggregation problems.
 
 \subsection{Generalized Algorithm}
 
 The key insight is that the LARPQ algorithm can be abstracted to work over any semiring equipped with appropriate operations. Algorithm~\ref{algo:semiring-rpq} presents the generalized version.
 
-\begin{figure}
+\begin{algorithm}[t]
+	\caption{Generalized Single-Source 2-RPQ using Semirings}
+	\label{algo:semiring-rpq}
 	\fbox{
-		\begin{minipage}{\linewidth}
-      \textbf{Input:} Semiring $\mathcal{S} = \langle D_{out}, D_{in_1}, \mathbb{B}, \oplus, \otimes, \mathbf{0} \rangle$, index unary operator $I^{\langle \cdot \rangle}$, 2-NFA $\mathcal{N} = \langle Q, \Sigma, \Delta, \lambda_\mathcal{N}, Q_S, Q_F \rangle$, graph $\mathcal{G}=\langle V, E, L, \lambda_\mathcal{G} \rangle$, source $v_s \in V$ \\
+		\begin{minipage}{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}
+      \textbf{Input:} Semiring $\mathcal{S} = \langle D_{out}, D_{in_1}, \mathbb{B}, \oplus, \otimes, \mathbf{0} \rangle$, initial frontier value $\mathbf{1}_{v_s} \in D_{out}$, index unary operator $I^{\langle \cdot \rangle}$, 2-NFA $\mathcal{N} = \langle Q, \Sigma, \Delta, \lambda_{\mathcal{N}}, Q_S, Q_F \rangle$, graph $\mathcal{G}=\langle V, E, L, \lambda_{\mathcal{G}} \rangle$, source $v_s \in V$ \\
 			\textbf{Output:} Result depending on semiring instantiation
 			\begin{enumerate}
 				\item $\{ N^a \}\gets$ Boolean decomposition of the $\mathcal{N}$ adjacency matrix
 				\item $\{ G^a \}\gets$ Boolean decomposition of the $\mathcal{G}$ adjacency matrix
 				\item $M \gets \mathbf{0}$, $P \gets \mathbf{0}$
-				\item For each $q \in Q_S$: $M_{q{v_s}} \gets \mathbf{1}$
+				\item For each $q \in Q_S$: $M_{q{v_s}} \gets \mathbf{1}_{v_s}$
 				\item While $M \ne \mathbf{0}$:
 				      \begin{itemize}
-					      \item If $I^P$ defined: $M \gets I^P(M)$
 					      \item $P \gets P \oplus M$
                 \item $M \gets \bigoplus_{a \in \Sigma^\leftrightarrow \cap L^\leftrightarrow}((N^a)^T \overline{\otimes} M \otimes G^a)$
+					      \item If $I^P$ defined: $M \gets I^P(M)$
 				      \end{itemize}
  				\item $F_{1 \times |Q|} \gets \mathbf{0}_{1 \times |Q|}$
  				\item For each $q \in Q_F$: set $F_{1q} \gets 1$
@@ -30,67 +34,76 @@ The key insight is that the LARPQ algorithm can be abstracted to work over any s
 			\end{enumerate}
 		\end{minipage}
 	}
-	\caption{Generalized Single-Source 2-RPQ using Semirings}
-	\label{algo:semiring-rpq}
-\end{figure}
+\end{algorithm}
 
+\cnote{C20}{The four bullets restate what Algorithm~1 shows. Two sentences suffice (``Compared with [6], the semiring, the initial frontier value and the post-step operator are parameters; Sect.~4.2 recovers the Boolean case''). About 4 lines. Remove the GB note below once the loop order is confirmed against the implementation.}
 The generalized algorithm differs from the original in several key aspects:
 \begin{itemize}
 	\item Matrix operations ($\oplus$, $\otimes$) are performed over an arbitrary semiring $\mathcal{S}$ having $D_{in_2} = \mathbb{B}$;
-	\item An optional index unary operator $I^P$ can be applied to filter or transform path information;
+	\item The initial frontier value $\mathbf{1}_{v_s}$ is a parameter of the instantiation, since a semiring in the GraphBLAS sense need not have a multiplicative identity;
+	\item An optional index unary operator $I^P$ is applied to the frontier after each traversal step to filter or transform path information;
 	\item The final result format depends on the semiring instantiation.
 \end{itemize}
+\gb{Loop body reordered to ``accumulate, multiply, filter'' (the original text filtered first). With the path semiring, filtering the initial frontier $\{(v_s)\}$ by $I_{simple}$ would append $v_s$ to a path that already contains it and drop everything, so the algorithm would terminate immediately. For the Boolean semiring the new order is exactly the original LARPQ (mask by $\neg P$ after the product). Please double-check against the implementation.}
 
 We now present two important instantiations of this framework.
 
 \subsection{Instantiation I: Boolean Semiring for Reachability}
 
-By instantiating $\mathcal{S}$ with the Boolean semiring $\langle \mathbb{B} = \{0, 1\}, \mathbb{B}, \mathbb{B}, \lor, \land, 0 \rangle$ and the index unary operator $I^P$ with $I^P_{Reach}$, we recover the original LARPQ algorithm for reachability from~\cite{belyanin2150single}. The matrix entries are Boolean values, where $1$ indicates reachability. The index unary operator ensures each pair of an automaton state and vertex is processed only once.
+By instantiating $\mathcal{S}$ with the Boolean semiring, i.e., $D_{out} = D_{in_1} = D_{in_2} = \mathbb{B} = \{0, 1\}$, $\oplus = \lor$, $\otimes = \land$, and $\mathbf{0} = 0$, the initial frontier value $\mathbf{1}_{v_s} = 1$, and the index unary operator $I^P$ with $I^P_{reach}$, we recover the original LARPQ algorithm for reachability from~\cite{belyanin2150single}. The matrix entries are Boolean values, where $1$ indicates reachability. The index unary operator ensures each pair of an automaton state and vertex is processed only once.
 
 The result is a Boolean vector $P^F$ where $P^F_v = 1$ if and only if vertex $v$ is reachable from the source via a path satisfying the regular language constraint.
 
 \subsection{Instantiation II: Path Semiring with Index Operators for All Paths}
 
-For enumerating all simple paths or all trails, we use the previously introduced path semiring $\langle \rpaths, \rpaths, \mathbb{B} = \{ 0, 1 \}, \cup, \textbf{fst}, \emptyset \rangle$ combined with appropriate index unary operators.
+For enumerating all simple paths, all trails, or all shortest paths, we use the previously introduced path semiring $\langle \rpaths, \rpaths,$ $\mathbb{B} = \{ 0, 1 \}, \cup, \textbf{fst}, \emptyset \rangle$ combined with appropriate index unary operators.
+The initial frontier value is the zero-length path from the source, $\mathbf{1}_{v_s} = \{ (v_s) \}$.
 
-When $I^P = I_{Simple}$, the algorithm enumerates all simple 2-paths satisfying the query. When $I^P = I_{Trail}$, it enumerates all trails.
+When $I^P = I_{simple}$, the algorithm enumerates all simple 2-paths satisfying the query. When $I^P = I_{trail}$, it enumerates all trails. When $I^P = I^P_{shortest}$, it enumerates all shortest paths.
+\cnote{C21}{Redundant with Sects.~3.3/3.4; cut this sentence. Keep the three bullets below only if the four descriptive sentences in Sect.~3.4 are cut. About 2 lines.}
 The key difference from the reachability algorithm is that the frontier matrix $M$ now stores actual path information (as sequences of vertices)
 rather than Boolean values. The index unary operator filters extensions that would violate the path semantics:
 
 \begin{itemize}
-	\item $I_{Simple}$ prevents extending a path with a vertex already present in the path (except the starting vertex), ensuring simplicity;
-	\item $I_{Trail}$ prevents extending a path with an edge already traversed, ensuring the result is a trail.
-	\item $I^P_{Simple}$ prevents extending a path with a vertex if shorter paths to that vertex were already accessed.
+	\item $I_{simple}$ prevents extending a path with a vertex already present in the path (including the starting vertex), ensuring simplicity;
+	\item $I_{trail}$ prevents extending a path with an edge already traversed, ensuring the result is a trail;
+	\item $I^P_{shortest}$ prevents extending a path with a vertex if shorter paths to that vertex were already found (i.e., the vertex already appears in $P$).
 \end{itemize}
 
 The algorithm maintains the BFS structure: on iteration $n$, $M_{qv}$ contains all valid paths of length $n$ from $v_s$ to $v$ that correspond to paths from some $q_s \in Q_S$ to $q$ in the automaton.
 Figure~\ref{fig:algorithm-step} illustrates an example of the algorithm step for the all simple paths semantics.
 
-We use red and blue to denote different paths and the corresponding $\rpaths$ elements in the matrices. Two matrix multiplications correspond to simultaneous graph and automaton traversal steps.
+\cnote{C22}{The colour legend (five sentences) and the step walkthrough below overlap; merge into one paragraph, or move the legend into the caption of Fig.~2. About 3 lines.}
+We use \textcolor{MyRedDark}{red} and \textcolor{MyBlueDark}{blue} to denote different paths and the corresponding $\rpaths$ elements in the matrices. Two matrix multiplications correspond to simultaneous graph and automaton traversal steps.
 Dotted lines represent the relation represented by the matrix $M$, the relationship between graph vertices and automaton states.
-The edges affected during the traversal are colored yellow for the label \texttt{a} and purple for the label \texttt{b}.
+The edges affected during the traversal are colored \textcolor{MyYellowDark}{yellow} for the label \texttt{a} and \textcolor{MyPurple}{purple} for the label \texttt{b}.
 The corresponding entries in the adjacency matrices use the same colors.
 
-After performing a traversal step, two paths of length 2 are obtained:
+Before the step, the frontier $M$ contains two paths of length 1 in the row of state $q_2$: the \textcolor{MyRedDark}{red} path $((v_1, v_2))$ in the column of $v_2$ and the \textcolor{MyBlueDark}{blue} path $((v_1, v_4))$ in the column of $v_4$.
+The step is performed separately for each label: the product with $(N^a)^T$ and $G^a$ extends the \textcolor{MyRedDark}{red} path along the \textcolor{MyYellowDark}{yellow} edge $(v_2, v_3)$ and the \textcolor{MyYellowDark}{yellow} self-loop of $q_2$, while the product with $(N^b)^T$ and $G^b$ extends the \textcolor{MyBlueDark}{blue} path along the \textcolor{MyPurple}{purple} edge $(v_4, v_1)$ and the \textcolor{MyPurple}{purple} transition $(q_2, q_3)$.
+For readability, the products in the figure are shown after the new target vertex has been appended to each path, i.e., after applying $I_{simple}$.
+After the step, two paths of length 2 are obtained:
 $\pi_a = ((v_1, v_2), (v_2, v_3))$ and
-$\pi_b = ((v_1, v_2), (v_2, v_1))$.
+$\pi_b = ((v_1, v_4), (v_4, v_1))$.
 
-However, the path $\pi_b$ is filtered out by the index unary operator $I_{Simple}$ because it contains a repeated vertex $v_2$.
-The intermediate matrices are accumulated, and the algorithm finishes with three different paths in the resulting matrix.
+The path $\pi_a$ is simple and is kept, whereas the path $\pi_b$ is filtered out by the index unary operator $I_{simple}$ because it returns to the already visited vertex $v_1$.
+The per-label results are summed into the new frontier, which is then accumulated into $P$; the algorithm finishes with three different paths in the resulting matrix.
 
-\begin{figure}[h]
+\begin{figure*}[t]
 	\centering
 	\input{Diagram.tex}
-	\caption{The algorithm step for graph and automaton for regular expression $((a^+) (b?))^+$a using path semiring and all simple paths semantics}
+	\caption{The algorithm step for graph and automaton for regular expression $((a^+) (b?))^+$ using path semiring and all simple paths semantics}
 	\label{fig:algorithm-step}
-\end{figure}
+\end{figure*}
 
-The result is a Boolean vector $P^F$ where $P^F_v$ contains all 2-paths (all simple paths, all trails, all shortest paths) from $v_s$ to $v$ satisfying the regular language constraint.
+The result is a vector $P^F$ over $\rpaths$ where $P^F_v$ contains all 2-paths (all simple paths, all trails, or all shortest paths, depending on the operator) from $v_s$ to $v$ satisfying the regular language constraint.
 
 
+\cnote{C23}{DO NOT COMPRESS: Sect.~4.4 should grow, not shrink: proof sketch for simple paths and trails, corrected shortest-paths argument, termination bounds and a cost paragraph (review-ai.md, M1 and M3). Budget about 1 page.}
 \subsection{Correctness Argument}
 
 The correctness argument follows the same induction scheme as in our previous work on LARPQ~\cite[Appendix~A]{belyanin2150single}.
 The induction is over the iterations of the main loop: the frontier matrix $M$ stores exactly the paths produced at the current traversal depth, and the accumulator matrix $P$ stores the union of all paths produced so far.
 Each iteration extends paths consistently in the query automaton and in the input graph; the optional index unary operator filters out extensions that violate the selected path semantics.
 After termination, selecting final automaton states yields exactly the query result for the chosen semiring instantiation.
+Appendix~\ref{app:correctness} gives the proofs for the path-semiring instantiations.
