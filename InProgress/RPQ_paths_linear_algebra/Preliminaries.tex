@@ -18,23 +18,32 @@ We begin by defining the graph data model used in this work.
 
 For the remainder of this paper, we assume that vertices of any graph $G = \langle V, E, L, \lambda_G \rangle$ are enumerated, and without loss of generality, $V = \{1, 2, \ldots, |V|\}$.
 
-\cnote{C6}{Biggest saving in the paper. The two bullet lists below (9 items) can be one compact list or a three-line paragraph: $a^-$ with $(a^-)^- = a$; $e^- = (v, u)$; $E^\leftrightarrow = E \cup \{e^- \mid e \in E\}$; $L^\leftrightarrow = L \cup \{a^- \mid a \in L\}$; $\lambda^\leftrightarrow_G(e) = \lambda_G(e) \cup \{a^- \mid a \in \lambda_G(e^-)\}$; $G^\leftrightarrow$. The intermediate objects $E^-$, $L^-$, $\lambda^-_G$ are never used outside this list. About 6 lines.}
-To enable traversal in both directions along edges, we introduce the notion of inverted edges and labels. Let $G = \langle V, E, L, \lambda_G \rangle$ be an edge-labeled graph. We define:
-\begin{itemize}
-	\item $a^- \notin L$ for each $a \in L$, with $(a^-)^- = a$ and $a = b \Leftrightarrow a^- = b^-$;
-	\item $e^- = (v, u)$ where $e = (u, v)$;
-	\item $E^- = \{e^- \mid e \in E\}$;
-	\item $L^- = \{a^- \mid a \in L\}$;
-	\item $\lambda_G^-: E^- \mapsto 2^{L^-}$, where $\lambda_G^-(e^-) = \{a^- \mid a \in \lambda_G(e)\}$.
-\end{itemize}
-
-We also define the bidirectional edge and label sets:
-\begin{itemize}
-	\item $E^\leftrightarrow = E \cup E^-$;
-	\item $L^\leftrightarrow = L \cup L^-$;
-	\item $\lambda_G^\leftrightarrow: E^\leftrightarrow \mapsto 2^{L^\leftrightarrow}$, where $\lambda_G^\leftrightarrow(e) = \lambda_G(e) \cup \lambda_G^-(e)$;
-	\item $G^\leftrightarrow = \langle V, E^\leftrightarrow, L^\leftrightarrow, \lambda_G^\leftrightarrow \rangle$.
-\end{itemize}
+To enable traversal in both directions along edges, we introduce inverted labels and edges.
+Let $G = \langle V, E, L, \lambda_G \rangle$ be an edge-labeled graph.
+For every label $a \in L$ let $a^- \notin L$ be its inverse, with $(a^-)^- = a$ and $a = b \Leftrightarrow a^- = b^-$, and for every edge $e = (u, v)$ let $e^- = (v, u)$.
+The bidirectional graph $G^\leftrightarrow = \langle V, E^\leftrightarrow, L^\leftrightarrow, \lambda_G^\leftrightarrow \rangle$ is given by
+\begin{align*}
+	E^\leftrightarrow &= E \cup \{ e^- \mid e \in E \}, \qquad L^\leftrightarrow = L \cup \{ a^- \mid a \in L \}, \\
+	\lambda_G^\leftrightarrow(e) &= \lambda_G(e) \cup \{ a^- \mid a \in \lambda_G(e^-) \} \quad \text{for } e \in E^\leftrightarrow,
+\end{align*}
+where $\lambda_G(e) = \emptyset$ for $e \notin E$.
+% C6 (2026-09-18): the two bullet lists that this paragraph replaces.
+%To enable traversal in both directions along edges, we introduce the notion of inverted edges and labels. Let $G = \langle V, E, L, \lambda_G \rangle$ be an edge-labeled graph. We define:
+%\begin{itemize}
+%	\item $a^- \notin L$ for each $a \in L$, with $(a^-)^- = a$ and $a = b \Leftrightarrow a^- = b^-$;
+%	\item $e^- = (v, u)$ where $e = (u, v)$;
+%	\item $E^- = \{e^- \mid e \in E\}$;
+%	\item $L^- = \{a^- \mid a \in L\}$;
+%	\item $\lambda_G^-: E^- \mapsto 2^{L^-}$, where $\lambda_G^-(e^-) = \{a^- \mid a \in \lambda_G(e)\}$.
+%\end{itemize}
+%
+%We also define the bidirectional edge and label sets:
+%\begin{itemize}
+%	\item $E^\leftrightarrow = E \cup E^-$;
+%	\item $L^\leftrightarrow = L \cup L^-$;
+%	\item $\lambda_G^\leftrightarrow: E^\leftrightarrow \mapsto 2^{L^\leftrightarrow}$, where $\lambda_G^\leftrightarrow(e) = \lambda_G(e) \cup \lambda_G^-(e)$;
+%	\item $G^\leftrightarrow = \langle V, E^\leftrightarrow, L^\leftrightarrow, \lambda_G^\leftrightarrow \rangle$.
+%\end{itemize}
 
 The graph $G^\leftrightarrow$ allows traversal along both original and inverted edges, which is essential for evaluating two-way regular path queries.
 
@@ -58,6 +67,7 @@ We denote $|\pi|$ as the length of a path $\pi$ and consider zero-length paths, 
 \begin{definition}[Two-way path]
 	A two-way path (2-path) $\pi = (e_1, e_2, \ldots, e_n)$ in $G$ is a path in $G^\leftrightarrow$. Two-way simple paths and two-way trails are defined analogously.
 \end{definition}
+\gb{Data model vs.\ MillenniumDB (checked in its code and in the PathFinder paper). Here an edge is a vertex pair with a set of labels, and $e$, $e^-$ are distinct elements of $E^\leftrightarrow$. In MillenniumDB, RDF, and property graphs an edge is an identified object (for RDF, the triple): $(u, a, v)$ and $(u, b, v)$ are two edges, and an inverse traversal reuses the same edge (\texttt{is\_trail} compares edge ids only, ignoring direction). Consequences: a path that uses two labels over the same pair is not a 2-trail here but a trail there; $u \to v \to u$ over one edge is a 2-trail here but not there; for all three semantics, label variants of one vertex sequence are one path here and several paths there (the implementation actually produces one copy per label, without storing the label). Simple paths are otherwise unaffected: ``no repeated vertex'' is the challenge version's semantics, called \textsc{acyclic} in current MillenniumDB, whose \textsc{simple} allows first $=$ last. Two ways out: (1)~reimplement with labels stored in the paths, i.e., apply the extension per label $a$ with $I_a$ appending $(a, j)$, which makes trails and path counts coincide with MillenniumDB; or (2)~keep the model, state the difference in Sects.~\ref{sec:preliminaries} and~\ref{sec:evaluation}, and show it is immaterial for the studied datasets by reporting, per query, whether result counts agree and how many results involve parallel matching labels or an inverse re-traversal. Decision needed before the evaluation is redone.}
 
 The mapping $\omega_{G^\leftrightarrow}$ associates 2-paths with words over the label alphabet: $\omega_{G^\leftrightarrow}(\pi) = \{a_1 \cdot \ldots \cdot a_n \mid a_i \in \lambda_G^\leftrightarrow(e_i)\}$ for a 2-path $\pi = (e_1, \ldots, e_n)$ in $G$, where $\cdot$ denotes string concatenation.
 % C8 (2026-09-17): the $G$-only variant of $\omega$ is not used in the paper.
@@ -90,9 +100,9 @@ Regular languages, recognized by finite automata, provide the foundation for spe
 %	A two-way deterministic finite automaton (2-DFA) is a special case of 2-NFA with $|Q_S| = 1$ and $\forall (q, q'), (q, q'') \in \Delta: q' \neq q'' \Rightarrow \lambda_N((q, q')) \cap \lambda_N((q, q'')) = \emptyset$.
 %\end{definition}
 
-\cnote{C10}{The ``graph as a 2-NFA'' view ($N_G$ and the displayed $[[N_G]]$) is never used. Keep one sentence: ``A 2-NFA is an edge-labeled graph over $Q$ with labels from $\Sigma^\leftrightarrow$, so the matrix representation of Sect.~3.2 applies to it'', which is all Sect.~3 needs for the Boolean decomposition of $N$. About 4 lines.}
+\cnote{C10}{The ``graph as a 2-NFA'' view ($N_G$ and the displayed $\llbracket N_G \rrbracket$) is never used. Keep one sentence: ``A 2-NFA is an edge-labeled graph over $Q$ with labels from $\Sigma^\leftrightarrow$, so the matrix representation of Sect.~3.2 applies to it'', which is all Sect.~3 needs for the Boolean decomposition of $N$. About 4 lines.}
 A 2-NFA can be viewed as a graph $G_N = \langle Q, \Delta, \Sigma^\leftrightarrow, \lambda_N \rangle$ equipped with sets of starting and final states. Conversely, a graph $G = \langle V, E, L, \lambda_G \rangle$ equipped with $V_S \subseteq V$ can be seen as a 2-NFA $N_G = \langle V, L, E, \lambda_G^\leftrightarrow, V_S, V \rangle$ that accepts:
-$$ [[N_G]] = \bigcup_{\text{2-path } \pi_G \text{ in } G \text{ from } v_S \in V_S} \omega_{G^\leftrightarrow}(\pi_G) $$
+$$ \llbracket N_G \rrbracket = \bigcup_{\text{2-path } \pi_G \text{ in } G \text{ from } v_S \in V_S} \omega_{G^\leftrightarrow}(\pi_G) $$
 
 \subsection{Two-Way Regular Path Queries}
 
@@ -102,240 +112,325 @@ $$ [[N_G]] = \bigcup_{\text{2-path } \pi_G \text{ in } G \text{ from } v_S \in V
 
 We define the following semantic variants of 2-RPQs considered in this paper:
 \begin{itemize}
-	\item \underline{\textbf{S}}ingle-\underline{\textbf{s}}ource \underline{\textbf{s}}hortest \underline{\textbf{p}}aths (\textbf{SSSP});
-	\item \underline{\textbf{S}}ingle-\underline{\textbf{s}}ource \underline{\textbf{a}}ll \underline{\textbf{s}}imple \underline{\textbf{p}}aths (\textbf{SSASP});
-	\item \underline{\textbf{S}}ingle-\underline{\textbf{s}}ource \underline{\textbf{a}}ll \underline{\textbf{t}}rails (\textbf{SSAT}).
+  \item Single-source all $simple$ paths;
+  \item Single-source all $trails$.
+  \item Single-source $shortest$ paths;
 \end{itemize}
-For $X \in \{shortest, simple, trails\}$, respectively, the result of the query is
+Let
 \begin{align*}
-      [[Q]]_{X} = \{ \pi \mid \ & \pi \text{ is a 2-path in } G \text{ from } v_s \text{ that is,} \\
-                                & \text{respectively, shortest (to its end vertex),} \\
-                                & \text{simple, or a trail, and } \omega_{G^\leftrightarrow}(\pi) \cap R \neq \emptyset \}.
+      \mathcal{A} = \{ \pi \mid \ & \pi \text{ is a 2-path in } G \text{ from } v_s \\
+                                  & \text{and } \omega_{G^\leftrightarrow}(\pi) \cap R \neq \emptyset \}
 \end{align*}
+be the set of 2-paths from $v_s$ that satisfy the constraint. The results of the query are
+\begin{align*}
+      \llbracket Q \rrbracket_{simple}   &= \{ \pi \in \mathcal{A} \mid \pi \text{ is simple} \}, \\
+      \llbracket Q \rrbracket_{trails}   &= \{ \pi \in \mathcal{A} \mid \pi \text{ is a trail} \}, \\
+      \llbracket Q \rrbracket_{shortest} &= \{ \pi \in \mathcal{A} \mid |\pi| \leq |\pi'| \text{ for every } \pi' \in \mathcal{A} \\
+                       &\qquad\qquad\quad \text{ending in the same vertex as } \pi \}.
+\end{align*}
+That is, under the shortest-paths semantics, for every vertex $v$ all shortest paths among the 2-paths from $v_s$ to $v$ that satisfy $R$ are returned, as in MillenniumDB~\cite{DBLP:journals/corr/abs-2204-11137,DBLP:conf/amw/FariasRV23}.
+\gb{2026-09-18: shortest-paths semantics changed from ``shortest (to its end vertex)'' to the MillenniumDB/GQL one (shortest among the paths satisfying $R$); Appendix~\ref{app:correctness} proves Algorithm~\ref{algo:semiring-rpq} for this definition. Notation: $Q$ denotes both the state set of the 2-NFA and the query in $\llbracket Q \rrbracket$; consider $\mathcal{Q}$ for the query.}
 % C11 (2026-09-17): the three separate definitions, merged into the display above.
 %We define the following semantic variants of 2-RPQs considered in this paper.
 %
 %\begin{itemize}
 	%\item \textbf{Single-source reachability (SSR):}
-	%      $$ [[Q]]_{SSR} = \{ u \in V \mid \exists \text{ 2-path } \pi \text{ in } G \text{ from } v_s \text{ to } u \text{ and } \omega_{G^\leftrightarrow}(\pi) \cap R \neq \emptyset \}. $$
+	%      $$ \llbracket Q \rrbracket_{SSR} = \{ u \in V \mid \exists \text{ 2-path } \pi \text{ in } G \text{ from } v_s \text{ to } u \text{ and } \omega_{G^\leftrightarrow}(\pi) \cap R \neq \emptyset \}. $$
 %
 	%\item \textbf{Single-destination reachability (SDR):}
-	%      $$ [[Q]]_{SDR} = \{ u \in V \mid \exists \text{ 2-path } \pi \text{ in } G \text{ from } u \text{ to } v_s \text{ and } \omega_{G^\leftrightarrow}(\pi) \cap R \neq \emptyset \}. $$
+	%      $$ \llbracket Q \rrbracket_{SDR} = \{ u \in V \mid \exists \text{ 2-path } \pi \text{ in } G \text{ from } u \text{ to } v_s \text{ and } \omega_{G^\leftrightarrow}(\pi) \cap R \neq \emptyset \}. $$
 %
 %	\item \underline{\textbf{S}}ingle-\underline{\textbf{s}}ource \underline{\textbf{s}}hortest \underline{\textbf{p}}aths (\textbf{SSSP}):
 %	\begin{align*}
-%	      [[Q]]_{SSSP} = \{ \pi \mid \ & \pi \text{ is a shortest path to any } v \text{ in } G \text{ from } v_s \\ 
+%	      \llbracket Q \rrbracket_{SSSP} = \{ \pi \mid \ & \pi \text{ is a shortest path to any } v \text{ in } G \text{ from } v_s \\ 
 %                                     & \text{ and } \omega_{G^\leftrightarrow}(\pi) \cap R \neq \emptyset \}.
 %    \end{align*}
 %	
 %	\item \underline{\textbf{S}}ingle-\underline{\textbf{d}}estination \underline{\textbf{s}}hortest \underline{\textbf{p}}aths (\textbf{SDSP}):
 %	      \begin{align*}
-%            [[Q]]_{SDSP} = \{ \pi \mid \ & \pi \text{ is a shortest path from any } v \text{ in } G \text{ to } v_s  \\ 
+%            \llbracket Q \rrbracket_{SDSP} = \{ \pi \mid \ & \pi \text{ is a shortest path from any } v \text{ in } G \text{ to } v_s  \\ 
 %                                         & \text{ and } \omega_{G^\leftrightarrow}(\pi) \cap R \neq \emptyset \}.
 %          \end{align*}
 %	
 %	\item \underline{\textbf{S}}ingle-\underline{\textbf{s}}ource \underline{\textbf{a}}ll \underline{\textbf{s}}imple \underline{\textbf{p}}aths (\textbf{SSASP}):
 %	      \begin{align*}
-%	            [[Q]]_{SSASP} = \{ \pi \mid \ & \pi \text{ is a 2-simple path in } G \text{ from } v_s \\
+%	            \llbracket Q \rrbracket_{SSASP} = \{ \pi \mid \ & \pi \text{ is a 2-simple path in } G \text{ from } v_s \\
 %	                                          & \text{ and } \omega_{G^\leftrightarrow}(\pi) \cap R \neq \emptyset \}.
 %	      \end{align*}
 %	
 %	\item \underline{\textbf{S}}ingle-\underline{\textbf{d}}estination \underline{\textbf{a}}ll \underline{\textbf{s}}imple \underline{\textbf{p}}aths (\textbf{SDASP}):
 %	      \begin{align*}
-%	            [[Q]]_{SDASP} = \{ \pi \mid \ & \pi \text{ is a 2-simple path in } G \text{ to } v_s \\
+%	            \llbracket Q \rrbracket_{SDASP} = \{ \pi \mid \ & \pi \text{ is a 2-simple path in } G \text{ to } v_s \\
 %	                                          & \text{ and } \omega_{G^\leftrightarrow}(\pi) \cap R \neq \emptyset \}.
 %	      \end{align*}
 %	
 %	\item \underline{\textbf{S}}ingle-\underline{\textbf{s}}ource \underline{\textbf{a}}ll \underline{\textbf{t}}rails (\textbf{SSAT}):
 %	      \begin{align*}
-%	            [[Q]]_{SSAT} = \{ \pi \mid \ & \pi \text{ is a 2-trail in } G \text{ from } v_s \\
+%	            \llbracket Q \rrbracket_{SSAT} = \{ \pi \mid \ & \pi \text{ is a 2-trail in } G \text{ from } v_s \\
 %	                                         & \text{ and } \omega_{G^\leftrightarrow}(\pi) \cap R \neq \emptyset \}.
 %	      \end{align*}
 %	
 %	\item \underline{\textbf{S}}ingle-\underline{\textbf{d}}estination \underline{\textbf{a}}ll \underline{\textbf{t}}rails (\textbf{SDAT}):
 %      \begin{align*}
-%            [[Q]]_{SDAT} = \{ \pi \mid \ & \pi \text{ is a 2-trail in } G \text{ to } v_s \\
+%            \llbracket Q \rrbracket_{SDAT} = \{ \pi \mid \ & \pi \text{ is a 2-trail in } G \text{ to } v_s \\
 %                                        & \text{ and } \omega_{G^\leftrightarrow}(\pi) \cap R \neq \emptyset \}.
 %      \end{align*}
 %\end{itemize}
 
 \cnote{C12}{With the single-destination definitions commented out, this paragraph can be one sentence (``Single-destination variants, defined symmetrically, reduce to single-source ones by reversing the query and the automaton, so we consider only single-source queries''), and the GB note below can go. About 3 lines.}
 Single-destination variants reduce to the single-source ones by reversing the query.
-Let $R^- = \{ a_n^- a_{n-1}^- \ldots a_1^- \mid a_1 a_2 \ldots a_n \in R \}$; then a path from $u$ to $v_s$ matching $R$ is, read backwards in $G^\leftrightarrow$, a path from $v_s$ to $u$ matching $R^-$, so $[[\langle G, R, v_s \rangle]]_{SD*}$ is obtained from $[[\langle G, R^-, v_s \rangle]]_{SS*}$ by reversing the resulting paths.
+Let $R^- = \{ a_n^- a_{n-1}^- \ldots a_1^- \mid a_1 a_2 \ldots a_n \in R \}$; then a path from $u$ to $v_s$ matching $R$ is, read backwards in $G^\leftrightarrow$, a path from $v_s$ to $u$ matching $R^-$, so $\llbracket \langle G, R, v_s \rangle \rrbracket_{SD*}$ is obtained from $\llbracket \langle G, R^-, v_s \rangle \rrbracket_{SS*}$ by reversing the resulting paths.
 An automaton for $R^-$ is obtained from an automaton for $R$ by inverting transition directions, inverting labels, and swapping starting and final states; in matrix terms, the Boolean decomposition is transposed.
 For this reason, the rest of the paper considers single-source queries only.
 \gb{Reviewer D8: the abstract scopes the work to single-source queries while single-destination variants were defined and never evaluated. Kept the definitions and added the reduction remark above. Decide whether to keep the SD definitions or drop them.}
 
 Figure~\ref{fig:semantics-examples} presents examples of single-source query results under different semantics on the same graph: \textbf{a)} \emph{all simple paths}, \textbf{b)} \emph{all trails}, and \textbf{c)} \emph{all shortest paths}.
 
-\cnote{C13}{Layout: Fig.~1 uses the full width for three small graphs. Options: $0.3$ of the text width per panel, or merge Figs.~1 and~2 into one running example (same graph and automaton) and drop the duplicated drawings. About 0.1 page.}
 \captionsetup[subfigure]{justification=centering}
-\begin{figure*}[t]
-  \centering
-  \begin{subfigure}[t]{0.32\textwidth}
-    \centering
-
-    \resizebox{\textwidth}{!}{
-    
-    \begin{tikzpicture}[
-        >=Stealth,
-        vertex/.style={
-            circle,
-            draw,
-            minimum size=5mm
-        }
+% Figure 1 (C13, 2026-09-18): the original drawings with the vertices moved closer
+% together and slightly smaller nodes (font unchanged, no scaling), arranged as
+% two panels on top and one below so that the figure fits in one column.
+\newcommand{\semgraph}[1]{%
+  \begin{tikzpicture}[
+      >=Stealth,
+      vertex/.style={circle, draw, inner sep=1pt, minimum size=4.5mm}
     ]
-    
-      \node[vertex] (v1) at (0,0) {$v_1$};
-      \node[vertex] (v4) at (-2.2,0.8) {$v_4$};
-      \node[vertex] (v2) at (1.5,1.4) {$v_2$};
-      \node[vertex] (v3) at (2.5,-1.6) {$v_3$};
-    
-      % right cycle
-      \draw[->, bend left=18]
-          (v1) to node[above left] {\texttt{a}} (v2);
-      
-      \draw[->, bend left=22]
-          (v2) to node[right] {\texttt{a}} (v3);
-      
-      \draw[->, bend left=20]
-          (v3) to node[below left] {\texttt{b}} (v1);
-      
-      % left cycle
-      \draw[->, bend right=45]
-          (v1) to node[above right] {\texttt{a}} (v4);
-      
-      \draw[->, bend right=40]
-          (v4) to node[below left] {\texttt{b}} (v1);
-      
-      % red walk: v1 -> v2 -> v3 -> v1
-      \draw[MyRed, thick, ->]
+    \node[vertex] (v1) at (0, 0)          {$v_1$};
+    \node[vertex] (v4) at (-1.5, 0.55)    {$v_4$};
+    \node[vertex] (v2) at (1.05, 0.95)    {$v_2$};
+    \node[vertex] (v3) at (1.7, -1.1)     {$v_3$};
+    % right cycle
+    \draw[->, bend left=18, -stealth]  (v1) to node[above left]  {\texttt{a}} (v2);
+    \draw[->, bend left=22, -stealth]  (v2) to node[right]       {\texttt{a}} (v3);
+    \draw[->, bend left=20, -stealth]  (v3) to node[below left]  {\texttt{b}} (v1);
+    % left cycle
+    \draw[->, bend right=45, -stealth] (v1) to node[above right] {\texttt{a}} (v4);
+    \draw[->, bend right=40, -stealth] (v4) to node[below left]  {\texttt{b}} (v1);
+    #1
+  \end{tikzpicture}%
+}
+\begin{figure}[h]
+  \centering
+  \begin{subfigure}[t]{0.48\columnwidth}
+    \centering
+    \semgraph{%
+      % red: v1 -> v2, v1 -> v2 -> v3, v1 -> v4
+      \draw[MyRed, thick, ->, -latex]
           ($(v1)+(0.18,0.25)$)
           to[out=28,in=195] ($(v2)+(-0.1,-0.25)$);
-
-      \draw[MyRed, thick, ->]
+      \draw[MyRed, thick, ->, -latex]
           ($(v1)+(0.18,0.10)$)
-          to[out=28,in=195] ($(v2)+(-0.1,-0.4)$)
-          to[out=-45,in=75] ($(v3)+(-0.3,0.3)$);
-          %to[out=-185,in=-35] ($(v1)+(0.15,-0.12)$);
-      
-      % blue walk: v1 -> v4 -> v1
-      \draw[MyRed, thick, ->]
+          to[out=28,in=195] ($(v2)+(-0,-0.35)$)
+          to[out=-45,in=75] ($(v3)+(-0.2,0.2)$);
+      \draw[MyRed, thick, ->, -latex]
           ($(v1)+(-0.18,0.10)$)
-          to[out=125,in=55]
-          ($(v4)+(0.4,-0.12)$);
-          %to[out=-75,in=-185]
-          %($(v1)+(-0.18,-0.02)$);
-      
-    \end{tikzpicture}
+          to[out=125,in=55] ($(v4)+(0.3,-0.12)$);
     }
     \caption{All simple paths}
-    %\label{fig:sub2}
   \end{subfigure}
-  \begin{subfigure}[t]{0.32\textwidth}
+  \hfill
+  % the three panels form a slightly rotated triangle: (b) is lowered, (c) shifted left
+  \raisebox{-6mm}{%
+  \begin{subfigure}[t]{0.48\columnwidth}
     \centering
-
-    \resizebox{\textwidth}{!}{
-    \begin{tikzpicture}[
-        >=Stealth,
-        vertex/.style={
-            circle,
-            draw,
-            minimum size=5mm
-        }
-    ]
-    
-      \node[vertex] (v1) at (0,0) {$v_1$};
-      \node[vertex] (v4) at (-2.2,0.8) {$v_4$};
-      \node[vertex] (v2) at (1.5,1.4) {$v_2$};
-      \node[vertex] (v3) at (2.5,-1.6) {$v_3$};
-    
-      % right cycle
-      \draw[->, bend left=18]
-          (v1) to node[above left] {\texttt{a}} (v2);
-      
-      \draw[->, bend left=22]
-          (v2) to node[right] {\texttt{a}} (v3);
-      
-      \draw[->, bend left=20]
-          (v3) to node[below left] {\texttt{b}} (v1);
-      
-      % left cycle
-      \draw[->, bend right=45]
-          (v1) to node[above right] {\texttt{a}} (v4);
-      
-      \draw[->, bend right=40]
-          (v4) to node[below left] {\texttt{b}} (v1);
-      
-      
-      \draw[MyPurple, thick, ->]
+    \semgraph{%
+      % purple trail: v1 -> v2 -> v3 -> v1 -> v4 -> v1
+      \draw[MyPurple, thick, ->, -latex]
         ($(v1)+(0.18,0.18)$)
-        to[out=30,in=195]
-        ($(v2)+(-0.1,-0.40)$)
-        to[out=-45,in=75]
-        ($(v3)+(-0.3,0.3)$)
-        to[out=-185,in=-35] ($(v1)+(0.2,-0.12)$)
-        to[out=0,in=0] ($(v1)+(0.,0.2)$)
-        to[out=-185,in=70]
-        ($(v1)+(-0.2,0.10)$)
-        to[out=125,in=55]
-        ($(v4)+(0.4,-0.12)$)
-        to[out=-75,in=-185]
-        ($(v1)+(-0.18,-0.02)$);
-    \end{tikzpicture}
+        to[out=30,in=195]  ($(v2)+(-0,-0.35)$)
+        to[out=-45,in=75]  ($(v3)+(-0.2,0.2)$)
+        to[out=-185,in=-35] ($(v1)+(0.15,-0.12)$)
+        to[out=50,in=0]     ($(v1)+(0.,0.15)$)
+        to[out=-185,in=70] ($(v1)+(-0.15,0.10)$)
+        to[out=125,in=55]  ($(v4)+(0.3,-0.12)$)
+        to[out=-75,in=-185] ($(v1)+(-0.18,-0.02)$);
     }
     \caption{One of the longest 2-paths in all trails}
-    %\label{fig:sub4}
-  \end{subfigure}
-  \begin{subfigure}[t]{0.32\textwidth}
+  \end{subfigure}}
+  \\[1ex]
+  \hspace*{0.16\columnwidth}%
+  \begin{subfigure}[t]{0.48\columnwidth}
     \centering
-
-    \resizebox{\textwidth}{!}{
-    \begin{tikzpicture}[
-        >=Stealth,
-        vertex/.style={
-            circle,
-            draw,
-            minimum size=5mm
-        }
-    ]
-    
-      \node[vertex] (v1) at (0,0) {$v_1$};
-      \node[vertex] (v4) at (-2.2,0.8) {$v_4$};
-      \node[vertex] (v2) at (1.5,1.4) {$v_2$};
-      \node[vertex] (v3) at (2.5,-1.6) {$v_3$};
-    
-    % right cycle
-    \draw[->, bend left=18]
-        (v1) to node[above left] {\texttt{a}} (v2);
-    
-    \draw[->, bend left=22]
-        (v2) to node[right] {\texttt{a}} (v3);
-    
-    \draw[->, bend left=20]
-        (v3) to node[below left] {\texttt{b}} (v1);
-    
-    % left cycle
-    \draw[->, bend right=45]
-        (v1) to node[above right] {\texttt{a}} (v4);
-    
-    \draw[->, bend right=40]
-        (v4) to node[below left] {\texttt{b}} (v1);
-    
-    % blue walk: v1 -> v4 -> v1
-    \draw[MyBlue, thick, ->]
+    \semgraph{%
+      % blue: v1 -> v4 -> v1
+      \draw[MyBlue, thick, ->, -latex]
         ($(v1)+(-0.18,0.10)$)
-        to[out=125,in=55]
-        ($(v4)+(0.4,-0.12)$)
-        to[out=-75,in=-185]
-        ($(v1)+(-0.18,-0.02)$);
-    
-    \end{tikzpicture}
+        to[out=125,in=55]  ($(v4)+(0.3,-0.12)$)
+        to[out=-75,in=-185] ($(v1)+(-0.18,-0.02)$);
     }
-
     \caption{All shortest paths from $v_1$ to $v_1$}
-    %\label{fig:sub3}
-  \end{subfigure}
+  \end{subfigure}\hfill\mbox{}
   \caption{Different query semantics for $((a^+)\,(b?))^+\,$}
   \label{fig:semantics-examples}
-\end{figure*}
+\end{figure}
+% C13 (2026-09-18): previous full-width version of Figure 1.
+%\captionsetup[subfigure]{justification=centering}
+%\begin{figure*}[b]
+%  \centering
+%  \begin{subfigure}[t]{0.32\textwidth}
+%    \centering
+%
+%    \resizebox{\textwidth}{!}{
+%    
+%    \begin{tikzpicture}[
+%        >=Stealth,
+%        vertex/.style={
+%            circle,
+%            draw,
+%            minimum size=5mm
+%        }
+%    ]
+%    
+%      \node[vertex] (v1) at (0,0) {$v_1$};
+%      \node[vertex] (v4) at (-2.2,0.8) {$v_4$};
+%      \node[vertex] (v2) at (1.5,1.4) {$v_2$};
+%      \node[vertex] (v3) at (2.5,-1.6) {$v_3$};
+%    
+      % right cycle
+%      \draw[->, bend left=18]
+%          (v1) to node[above left] {\texttt{a}} (v2);
+%      
+%      \draw[->, bend left=22]
+%          (v2) to node[right] {\texttt{a}} (v3);
+%      
+%      \draw[->, bend left=20]
+%          (v3) to node[below left] {\texttt{b}} (v1);
+%      
+      % left cycle
+%      \draw[->, bend right=45]
+%          (v1) to node[above right] {\texttt{a}} (v4);
+%      
+%      \draw[->, bend right=40]
+%          (v4) to node[below left] {\texttt{b}} (v1);
+%      
+      % red walk: v1 -> v2 -> v3 -> v1
+%      \draw[MyRed, thick, ->]
+%          ($(v1)+(0.18,0.25)$)
+%          to[out=28,in=195] ($(v2)+(-0.1,-0.25)$);
+%
+%      \draw[MyRed, thick, ->]
+%          ($(v1)+(0.18,0.10)$)
+%          to[out=28,in=195] ($(v2)+(-0.1,-0.4)$)
+%          to[out=-45,in=75] ($(v3)+(-0.3,0.3)$);
+          %to[out=-185,in=-35] ($(v1)+(0.15,-0.12)$);
+%      
+      % blue walk: v1 -> v4 -> v1
+%      \draw[MyRed, thick, ->]
+%          ($(v1)+(-0.18,0.10)$)
+%          to[out=125,in=55]
+%          ($(v4)+(0.4,-0.12)$);
+          %to[out=-75,in=-185]
+          %($(v1)+(-0.18,-0.02)$);
+%      
+%    \end{tikzpicture}
+%    }
+%    \caption{All simple paths}
+    %\label{fig:sub2}
+%  \end{subfigure}
+%  \begin{subfigure}[t]{0.32\textwidth}
+%    \centering
+%
+%    \resizebox{\textwidth}{!}{
+%    \begin{tikzpicture}[
+%        >=Stealth,
+%        vertex/.style={
+%            circle,
+%            draw,
+%            minimum size=5mm
+%        }
+%    ]
+%    
+%      \node[vertex] (v1) at (0,0) {$v_1$};
+%      \node[vertex] (v4) at (-2.2,0.8) {$v_4$};
+%      \node[vertex] (v2) at (1.5,1.4) {$v_2$};
+%      \node[vertex] (v3) at (2.5,-1.6) {$v_3$};
+%    
+      % right cycle
+%      \draw[->, bend left=18]
+%          (v1) to node[above left] {\texttt{a}} (v2);
+%      
+%      \draw[->, bend left=22]
+%          (v2) to node[right] {\texttt{a}} (v3);
+%      
+%      \draw[->, bend left=20]
+%          (v3) to node[below left] {\texttt{b}} (v1);
+%      
+      % left cycle
+%      \draw[->, bend right=45]
+%          (v1) to node[above right] {\texttt{a}} (v4);
+%      
+%      \draw[->, bend right=40]
+%          (v4) to node[below left] {\texttt{b}} (v1);
+%      
+%      
+%      \draw[MyPurple, thick, ->]
+%        ($(v1)+(0.18,0.18)$)
+%        to[out=30,in=195]
+%        ($(v2)+(-0.1,-0.40)$)
+%        to[out=-45,in=75]
+%        ($(v3)+(-0.3,0.3)$)
+%        to[out=-185,in=-35] ($(v1)+(0.2,-0.12)$)
+%        to[out=0,in=0] ($(v1)+(0.,0.2)$)
+%        to[out=-185,in=70]
+%        ($(v1)+(-0.2,0.10)$)
+%        to[out=125,in=55]
+%        ($(v4)+(0.4,-0.12)$)
+%        to[out=-75,in=-185]
+%        ($(v1)+(-0.18,-0.02)$);
+%    \end{tikzpicture}
+%    }
+%    \caption{One of the longest 2-paths in all trails}
+    %\label{fig:sub4}
+%  \end{subfigure}
+%  \begin{subfigure}[t]{0.32\textwidth}
+%    \centering
+%
+%    \resizebox{\textwidth}{!}{
+%    \begin{tikzpicture}[
+%        >=Stealth,
+%        vertex/.style={
+%            circle,
+%            draw,
+%            minimum size=5mm
+%        }
+%    ]
+%    
+%      \node[vertex] (v1) at (0,0) {$v_1$};
+%      \node[vertex] (v4) at (-2.2,0.8) {$v_4$};
+%      \node[vertex] (v2) at (1.5,1.4) {$v_2$};
+%      \node[vertex] (v3) at (2.5,-1.6) {$v_3$};
+%    
+    % right cycle
+%    \draw[->, bend left=18]
+%        (v1) to node[above left] {\texttt{a}} (v2);
+%    
+%    \draw[->, bend left=22]
+%        (v2) to node[right] {\texttt{a}} (v3);
+%    
+%    \draw[->, bend left=20]
+%        (v3) to node[below left] {\texttt{b}} (v1);
+%    
+    % left cycle
+%    \draw[->, bend right=45]
+%        (v1) to node[above right] {\texttt{a}} (v4);
+%    
+%    \draw[->, bend right=40]
+%        (v4) to node[below left] {\texttt{b}} (v1);
+%    
+    % blue walk: v1 -> v4 -> v1
+%    \draw[MyBlue, thick, ->]
+%        ($(v1)+(-0.18,0.10)$)
+%        to[out=125,in=55]
+%        ($(v4)+(0.4,-0.12)$)
+%        to[out=-75,in=-185]
+%        ($(v1)+(-0.18,-0.02)$);
+%    
+%    \end{tikzpicture}
+%    }
+%
+%    \caption{All shortest paths from $v_1$ to $v_1$}
+    %\label{fig:sub3}
+%  \end{subfigure}
+%  \caption{Different query semantics for $((a^+)\,(b?))^+\,$}
+%  \label{fig:semantics-examples}
+%\end{figure*}

@@ -28,22 +28,29 @@ Given a semiring $\mathcal{S} = \langle D_{out}, D_{in_1}, D_{in_2}, \oplus, \ot
 
 \subsection{Matrix Representations}
 
-\cnote{C15}{All of Sect.~3.2 can be one definition: ``The Boolean decomposition of $G$ is $\{G_a \mid a \in L^\leftrightarrow\}$ with $(G_a)_{uv} = 1$ iff $(u, v) \in E^\leftrightarrow$ and $a \in \lambda_G^\leftrightarrow((u, v))$; the decomposition $\{N_a\}$ of a 2-NFA is defined likewise over $\Delta$.'' This replaces the relation/matrix paragraph, the $E_a$/$\Delta_a$ bullets and Defs.~3.2--3.3, and removes the undefined ``adjacency matrix $G$''. About 6 lines.}
-Relations between finite sets can be represented using matrices. For two enumerated finite sets $A = \{1, 2, \ldots, n\}$ and $B = \{1, 2, \ldots, m\}$, a binary matrix $T$ of size $n \times m$ can represent a relation $T \subseteq A \times B$ where $T_{ij} = 1 \Leftrightarrow (i, j) \in T$.
-
-Let $G = \langle V, E, L, \lambda_G \rangle$ be an arbitrary graph and $N = \langle Q, \Sigma, \Delta,$ $\lambda_N, Q_S, Q_F \rangle$ an arbitrary 2-NFA. For each label $a \in L^\leftrightarrow$, we define:
-\begin{itemize}
-	\item $E_a = \{e \mid e \in E, a \in \lambda_G^\leftrightarrow(e)\}$;
-	\item $\Delta_a = \{\delta \mid \delta \in \Delta, a \in \lambda_N(\delta)\}$.
-\end{itemize}
-
-\begin{definition}[Adjacency matrix of a label]
-	Let $G_a$ be the matrix representing the relation $E_a$. Then $G_a$ is called the adjacency matrix of label $a$.
-\end{definition}
+Let $G = \langle V, E, L, \lambda_G \rangle$ be a graph and $N = \langle Q, \Sigma, \Delta,$ $\lambda_N, Q_S, Q_F \rangle$ a 2-NFA.
+For a label $a$ let $E_a = \{ e \in E^\leftrightarrow \mid a \in \lambda_G^\leftrightarrow(e) \}$ and $\Delta_a = \{ \delta \in \Delta \mid a \in \lambda_N(\delta) \}$ be the edges and the transitions labeled by $a$.
 
 \begin{definition}[Boolean decomposition]
-	A Boolean decomposition of the adjacency matrix $G$ is the set of Boolean matrices $\{G_a \mid a \in L^\leftrightarrow\}$.
+	The Boolean decomposition of $G$ is the set of Boolean matrices $\{ G^a \mid a \in L^\leftrightarrow \}$, where $G^a$ is the $|V| \times |V|$ adjacency matrix of the label $a$: $G^a_{uv} = 1$ iff $(u, v) \in E_a$.
+	The Boolean decomposition $\{ N^a \mid a \in \Sigma^\leftrightarrow \}$ of $N$ is defined in the same way over $\Delta$: $N^a_{qq'} = 1$ iff $(q, q') \in \Delta_a$.
 \end{definition}
+% C15 (2026-09-18): the relation/matrix paragraph, the E_a/Delta_a list and Defs. 3.2-3.3 that the text above replaces.
+%Relations between finite sets can be represented using matrices. For two enumerated finite sets $A = \{1, 2, \ldots, n\}$ and $B = \{1, 2, \ldots, m\}$, a binary matrix $T$ of size $n \times m$ can represent a relation $T \subseteq A \times B$ where $T_{ij} = 1 \Leftrightarrow (i, j) \in T$.
+%
+%Let $G = \langle V, E, L, \lambda_G \rangle$ be an arbitrary graph and $N = \langle Q, \Sigma, \Delta,$ $\lambda_N, Q_S, Q_F \rangle$ an arbitrary 2-NFA. For each label $a \in L^\leftrightarrow$, we define:
+%\begin{itemize}
+%	\item $E_a = \{e \mid e \in E, a \in \lambda_G^\leftrightarrow(e)\}$;
+%	\item $\Delta_a = \{\delta \mid \delta \in \Delta, a \in \lambda_N(\delta)\}$.
+%\end{itemize}
+%
+%\begin{definition}[Adjacency matrix of a label]
+%	Let $G_a$ be the matrix representing the relation $E_a$. Then $G_a$ is called the adjacency matrix of label $a$.
+%\end{definition}
+%
+%\begin{definition}[Boolean decomposition]
+%	A Boolean decomposition of the adjacency matrix $G$ is the set of Boolean matrices $\{G_a \mid a \in L^\leftrightarrow\}$.
+%\end{definition}
 
 %\subsection{Boolean Matrix Operations}
 %
@@ -125,11 +132,15 @@ for $n \times m$ matrices over $\rpaths$ we define:
       \end{aligned}
     \right\}; \\
   I^P_{shortest}(a, i, j) &= \begin{cases}
-      \{ (\pi, j) \mid \pi \in a \} & \text{if } \forall k: P_{kj} = \emptyset, \\
+      \{ (\pi, j) \mid \pi \in a \} & \text{if } P_{ij} = \emptyset, \\
       \emptyset & \text{otherwise}.
     \end{cases}
 \end{align*}
 Here $(\pi, j)$ denotes the vertex sequence $\pi$ extended by the vertex $j$.
+For the shortest-paths semantics we also use the unary operator
+$\mathrm{minlen}(a) = \{ \pi \in a \mid |\pi| \leq |\pi'| \text{ for all } \pi' \in a \}$,
+which keeps the shortest paths of a set and is applied to the result of the algorithm.
+\gb{2026-09-18: $I^P_{shortest}$ now tests the pair, $P_{ij} = \emptyset$, instead of the vertex, $\forall k: P_{kj} = \emptyset$, and the result is post-processed by $\mathrm{minlen}$ (operator $J$ in Algorithm~\ref{algo:semiring-rpq}). The vertex test, and likewise a test over the final states only ($\forall k \in Q_F: P_{kj} = \emptyset$), loses the paths that pass through an already answered vertex in another state; see the counterexample in Appendix~\ref{app:correctness}. Alternative without $\mathrm{minlen}$: accumulate $F \,\overline{\otimes}\, M$ in a separate answer vector inside the loop, masked by the vertices that have no answer yet.}
 
 %The $I^P_{reach}$ when applied to a matrix behaves like a binary mask (enforcing skipping previously visited states).
 %The $I_{simple}$ operator extends paths while filtering out those that would create vertex repetitions (enforcing simple paths).
@@ -178,6 +189,6 @@ Here $(\pi, j)$ denotes the vertex sequence $\pi$ extended by the vertex $j$.
 %The correctness of the algorithm follows from the simultaneous breadth-first traversal of both the graph and the automaton. After termination, $P_{q_Fv} = 1$ for $q_F \in Q_F$ if and only if there exists a 2-path from $v_s$ to $v$ whose label sequence belongs to the language accepted by $\mathcal{N}$.
 %
 %The algorithm can also solve single-destination reachability by reversing the query. Let $\mathcal{R}^- = \{w^- = a_n^- a_{n-1}^- \ldots a_1^- \mid w = a_1 a_2 \ldots a_n \in \mathcal{R}\}$ and $\mathcal{N}^- = \langle Q, \Sigma, \Delta^-, \lambda_{\mathcal{N}}^-, Q_F, Q_S \rangle$. Then:
-%$$ [[Q]]_{SDR} = [[\langle \mathcal{G}, \mathcal{R}^-, v_s \rangle]]_{SSR}. $$
+%$$ \llbracket Q \rrbracket_{SDR} = \llbracket \langle \mathcal{G}, \mathcal{R}^-, v_s \rangle \rrbracket_{SSR}. $$
 %
 %Boolean matrix decomposition of $\mathcal{N}^-$ is obtained by transposing the matrices in the decomposition of $\mathcal{N}$.

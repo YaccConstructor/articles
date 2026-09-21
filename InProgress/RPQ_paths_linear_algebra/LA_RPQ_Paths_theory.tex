@@ -10,16 +10,16 @@ In this section, we present our main contribution: a generalized semiring-based 
 
 The key insight is that the LARPQ algorithm can be abstracted to work over any semiring equipped with appropriate operations. Algorithm~\ref{algo:semiring-rpq} presents the generalized version.
 
-\begin{algorithm}[t]
+\begin{algorithm}[h]
 	\caption{Generalized Single-Source 2-RPQ using Semirings}
 	\label{algo:semiring-rpq}
 	\fbox{
 		\begin{minipage}{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}
-      \textbf{Input:} Semiring $\mathcal{S} = \langle D_{out}, D_{in_1}, \mathbb{B}, \oplus, \otimes, \mathbf{0} \rangle$, initial frontier value $\mathbf{1}_{v_s} \in D_{out}$, index unary operator $I^{\langle \cdot \rangle}$, 2-NFA $\mathcal{N} = \langle Q, \Sigma, \Delta, \lambda_{\mathcal{N}}, Q_S, Q_F \rangle$, graph $\mathcal{G}=\langle V, E, L, \lambda_{\mathcal{G}} \rangle$, source $v_s \in V$ \\
+      \textbf{Input:} Semiring $\mathcal{S} = \langle D_{out}, D_{in_1}, \mathbb{B}, \oplus, \otimes, \mathbf{0} \rangle$, initial frontier value $\mathbf{1}_{v_s} \in D_{out}$, index unary operator $I^{\langle \cdot \rangle}$, unary result operator $J$ (the identity unless stated otherwise), 2-NFA $\mathcal{N} = \langle Q, \Sigma, \Delta, \lambda_{\mathcal{N}}, Q_S, Q_F \rangle$, graph $\mathcal{G}=\langle V, E, L, \lambda_{\mathcal{G}} \rangle$, source $v_s \in V$ \\
 			\textbf{Output:} Result depending on semiring instantiation
 			\begin{enumerate}
-				\item $\{ N^a \}\gets$ Boolean decomposition of the $\mathcal{N}$ adjacency matrix
-				\item $\{ G^a \}\gets$ Boolean decomposition of the $\mathcal{G}$ adjacency matrix
+				\item $\{ N^a \}\gets$ Boolean decomposition of $\mathcal{N}$
+				\item $\{ G^a \}\gets$ Boolean decomposition of $\mathcal{G}$
 				\item $M \gets \mathbf{0}$, $P \gets \mathbf{0}$
 				\item For each $q \in Q_S$: $M_{q{v_s}} \gets \mathbf{1}_{v_s}$
 				\item While $M \ne \mathbf{0}$:
@@ -30,11 +30,18 @@ The key insight is that the LARPQ algorithm can be abstracted to work over any s
 				      \end{itemize}
  				\item $F_{1 \times |Q|} \gets \mathbf{0}_{1 \times |Q|}$
  				\item For each $q \in Q_F$: set $F_{1q} \gets 1$
-        \item Return $P^F = F \overline{\otimes} P$
+        \item Return $P^F = J(F \overline{\otimes} P)$
 			\end{enumerate}
 		\end{minipage}
 	}
 \end{algorithm}
+
+\begin{figure*}[t]
+	\centering
+	\input{Diagram.tex}
+	\caption{The algorithm step for graph and automaton for regular expression $((a^+) (b?))^+$ using path semiring and all simple paths semantics}
+	\label{fig:algorithm-step}
+\end{figure*}
 
 \cnote{C20}{The four bullets restate what Algorithm~1 shows. Two sentences suffice (``Compared with [6], the semiring, the initial frontier value and the post-step operator are parameters; Sect.~4.2 recovers the Boolean case''). About 4 lines. Remove the GB note below once the loop order is confirmed against the implementation.}
 The generalized algorithm differs from the original in several key aspects:
@@ -59,7 +66,7 @@ The result is a Boolean vector $P^F$ where $P^F_v = 1$ if and only if vertex $v$
 For enumerating all simple paths, all trails, or all shortest paths, we use the previously introduced path semiring $\langle \rpaths, \rpaths,$ $\mathbb{B} = \{ 0, 1 \}, \cup, \textbf{fst}, \emptyset \rangle$ combined with appropriate index unary operators.
 The initial frontier value is the zero-length path from the source, $\mathbf{1}_{v_s} = \{ (v_s) \}$.
 
-When $I^P = I_{simple}$, the algorithm enumerates all simple 2-paths satisfying the query. When $I^P = I_{trail}$, it enumerates all trails. When $I^P = I^P_{shortest}$, it enumerates all shortest paths.
+When $I^P = I_{simple}$, the algorithm enumerates all simple 2-paths satisfying the query. When $I^P = I_{trail}$, it enumerates all trails. When $I^P = I^P_{shortest}$ and $J = \mathrm{minlen}$, it enumerates all shortest paths.
 \cnote{C21}{Redundant with Sects.~3.3/3.4; cut this sentence. Keep the three bullets below only if the four descriptive sentences in Sect.~3.4 are cut. About 2 lines.}
 The key difference from the reachability algorithm is that the frontier matrix $M$ now stores actual path information (as sequences of vertices)
 rather than Boolean values. The index unary operator filters extensions that would violate the path semantics:
@@ -67,7 +74,7 @@ rather than Boolean values. The index unary operator filters extensions that wou
 \begin{itemize}
 	\item $I_{simple}$ prevents extending a path with a vertex already present in the path (including the starting vertex), ensuring simplicity;
 	\item $I_{trail}$ prevents extending a path with an edge already traversed, ensuring the result is a trail;
-	\item $I^P_{shortest}$ prevents extending a path with a vertex if shorter paths to that vertex were already found (i.e., the vertex already appears in $P$).
+	\item $I^P_{shortest}$ prevents extending a path into a pair of a state and a vertex that has already been reached, so only the shortest paths to every such pair are produced; $\mathrm{minlen}$ then keeps, for every vertex, the paths of minimal length among those ending in a final state, i.e., the shortest paths that satisfy the constraint.
 \end{itemize}
 
 The algorithm maintains the BFS structure: on iteration $n$, $M_{qv}$ contains all valid paths of length $n$ from $v_s$ to $v$ that correspond to paths from some $q_s \in Q_S$ to $q$ in the automaton.
@@ -88,13 +95,6 @@ $\pi_b = ((v_1, v_4), (v_4, v_1))$.
 
 The path $\pi_a$ is simple and is kept, whereas the path $\pi_b$ is filtered out by the index unary operator $I_{simple}$ because it returns to the already visited vertex $v_1$.
 The per-label results are summed into the new frontier, which is then accumulated into $P$; the algorithm finishes with three different paths in the resulting matrix.
-
-\begin{figure*}[t]
-	\centering
-	\input{Diagram.tex}
-	\caption{The algorithm step for graph and automaton for regular expression $((a^+) (b?))^+$ using path semiring and all simple paths semantics}
-	\label{fig:algorithm-step}
-\end{figure*}
 
 The result is a vector $P^F$ over $\rpaths$ where $P^F_v$ contains all 2-paths (all simple paths, all trails, or all shortest paths, depending on the operator) from $v_s$ to $v$ satisfying the regular language constraint.
 
