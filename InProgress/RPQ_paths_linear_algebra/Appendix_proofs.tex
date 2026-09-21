@@ -1,0 +1,125 @@
+\section{Correctness of Algorithm~\ref{algo:semiring-rpq}}\label{app:correctness}
+
+Throughout, $\langle G, R, v_s \rangle$ is a 2-RPQ and $N$ is a 2-NFA accepting $R$, with the components of Sect.~\ref{sec:preliminaries}: a word $a_1 \cdots a_n$ belongs to $R$ iff there is a path $(q_0, \ldots, q_n)$ in $N$ with $q_0 \in Q_S$, $q_n \in Q_F$, and $a_i \in \lambda_N((q_{i-1}, q_i))$ for all $i$.
+As in Sect.~\ref{sec:la-graphs}, a 2-path is identified with its vertex sequence; we index it from zero, $\pi = (v_0, \ldots, v_n)$, so that $|\pi| = n$, and write $\pi \cdot u$ for $(v_0, \ldots, v_n, u)$.
+For a matrix $M$ we write $M[q, v]$ for its entry in row $q$ and column $v$.
+We call a 2-path $\pi$ from $v_s$ \emph{accepted} if $\pi \in \mathcal{A}$, i.e., $\omega_{G^\leftrightarrow}(\pi) \cap R \neq \emptyset$.
+
+\paragraph{Runs and witnesses.}
+A \emph{run} of $N$ on a 2-path $\pi = (v_0, \ldots, v_n)$ is a path $\rho = (q_0, \ldots, q_n)$ in $N$ with $q_0 \in Q_S$ and $\lambda_G^\leftrightarrow((v_{i-1}, v_i)) \cap \lambda_N((q_{i-1}, q_i)) \neq \emptyset$ for all $1 \leq i \leq n$.
+Choosing one label in each of these intersections, and conversely reading off the states of an accepting path of $N$ on a word of $\omega_{G^\leftrightarrow}(\pi)$, shows that
+\begin{equation}\label{eq:accept}
+	\pi \text{ is accepted} \iff \text{some run of } N \text{ on } \pi \text{ ends in } Q_F.
+\end{equation}
+For $n \geq 0$, $q \in Q$, and $v \in V$ let
+\begin{align*}
+	\mathcal{W}_n(q, v) = \{ \pi \mid \ & \pi \text{ is a 2-path of length } n \text{ from } v_s \text{ to } v \\
+	                                    & \text{with a run ending in } q \}
+\end{align*}
+be the set of \emph{witnesses} of $(q, v)$ at depth $n$, and let $d(q, v) = \min \{ n \mid \mathcal{W}_n(q, v) \neq \emptyset \}$, with $\min \emptyset = \infty$.
+
+\paragraph{States of the algorithm.}
+Let $M_n$ and $P_n$ denote the matrices $M$ and $P$ after $n$ iterations of the loop of Algorithm~\ref{algo:semiring-rpq}; $M_0$ is the initial frontier and $P_0 = \mathbf{0}$.
+Writing
+\[
+	\mathrm{step}(M) = \bigoplus_{a \in \Sigma^\leftrightarrow \cap L^\leftrightarrow} (N^a)^T \,\overline{\otimes}\, M \otimes G^a
+\]
+for the traversal step, the loop body gives, for $n \geq 1$,
+\[
+	P_n = P_{n-1} \oplus M_{n-1} = \bigoplus_{k < n} M_k
+	\qquad\text{and}\qquad
+	M_n = I^{P_n}\big(\mathrm{step}(M_{n-1})\big).
+\]
+If the loop stops after $T$ iterations, then $M_T = \mathbf{0}$ and the returned accumulator is $P_T = \bigoplus_k M_k$.
+For the path semiring, $\oplus$ is the entrywise union, the initial frontier is $M_0[q, v] = \{ (v_s) \}$ if $q \in Q_S$ and $v = v_s$ and $\emptyset$ otherwise, and the index unary operator is always applied, since it performs the extension of the paths by the target vertex.
+
+\begin{lemma}\label{lem:step}
+	For every $Q \times V$ matrix $M$ over $\rpaths$ and all $q \in Q$, $u \in V$,
+	\begin{align*}
+		\mathrm{step}(M)[q, u] = \bigcup \{\, M[q', v] \mid \ & (q', q) \in \Delta_a \text{ and } (v, u) \in E_a \\
+		                                                     & \text{for some } a \in \Sigma^\leftrightarrow \cap L^\leftrightarrow \,\}.
+	\end{align*}
+\end{lemma}
+\begin{proof}
+	By the definition of the matrix operations over $\paths$ and $\overline{\paths}$,
+	\begin{align*}
+		((N^a)^T \,\overline{\otimes}\, M)[q, v] &= \bigcup\nolimits_{q'} \snd(N^a[q', q], M[q', v]) \\
+		                                        &= \bigcup\nolimits_{(q', q) \in \Delta_a} M[q', v], \\
+		(X \otimes G^a)[q, u] &= \bigcup\nolimits_{v} \fst(X[q, v], G^a[v, u]) \\
+		                      &= \bigcup\nolimits_{(v, u) \in E_a} X[q, v];
+	\end{align*}
+	summing over $a$ gives the claim.
+\end{proof}
+
+\begin{lemma}\label{lem:ext}
+	Let $M[q, v] \subseteq \mathcal{W}_n(q, v)$ for all $q, v$, and let $M' = \mathrm{step}(M)$. Then for all $q \in Q$ and $u \in V$:
+	\begin{enumerate}
+		\item[(i)] if $\pi \in M'[q, u]$, then $\pi \cdot u \in \mathcal{W}_{n+1}(q, u)$;
+		\item[(ii)] if $\pi \cdot u \in \mathcal{W}_{n+1}(q, u)$ has a run $(q_0, \ldots, q_n, q)$ and $\pi \in M[q_n, v_n]$, where $v_n$ is the last vertex of $\pi$, then $\pi \in M'[q, u]$.
+	\end{enumerate}
+\end{lemma}
+\begin{proof}
+	(i) By Lemma~\ref{lem:step}, $\pi \in M[q', v] \subseteq \mathcal{W}_n(q', v)$ for some $q'$, $v$, and $a$ with $(q', q) \in \Delta_a$ and $(v, u) \in E_a$.
+	Hence $\pi$ ends in $v$, $\pi \cdot u$ is a 2-path of length $n+1$ from $v_s$ to $u$, and appending $q$ to a run on $\pi$ that ends in $q'$ yields a run on $\pi \cdot u$, because $a \in \lambda_G^\leftrightarrow((v, u)) \cap \lambda_N((q', q))$.
+	(ii) The run provides a label $a \in \lambda_G^\leftrightarrow((v_n, u)) \cap \lambda_N((q_n, q))$, i.e., $(q_n, q) \in \Delta_a$ and $(v_n, u) \in E_a$, so $M[q_n, v_n] \subseteq M'[q, u]$ by Lemma~\ref{lem:step}.
+\end{proof}
+
+\begin{theorem}[Simple paths and trails]\label{thm:simple-trail}
+	Let $X$ be $simple$ or $trail$, let $I^P = I_X$, and let $\mathcal{W}^X_n(q, v)$ be the set of paths in $\mathcal{W}_n(q, v)$ that are $X$. Then, for all $n \geq 0$, $q \in Q$, and $v \in V$,
+	\begin{equation}\label{eq:inv-x}
+		M_n[q, v] = \mathcal{W}^X_n(q, v).
+	\end{equation}
+	Consequently, the loop terminates after at most $|V|$ iterations for simple paths and at most $|E^\leftrightarrow| + 1$ iterations for trails, and $P^F[u] = \{ \pi \in \llbracket Q \rrbracket_X \mid \pi \text{ ends in } u \}$ for every $u \in V$.
+\end{theorem}
+\begin{proof}
+	We use two properties of $X$-paths: a prefix of an $X$-path is an $X$-path, and $\pi \cdot u$ is an $X$-path iff $\pi$ is an $X$-path and $u$ does not occur in $\pi$ (for $X = simple$) or $(v_n, u)$ is not an edge of $\pi$ (for $X = trail$).
+	The second property says that, for an $X$-path $\pi$ ending in $v_n$, the operator $I_X$ keeps $\pi \cdot u$ iff $\pi \cdot u$ is an $X$-path.
+
+	We prove \eqref{eq:inv-x} by induction on $n$.
+	For $n = 0$ both sides equal $\{ (v_s) \}$ if $q \in Q_S$ and $v = v_s$, and $\emptyset$ otherwise: the zero-length path is simple and a trail, and its runs are the one-state paths $(q)$ with $q \in Q_S$.
+	Assume \eqref{eq:inv-x} for $n$ and let $M' = \mathrm{step}(M_n)$, so that $M_{n+1}[q, u] = I_X(M'[q, u], q, u)$.
+	($\subseteq$) Let $\pi \cdot u \in M_{n+1}[q, u]$. Then $\pi \in M'[q, u]$, so $\pi \cdot u \in \mathcal{W}_{n+1}(q, u)$ by Lemma~\ref{lem:ext}(i); moreover $\pi \in M_n[q', v]$ for some $q', v$ by Lemma~\ref{lem:step}, so $\pi$ is an $X$-path by the hypothesis, and $\pi \cdot u$ is an $X$-path because $I_X$ kept it.
+	($\supseteq$) Let $\pi \cdot u \in \mathcal{W}^X_{n+1}(q, u)$ with a run $(q_0, \ldots, q_n, q)$. Its prefix $\pi$ is an $X$-path of length $n$ from $v_s$ to $v_n$ with the run $(q_0, \ldots, q_n)$, hence $\pi \in \mathcal{W}^X_n(q_n, v_n) = M_n[q_n, v_n]$. By Lemma~\ref{lem:ext}(ii), $\pi \in M'[q, u]$, and $I_X$ keeps $\pi \cdot u$ because it is an $X$-path.
+
+	Termination: a simple path visits every vertex at most once, so $\mathcal{W}^{simple}_n = \emptyset$ for $n \geq |V|$; a trail uses every edge of $E^\leftrightarrow$ at most once, so $\mathcal{W}^{trail}_n = \emptyset$ for $n > |E^\leftrightarrow|$. By \eqref{eq:inv-x}, $M_n = \mathbf{0}$ from these $n$ on.
+	Result: $P = \bigoplus_n M_n$ and $(F \,\overline{\otimes}\, P)[u] = \bigcup_q \snd(F[q], P[q, u]) = \bigcup_{q \in Q_F} \bigcup_n \mathcal{W}^X_n(q, u)$ is the set of $X$-2-paths from $v_s$ to $u$ having a run that ends in $Q_F$, i.e., by \eqref{eq:accept}, the set of paths of $\llbracket Q \rrbracket_X$ that end in $u$.
+\end{proof}
+
+\begin{theorem}[Shortest paths]\label{thm:shortest}
+	Let $I^P$ be the operator
+	\[
+		I^P_{shortest}(a, q, u) = \begin{cases}
+			\{ \pi \cdot u \mid \pi \in a \} & \text{if } P[q, u] = \emptyset, \\
+			\emptyset & \text{otherwise},
+		\end{cases}
+	\]
+	and let $J = \mathrm{minlen}$, so that $P^F = \mathrm{minlen}(F \,\overline{\otimes}\, P)$ entrywise.
+	Then, for all $n \geq 0$, $q \in Q$, and $v \in V$,
+	\begin{equation}\label{eq:inv-s}
+		M_n[q, v] = \begin{cases}
+			\mathcal{W}_n(q, v) & \text{if } d(q, v) = n, \\
+			\emptyset & \text{otherwise}.
+		\end{cases}
+	\end{equation}
+	Consequently, the loop terminates after at most $|Q| \cdot |V|$ iterations, and $P^F[u] = \{ \pi \in \llbracket Q \rrbracket_{shortest} \mid \pi \text{ ends in } u \}$ for every $u \in V$.
+\end{theorem}
+\gb{Sects.~\ref{sec:preliminaries} and~\ref{sec:la-graphs} and Algorithm~\ref{algo:semiring-rpq} were aligned with this theorem on 2026-09-18. The previous vertex-level test $\forall k: P[k,u] = \emptyset$, and likewise a test over the final states only, make the statement false: for $R = a \mid bcd$ on the graph $s \xrightarrow{a} u$, $s \xrightarrow{b} x$, $x \xrightarrow{c} u$, $u \xrightarrow{d} w$, the vertex $u$ is accepted at depth~1, the entry into $u$ at depth~2 is filtered, and the only accepted path $s, x, u, w$ to $w$ is never produced.}
+\begin{proof}
+	We prove \eqref{eq:inv-s} by induction on $n$. The case $n = 0$ is as in Theorem~\ref{thm:simple-trail}, since $d(q, v_s) = 0$ iff $q \in Q_S$, and $d(q, v) \geq 1$ for $v \neq v_s$.
+	Assume \eqref{eq:inv-s} for all $k \leq n$. Then $P_{n+1}[q, u] = \bigcup_{k \leq n} M_k[q, u]$ is non-empty iff $d(q, u) \leq n$.
+	Hence $M_{n+1}[q, u] = \emptyset$ if $d(q, u) \leq n$, as required, and otherwise $M_{n+1}[q, u] = \{ \pi \cdot u \mid \pi \in M'[q, u] \}$ with $M' = \mathrm{step}(M_n)$; note that $M_n[q, v] \subseteq \mathcal{W}_n(q, v)$ for all $q, v$, so Lemma~\ref{lem:ext} applies.
+	Let $d(q, u) \geq n + 1$.
+	($\subseteq$) If $\pi \in M'[q, u]$, then $\pi \cdot u \in \mathcal{W}_{n+1}(q, u)$ by Lemma~\ref{lem:ext}(i); hence $d(q, u) = n + 1$, and $\pi \cdot u$ belongs to the right-hand side of \eqref{eq:inv-s}.
+	($\supseteq$) Let $d(q, u) = n + 1$ and $\pi \cdot u \in \mathcal{W}_{n+1}(q, u)$ with a run $(q_0, \ldots, q_n, q)$. Then $\pi \in \mathcal{W}_n(q_n, v_n)$, so $d(q_n, v_n) \leq n$. In fact $d(q_n, v_n) = n$: a witness $\pi'' \in \mathcal{W}_m(q_n, v_n)$ with $m < n$ would give, by the argument of Lemma~\ref{lem:ext}(i), $\pi'' \cdot u \in \mathcal{W}_{m+1}(q, u)$ with $m + 1 < d(q, u)$. Hence $\pi \in M_n[q_n, v_n]$ by the hypothesis, $\pi \in M'[q, u]$ by Lemma~\ref{lem:ext}(ii), and $\pi \cdot u \in M_{n+1}[q, u]$.
+
+	Termination: a witness of minimal length, together with its run, never visits a pair $(q_i, v_i)$ twice, since the segment between two visits could be removed; hence $d(q, v) < |Q| \cdot |V|$ whenever it is finite, and $M_n = \mathbf{0}$ for $n \geq |Q| \cdot |V|$ by \eqref{eq:inv-s}.
+	Result: by \eqref{eq:inv-s}, $A_u = (F \,\overline{\otimes}\, P)[u] = \bigcup_{q \in Q_F} \mathcal{W}_{d(q, u)}(q, u)$, where the terms with $d(q, u) = \infty$ are empty, is the set of 2-paths $\pi$ from $v_s$ to $u$ that have a run ending in some $q \in Q_F$ with $|\pi| = d(q, u)$.
+	Let $d_F(u) = \min_{q \in Q_F} d(q, u)$; then $\mathrm{minlen}(A_u)$ consists of the paths of $A_u$ of length $d_F(u)$, and each of them is accepted by \eqref{eq:accept}.
+	Every accepted path $\pi'$ from $v_s$ to $u$ has a run ending in some $q' \in Q_F$, so $|\pi'| \geq d(q', u) \geq d_F(u)$; therefore the paths of $\mathrm{minlen}(A_u)$ belong to $\llbracket Q \rrbracket_{shortest}$.
+	Conversely, let $\pi \in \llbracket Q \rrbracket_{shortest}$ end in $u$, with a run ending in $q \in Q_F$. Since $\mathcal{W}_{d_F(u)}(q^*, u)$ is non-empty for the minimizing $q^* \in Q_F$ and consists of accepted paths, the minimality of $\pi$ gives $|\pi| \leq d_F(u) \leq d(q, u) \leq |\pi|$, so $|\pi| = d(q, u) = d_F(u)$, $\pi \in \mathcal{W}_{d(q,u)}(q, u) \subseteq A_u$, and $\pi \in \mathrm{minlen}(A_u)$.
+\end{proof}
+
+\balance % EDBT: balance the columns of the last page
+\begin{remark}
+	Replacing every set in \eqref{eq:inv-s} by its non-emptiness gives $M_n[q, v] = 1$ iff $d(q, v) = n$, the invariant of the Boolean instantiation of Sect.~\ref{sec:semiring-framework} and the correctness statement of \cite{belyanin2150single}; the same induction proves it, with Lemma~\ref{lem:step} read over the Boolean semiring and the operator $I^P_{reach}$ instead of $I^P_{shortest}$.
+\end{remark}
