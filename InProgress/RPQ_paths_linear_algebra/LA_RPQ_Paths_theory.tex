@@ -15,8 +15,8 @@ The key insight is that the LARPQ algorithm can be abstracted to work over any s
 	\label{algo:semiring-rpq}
 	\fbox{
 		\begin{minipage}{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}
-      \textbf{Input:} Semiring $\mathcal{S} = \langle D_{out}, D_{in_1}, \mathbb{B}, \oplus, \otimes, \mathbf{0} \rangle$, initial frontier value $\mathbf{1}_{v_s} \in D_{out}$, index unary operator $I^{\langle \cdot \rangle}$, unary result operator $J$ (the identity unless stated otherwise), 2-NFA $\mathcal{N} = \langle Q, \Sigma, \Delta, \lambda_{\mathcal{N}}, Q_S, Q_F \rangle$, graph $\mathcal{G}=\langle V, E, L, \lambda_{\mathcal{G}} \rangle$, source $v_s \in V$ \\
-			\textbf{Output:} Result depending on semiring instantiation
+      \textbf{Input:} Semiring $\mathcal{S} = \langle D_{out}, D_{in_1}, \mathbb{B}, \oplus, \otimes, \mathbf{0} \rangle$ with $D_{in_1} = D_{out}$, initial frontier value $\mathbf{1}_{v_s} \in D_{out}$, index unary operator $I^{\langle \cdot \rangle}$, unary result operator $J$ (the identity unless stated otherwise), 2-NFA $\mathcal{N} = \langle Q, \Sigma, \Delta, \lambda_{\mathcal{N}}, Q_S, Q_F \rangle$, graph $\mathcal{G}=\langle V, E, L, \lambda_{\mathcal{G}} \rangle$, source $v_s \in V$ \\
+			\textbf{Output:} Vector $P^F$ of size $1 \times |V|$ over $D_{out}$, depending on the instantiation
 			\begin{enumerate}
 				\item $\{ N^a \}\gets$ Boolean decomposition of $\mathcal{N}$
 				\item $\{ G^a \}\gets$ Boolean decomposition of $\mathcal{G}$
@@ -26,7 +26,7 @@ The key insight is that the LARPQ algorithm can be abstracted to work over any s
 				      \begin{itemize}
 					      \item $P \gets P \oplus M$
                 \item $M \gets \bigoplus_{a \in \Sigma^\leftrightarrow \cap L^\leftrightarrow}((N^a)^T \overline{\otimes} M \otimes G^a)$
-					      \item If $I^P$ defined: $M \gets I^P(M)$
+					      \item $M \gets I^P(M)$
 				      \end{itemize}
  				\item $F_{1 \times |Q|} \gets \mathbf{0}_{1 \times |Q|}$
  				\item For each $q \in Q_F$: set $F_{1q} \gets 1$
@@ -48,7 +48,7 @@ The generalized algorithm differs from the original in several key aspects:
 \begin{itemize}
 	\item Matrix operations ($\oplus$, $\otimes$) are performed over an arbitrary semiring $\mathcal{S}$ having $D_{in_2} = \mathbb{B}$;
 	\item The initial frontier value $\mathbf{1}_{v_s}$ is a parameter of the instantiation, since a semiring in the GraphBLAS sense need not have a multiplicative identity;
-	\item An optional index unary operator $I^P$ is applied to the frontier after each traversal step to filter or transform path information;
+	\item An index unary operator $I^P$ is applied to the frontier after each traversal step to filter or transform path information;
 	\item The final result format depends on the semiring instantiation.
 \end{itemize}
 \gb{Loop body reordered to ``accumulate, multiply, filter'' (the original text filtered first). With the path semiring, filtering the initial frontier $\{(v_s)\}$ by $I_{simple}$ would append $v_s$ to a path that already contains it and drop everything, so the algorithm would terminate immediately. For the Boolean semiring the new order is exactly the original LARPQ (mask by $\neg P$ after the product). Please double-check against the implementation.}
@@ -77,7 +77,7 @@ rather than Boolean values. The index unary operator filters extensions that wou
 	\item $I^P_{shortest}$ prevents extending a path into a pair of a state and a vertex that has already been reached, so only the shortest paths to every such pair are produced; $\mathrm{minlen}$ then keeps, for every vertex, the paths of minimal length among those ending in a final state, i.e., the shortest paths that satisfy the constraint.
 \end{itemize}
 
-The algorithm maintains the BFS structure: on iteration $n$, $M_{qv}$ contains all valid paths of length $n$ from $v_s$ to $v$ that correspond to paths from some $q_s \in Q_S$ to $q$ in the automaton.
+The algorithm maintains the BFS structure: on iteration $n$, $M_{qv}$ contains all paths of length $n$ admitted by the chosen semantics from $v_s$ to $v$ that correspond to paths from some $q_s \in Q_S$ to $q$ in the automaton.
 Figure~\ref{fig:algorithm-step} illustrates an example of the algorithm step for the all simple paths semantics.
 
 \cnote{C22}{The colour legend (five sentences) and the step walkthrough below overlap; merge into one paragraph, or move the legend into the caption of Fig.~2. About 3 lines.}
@@ -85,6 +85,7 @@ We use \textcolor{MyRedDark}{red} and \textcolor{MyBlueDark}{blue} to denote dif
 Dotted lines represent the relation represented by the matrix $M$, the relationship between graph vertices and automaton states.
 The edges affected during the traversal are colored \textcolor{MyYellowDark}{yellow} for the label \texttt{a} and \textcolor{MyPurple}{purple} for the label \texttt{b}.
 The corresponding entries in the adjacency matrices use the same colors.
+The upper row of products belongs to the label \texttt{a} and the lower one to \texttt{b}; the two rows are combined with $\oplus$ into the new frontier.
 
 Before the step, the frontier $M$ contains two paths of length 1 in the row of state $q_2$: the \textcolor{MyRedDark}{red} path $((v_1, v_2))$ in the column of $v_2$ and the \textcolor{MyBlueDark}{blue} path $((v_1, v_4))$ in the column of $v_4$.
 The step is performed separately for each label: the product with $(N^a)^T$ and $G^a$ extends the \textcolor{MyRedDark}{red} path along the \textcolor{MyYellowDark}{yellow} edge $(v_2, v_3)$ and the \textcolor{MyYellowDark}{yellow} self-loop of $q_2$, while the product with $(N^b)^T$ and $G^b$ extends the \textcolor{MyBlueDark}{blue} path along the \textcolor{MyPurple}{purple} edge $(v_4, v_1)$ and the \textcolor{MyPurple}{purple} transition $(q_2, q_3)$.
@@ -104,6 +105,6 @@ The result is a vector $P^F$ over $\rpaths$ where $P^F_v$ contains all 2-paths (
 
 The correctness argument follows the same induction scheme as in our previous work on LARPQ~\cite[Appendix~A]{belyanin2150single}.
 The induction is over the iterations of the main loop: the frontier matrix $M$ stores exactly the paths produced at the current traversal depth, and the accumulator matrix $P$ stores the union of all paths produced so far.
-Each iteration extends paths consistently in the query automaton and in the input graph; the optional index unary operator filters out extensions that violate the selected path semantics.
+Each iteration extends paths consistently in the query automaton and in the input graph; the index unary operator filters out extensions that violate the selected path semantics.
 After termination, selecting final automaton states yields exactly the query result for the chosen semiring instantiation.
 Appendix~\ref{app:correctness} gives the proofs for the path-semiring instantiations.
