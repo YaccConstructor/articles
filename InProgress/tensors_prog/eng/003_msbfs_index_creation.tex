@@ -1,0 +1,150 @@
+% !TEX TS-program = pdflatex
+% !TeX spellcheck = en_US
+% !TEX root = main.tex
+
+\he{Multi-Source Breadth-First Search Index Creation}
+\label{sec:msbfs}
+
+Although Listing~\ref{tensor:cfpq:cubic} achieves the best known asymptotic upper bound via dynamic transitive closure, maintaining the full all-pairs closure often proves to be redundant in practice.
+Specifically, the dynamic transitive closure matrix $C_3$ has dimensions $|R|n \times |R|n$, where $|R| = \dim(\mathcal{M}_1)$ is the total number of states in the RSM $R$.
+However, the nonterminal extraction step (lines~19--24 of Listing~\ref{tensor:cfpq:cubic}) only inspects entries $C_3[i,j] = 1$ whose source state $s = \lfloor i/n \rfloor$ is the initial state $q_A^0$ of some box $A$ ($A \in N$).
+All $(|R| - |N|)n$ rows corresponding to non-initial automaton states are never queried to derive new nonterminal edges, yet they must be computed and stored solely to support $C_3$ matrix extensions during closure updates.
+
+To avoid computing reachability from non-initial states while preserving the same matrix $M_3$, we replace all-pairs dynamic transitive closure with a \emph{dynamic Multi-Source Breadth-First Search} (MSBFS) that restricts $C_3$ to $|N|n$ start-state rows and advances frontiers over the intersection adjacency matrix $M_3$.
+
+\textbf{Algorithm Description.}
+Listing~\ref{tensor:cfpq:msbfs} presents the MSBFS-based index creation algorithm.
+The algorithm maintains two matrices $C_3$ and $C_3'$ of size $|N|n \times |R|n$:
+\begin{itemize}
+    \item $C_3$ stores all pairs reachable from the $|N|n$ initial configurations $(q_A^0, x)$ ($A \in N, x \in V$), where row index $kn + x$ corresponds to the $k$-th nonterminal ($s_k = \textit{startStates}(R)[k]$) and graph vertex $x$, while column index $f \cdot n + y$ corresponds to RSM state $f$ and graph vertex $y$;
+    \item $C_3'$ stores the MSBFS \emph{frontier}, i.e., pairs reached for the very first time on the current iteration.
+\end{itemize}
+
+\begin{algorithm}[h]
+\floatname{algorithm}{Listing}
+\begin{algorithmic}[1]
+\footnotesize
+\caption{Kronecker product based CFPQ using multi-source breadth-first search}
+\label{tensor:cfpq:msbfs}
+\Function{contextFreePathQuerying}{$G, \mathcal{G}$}
+    \State{$n \gets$ the number of nodes in $\mathcal{G}$}
+    \State{$R \gets$ recursive automaton for $G$}
+    \State{$\mathcal{M}_1 \gets$ the set of adjacency matrices for $R$}
+    \State{$\mathcal{M}_2, \mathcal{A}_2 \gets$ the sets of adjacency matrices for $\mathcal{G}$}
+    \State{$M_3 \gets$ empty matrix of size $\dim(\mathcal{M}_1)n \times \dim(\mathcal{M}_1)n$}
+    \State{$C_3, C_3' \gets$ empty matrices of size $|N|n \times \dim(\mathcal{M}_1)n$}
+    \For{$k \in 0..|N|-1$}
+        \State{$s \gets \textit{startStates}(R)[k]$}
+        \For{$i \in 0..n-1$}
+            \State{$C_3'[kn + i,\, s \cdot n + i] \gets 1$}
+            \Comment{Initializing the MSBFS frontier}
+        \EndFor
+        \For{$S \in \textit{getNonterminals}(R, s, s)$}
+            \For{$i \in 0..n-1$}
+                \State{$M_2^S[i, i] \gets 1$}
+                \State{$A_2^S[i, i] \gets 1$}
+            \EndFor
+        \EndFor
+    \EndFor
+    \State{$C_3 \gets C_3'$}
+    \While{$C_3'$ is not empty}
+        \State{$M_3' \gets \bigvee_{M^l \in \mathcal{M}_1 \otimes \mathcal{A}_2} M^l$}
+        \Comment{Using only new edges from $\mathcal{A}_2$}
+        \State{$C_3' \gets \big((C_3' \cdot M_3) + (C_3 \cdot M_3')\big) \wedge \neg C_3$}
+        \Comment{Updating the MSBFS frontier}
+        \State{$M_3 \gets M_3 + M_3'$}
+        \Comment{Updating the matrix for the Kronecker product result}
+        \State{$C_3 \gets C_3 + C_3'$}
+        \Comment{Updating the reachability matrix}
+        \State{$\mathcal{A}_2 \gets$ the set of empty matrices}
+        \For{$(i, j) \mid C_3'[i, j] \neq 0$}
+            \State{$s, f \gets \textit{getStates}(R, C_3', i, j)$}
+            \State{$x, y \gets \textit{getCoordinates}(C_3', i, j)$}
+            \For{$S \in \textit{getNonterminals}(R, s, f)$}
+                \If{$M_2^S[x, y] = 0$}
+                    \State{$M_2^S[x, y] \gets 1$}
+                    \State{$A_2^S[x, y] \gets 1$}
+                \EndIf
+            \EndFor
+        \EndFor
+    \EndWhile
+    \State \Return $\mathcal{M}_2, M_3$
+\EndFunction
+\Function{startStates}{$R$}
+    \State \Return the array of start states of the automata for the nonterminals in $R$
+\EndFunction
+\Function{getNonterminals}{$R, s, f$}
+    \State \Return the nonterminals $S$ whose automaton in $R$ has the start state $s$ and the final state $f$
+\EndFunction
+\Function{getStates}{$R, C, i, j$}
+    \State{$n \gets \dim(\mathcal{M}_2)$}
+    \Comment{$\mathcal{M}_2$ the set of adjacency matrices for $\mathcal{G}$}
+    \State \Return $\textit{startStates}(R)[\lfloor i / n \rfloor],\, \lfloor j / n \rfloor$
+\EndFunction
+\Function{getCoordinates}{$C, i, j$}
+    \State{$n \gets \dim(\mathcal{M}_2)$}
+    \State \Return $i \bmod n,\, j \bmod n$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+At each iteration of the \textbf{while} loop, the algorithm performs two core matrix operations:
+\begin{enumerate}
+    \item \emph{Incremental Kronecker product update} (lines~18 and~20): by left-distributivity of the Kronecker product, only the set of matrices $\mathcal{A}_2$ containing newly added edges is multiplied with $\mathcal{M}_1$ to update $M_3$.
+    \item \emph{MSBFS frontier advance} (lines~19 and~21):
+    \begin{itemize}
+        \item $C_3' \cdot M_3$ advances the frontier along previously known edges in $M_3$;
+        \item $C_3 \cdot M_3'$ extends all previously reached configurations in $C_3$ that can now traverse the newly inserted edges in $M_3'$.
+    \end{itemize}
+\end{enumerate}
+Finally, lines~23--29 extract newly reached pairs $(x, y)$ for nonterminals whose final states appear in $C_3'$ and place strictly new nonterminal edges into $\mathcal{M}_2$ and $\mathcal{A}_2$.
+
+\textbf{Relation to Dynamic Transitive Closure.}
+The MSBFS formulation in Listing~\ref{tensor:cfpq:msbfs} can be viewed as a start-state projection of the dynamic transitive closure from Listing~\ref{tensor:cfpq:cubic}.
+
+In the worst case, when $|N| = \Theta(|R|)$ (e.g., for grammars in weak Chomsky normal form) and edges appear sequentially across iterations, $C_3$ has the same asymptotic dimensions $\Theta(|R|n \times |R|n)$ as in Listing~\ref{tensor:cfpq:cubic}, so MSBFS reduces to maintaining the full incremental transitive closure of $M_3$.
+
+\begin{theorem}
+\label{thm:msbfs_correct}
+    Let $\mathcal{G} = \langle V, E, L \rangle$ be a graph ($n = |V| \ge 1$) and $G = \langle \Sigma, N, S, P \rangle$ be a grammar ($|N| \ge 1$).
+    Listing~\ref{tensor:cfpq:msbfs} terminates and produces the same matrices $\mathcal{M}_2$ and $M_3$ as Listing~\ref{tensor:cfpq:cubic}: for any $x, y \in V$ and $N_i \in N$, $M_2^{N_i}[x, y] = 1$ iff there is a path $x\pi y$ in $\mathcal{G}$ such that $N_i \xrightarrow{*} \omega(\pi)$.
+\end{theorem}
+\begin{proof}
+Let superscript $(t)$ denote matrix values after iteration $t \ge 1$ of the \textbf{while} loop ($t = 0$ after line~16).
+
+\emph{Termination and Kronecker invariant.}
+Because $C_3'^{(t)}$ is masked by $\wedge \neg C_3^{(t-1)}$ (line~19), every non-empty frontier strictly increases the number of non-zeros in $C_3$.
+Since $C_3$ has finite size $|N|n \times |R|n$, the loop terminates at some $T \le |N||R|n^2$ with $C_3'^{(T)} = \mathbf{0}$ and $\mathcal{A}_2^{(T)} = \mathbf{0}$.
+By lines~22 and~27--29, the sets $\mathcal{A}_2^{(0)}, \dots, \mathcal{A}_2^{(T-1)}$ are pairwise disjoint with $\mathcal{M}_2^{(t-1)} = \sum_{\tau=0}^{t-1} \mathcal{A}_2^{(\tau)}$ and $\mathcal{M}_2^{(T)} = \mathcal{M}_2^{(T-1)}$.
+By left-distributivity of $\otimes$, summing line~20 gives
+\begin{align*}
+M_3^{(t)} &= \bigvee_{M^l \in \mathcal{M}_1 \otimes \mathcal{M}_2^{(t-1)}} M^l \quad (\forall t \ge 1), \\
+M_3^{(T)} &= \bigvee_{M^l \in \mathcal{M}_1 \otimes \mathcal{M}_2^{(T)}} M^l.
+\end{align*}
+
+\emph{Reachability closure.}
+First, induction on $t \ge 0$ shows $C_3^{(t)} \subseteq C_3^{(0)} \cdot (M_3^{(t)})^*$: at $t = 0$, $C_3^{(0)} = C_3^{(0)} \cdot I$; for $t \ge 1$, since $C_3'^{(t-1)} \subseteq C_3^{(t-1)}$ and $M_3^{(t-1)}, M_3'^{(t)} \subseteq M_3^{(t)}$, lines~19 and~21 yield $C_3^{(t)} \subseteq C_3^{(t-1)} + C_3^{(t-1)} \cdot M_3^{(t)} \subseteq C_3^{(0)} \cdot (M_3^{(t)})^*$.
+Second, induction on $t \ge 0$ shows the invariant $(C_3^{(t)} \setminus C_3'^{(t)}) \cdot M_3^{(t)} \subseteq C_3^{(t)}$: it holds trivially at $t = 0$ ($C_3^{(0)} = C_3'^{(0)}$), and for $t \ge 1$,
+\begin{multline*}
+C_3^{(t-1)} \cdot M_3^{(t)} = \big(C_3^{(t-1)} \setminus C_3'^{(t-1)}\big) \cdot M_3^{(t-1)} \\
++ C_3'^{(t-1)} \cdot M_3^{(t-1)} + C_3^{(t-1)} \cdot M_3'^{(t)} \subseteq C_3^{(t)}
+\end{multline*}
+by the induction hypothesis and lines~19--21.
+At $t = T$, $C_3'^{(T)} = \mathbf{0}$ gives $C_3^{(T)} \cdot M_3^{(T)} \subseteq C_3^{(T)}$, which together with $C_3^{(0)} \subseteq C_3^{(T)}$ implies $C_3^{(0)} \cdot (M_3^{(T)})^* \subseteq C_3^{(T)}$.
+Combining both inclusions yields $C_3^{(T)} = C_3^{(0)} \cdot (M_3^{(T)})^*$.
+
+\emph{Soundness ($\Rightarrow$).}
+We show by induction on $t$ that $M_2^{N_i,(t)}[x, y] = 1$ implies a path $x\pi y$ in $\mathcal{G}$ with $N_i \xrightarrow{*} \omega(\pi)$.
+At $t = 0$ (lines~12--15), $x = y$ and $q_{N_i}^0 \in F_{N_i}$, giving the empty path with $N_i \xrightarrow{*} \varepsilon$.
+If $M_2^{N_i}[x, y] \gets 1$ is set at iteration $t \ge 1$ (lines~23--29), then $C_3'^{(t)}$ has a non-zero entry from $(q_{N_i}^0, x)$ to $(f, y)$ for some $f \in F_{N_i}$.
+Since $C_3'^{(t)} \subseteq C_3^{(t)} \subseteq C_3^{(0)} \cdot (M_3^{(t)})^*$, there is a path from $(q_{N_i}^0, x)$ to $(f, y)$ in $M_3^{(t)} = \bigvee \mathcal{M}_1 \otimes \mathcal{M}_2^{(t-1)}$.
+Each edge on this path corresponds either to a terminal edge of $\mathcal{G}$ or to a nonterminal edge in $\mathcal{M}_2^{(t-1)}$ (valid by the induction hypothesis); concatenating them yields a path $x\pi y$ accepted by box $C_{N_i}$, so $N_i \xrightarrow{*} \omega(\pi)$.
+
+\emph{Completeness ($\Leftarrow$).}
+We show by induction on the height of a derivation tree for $N_i \xrightarrow{*} \omega(\pi)$ that $M_2^{N_i,(T)}[x, y] = 1$.
+Any derivation $N_i \xrightarrow{*} \omega(\pi)$ corresponds to a path in box $C_{N_i}$ from $q_{N_i}^0$ to some $f \in F_{N_i}$ whose labels are terminals (in $\mathcal{M}_2^{(0)} \subseteq \mathcal{M}_2^{(T)}$) or nonterminals with strictly smaller derivation trees (in $\mathcal{M}_2^{(T)}$ by the induction hypothesis).
+Hence $(q_{N_i}^0, x)$ reaches $(f, y)$ in $M_3^{(T)} = \bigvee \mathcal{M}_1 \otimes \mathcal{M}_2^{(T)}$, so the corresponding cell equals $1$ in $C_3^{(0)} \cdot (M_3^{(T)})^* = C_3^{(T)}$.
+Because $C_3^{(T)} = C_3^{(0)} + \sum_{t=1}^{T-1} C_3'^{(t)}$, this cell is processed either in lines~12--15 (if it lies in $C_3^{(0)}$, i.e., $x = y$ and $f = q_{N_i}^0$) or in lines~23--29 upon first arrival in $C_3'^{(t)}$, setting $M_2^{N_i,(T)}[x, y] = 1$.
+
+Thus $\mathcal{M}_2^{(T)}$, and hence $M_3^{(T)}$ (determined by $\mathcal{M}_1 \otimes \mathcal{M}_2^{(T)}$), coincides with the output of Listing~\ref{tensor:cfpq:cubic}.
+\end{proof}
